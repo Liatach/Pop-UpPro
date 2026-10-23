@@ -26,8 +26,9 @@ TOL = 0.05  # mm, collinear test
 JOIN = 0.6  # mm, edges this close in the assembled card count as one fold
 
 GUIDE = 'fill="none" stroke="#7a7a7a" stroke-width="0.25" stroke-dasharray="0.6 1.2"'
-GLUE = 'fill="#d9d4c7" fill-opacity="0.7" stroke="none"'
-CONTENT = ("PRINT", "CUT", "CREASE", "LINES")
+CONTENT = ("PRINT", "ART_CUT", "CUT", "CREASE", "LINES")
+SUFFIX = {"ART_CUT": "_art", "CUT": "_cut", "CREASE": "_crease", "LINES": "_lines"}
+CREASE_RED = "#ff0000"  # Cut + Crease: creases import as their own colour layer
 LINE_STYLES = ("DEFAULT", "CUSTOM", "NONE")
 
 
@@ -45,11 +46,15 @@ def line_styles(content="PRINT", style="DEFAULT", width=0.3, color=(0, 0, 0),
     dv = f' stroke-dasharray="{width * 6:.3g} {width * 4:.3g}"'
     if not dashed:
         dm = dv = ""
-    if content != "PRINT" or style == "CUSTOM":
-        if content != "PRINT" and style != "CUSTOM":
+    lines_only = content in ("CUT", "CREASE", "LINES")
+    if lines_only or style == "CUSTOM":
+        if lines_only and style != "CUSTOM":
             opacity = 1.0
         c = f' stroke="{_hex(color)}" stroke-opacity="{max(0.0, min(1.0, opacity)):.3g}"'
-        return {"cut": base + c, "mountain": base + c + dm, "valley": base + c + dv}
+        f = c
+        if content == "LINES":
+            f = f' stroke="{CREASE_RED}" stroke-opacity="{max(0.0, min(1.0, opacity)):.3g}"'
+        return {"cut": base + c, "mountain": base + f + dm, "valley": base + f + dv}
     out = {"cut": base + ' stroke="#000000"', "mountain": base + ' stroke="#c0182a"' + dm,
            "valley": base + ' stroke="#1d5fbf"' + dv}
     if style == "NONE":
@@ -63,7 +68,32 @@ def settings_from(st):
                 line_color=tuple(st.line_color), line_opacity=st.line_opacity,
                 line_width=st.line_width, dashed=st.dashed_folds,
                 include_art=st.export_art, include_sketch=st.export_sketch,
-                include_guides=st.export_guides, include_labels=st.export_labels)
+                include_guides=st.export_guides, include_labels=st.export_labels,
+                tab_fill=st.tab_fill, tab_color=tuple(st.tab_color), bleed=st.bleed)
+
+
+def inflate(poly, d, miter=3.0):
+    """Grow a convex CCW polygon outward by d (miter joins, clamped)."""
+    n = len(poly)
+    if d <= 0 or n < 3:
+        return poly
+    out = []
+    for i in range(n):
+        a, b, c = Vector(poly[i - 1]), Vector(poly[i]), Vector(poly[(i + 1) % n])
+        e1, e2 = (b - a), (c - b)
+        if e1.length < 1e-9 or e2.length < 1e-9:
+            out.append(tuple(b))
+            continue
+        n1 = Vector((e1.y, -e1.x)).normalized()  # outward for CCW
+        n2 = Vector((e2.y, -e2.x)).normalized()
+        m = n1 + n2
+        if m.length < 1e-6:
+            out.append(tuple(b + n1 * d))
+            continue
+        m.normalize()
+        k = min(d / max(m.dot(n1), 1e-6), miter * d)
+        out.append(tuple(b + m * k))
+    return out
 
 
 class Seg:
@@ -165,14 +195,25 @@ def _tile_pngs(img, tmp):
 
 def export(scene, filepath, include_art=True, include_sketch=True, include_guides=True,
            include_labels=True, content="PRINT", line_style="DEFAULT",
-           line_color=(0.0, 0.0, 0.0), line_opacity=1.0, line_width=0.3, dashed=True):
+           line_color=(0.0, 0.0, 0.0), line_opacity=1.0, line_width=0.3, dashed=True,
+           tab_fill=False, tab_color=(0.85, 0.83, 0.78), bleed=0.0):
+    """content: PRINT (art, tabs, guides, labels, all lines), ART_CUT (art and
+    tabs outlined by cut lines only: nothing drawn over the art), or for
+    cutting machines CUT, CREASE, LINES (plain solid strokes, no art or text;
+    LINES draws creases red). tab_fill colours plain tabs (else paper white).
+    bleed (mm) lets the art run past each piece's outline."""
     st = scene.popup
     rig = st.rig
     STYLE = line_styles(content, line_style, line_width, line_color, line_opacity, dashed)
-    if content != "PRINT":
+    if content in ("CUT", "CREASE", "LINES"):
         include_art = include_sketch = include_guides = include_labels = False
-    show = {"cut": content in ("PRINT", "CUT", "LINES"),
+        tab_fill = False
+        bleed = 0.0
+    if content == "ART_CUT":
+        include_guides = include_labels = False
+    show = {"cut": content in ("PRINT", "ART_CUT", "CUT", "LINES"),
             "fold": content in ("PRINT", "CREASE", "LINES")}
+    glue_style = (f'fill="{_hex(tab_color)}" stroke="none"' if tab_fill else None)
     meta = live.meta(rig)
     if meta is None or st.layout is None:
         raise RuntimeError("build the card first")
@@ -339,7 +380,7 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
             info = meta["pieces"][piece]
             clip_id = f"clip_{piece.replace('.', '_')}"
             if faces:
-                d = " ".join("M" + " L".join(_fmt(P(q)) for q in pts) + " Z"
+                d = " ".join("M" + " L".join(_fmt(P(q)) for q in inflate(pts, bleed)) + " Z"
                              for _, pts, _ in faces)
                 defs.append(f'<clipPath id="{clip_id}" clipPathUnits="userSpaceOnUse">'
                             f'<path d="{d}"/></clipPath>')
@@ -372,12 +413,11 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
                                      f'stroke-linecap="round" stroke-linejoin="round"')
                     out.append(f'<path d="{d}" {" ".join(attrs)}/>')
                 L["sketch"].append(f'<g clip-path="url(#{clip_id})">' + "".join(out) + "</g>")
-            # glue
+            # tab colour (plain tabs stay paper white unless asked)
             for pi, pts, _ in faces:
-                if panel_info[pi]["kind"] == "tab":
-                    if content == "PRINT":
-                        L["glue"].append(f'<path d="M{" L".join(_fmt(P(q)) for q in pts)} '
-                                         f'Z" {GLUE}/>')
+                if panel_info[pi]["kind"] == "tab" and glue_style:
+                    L["glue"].append(f'<path d="M{" L".join(_fmt(P(q)) for q in inflate(pts, bleed))} '
+                                     f'Z" {glue_style}/>')
             # lines
             for s in segs_by_piece.get(piece, []):
                 for t0, t1, kind in s.marks:
@@ -415,7 +455,7 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
             f'xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" '
             f'width="{SW:.2f}mm" height="{SH:.2f}mm" viewBox="0 0 {SW:.3f} {SH:.3f}">\n'
             f'<defs>{"".join(defs)}</defs>\n' + "\n".join(body) + "\n</svg>\n")
-        suffix = {"CUT": "_cut", "CREASE": "_crease", "LINES": "_lines"}.get(content, "")
+        suffix = SUFFIX.get(content, "")
         path = f"{root}{suffix}_sheet{si + 1}.svg"
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(svg)

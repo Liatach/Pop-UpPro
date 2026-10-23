@@ -12,21 +12,28 @@ def draw_export(layout, st):
     col.use_property_decorate = False
     col.prop(st, "export_content")
     lines = st.export_content != "PRINT" or st.line_style != "NONE"
-    if st.export_content == "PRINT":
+    art = st.export_content in ("PRINT", "ART_CUT")
+    if art:
         col.prop(st, "line_style")
-    if st.export_content != "PRINT" or st.line_style == "CUSTOM":
+    if not art or st.line_style == "CUSTOM":
         col.prop(st, "line_color")
         col.prop(st, "line_opacity")
     sub = col.column()
     sub.active = lines
     sub.prop(st, "line_width")
-    sub.prop(st, "dashed_folds")
-    if st.export_content == "PRINT":
+    if st.export_content != "ART_CUT":
+        sub.prop(st, "dashed_folds")
+    if art:
         col.separator()
+        col.prop(st, "tab_fill")
+        if st.tab_fill:
+            col.prop(st, "tab_color")
+        col.prop(st, "bleed")
         col.prop(st, "export_art")
         col.prop(st, "export_sketch")
-        col.prop(st, "export_guides")
-        col.prop(st, "export_labels")
+        if st.export_content == "PRINT":
+            col.prop(st, "export_guides")
+            col.prop(st, "export_labels")
     col.prop(st, "paper", text="Piece Paper")
 
 
@@ -82,6 +89,14 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
             row = box.row(align=True)
             row.operator("popup.animate", icon="PLAY").mode = "CYCLE"
             row.prop(st, "anim_frames", text="")
+            col = box.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+            col.prop(st, "paper_thickness")
+            col.prop(st, "keep_open")
+            col.prop(st, "solid_paper")
+            if st.keep_open and "pop_close" in rig:
+                col.label(text=f"Closes to {rig['pop_close']:.1f}°", icon="INFO")
 
 
 class POPUP_PT_mechs(_Base, bpy.types.Panel):

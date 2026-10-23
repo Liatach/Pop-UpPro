@@ -114,6 +114,21 @@ def ensure_objects(scene):
     return rig, st.card, st.layout
 
 
+def ensure_solid(card, st):
+    """Solid Paper: thickness behind the printed side (after the rig)."""
+    mod = card.modifiers.get("Pop-up Paper")
+    if not st.solid_paper:
+        if mod is not None:
+            card.modifiers.remove(mod)
+        return
+    if mod is None:
+        mod = card.modifiers.new("Pop-up Paper", "SOLIDIFY")
+    mod.thickness = st.paper_thickness / st.mm_per_unit
+    mod.offset = -1.0
+    mod.use_even_offset = True
+    mod.use_rim = True
+
+
 def ensure_material(mesh):
     mat = bpy.data.materials.get("Pop-up Paper")
     if mat is None:
@@ -179,7 +194,15 @@ def build_mesh(mesh, model, layout, s):
 
 
 # ------------------------------------------------------------------ rig
-TERM = "{0:.9g}{1:+.9g}*cos(radians(max(t,0.05))){2:+.9g}*sin(radians(max(t,0.05)))"
+TERM = "{0:.9g}{1:+.9g}*cos(radians(max(T,0.05))){2:+.9g}*sin(radians(max(T,0.05)))"
+
+
+def open_expr(t0):
+    """The real open angle as an expression in the Open slider t: with a
+    closing stop t0, Open 0..180 maps onto t0..180 degrees."""
+    if t0 <= 1e-6:
+        return "t"
+    return f"({t0:.6g}{(180.0 - t0) / 180.0:+.9g}*t)"
 
 
 def _var(d, name, id_type, idb, path):
@@ -202,7 +225,7 @@ def _fresh(fc):
     return d
 
 
-def _driver(rig, pb, hinge, const):
+def _driver(rig, pb, hinge, const, t0=0.0):
     """Bone driver. Spherical (V-fold) hinges read three helper properties on
     the armature data, each driven by the open angle, to stay within
     Blender's 256-character expression limit."""
@@ -214,16 +237,20 @@ def _driver(rig, pb, hinge, const):
             arm[prop] = 0.0
             hd = _fresh(arm.driver_add(f'["{prop}"]'))
             _var(hd, "t", "OBJECT", rig, '["pop_open"]')
-            hd.expression = TERM.format(*hinge.parts[key])
+            hd.expression = TERM.format(*hinge.parts[key]).replace("T", open_expr(t0))
+            assert len(hd.expression) < 256, hd.expression
             _var(d, key.lower(), "ARMATURE", arm, f'["{prop}"]')
     else:
         _var(d, "t", "OBJECT", rig, '["pop_open"]')
-    d.expression = f"{const:.9g}+({hinge.expr})"
+    expr = hinge.expr
+    if hinge.kind != "SPHERICAL":
+        expr = expr.replace("radians(t)", f"radians({open_expr(t0)})")
+    d.expression = f"{const:.9g}+({expr})"
     assert len(d.expression) < 256, d.expression
     return d
 
 
-def build_rig(scene, rig, model, layout, s):
+def build_rig(scene, rig, model, layout, s, t0=0.0):
     view_layer = bpy.context.view_layer
     prev_active = view_layer.objects.active
     prev_mode = bpy.context.mode
@@ -285,7 +312,7 @@ def build_rig(scene, rig, model, layout, s):
         pb.location = K.to_translation()
         pb.rotation_euler = e
         if p.hinge is not None:
-            _driver(rig, pb, p.hinge, e.y)
+            _driver(rig, pb, p.hinge, e.y, t0)
     rig.hide_set(hidden)
     if prev_active is not None and prev_active.name in view_layer.objects:
         view_layer.objects.active = prev_active
@@ -341,7 +368,10 @@ def rebuild(scene, force=False):
                 vg.add(groups[name], 1.0, "REPLACE")
     from . import art
     art.release_orphans(scene, set(model.order))
-    build_rig(scene, rig, model, layout, s)
+    t0 = model.close_angle(st.paper_thickness) if st.keep_open else 0.0
+    rig["pop_close"] = t0
+    build_rig(scene, rig, model, layout, s, t0)
+    ensure_solid(card, st)
     write_meta(rig, model, layout, s)
     mesh["pop_hash"] = mesh_hash(mesh)
     st.edited = False

@@ -189,10 +189,13 @@ class PopupSettings(bpy.types.PropertyGroup):
     sketch_panel: EnumProperty(name="Panel", items=lambda s, c: live.panel_items(c.scene))
     # export ------------------------------------------------------------
     export_content: EnumProperty(name="Content", items=[
-        ("PRINT", "Print", "Artwork, glue areas and lines"),
+        ("PRINT", "Print", "Artwork, tabs, glue guides and all lines"),
+        ("ART_CUT", "Art + Cut Lines", "Artwork outlined by cut lines only: no fold lines "
+         "or guides over the art; file name ends _art"),
         ("CUT", "Cut Lines Only", "Only the lines to cut (cutting machine cut layer)"),
         ("CREASE", "Crease Lines Only", "Only the folds (cutting machine score layer)"),
-        ("LINES", "Cut + Crease", "All lines, no artwork")],
+        ("LINES", "Cut + Crease", "All lines in one file, creases red so they import as "
+         "their own colour layer; no artwork")],
         description="What goes in the SVG. For a Cricut, export Cut and Crease as "
         "separate files and set them to Cut and Score in Design Space")
     line_style: EnumProperty(name="Lines", items=[
@@ -211,10 +214,31 @@ class PopupSettings(bpy.types.PropertyGroup):
                                description="Dash fold lines. Turn off for cutting "
                                "machines, which score a dashed line as many short "
                                "pieces")
+    tab_fill: BoolProperty(name="Colour Tabs", default=False,
+                           description="Fill plain glue tabs with a colour. Off: tabs stay "
+                           "paper white, outlined by their cut lines")
+    tab_color: FloatVectorProperty(name="Tab Colour", subtype="COLOR", size=3, min=0.0,
+                                   max=1.0, default=(0.85, 0.83, 0.78))
+    bleed: FloatProperty(name="Bleed", default=0.0, min=0.0, max=3.0, precision=2,
+                         description="Millimetres of art printed past each piece's "
+                         "outline, so slightly-off cuts don't show white (0 = off)")
     export_art: BoolProperty(name="Artwork", default=True)
     export_sketch: BoolProperty(name="Sketches", default=True)
     export_guides: BoolProperty(name="Glue Guides", default=True)
     export_labels: BoolProperty(name="Labels", default=True)
+    # paper --------------------------------------------------------------
+    paper_thickness: FloatProperty(name="Paper Thickness", default=0.3, min=0.05, max=3.0,
+                                   precision=2, update=_changed,
+                                   description="Card thickness in mm (0.3 is typical card "
+                                   "stock). Used to keep the closed card from crushing its "
+                                   "mechanisms, and for Solid Paper")
+    keep_open: BoolProperty(name="Stop at Paper Thickness", default=True, update=_changed,
+                            description="Closed (Open = 0) stops where the pages meet the "
+                            "folded mechanisms, instead of squashing everything flat "
+                            "through itself. Off: closed is exactly 0 degrees")
+    solid_paper: BoolProperty(name="Solid Paper", default=False, update=_changed,
+                              description="Give the paper real thickness in the viewport and "
+                              "renders (Solidify, behind the printed side)")
     anim_frames: IntProperty(name="Frames", description="Frames to open (and close)",
                              default=48, min=2)
 

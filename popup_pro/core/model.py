@@ -748,6 +748,58 @@ class Model:
         h.expr = f"atan2(b,a){sgn}acos(max(-1,min(1,d/max(sqrt(a*a+b*b),1e-9))))"
         h.fn = lambda t, s=s: psi(t, s)
 
+    # --------------------------------------------------------- closing stop
+    def close_angle(self, thickness, clearance=0.1, near_spine=8.0, cap=45.0):
+        """Smallest open angle (degrees) at which everything folded inside the
+        closed card fits between the pages, given the paper thickness (mm).
+
+        Each mechanism panel's closed footprint is mapped onto the page
+        (distance from the spine, height); where n layers stack at distance
+        u from the spine the pages must be 2 u sin(t/2) >= n * thickness
+        apart. Within near_spine of the spine the paper bends instead, so
+        those points are ignored."""
+        t0 = 0.5
+        l, r, nl, nr = self.dirs(t0)
+        e = (l + r).normalized()
+        foot = []
+        for name in self.order:
+            p = self.panels[name]
+            if p.kind == "page":
+                continue
+            M = p.asm(t0)
+            for poly in p.polys:
+                q = [M @ v3(c) for c in poly]
+                foot.append([(w.dot(e), w.y) for w in q])
+        if not foot:
+            return 0.0
+
+        def inside(pt, poly):
+            sgn = 0
+            for i in range(len(poly)):
+                a, b = poly[i], poly[(i + 1) % len(poly)]
+                cr = (b[0] - a[0]) * (pt[1] - a[1]) - (b[1] - a[1]) * (pt[0] - a[0])
+                if abs(cr) < 1e-9:
+                    continue
+                s_ = 1 if cr > 0 else -1
+                if sgn and s_ != sgn:
+                    return False
+                sgn = s_
+            return True
+
+        need = 0.0
+        for poly in foot:
+            cx = sum(c[0] for c in poly) / len(poly)
+            cy = sum(c[1] for c in poly) / len(poly)
+            pts = [(cx, cy)] + [(cx + 0.95 * (c[0] - cx), cy + 0.95 * (c[1] - cy)) for c in poly]
+            for pt in pts:
+                u = pt[0]
+                if u < near_spine:
+                    continue
+                n = sum(1 for f in foot if inside(pt, f))
+                ang = 2 * math.degrees(math.asin(min(1.0, (n * thickness + clearance) / (2 * u))))
+                need = max(need, ang)
+        return min(need, cap)
+
     # ------------------------------------------------------------- checks
     @staticmethod
     def _overlap(a, b):

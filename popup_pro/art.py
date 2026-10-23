@@ -122,64 +122,78 @@ def add_art_texture(scene, dpi=150):
 # ------------------------------------------------------------------- bake
 def bake_art(scene, dpi=150):
     """Bake the card's material colour into the Pop-up Print UDIM image on the
-    PopupArt UV map (works with any material, e.g. Paint System layers)."""
+    PopupArt UV map (works with any material, e.g. Paint System layers).
+
+    The bake runs on a temporary copy of the flat layout with temporary
+    copies of its materials, so your own materials, their active nodes and
+    outputs are never touched, and the scene's render settings are put back."""
+    import math as _m
+
     st = scene.popup
     meta = live.meta(st.rig)
     if meta is None:
         raise RuntimeError("build the card first")
-    obj = st.layout
+    src = st.layout
     img = bpy.data.images.get(PRINT_IMAGE)
     if img is not None:
         bpy.data.images.remove(img)
     img = make_tiled_image(PRINT_IMAGE, meta, dpi, color=(1, 1, 1, 1))
-    mats = [m for m in obj.data.materials if m and m.use_nodes]
-    added = []
-    for m in mats:
-        n = m.node_tree.nodes.new("ShaderNodeTexImage")
+    margin = max(4, int(_m.ceil(st.bleed / 25.4 * dpi)) + 2)
+
+    mesh = src.data.copy()
+    mesh.name = "_pop_bake"
+    mesh.uv_layers.active = mesh.uv_layers[ART_UV]
+    mesh.materials.clear()
+    copies = []
+    for slot in src.material_slots:
+        m = slot.material
+        if m is None:
+            mesh.materials.append(None)
+            continue
+        c = m.copy()
+        c.name = "_pop_bake_" + m.name
+        copies.append(c)
+        mesh.materials.append(c)
+        if not c.use_nodes:
+            c.use_nodes = True
+        nt = c.node_tree
+        n = nt.nodes.new("ShaderNodeTexImage")
         n.image = img
-        n.name = "_pop_bake"
-        uvn = m.node_tree.nodes.new("ShaderNodeUVMap")
+        uvn = nt.nodes.new("ShaderNodeUVMap")
         uvn.uv_map = ART_UV
-        uvn.name = "_pop_bake_uv"
-        m.node_tree.links.new(uvn.outputs["UV"], n.inputs["Vector"])
-        prev = m.node_tree.nodes.active
-        m.node_tree.nodes.active = n
-        added.append((m, n, uvn, prev))
+        nt.links.new(uvn.outputs["UV"], n.inputs["Vector"])
+        nt.nodes.active = n
+    tmp = bpy.data.objects.new("_pop_bake", mesh)
+    tmp.matrix_world = src.matrix_world
+    scene.collection.objects.link(tmp)
+
     engine = scene.render.engine
     cyc = scene.cycles
     keep_cycles = (cyc.samples, cyc.device)
     vl = bpy.context.view_layer
     prev_active = vl.objects.active
     prev_sel = [o for o in vl.objects if o.select_get()]
-    prev_uv = obj.data.uv_layers.active
     try:
         scene.render.engine = "CYCLES"
-        scene.cycles.samples = 1
-        scene.cycles.device = "CPU"
+        cyc.samples = 1
+        cyc.device = "CPU"
         for o in prev_sel:
             o.select_set(False)
-        hidden = obj.hide_get()
-        obj.hide_set(False)
-        obj.select_set(True)
-        vl.objects.active = obj
-        obj.data.uv_layers.active = obj.data.uv_layers[ART_UV]
-        bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"}, margin=4,
+        tmp.select_set(True)
+        vl.objects.active = tmp
+        bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"}, margin=margin,
                             use_clear=True, target="IMAGE_TEXTURES")
-        obj.hide_set(hidden)
     finally:
         scene.render.engine = engine
-        cyc.samples, cyc.device = keep_cycles  # never leave the user's render settings changed
-        for m, n, uvn, prev in added:
-            m.node_tree.nodes.remove(n)
-            m.node_tree.nodes.remove(uvn)
-            if prev is not None and prev.name in m.node_tree.nodes:
-                m.node_tree.nodes.active = prev
-        obj.select_set(False)
+        cyc.samples, cyc.device = keep_cycles  # never leave render settings changed
+        bpy.data.objects.remove(tmp, do_unlink=True)
+        bpy.data.meshes.remove(mesh)
+        for c in copies:
+            bpy.data.materials.remove(c)
         for o in prev_sel:
-            o.select_set(True)
+            if o.name in vl.objects:
+                o.select_set(True)
         vl.objects.active = prev_active
-        if prev_uv is not None:
-            obj.data.uv_layers.active = prev_uv
     img.pack()
     return img
 

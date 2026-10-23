@@ -21,6 +21,7 @@ from popup_pro.core.layout import build_layout  # noqa: E402
 addon.register()
 sc = bpy.context.scene
 st = sc.popup
+st.keep_open = False  # this file checks raw kinematics: Open t is exactly t degrees
 assert bpy.ops.popup.build() == {"FINISHED"}  # adds a V-fold and a box fold
 assert bpy.ops.popup.add(kind="BOXCUT") == {"FINISHED"}
 v = st.mechs.add()

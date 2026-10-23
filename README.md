@@ -52,6 +52,16 @@ mechanisms, art and sketches.
    closed card, pieces too big for the sheet.
 6. **Export SVG Sheets** writes one SVG per sheet.
 
+### Closing and paper thickness
+
+* **Paper Thickness** (default 0.3 mm, typical card stock).
+* **Stop at Paper Thickness** (on by default): Open 0 is where the pages meet
+  the folded mechanisms, not 0°, so a closed card doesn't squash everything
+  through itself. The sidebar shows the angle it stops at. Turn it off for a
+  card that closes to exactly 0°.
+* **Solid Paper**: gives the card real thickness (behind the printed side)
+  for renders. Modifiers you add to the card after it are kept on rebuild.
+
 ### Card sizes
 
 A6, A5, A4 and A3 (from a folded A5, A4, A3 and A2), Half Letter and Letter
@@ -104,7 +114,9 @@ mesh, no rig). So:
   tile per piece (tile 1001 is the card), and shows on both.
 * **Paint System**: paint the Layout or Card object and choose the
   **PopupArt** UV map for its layers. Then **Bake Art for Print** flattens
-  whatever the material shows into **Pop-up Print** for the export.
+  whatever the material shows into **Pop-up Print** for the export. The bake
+  works on temporary copies of the layout and its materials, so your
+  materials and render settings are never changed.
 * **Sketch on Panel** (Grease Pencil): pick a panel and press the button.
   It makes a layer on **Pop-up Sketch** parented to that panel's bone, sets
   the stroke placement to *Surface* and turns the view to face the panel.
@@ -118,10 +130,19 @@ mesh, no rig). So:
 
 The **Export** panel (also shown in the file dialog) sets:
 
-* **Content**: *Print* (art, glue areas, guides, labels and lines), *Cut
-  Lines Only*, *Crease Lines Only*, or *Cut + Crease*. Lines-only files get a
-  `_cut`, `_crease` or `_lines` suffix. For a Cricut, export Cut and Crease
-  separately, upload both, set the crease file to *Score*, and attach them.
+* **Content**:
+  * *Print*: art, glue guides, labels and every line.
+  * *Art + Cut Lines* (`_art`): art outlined by cut lines only, with no fold
+    lines, guides or labels over the art.
+  * *Cut Lines Only* (`_cut`), *Crease Lines Only* (`_crease`), *Cut +
+    Crease* (`_lines`, creases red so they import as their own colour layer):
+    plain solid strokes for cutting machines, with no art or text. For a
+    Cricut, export Cut and Crease separately, upload both, set the crease
+    file to *Score*, and attach them.
+* **Colour Tabs**: glue tabs are paper white unless you tick this and pick a
+  colour.
+* **Bleed** (mm, off by default): the art runs that far past each piece's
+  outline so a slightly-off cut doesn't show white.
 * **Lines**: *Default* (black cuts, red mountain dash-dot, blue valley
   dashed), *Custom Colour* (one colour at your opacity, e.g. white at 40%
   over dark art), or *No Lines* (kept as hidden layers).
@@ -164,6 +185,7 @@ each tab glues to.
 ```bash
 python tests/test_core.py      # kinematics, stacking, overlap checks (needs: pip install bpy)
 python tests/test_blender.py   # end to end in Blender
+python tests/test_v04.py       # closing stop, solid paper, exports, safe bakes
 ```
 
 ## Limits and roadmap
