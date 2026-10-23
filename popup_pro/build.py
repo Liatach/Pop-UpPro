@@ -1,0 +1,354 @@
+"""Turn the mechanism settings into Blender data.
+
+* "Pop-up Card"   one mesh holding every panel, deformed by the rig
+* "Pop-up Layout" the same mesh with no modifiers: the flat print sheets
+* "Pop-up Rig"    one bone per panel. Hinged bones turn about their local Y
+                  axis with a driver on rotation_euler[1] (simple expressions
+                  only, no Python auto-run needed). Glued tabs are fixed.
+
+The mesh rest shape *is* the print layout, so editing or painting the Layout
+object edits the flat paper, and the folded card follows.
+"""
+
+import json
+import math
+
+import bmesh
+import bpy
+from mathutils import Matrix, Vector
+
+from .core.geom import frame, scaled, v3
+from .core.layout import build_layout
+from .core.model import Model
+
+COLL = "Pop-up Card"
+ART_UV = "PopupArt"
+TILE_MM = 297.0
+BONE_MM = 12.0
+
+
+# ------------------------------------------------------------------ model
+def make_model(scene):
+    st = scene.popup
+    mechs = [m.to_dict() for m in st.mechs]
+    model = Model(st.card_dict(), mechs)
+    model.check_fit()
+    layout = build_layout(model)
+    return model, layout
+
+
+def art_uv(model, piece, q):
+    """UDIM tile per piece (slot): stable when other pieces move around."""
+    pc = model.pieces[piece]
+    k = pc.slot
+    tu, tv = k % 10, k // 10
+    if pc.is_card:
+        W, H = model.W, model.H
+        return (tu + (q[0] + W) / (2 * W), tv + q[1] / H)
+    ax, ay = pc.anchor
+    u = 0.5 + (q[0] - ax) / TILE_MM
+    v = 0.5 + (q[1] - ay) / TILE_MM
+    return (tu + min(max(u, 0.0), 0.999), tv + min(max(v, 0.0), 0.999))
+
+
+def panel_frame(panel):
+    """Bone frame in the panel's own pattern: the hinge, or (for glued tabs)
+    an axis-aligned frame at the first corner."""
+    if panel.hinge is not None:
+        return panel.hinge.Fc
+    q = panel.polys[0][0]
+    return frame(v3(q), (1, 0, 0), (0, 1, 0))
+
+
+# ------------------------------------------------------------- objects
+def _collection(scene):
+    coll = bpy.data.collections.get(COLL)
+    if coll is None:
+        coll = bpy.data.collections.new(COLL)
+    if coll.name not in scene.collection.children:
+        try:
+            scene.collection.children.link(coll)
+        except RuntimeError:
+            pass
+    return coll
+
+
+def _link(obj, coll):
+    if obj.name not in coll.objects:
+        coll.objects.link(obj)
+
+
+def ensure_objects(scene):
+    st = scene.popup
+    coll = _collection(scene)
+    if st.rig is None or st.rig.name not in bpy.data.objects:
+        arm = bpy.data.armatures.new("Pop-up Rig")
+        st.rig = bpy.data.objects.new("Pop-up Rig", arm)
+        arm.display_type = "STICK"
+    _link(st.rig, coll)
+    rig = st.rig
+    if "pop_open" not in rig:
+        rig["pop_open"] = 90.0
+    ui = rig.id_properties_ui("pop_open")
+    ui.update(min=0.0, max=180.0, soft_min=0.0, soft_max=180.0, subtype="NONE",
+              description="How far the card is open, in degrees (0 closed, 180 flat)")
+    if st.card is None or st.card.name not in bpy.data.objects:
+        me = st.layout.data if st.layout else bpy.data.meshes.new("Pop-up Paper")
+        st.card = bpy.data.objects.new("Pop-up Card", me)
+    _link(st.card, coll)
+    if st.layout is None or st.layout.name not in bpy.data.objects:
+        st.layout = bpy.data.objects.new("Pop-up Layout", st.card.data)
+    _link(st.layout, coll)
+    if st.layout.data != st.card.data:
+        st.layout.data = st.card.data
+    mod = st.card.modifiers.get("Pop-up Rig")
+    if mod is None:
+        mod = st.card.modifiers.new("Pop-up Rig", "ARMATURE")
+    mod.object = rig
+    mod.use_vertex_groups = True
+    mod.show_in_editmode = True
+    mod.show_on_cage = True
+    for m in list(st.layout.modifiers):
+        if m.type == "ARMATURE":
+            st.layout.modifiers.remove(m)
+    return rig, st.card, st.layout
+
+
+def ensure_material(mesh):
+    mat = bpy.data.materials.get("Pop-up Paper")
+    if mat is None:
+        mat = bpy.data.materials.new("Pop-up Paper")
+        mat.use_nodes = True
+        nt = mat.node_tree
+        bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+        bsdf.inputs["Base Color"].default_value = (0.95, 0.93, 0.88, 1.0)
+        bsdf.inputs["Roughness"].default_value = 0.9
+        mat.diffuse_color = (0.95, 0.93, 0.88, 1.0)
+    if not mesh.materials:
+        mesh.materials.append(mat)
+    return mat
+
+
+# ----------------------------------------------------------------- mesh
+def mesh_hash(mesh):
+    n = len(mesh.vertices)
+    s = 0.0
+    for v in mesh.vertices:
+        s += v.co.x * 1.3 + v.co.y * 1.7 + v.co.z * 2.9
+    return f"{n}:{len(mesh.polygons)}:{s:.4f}"
+
+
+def build_mesh(mesh, model, layout, s):
+    bm = bmesh.new()
+    lay = bm.faces.layers.int.new("pop_panel")
+    uvl = bm.loops.layers.uv.new(ART_UV)
+    groups = {}
+    for pi, name in enumerate(model.order):
+        p = model.panels[name]
+        P = layout["prints"][p.piece]
+        cache = {}
+        idx = []
+        for poly in p.polys:
+            vs = []
+            for q in poly:
+                key = (round(q[0], 5), round(q[1], 5))
+                bv = cache.get(key)
+                if bv is None:
+                    bv = bm.verts.new((P @ v3(q)) * s)
+                    cache[key] = bv
+                    idx.append(bv)
+                vs.append(bv)
+            if len(set(vs)) < 3:
+                continue
+            try:
+                f = bm.faces.new(vs)
+            except ValueError:
+                continue
+            f[lay] = pi
+            for loop, q in zip(f.loops, poly):
+                loop[uvl].uv = art_uv(model, p.piece, q)
+        groups[name] = idx
+    bm.verts.index_update()
+    order = {name: [v.index for v in vs] for name, vs in groups.items()}
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.uv_layers.active = mesh.uv_layers[ART_UV]
+    mesh.uv_layers[ART_UV].active_render = True
+    mesh.update()
+    return order
+
+
+# ------------------------------------------------------------------ rig
+TERM = "{0:.9g}{1:+.9g}*cos(radians(max(t,0.05))){2:+.9g}*sin(radians(max(t,0.05)))"
+
+
+def _var(d, name, id_type, idb, path):
+    v = d.variables.new()
+    v.name = name
+    v.type = "SINGLE_PROP"
+    v.targets[0].id_type = id_type
+    v.targets[0].id = idb
+    v.targets[0].data_path = path
+    return v
+
+
+def _fresh(fc):
+    d = fc.driver
+    d.type = "SCRIPTED"
+    while d.variables:
+        d.variables.remove(d.variables[0])
+    for m in list(fc.modifiers):
+        fc.modifiers.remove(m)
+    return d
+
+
+def _driver(rig, pb, hinge, const):
+    """Bone driver. Spherical (V-fold) hinges read three helper properties on
+    the armature data, each driven by the open angle, to stay within
+    Blender's 256-character expression limit."""
+    d = _fresh(pb.driver_add("rotation_euler", 1))
+    if hinge.kind == "SPHERICAL":
+        arm = rig.data
+        for key in "ABD":
+            prop = f"pop_{pb.name}_{key}"
+            arm[prop] = 0.0
+            hd = _fresh(arm.driver_add(f'["{prop}"]'))
+            _var(hd, "t", "OBJECT", rig, '["pop_open"]')
+            hd.expression = TERM.format(*hinge.parts[key])
+            _var(d, key.lower(), "ARMATURE", arm, f'["{prop}"]')
+    else:
+        _var(d, "t", "OBJECT", rig, '["pop_open"]')
+    d.expression = f"{const:.9g}+({hinge.expr})"
+    assert len(d.expression) < 256, d.expression
+    return d
+
+
+def build_rig(scene, rig, model, layout, s):
+    view_layer = bpy.context.view_layer
+    prev_active = view_layer.objects.active
+    prev_mode = bpy.context.mode
+    if prev_mode != "OBJECT":
+        try:
+            bpy.ops.object.mode_set(mode="OBJECT")
+        except RuntimeError:
+            pass
+    if rig.name not in view_layer.objects:
+        raise RuntimeError("the rig is hidden from the view layer")
+    hidden = rig.hide_get()
+    rig.hide_set(False)
+    view_layer.objects.active = rig
+    # drop old drivers on bones
+    if rig.animation_data:
+        for fc in list(rig.animation_data.drivers):
+            if fc.data_path.startswith("pose.bones"):
+                rig.animation_data.drivers.remove(fc)
+    if rig.data.animation_data:
+        for fc in list(rig.data.animation_data.drivers):
+            rig.data.animation_data.drivers.remove(fc)
+    for k in [k for k in rig.data.keys() if k.startswith("pop_")]:
+        del rig.data[k]
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = rig.data.edit_bones
+    for b in list(eb):
+        eb.remove(b)
+    rests = {}
+    for name in model.order:
+        p = model.panels[name]
+        rest = layout["prints"][p.piece] @ panel_frame(p)
+        rests[name] = rest
+        b = eb.new(name)
+        b.head = (0, 0, 0)
+        b.tail = (0, BONE_MM * s, 0)
+        b.matrix = scaled(rest, s)
+        b.use_deform = True
+        if p.parent:
+            b.parent = eb[p.parent]
+    bpy.ops.object.mode_set(mode="OBJECT")
+    coll = rig.data.collections.get("Panels") or rig.data.collections.new("Panels")
+    for b in rig.data.bones:
+        coll.assign(b)
+
+    for name in model.order:
+        p = model.panels[name]
+        pb = rig.pose.bones[name]
+        pb.rotation_mode = "YZX"
+        pb.scale = (1, 1, 1)
+        rest = rests[name]
+        pp = layout["prints"][model.panels[p.parent].piece] if p.parent else Matrix.Identity(4)
+        if p.hinge is not None:
+            K = rest.inverted() @ pp @ p.hinge.Hp
+        else:
+            rel = model.rel(name, 90.0)
+            K = rest.inverted() @ pp @ rel @ panel_frame(p)
+        K = scaled(K, s)
+        e = K.to_euler("YZX")
+        pb.location = K.to_translation()
+        pb.rotation_euler = e
+        if p.hinge is not None:
+            _driver(rig, pb, p.hinge, e.y)
+    rig.hide_set(hidden)
+    if prev_active is not None and prev_active.name in view_layer.objects:
+        view_layer.objects.active = prev_active
+    if prev_mode not in ("OBJECT", "EDIT_ARMATURE"):
+        mode = {"POSE": "POSE", "PAINT_TEXTURE": "TEXTURE_PAINT",
+                "PAINT_GREASE_PENCIL": "PAINT_GREASE_PENCIL",
+                "EDIT_MESH": "EDIT"}.get(prev_mode)
+        if mode:
+            try:
+                bpy.ops.object.mode_set(mode=mode)
+            except (RuntimeError, TypeError):
+                pass
+
+
+def write_meta(rig, model, layout, s):
+    meta = dict(
+        version=1,
+        mm_per_unit=1.0 / s,
+        W=model.W, H=model.H,
+        panels=[dict(name=n, piece=model.panels[n].piece, kind=model.panels[n].kind,
+                     label=model.panels[n].label, parent=model.panels[n].parent)
+                for n in model.order],
+        pieces={k: dict(label=p.label, slot=p.slot, sheet=layout["on_sheet"].get(k, 0),
+                        anchor=list(p.anchor), is_card=p.is_card)
+                for k, p in model.pieces.items() if p.panels},
+        sheets=[dict(size=list(sh.size), origin=list(sh.origin)) for sh in layout["sheets"]],
+    )
+    rig["pop_meta"] = json.dumps(meta)
+
+
+# ---------------------------------------------------------------- rebuild
+def rebuild(scene, force=False):
+    st = scene.popup
+    s = 1.0 / st.mm_per_unit
+    model, layout = make_model(scene)
+    rig, card, lay = ensure_objects(scene)
+    mesh = card.data
+    if bpy.context.mode == "EDIT_MESH" and bpy.context.edit_object in (card, lay):
+        st.status = "Leave Edit Mode to rebuild"
+        return model
+    if not force and mesh.get("pop_hash") and mesh.get("pop_hash") != mesh_hash(mesh):
+        st.edited = True
+        st.status = "Panels edited by hand: Rebuild resets their shapes"
+        st.warnings = "\n".join(model.warnings)
+        return model
+    groups = build_mesh(mesh, model, layout, s)
+    ensure_material(mesh)
+    for obj in (card,):
+        obj.vertex_groups.clear()
+        for name in model.order:
+            vg = obj.vertex_groups.new(name=name)
+            if groups.get(name):
+                vg.add(groups[name], 1.0, "REPLACE")
+    from . import art
+    art.release_orphans(scene, set(model.order))
+    build_rig(scene, rig, model, layout, s)
+    write_meta(rig, model, layout, s)
+    mesh["pop_hash"] = mesh_hash(mesh)
+    st.edited = False
+    st.warnings = "\n".join(model.warnings)
+    st.status = f"{len(model.panels)} panels on {len(layout['sheets'])} sheet(s)"
+    for o in (card, lay, rig):
+        o.update_tag()
+    from . import art
+    art.refresh_material(scene)
+    return model

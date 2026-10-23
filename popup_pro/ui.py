@@ -1,0 +1,206 @@
+import bpy
+
+from . import live
+
+KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FACE",
+             "MOUTH": "MOD_SIMPLEDEFORM"}
+
+
+def draw_export(layout, st):
+    col = layout.column()
+    col.use_property_split = True
+    col.use_property_decorate = False
+    col.prop(st, "export_content")
+    lines = st.export_content != "PRINT" or st.line_style != "NONE"
+    if st.export_content == "PRINT":
+        col.prop(st, "line_style")
+    if st.export_content != "PRINT" or st.line_style == "CUSTOM":
+        col.prop(st, "line_color")
+        col.prop(st, "line_opacity")
+    sub = col.column()
+    sub.active = lines
+    sub.prop(st, "line_width")
+    sub.prop(st, "dashed_folds")
+    if st.export_content == "PRINT":
+        col.separator()
+        col.prop(st, "export_art")
+        col.prop(st, "export_sketch")
+        col.prop(st, "export_guides")
+        col.prop(st, "export_labels")
+    col.prop(st, "paper", text="Piece Paper")
+
+
+class POPUP_UL_mechs(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_prop, index=0):
+        layout.prop(item, "label", text="", emboss=False, icon=KIND_ICON[item.kind])
+
+
+class POPUP_MT_add(bpy.types.Menu):
+    bl_label = "Add Mechanism"
+    bl_idname = "POPUP_MT_add"
+
+    def draw(self, context):
+        for k, name in (("VFOLD", "V-fold"), ("MOUTH", "Mouth (cut in)"),
+                        ("BOX", "Box Fold (glued strip)"),
+                        ("BOXCUT", "Box Layer (cut in)")):
+            self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
+
+
+class _Base:
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Pop-Up"
+
+
+class POPUP_PT_card(_Base, bpy.types.Panel):
+    bl_label = "Pop-Up Pro"
+
+    def draw(self, context):
+        st = context.scene.popup
+        col = self.layout.column()
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(st, "size")
+        if st.size == "CUSTOM":
+            col.prop(st, "page_depth")
+            col.prop(st, "spine_length")
+        col.prop(st, "hold")
+        row = self.layout.row(align=True)
+        row.scale_y = 1.3
+        row.operator("popup.build", text="Build Card" if st.rig is None else "Rebuild",
+                     icon="FILE_REFRESH" if st.rig else "ADD")
+        row.prop(st, "live", text="", icon="AUTO")
+        if st.status:
+            self.layout.label(text=st.status, icon="ERROR" if st.edited else "INFO")
+        rig = st.rig
+        if rig is not None and "pop_open" in rig:
+            box = self.layout.box()
+            box.prop(rig, '["pop_open"]', text="Open", slider=True)
+            row = box.row(align=True)
+            for a in (0, 45, 90, 135, 180):
+                row.operator("popup.set_open", text=f"{a}°").angle = a
+            row = box.row(align=True)
+            row.operator("popup.animate", icon="PLAY").mode = "CYCLE"
+            row.prop(st, "anim_frames", text="")
+
+
+class POPUP_PT_mechs(_Base, bpy.types.Panel):
+    bl_label = "Mechanisms"
+
+    def draw(self, context):
+        st = context.scene.popup
+        lay = self.layout
+        row = lay.row()
+        row.template_list("POPUP_UL_mechs", "", st, "mechs", st, "active", rows=3)
+        col = row.column(align=True)
+        col.menu("POPUP_MT_add", text="", icon="ADD")
+        col.operator("popup.remove", text="", icon="REMOVE")
+        if not st.mechs or st.active >= len(st.mechs):
+            return
+        m = st.mechs[st.active]
+        col = lay.column()
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(m, "kind", text="Type")
+        col.prop(m, "host")
+        if m.host_uid:
+            col.prop(m, "fold")
+        col.prop(m, "y", text="Slit Position" if m.kind == "MOUTH" else "Position")
+        if m.kind == "MOUTH":
+            col.prop(m, "jaw")
+            col.prop(m, "upper")
+            col.prop(m, "lower")
+        elif m.kind == "VFOLD":
+            col.prop(m, "shape")
+            col.prop(m, "height", text="Fold Length")
+            col.prop(m, "glue")
+            col.prop(m, "symmetric")
+            col.prop(m, "phi_l", text="Glue Angle" if m.symmetric else "Glue Angle L")
+            if not m.symmetric:
+                col.prop(m, "phi_r")
+            col.prop(m, "alpha_l", text="Piece Angle" if m.symmetric else "Piece Angle L")
+            if not m.symmetric:
+                col.prop(m, "alpha_r")
+            col.prop(m, "tab")
+            col.prop(m, "tab_side")
+        else:
+            col.prop(m, "width")
+            col.prop(m, "height", text="Height (left page)")
+            col.prop(m, "depth", text="Depth (right page)")
+            if m.kind == "BOX":
+                col.prop(m, "tab")
+
+
+class POPUP_PT_checks(_Base, bpy.types.Panel):
+    bl_label = "Checks"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def draw_header(self, context):
+        n = len(context.scene.popup.warnings.splitlines())
+        self.layout.label(text="", icon="ERROR" if n else "CHECKMARK")
+
+    def draw(self, context):
+        ws = context.scene.popup.warnings.splitlines()
+        if not ws:
+            self.layout.label(text="Folds flat, opens flat, no collisions found")
+        col = self.layout.column(align=True)
+        for w in ws:
+            col.label(text=w, icon="ERROR")
+
+
+class POPUP_PT_art(_Base, bpy.types.Panel):
+    bl_label = "Artwork"
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def draw(self, context):
+        st = context.scene.popup
+        lay = self.layout
+        col = lay.column(align=True)
+        col.label(text="Paint (Texture Paint / Paint System)")
+        if bpy.data.images.get("Pop-up Art") is None:
+            col.operator("popup.add_art", icon="TEXTURE")
+        row = col.row(align=True)
+        row.operator("popup.paint", text="Paint Flat", icon="BRUSH_DATA").target = "LAYOUT"
+        row.operator("popup.paint", text="Paint Folded", icon="BRUSH_DATA").target = "CARD"
+        col = lay.column(align=True)
+        col.label(text="Sketch (Grease Pencil)")
+        col.prop(st, "sketch_panel", text="")
+        col.operator("popup.sketch", icon="GREASEPENCIL").panel = ""
+        col = lay.column(align=True)
+        col.label(text="Print")
+        col.operator("popup.view_layout", icon="VIEW_ORTHO")
+        col.operator("popup.bake", icon="RENDER_STILL")
+
+
+class POPUP_PT_export(_Base, bpy.types.Panel):
+    bl_label = "Export"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def draw(self, context):
+        draw_export(self.layout, context.scene.popup)
+        self.layout.operator("popup.export_svg", icon="EXPORT")
+
+
+classes = (POPUP_UL_mechs, POPUP_MT_add, POPUP_PT_card, POPUP_PT_mechs, POPUP_PT_checks,
+           POPUP_PT_art, POPUP_PT_export)
+
+
+def register():
+    for c in classes:
+        bpy.utils.register_class(c)
+
+
+def unregister():
+    for c in reversed(classes):
+        bpy.utils.unregister_class(c)

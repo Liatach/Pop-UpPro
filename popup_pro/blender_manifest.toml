@@ -1,0 +1,17 @@
+schema_version = "1.0.0"
+
+id = "popup_pro"
+version = "0.3.0"
+name = "Pop-Up Pro"
+tagline = "Design pop-up cards and books, test the movement, print"
+maintainer = "Kim Lang (Liatach Makes)"
+type = "add-on"
+tags = ["Animation", "Rigging", "Import-Export"]
+
+blender_version_min = "4.3.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2026 Kim Lang / Liatach Makes"]
+
+[permissions]
+files = "Exports print sheets as SVG and writes temporary texture tiles"
