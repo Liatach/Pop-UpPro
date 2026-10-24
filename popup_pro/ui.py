@@ -3,7 +3,8 @@ import bpy
 from . import live
 
 KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FACE",
-             "MOUTH": "MOD_SIMPLEDEFORM", "CUBE": "CUBE", "FLAP": "MOD_CLOTH"}
+             "MOUTH": "MOD_SIMPLEDEFORM", "CUBE": "CUBE", "FLAP": "MOD_CLOTH",
+             "TUBE": "MESH_CYLINDER", "TETHER": "LINKED"}
 
 
 def draw_export(layout, st):
@@ -50,7 +51,8 @@ class POPUP_MT_add(bpy.types.Menu):
         for k, name in (("VFOLD", "V-fold"), ("MOUTH", "Mouth (cut in)"),
                         ("BOX", "Box Fold (glued strip)"),
                         ("BOXCUT", "Box Layer (cut in)"),
-                        ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap")):
+                        ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap"),
+                        ("TUBE", "Tube (parallel strips)"), ("TETHER", "Tether")):
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
         st = context.scene.popup
         if st.mechs and st.active < len(st.mechs):
@@ -135,6 +137,35 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(m, "kind", text="Type")
         if m.kind == "FLAP":
             self.draw_flap(context, col, m)
+            return
+        if m.kind == "TUBE":
+            col.prop(m, "y", text="Position")
+            col.prop(m, "x", text="Strip Distance")
+            col.prop(m, "depth", text="Side Length")
+            col.prop(m, "height")
+            col.prop(m, "front")
+            col.prop(m, "front_style")
+            col.prop(m, "back")
+            col.prop(m, "back_style")
+            col.prop(m, "tab")
+            col.prop(m, "tab_side", text="Base Tabs")
+            self.draw_warnings(context, m)
+            return
+        if m.kind == "TETHER":
+            col.prop(m, "from_tube")
+            col.prop(m, "from_pt")
+            col.prop(m, "to")
+            if m.to == "TUBE":
+                col.prop(m, "to_tube")
+                col.prop(m, "to_pt")
+            else:
+                col.prop(m, "to_y")
+                col.prop(m, "tab_side", text="Foot Tab")
+            col.prop(m, "height")
+            col.prop(m, "bend")
+            col.prop(m, "slack")
+            col.prop(m, "tab")
+            self.draw_warnings(context, m)
             return
         col.prop(m, "host")
         if m.host_uid:

@@ -27,7 +27,52 @@ KINDS = [
      "card opens flat", "CUBE", 4),
     ("FLAP", "Flap", "Lift-the-flap worked by a pull tab, with its own Pull control",
      "MOD_CLOTH", 5),
+    ("TUBE", "Tube", "Hexagon, box or recessed tube standing on two parallel strips "
+     "either side of the fold", "MESH_CYLINDER", 6),
+    ("TETHER", "Tether", "Wall from a tube's corner or crease to another tube or to a foot "
+     "on a strip; pulled open by the tubes", "LINKED", 7),
 ]
+
+POINTS = [
+    ("FL", "Front Left", "Front corner of the left side", "", 0),
+    ("FR", "Front Right", "Front corner of the right side", "", 1),
+    ("BL", "Back Left", "Back corner of the left side", "", 2),
+    ("BR", "Back Right", "Back corner of the right side", "", 3),
+    ("CF", "Front Crease", "Crease of the front pair, above the fold", "", 4),
+    ("CB", "Back Crease", "Crease of the back pair, above the fold", "", 5),
+]
+
+_tube_items = []
+
+
+def tube_items(self, context):
+    global _tube_items
+    items = [("0", "(pick a tube)", "", "", 0)]
+    st = context.scene.popup if context and context.scene else None
+    if st is not None:
+        for m in st.mechs:
+            if m.kind == "TUBE":
+                items.append((str(m.uid), m.label, "", "MESH_CYLINDER", m.uid))
+    _tube_items = items
+    return _tube_items
+
+
+def _get_from(self):
+    return self.from_uid
+
+
+def _set_from(self, v):
+    self.from_uid = v
+    live.schedule(bpy.context.scene)
+
+
+def _get_to(self):
+    return self.to_uid
+
+
+def _set_to(self, v):
+    self.to_uid = v
+    live.schedule(bpy.context.scene)
 
 FOLDS = [
     ("A", "On Top", "Sits on the box's top, against the back panel (step up)", "TRIA_UP", 0),
@@ -56,7 +101,8 @@ def host_items(self, context):
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
-            if m.kind in ("BOX", "BOXCUT") and m.uid not in bad and self.kind != "FLAP":
+            if m.kind in ("BOX", "BOXCUT") and m.uid not in bad and \
+                    self.kind not in ("FLAP", "TUBE", "TETHER"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
                               "MESH_CUBE", m.uid))
     _host_items = items
@@ -161,6 +207,40 @@ class PopupMech(bpy.types.PropertyGroup):
     pull_out: FloatProperty(name="Pull Tab", description="How far the strip sticks out "
                             "past the card edge (mm)", default=30.0, min=5.0, soft_max=100.0,
                             update=_changed)
+    # tube
+    front: FloatProperty(name="Front Width", description="Width of each of the two front "
+                         "walls (mm). Equal to the strip distance makes a flat front (box)",
+                         default=30.0, min=2.0, soft_max=150.0, update=_changed)
+    back: FloatProperty(name="Back Width", description="Width of each of the two back walls",
+                        default=30.0, min=2.0, soft_max=150.0, update=_changed)
+    front_style: EnumProperty(name="Front", items=[
+        ("OUT", "Pointed Out", "The front crease points forward (hexagon)"),
+        ("IN", "Pointed In", "The front crease points into the tube (recessed)")],
+        update=_changed)
+    back_style: EnumProperty(name="Back", items=[
+        ("OUT", "Pointed Out", "The back crease points backward (hexagon)"),
+        ("IN", "Pointed In", "The back crease points into the tube")], update=_changed)
+    # tether
+    from_uid: IntProperty()
+    from_tube: EnumProperty(name="From", items=tube_items, get=_get_from, set=_set_from)
+    from_pt: EnumProperty(name="Point", items=POINTS, update=_changed)
+    to: EnumProperty(name="To", items=[
+        ("LEFT", "Left Strip", "A foot glued on the left strip"),
+        ("RIGHT", "Right Strip", "A foot glued on the right strip"),
+        ("TUBE", "Another Tube", "A point on another tube")], update=_changed)
+    to_uid: IntProperty()
+    to_tube: EnumProperty(name="Tube", items=tube_items, get=_get_to, set=_set_to)
+    to_pt: EnumProperty(name="Point", items=POINTS, default="FR", update=_changed)
+    to_y: FloatProperty(name="Foot Position", description="Distance of the foot up the strip "
+                        "from the bottom edge (mm)", default=60.0, min=0.0, soft_max=300.0,
+                        update=_changed)
+    slack: FloatProperty(name="Slack", description="Extra length so a creased tether never "
+                         "pulls tight (mm)", default=0.0, min=0.0, soft_max=30.0,
+                         update=_changed)
+    bend: EnumProperty(name="Bend", items=[
+        ("AUTO", "Auto", "The side that keeps the crease between the strips"),
+        ("FRONT", "Front", "Crease bends towards the front"),
+        ("BACK", "Back", "Crease bends towards the back")], update=_changed)
     # mouth
     jaw: FloatProperty(name="Jaw Length", description="How far the slit runs from the "
                        "fold on each side (mm)", default=30.0, min=2.0, soft_max=150.0,
@@ -202,7 +282,15 @@ class PopupMech(bpy.types.PropertyGroup):
     def to_dict(self):
         d = dict(uid=self.uid, label=self.label, y=self.y, tab=self.tab,
                  host=self.host_uid, fold=self.fold)
-        if self.kind == "CUBE":
+        if self.kind == "TUBE":
+            d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
+                     front=self.front, back=self.back, front_style=self.front_style,
+                     back_style=self.back_style, tab_side=self.tab_side)
+        elif self.kind == "TETHER":
+            d.update(type="TETHER", from_uid=self.from_uid, from_pt=self.from_pt, to=self.to,
+                     to_uid=self.to_uid, to_pt=self.to_pt, to_y=self.to_y, slack=self.slack,
+                     bend=self.bend, height=self.height, tab_side=self.tab_side)
+        elif self.kind == "CUBE":
             d.update(type="CUBE", size=self.size, height=self.height, lid=self.lid,
                      tab_side=self.tab_side)
         elif self.kind == "FLAP":

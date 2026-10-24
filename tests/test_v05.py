@@ -15,7 +15,29 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 import popup_pro as addon  # noqa: E402
 from popup_pro import build, export_svg  # noqa: E402
 from popup_pro.core.layout import build_layout  # noqa: E402
-from popup_pro.ops import _add  # noqa: E402
+from popup_pro.ops import _add as _add_mech  # noqa: E402
+
+
+class Ref:
+    """A mechanism looked up by id each time: adding mechanisms can move the
+    collection in memory, so Python references to items go stale."""
+
+    def __init__(self, st, uid):
+        object.__setattr__(self, "_st", st)
+        object.__setattr__(self, "_uid", uid)
+
+    def _m(self):
+        return next(m for m in self._st.mechs if m.uid == self._uid)
+
+    def __getattr__(self, k):
+        return getattr(self._m(), k)
+
+    def __setattr__(self, k, v):
+        setattr(self._m(), k, v)
+
+
+def _add(st, kind):
+    return Ref(st, _add_mech(st, kind).uid)
 
 addon.register()
 sc = bpy.context.scene

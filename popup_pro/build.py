@@ -246,6 +246,25 @@ def _driver(rig, pb, hinge, const, t0=0.0):
         _var(d, "p", "OBJECT", rig, f'["{pull_prop(hinge.sph["uid"])}"]')
     else:
         _var(d, "t", "OBJECT", rig, '["pop_open"]')
+    if hinge.kind == "TABLE":
+        # The driver gives the real open angle; its curve maps that to the
+        # hinge angle solved when the card was built.
+        d.expression = open_expr(t0)
+        fc = pb.id_data.animation_data.drivers.find(f'pose.bones["{pb.name}"].rotation_euler', index=1)
+        kps = fc.keyframe_points
+        # New drivers come with placeholder keys (0,0) and (1,1): reuse them
+        # (clearing and refilling a driver curve can crash Blender).
+        n = len(hinge.table)
+        if len(kps) < n:
+            kps.add(n - len(kps))
+        while len(kps) > n:
+            kps.remove(kps[len(kps) - 1], fast=True)
+        for kp, (tt, vv) in zip(kps, hinge.table):
+            kp.co = (tt, const + vv)
+            kp.interpolation = "LINEAR"
+        fc.extrapolation = "CONSTANT"
+        fc.update()
+        return d
     expr = hinge.expr
     if hinge.kind == "LINEAR":
         expr = expr.replace("radians(t)", f"radians({open_expr(t0)})")

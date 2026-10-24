@@ -51,9 +51,11 @@ DEFAULTS = {
     "MOUTH": dict(y=150.0, jaw=30.0, upper=20.0, lower=15.0),
     "CUBE": dict(y=60.0, size=40.0, height=40.0, tab=10.0),
     "FLAP": dict(y=170.0, x=70.0, width=40.0, length=35.0, tab=8.0),
+    "TUBE": dict(y=80.0, x=25.0, depth=40.0, height=50.0, front=30.0, back=30.0, tab=10.0),
+    "TETHER": dict(height=30.0, tab=8.0, to_y=40.0),
 }
 NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth",
-         "CUBE": "Cube", "FLAP": "Flap"}
+         "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether"}
 
 
 def _add(st, kind):
@@ -75,6 +77,15 @@ def _add(st, kind):
         m.y = min(m.y, max(0.0, H - m.size * 1.42 - 5))
     if kind == "FLAP":
         m.y = min(m.y, max(m.tab + m.length, H - 15))
+    if kind == "TETHER":
+        tubes = [x for x in st.mechs if x.kind == "TUBE"]
+        if tubes:  # join the selected (or last) tube's front left corner to a foot
+            t = tubes[-1]
+            m.from_uid = t.uid
+            m.from_pt = "FL"
+            m.to = "LEFT"
+            m.to_y = max(5.0, t.y - 30.0)
+            m.height = 0.6 * t.height
     st["live"] = was_live
     st.active = len(st.mechs) - 1
     return m

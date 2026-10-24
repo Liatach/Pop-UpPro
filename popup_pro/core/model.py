@@ -210,6 +210,8 @@ class Model:
         self.pull = {}  # flap uid -> pull 0..1 (the Pull slider)
         self.soft = set()  # panel pairs joined by a sliding bend, not a fold
         self.flaps = {}  # flap uid -> info for the UI and checks
+        self.tubes = {}  # tube uid -> plan geometry for tethers
+        self.tethers = {}
         self._build()
         self.solve_hinges()
 
@@ -314,8 +316,19 @@ class Model:
             if st == 1:
                 return False
             state[m["uid"]] = 1
-            h = m.get("host", 0)
+            h = m.get("host", 0) if m["type"] not in ("FLAP", "TUBE", "TETHER") else 0
             ok = True
+            if m["type"] == "TETHER":
+                deps = [m.get("from_uid", 0)]
+                if m.get("to") == "TUBE":
+                    deps.append(m.get("to_uid", 0))
+                for dep in deps:
+                    d_ = by_uid.get(dep)
+                    if d_ is None or d_["type"] != "TUBE":
+                        self.warn(f"{m['label']}: pick the tube(s) it joins; skipped")
+                        ok = False
+                    elif not visit(d_):
+                        ok = False
             if h:
                 parent = by_uid.get(h)
                 if parent is None or parent["type"] != "BOX":
@@ -334,7 +347,7 @@ class Model:
         for m in self.mechs:
             visit(m)
         for m in order:
-            h = m.get("host", 0) if m["type"] != "FLAP" else 0
+            h = m.get("host", 0) if m["type"] not in ("FLAP", "TUBE", "TETHER") else 0
             host = self.hosts.get((h, m.get("fold", "A")) if h else (0, "S"))
             if host is None:
                 self.warn(f"{m['label']}: its host was skipped; skipped too")
@@ -349,6 +362,10 @@ class Model:
                 self._cube(m, host)
             elif m["type"] == "FLAP":
                 self._flap(m)
+            elif m["type"] == "TUBE":
+                self._tube(m, host)
+            elif m["type"] == "TETHER":
+                self._tether(m)
 
     # ------------------------------------------------------- page directions
     def dirs(self, t):
@@ -782,6 +799,408 @@ class Model:
         if tears:
             self.warn(f"{lab}: cannot fold below {max(tears):.0f} degrees")
 
+    # ----------------------------------------------------- parallel strips
+    def strip_frame(self, host, t):
+        """Plan frame shared by everything standing on parallel sticking
+        strips. Every wall leans along e (half-way between the pages) and
+        every crease is parallel to e, so seen along e the structure is a
+        flat linkage. A strip at distance a from the fold sits at plan
+        x = -/+ a sin(t/2), with its foot a cos(t/2) up e."""
+        t = max(t, T_MIN)
+        S, l, r, Y, nl, nr = host.dirs(t)
+        e = (nl + nr).normalized()
+        xh = (r - l)
+        sn = 0.5 * xh.length
+        xh.normalize()
+        cs = l.dot(e)
+        return S, e, xh, Y, sn, cs
+
+    def plan3d(self, host, a, t, pt):
+        S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+        return S + a * cs * e + pt[0] * xh + pt[1] * Y
+
+    def tube_plan(self, uid, t):
+        T = self.tubes[uid]
+        host, a, y0, D = T["host"], T["a"], T["y0"], T["D"]
+        S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+        x = a * sn
+        pf = math.sqrt(max(T["wf"] ** 2 - x * x, 0.0))
+        pb = math.sqrt(max(T["wb"] ** 2 - x * x, 0.0))
+        return dict(BL=(-x, y0 + D), FL=(-x, y0), FR=(x, y0), BR=(x, y0 + D),
+                    CF=(0.0, y0 - T["sf"] * pf), CB=(0.0, y0 + D + T["sb"] * pb))
+
+    def _wall_asm(self, host, a, P, Q, u0, pts_fn):
+        """Wall standing along e from plan point P to Q (keys into pts_fn(t)),
+        its pattern starting at u = u0."""
+        Pi = frame(Vector((u0, 0, 0)), (1, 0, 0), (0, 1, 0)).inverted()
+
+        def asm(t):
+            pts = pts_fn(t)
+            S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+            p3 = self.plan3d(host, a, t, pts[P])
+            q3 = self.plan3d(host, a, t, pts[Q])
+            return frame(p3, (q3 - p3).normalized(), e) @ Pi
+
+        return asm
+
+    def _tube(self, m, host):
+        """Tube on two parallel sticking strips (Birmingham 51, 67, 68). The
+        side walls are glued to strips at distance a either side of the fold;
+        the front and back are pairs of walls creased vertically above the
+        fold, pointing Out (hexagon), In (recessed) or flat when the pair is
+        as wide as the strips are apart (box)."""
+        uid, lab = m["uid"], m["label"]
+        if not host.is_spine:
+            self.warn(f"{lab}: tubes stand on the card spine for now")
+        a, y0 = float(m["x"]), float(m["y"])
+        D, hgt = float(m["depth"]), float(m["height"])
+        wf, wb = max(float(m["front"]), a), max(float(m["back"]), a)
+        if float(m["front"]) < a - 1e-6 or float(m["back"]) < a - 1e-6:
+            self.warn(f"{lab}: front and back walls must be at least as wide as the strip "
+                      f"distance; widened to {a:.0f} mm")
+        sf = 1.0 if m.get("front_style", "OUT") == "OUT" else -1.0
+        sb = 1.0 if m.get("back_style", "OUT") == "OUT" else -1.0
+        tb = min(float(m.get("tab", 10.0)), 0.45 * D)
+        if sf < 0 and sb < 0 and wf + wb > D + 1e-6:
+            self.warn(f"{lab}: recessed front and back meet inside the tube when closed "
+                      f"(make it longer or the walls narrower)")
+        if a + hgt > self.W + 1e-6:
+            self.warn(f"{lab}: strip distance + height is more than the page width, so it "
+                      f"sticks out when closed")
+        if y0 - sf * wf < -1e-6 or y0 + D + sb * wb > self.H + 1e-6:
+            self.warn(f"{lab}: runs past the top or bottom of the card")
+        self.tubes[uid] = dict(host=host, a=a, y0=y0, D=D, wf=wf, wb=wb, sf=sf, sb=sb, h=hgt,
+                               label=lab)
+        piece = f"Tube{uid}"
+        self.add_piece(Piece(piece, lab, 1 + uid, (D + wf, 0.5 * hgt)))
+        pts = lambda t: self.tube_plan(uid, t)
+        # strip pattern: F_L | G_fl | G_fr | F_R | G_br | G_bl | closing tab
+        u = [0.0, D, D + wf, D + 2 * wf, 2 * D + 2 * wf, 2 * D + 2 * wf + wb,
+             2 * D + 2 * wf + 2 * wb]
+        names = ["FL_", "GFL", "GFR", "FR_", "GBR", "GBL"]
+        ends = [("BL", "FL"), ("FL", "CF"), ("CF", "FR"), ("FR", "BR"), ("BR", "CB"), ("CB", "BL")]
+        labels = ["left side", "front left", "front right", "right side", "back right",
+                  "back left"]
+        walls = {}
+        for i, nm in enumerate(names):
+            poly = [(u[i], 0), (u[i + 1], 0), (u[i + 1], hgt), (u[i], hgt)]
+            walls[nm] = dict(poly=poly, asm=self._wall_asm(host, a, ends[i][0], ends[i][1], u[i], pts),
+                             u0=u[i])
+        tab_hinge = lambda u_: hinge_frame_2d((u_, 0), (0, 1))
+        P = {}
+        # side walls hinge on the strips
+        P["FL_"] = self.add(Panel(f"{piece}.FL_", piece, "panel", [walls["FL_"]["poly"]],
+                                  walls["FL_"]["asm"], host.p1,
+                                  Hinge(hinge_frame_2d((host.x1 - a, y0 + D - host.y1), (0, -1)),
+                                        hinge_frame_2d((0, 0), (1, 0))),
+                                  f"{lab}: left side"))
+        P["FR_"] = self.add(Panel(f"{piece}.FR_", piece, "panel", [walls["FR_"]["poly"]],
+                                  walls["FR_"]["asm"], host.p2,
+                                  Hinge(hinge_frame_2d((host.x2 + a, y0 - host.y2), (0, 1)),
+                                        hinge_frame_2d((u[3], 0), (1, 0))),
+                                  f"{lab}: right side"))
+        for nm, parent, hu, lb in (("GFL", "FL_", u[1], "front left"),
+                                   ("GFR", "GFL", u[2], "front right"),
+                                   ("GBR", "FR_", u[4], "back right"),
+                                   ("GBL", "GBR", u[5], "back left")):
+            P[nm] = self.add(Panel(f"{piece}.{nm}", piece, "panel", [walls[nm]["poly"]],
+                                   walls[nm]["asm"], P[parent].name,
+                                   Hinge(tab_hinge(hu), tab_hinge(hu), "TABLE", {}),
+                                   f"{lab}: {lb}"))
+        # closing tab on the back-left wall, glued inside the left side
+        ch = min(0.3 * tb, 0.2 * hgt)
+        close = [(u[6], 0), (u[6] + tb, ch), (u[6] + tb, hgt - ch), (u[6], hgt)]
+        Pc = frame(Vector((u[6], 0, 0)), (1, 0, 0), (0, 1, 0)).inverted()
+
+        def asm_close(t):
+            p = pts(t)
+            S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+            b3 = self.plan3d(host, a, t, p["BL"])
+            f3 = self.plan3d(host, a, t, p["FL"])
+            return frame(b3 + TAB_LIFT * xh, (f3 - b3).normalized(), e) @ Pc
+
+        self.add(Panel(f"{piece}.Close", piece, "tab", [close], asm_close, P["FL_"].name, None,
+                       f"{lab}: closing tab"))
+        # base tabs under the side walls, folded in (towards the fold) or out
+        k = 1.0 if m.get("tab_side", "IN") == "IN" else -1.0
+        for side, u0, u1, T, parent, Tp in (
+            ("L", u[0], u[1], frame(Vector((-a, y0 + D, TAB_LIFT)), (0, -1, 0), (-k, 0, 0)),
+             host.p1, host.T1),
+            ("R", u[3], u[4], frame(Vector((a, y0, TAB_LIFT)), (0, 1, 0), (k, 0, 0)),
+             host.p2, host.T2),
+        ):
+            T = T @ frame(Vector((u0, 0, 0)), (1, 0, 0), (0, 1, 0)).inverted()
+            c2 = min(0.3 * tb, 0.2 * D)
+            poly = [(u0 + c2, -tb), (u0, 0), (u1, 0), (u1 - c2, -tb)]
+            sgn = -1.0 if side == "L" else 1.0
+            n2 = (sgn * T[0][0], sgn * T[0][1])
+            poly = clip_halfplane(poly, n2, 0.5 - sgn * T[0][3])
+            pa = self.panels[parent].asm
+            Tpat = Tp @ T
+            self.add(Panel(f"{piece}.Tab{side}", piece, "tab", [poly],
+                           (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
+                           f"{lab}: base tab {side}"))
+        # which wall a tether glues to at each point, and the way along it
+        self.tubes[uid]["attach"] = dict(
+            FL=(P["FL_"].name, "BL"), BL=(P["FL_"].name, "FL"),
+            FR=(P["FR_"].name, "BR"), BR=(P["FR_"].name, "FR"),
+            CF=(P["GFL"].name, "FL"), CB=(P["GBR"].name, "BR"))
+
+    def _tether(self, m):
+        """Wall joining a tube's corner or crease to another tube's, or to a
+        small foot glued on a strip. Straight if its ends stay the same
+        distance apart; otherwise it gets a vertical crease and is long
+        enough for the farthest the ends get apart (plus Slack)."""
+        uid, lab = m["uid"], m["label"]
+        A_uid, A_pt = int(m["from_uid"]), m.get("from_pt", "FL")
+        TA = self.tubes.get(A_uid)
+        if TA is None:
+            self.warn(f"{lab}: its tube was skipped; skipped too")
+            return
+        host, a = TA["host"], TA["a"]
+        to = m.get("to", "LEFT")
+        hgt = float(m.get("height", TA["h"]))
+        tb = min(float(m.get("tab", 10.0)), 20.0)
+        kf = float(m.get("foot", 12.0))
+        piece = f"Tether{uid}"
+        self.add_piece(Piece(piece, lab, 1 + uid, (40.0, 0.5 * hgt)))
+
+        if to == "TUBE":
+            TB = self.tubes.get(int(m["to_uid"]))
+            if TB is None:
+                self.warn(f"{lab}: its second tube was skipped; skipped too")
+                return
+            if abs(TB["a"] - a) > 1e-6:
+                self.warn(f"{lab}: joined tubes must use the same Strip Distance (the walls "
+                          f"would have to slide); skipped")
+                return
+            B_uid, B_pt = int(m["to_uid"]), m.get("to_pt", "FR")
+
+            def endB(t):
+                return self.tube_plan(B_uid, t)[B_pt]
+        else:
+            sgnx = -1.0 if to == "LEFT" else 1.0
+            yb = float(m.get("to_y", 100.0))
+
+            def endB(t):
+                S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+                return (sgnx * a * sn, yb)
+
+        def endA(t):
+            return self.tube_plan(A_uid, t)[A_pt]
+
+        def dist(t):
+            pa, pb = endA(t), endB(t)
+            return math.hypot(pb[0] - pa[0], pb[1] - pa[1])
+
+        ds = [dist(t) for t in self.TABLE_T]
+        dmin, dmax, d0 = min(ds), max(ds), ds[0]
+        if dmax < 1.0:
+            self.warn(f"{lab}: its ends meet; skipped")
+            return
+
+        # ends may meet as the card shuts (like a tube's own front pair), but
+        # must not run into each other part way open
+        dips = [ds[i] for i in range(1, len(ds) - 1)
+                if ds[i] <= ds[i - 1] and ds[i] <= ds[i + 1] and self.TABLE_T[i] > 1.0]
+        if dips and min(dips) < 2.0:
+            self.warn(f"{lab}: its two ends pass through each other as the card opens; "
+                      f"skipped (join points that stay apart)")
+            return
+        straight = dmax - dmin < 0.05 and float(m.get("slack", 0.0)) <= 0.0
+        # A creased tether has to lie flat when the card shuts, so its halves
+        # differ by exactly the closed distance between its ends (it folds
+        # back on itself there), and together reach the farthest the ends get
+        # apart, plus slack (half a millimetre at least, or it binds).
+        L = dmax + (0.0 if straight else max(float(m.get("slack", 0.0)), 0.5))
+
+        def lead_dir():
+            # direction the ends approach each other from as the card shuts
+            for tt in (2.0, 5.0, 10.0, 30.0, 90.0):
+                pa, pb = endA(tt), endB(tt)
+                dd = math.hypot(pb[0] - pa[0], pb[1] - pa[1])
+                if dd > 0.05:
+                    return ((pb[0] - pa[0]) / dd, (pb[1] - pa[1]) / dd)
+            return (1.0, 0.0)
+
+        u_near = lead_dir()
+        if not straight and d0 < 0.5:
+            # The ends meet as the card shuts. That folds flat only if they
+            # come together across the fold (like a tube's front pair: the
+            # crease then lies along the fold); head-on along it, the tether
+            # would have to snap over.
+            if abs(u_near[0]) < 0.7:
+                self.warn(f"{lab}: its ends meet head-on along the fold as the card shuts, "
+                          f"so it can't fold flat; move one end")
+                return
+            d0 = 0.0
+        if not straight and dmin < d0 - 0.3:
+            self.warn(f"{lab}: its ends come closer together as the card starts to open than "
+                      f"when it is shut, so it can't both fold flat and reach; move one end")
+            return
+        d0 = min(d0, dmin)
+        # When shut it folds back on itself past one end; pick the end that
+        # keeps that fold on the card (nearest the middle).
+        pa0, pb0 = endA(T_MIN), endB(T_MIN)
+        past = []
+        for longA in (True, False):
+            la, lb = (0.5 * (L + d0), 0.5 * (L - d0)) if longA else (0.5 * (L - d0), 0.5 * (L + d0))
+            ux, uy = u_near
+            cy = pa0[1] + (la if longA else -la) * uy
+            past.append((abs(cy - 0.5 * self.H), la, lb))
+        _, L1, L2 = min(past)
+
+        def crease(t, side):
+            pa, pb = endA(t), endB(t)
+            dx, dy = pb[0] - pa[0], pb[1] - pa[1]
+            d = math.hypot(dx, dy)
+            if d < 0.05:  # ends (nearly) together: use the way they approach
+                ux, uy = u_near
+                d = max(d, 1e-9)
+            else:
+                ux, uy = dx / d, dy / d
+            ca = max(-1.0, min(1.0, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d)))
+            sa = math.sqrt(1 - ca * ca) * side
+            return (pa[0] + L1 * (ca * ux - sa * uy), pa[1] + L1 * (ca * uy + sa * ux))
+
+        def poke(side):
+            worst = 0.0
+            for t in self.TABLE_T[::5]:
+                S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+                worst = max(worst, abs(crease(t, side)[0]) - a * sn)
+            return worst
+
+        bend = m.get("bend", "AUTO")
+        if straight:
+            side = 1.0
+        elif bend == "AUTO":
+            side = min((1.0, -1.0), key=poke)
+        else:
+            want = -1.0 if bend == "FRONT" else 1.0  # front = towards smaller y
+            side = max((1.0, -1.0), key=lambda sd: want * (crease(90.0, sd)[1] -
+                                                           0.5 * (endA(90.0)[1] + endB(90.0)[1])))
+        if not straight and poke(side) > 0.5:
+            self.warn(f"{lab}: its crease swings outside the strips, so it would pass under "
+                      f"the pages; try the other Bend or move its ends")
+
+        def plan(t):
+            out = dict(A=endA(t), B=endB(t))
+            if not straight:
+                out["C"] = crease(t, side)
+            return out
+
+        if straight:
+            segs = [("W1", "A", "B", 0.0, dmax)]
+        else:
+            segs = [("W1", "A", "C", 0.0, L1), ("W2", "C", "B", L1, L1 + L2)]
+        Ltot = segs[-1][4]
+        att_wall, att_toward = TA["attach"][A_pt]
+        prev = None
+        for i, (nm, p0, p1, u0, u1) in enumerate(segs):
+            poly = [(u0, 0), (u1, 0), (u1, hgt), (u0, hgt)]
+            asm = self._wall_asm(host, a, p0, p1, u0, plan)
+            parent = att_wall if prev is None else prev.name
+            if prev is None:
+                # hinge on the tube wall's vertical edge at point A
+                Tu = self._tube_u(A_uid, A_pt, att_wall)
+                Hp = hinge_frame_2d((Tu, 0), (0, 1))
+            else:
+                Hp = hinge_frame_2d((u0, 0), (0, 1))
+            prev = self.add(Panel(f"{piece}.{nm}", piece, "panel", [poly], asm, parent,
+                                  Hinge(Hp, hinge_frame_2d((u0, 0), (0, 1)), "TABLE", {}),
+                                  f"{lab}: wall {i + 1}"))
+        # glue tab at A, on the outside of the tube wall
+        A_wall_other = att_toward
+
+        def asm_tabA(t):
+            p = self.tube_plan(A_uid, t)
+            S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+            a3 = self.plan3d(host, a, t, p[A_pt])
+            o3 = self.plan3d(host, a, t, p[A_wall_other])
+            Mw = self.panels[att_wall].asm(t)
+            nout = Mw.to_3x3() @ Z
+            return frame(a3 + TAB_LIFT * nout, (a3 - o3).normalized(), e)
+
+        tabA = [(-tb, min(0.2 * hgt, 0.3 * tb)), (0, 0), (0, hgt), (-tb, hgt - min(0.2 * hgt, 0.3 * tb))]
+        self.add(Panel(f"{piece}.TabA", piece, "tab", [tabA], asm_tabA, att_wall, None,
+                       f"{lab}: glue tab"))
+        if to == "TUBE":
+            Bw, Btoward = self.tubes[int(m["to_uid"])]["attach"][m.get("to_pt", "FR")]
+            B_uid_, B_pt_ = int(m["to_uid"]), m.get("to_pt", "FR")
+
+            def asm_tabB(t):
+                p = self.tube_plan(B_uid_, t)
+                b3 = self.plan3d(host, a, t, p[B_pt_])
+                o3 = self.plan3d(host, a, t, p[Btoward])
+                S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+                nout = self.panels[Bw].asm(t).to_3x3() @ Z
+                return frame(b3 + TAB_LIFT * nout, (o3 - b3).normalized(), e) \
+                    @ frame(Vector((Ltot, 0, 0)), (1, 0, 0), (0, 1, 0)).inverted()
+
+            tabB = [(Ltot, 0), (Ltot + tb, min(0.2 * hgt, 0.3 * tb)),
+                    (Ltot + tb, hgt - min(0.2 * hgt, 0.3 * tb)), (Ltot, hgt)]
+            self.add(Panel(f"{piece}.TabB", piece, "tab", [tabB], asm_tabB, Bw, None,
+                           f"{lab}: glue tab"))
+        else:
+            # a short foot standing on the strip, glued down by a base tab
+            yb = float(m.get("to_y", 100.0))
+            last = self.panels[f"{piece}.{segs[-1][0]}"]
+            pA0 = endA(180.0)
+            fdir = 1.0 if yb >= pA0[1] else -1.0  # foot runs on away from the tube
+
+            def foot_pts(t):
+                pb = endB(t)
+                return dict(B=pb, E=(pb[0], pb[1] + fdir * kf))
+
+            fasm = self._wall_asm(host, a, "B", "E", Ltot, foot_pts)
+            sgnx = -1.0 if to == "LEFT" else 1.0
+            pg, px, py, Tp = ((host.p1, host.x1, host.y1, host.T1) if to == "LEFT"
+                              else (host.p2, host.x2, host.y2, host.T2))
+            foot = self.add(Panel(f"{piece}.Foot", piece, "panel",
+                                  [[(Ltot, 0), (Ltot + kf, 0), (Ltot + kf, hgt), (Ltot, hgt)]],
+                                  fasm, pg,
+                                  Hinge(hinge_frame_2d((px + sgnx * a, yb - py), (0, fdir)),
+                                        hinge_frame_2d((Ltot, 0), (1, 0))),
+                                  f"{lab}: foot"))
+            # re-parent the last wall onto the foot: the chain is page -> foot -> walls
+            last.parent = foot.name
+            last.hinge = Hinge(hinge_frame_2d((Ltot, 0), (0, 1)),
+                               hinge_frame_2d((Ltot, 0), (0, 1)), "TABLE", {})
+            # base tab under the foot, folded away from the tether
+            kk = 1.0 if m.get("tab_side", "IN") == "IN" else -1.0
+            # strip pattern +v -> across the strip, so the tab (v < 0) folds
+            # towards the fold for IN, away for OUT
+            T = frame(Vector((sgnx * a, yb, TAB_LIFT)), (0, fdir, 0), (sgnx * kk, 0, 0)) \
+                @ frame(Vector((Ltot, 0, 0)), (1, 0, 0), (0, 1, 0)).inverted()
+            c2 = min(0.3 * tb, 0.2 * kf)
+            poly = [(Ltot + c2, -tb), (Ltot, 0), (Ltot + kf, 0), (Ltot + kf - c2, -tb)]
+            pa_ = self.panels[pg].asm
+            Tpat = Tp @ T
+            self.add(Panel(f"{piece}.FootTab", piece, "tab", [poly],
+                           (lambda t, pa=pa_, T=Tpat: pa(t) @ T), pg, None, f"{lab}: foot tab"))
+            # the chain must be parent-first: move the walls after the foot
+            for nm, *_ in segs[::-1]:
+                n_ = f"{piece}.{nm}"
+                self.order.remove(n_)
+                self.order.insert(self.order.index(foot.name) + 1, n_)
+            # walls now hang from the foot: W2 <- foot, W1 <- W2
+            if not straight:
+                w1 = self.panels[f"{piece}.W1"]
+                w1.parent = last.name
+                w1.hinge = Hinge(hinge_frame_2d((L1, 0), (0, 1)), hinge_frame_2d((L1, 0), (0, 1)),
+                                 "TABLE", {})
+                self.order.remove(w1.name)
+                self.order.insert(self.order.index(last.name) + 1, w1.name)
+        self.tethers[uid] = dict(straight=straight, length=L)
+
+    def _tube_u(self, uid, pt, wall):
+        """Pattern u of a tube point on the given tube wall."""
+        T = self.tubes[uid]
+        D, wf, wb = T["D"], T["wf"], T["wb"]
+        u = {"FL_": {"BL": 0.0, "FL": D}, "FR_": {"FR": D + 2 * wf, "BR": 2 * D + 2 * wf},
+             "GFL": {"FL": D, "CF": D + wf}, "GBR": {"BR": 2 * D + 2 * wf, "CB": 2 * D + 2 * wf + wb}}
+        return u[wall.split(".")[-1]][pt]
+
     # ------------------------------------------------------------------ flap
     def _flap(self, m):
         """Pull-tab flap on a page. The flap is glued down along its hinge by a
@@ -997,6 +1416,65 @@ class Model:
             raise ValueError(f"{name}: not a pure slide")
         return tr.y
 
+    TABLE_T = [T_MIN] + [float(d) for d in range(1, 181)]
+
+    def _table_hinge(self, name, h, tol=2e-4):
+        """Hinges with no short formula: the solved angle, sampled every
+        degree and more finely wherever the curve bends sharply (a crease
+        pulling straight), written into the rig as a driver curve."""
+        def wrap(d):
+            return (d + math.pi) % (2 * math.pi) - math.pi
+
+        cache = {}
+
+        def true(t):
+            if t not in cache:
+                cache[t] = self.true_psi(name, t)
+            return cache[t]
+
+        pts = list(self.TABLE_T)
+        out = [pts[0]]
+        for i in range(len(pts) - 1):
+            stack = [(pts[i], pts[i + 1])]
+            seg = []
+            while stack:
+                t0, t1 = stack.pop()
+                tm = 0.5 * (t0 + t1)
+                v0, v1, vm = true(t0), true(t1), true(tm)
+                lin = v0 + 0.5 * wrap(v1 - v0)
+                if abs(wrap(vm - lin)) > tol and t1 - t0 > 1.0 / 512:
+                    stack.append((tm, t1))
+                    stack.append((t0, tm))
+                else:
+                    seg.append(t1)
+            out += seg
+        T, V, prev = [], [], None
+        for t in sorted(set(out)):
+            v = true(t)
+            if prev is not None:
+                v = prev + wrap(v - prev)
+            T.append(t)
+            V.append(v)
+            prev = v
+        h.table = list(zip(T, V))
+        import bisect
+
+        def fn(t, T=T, V=V):
+            t = max(T[0], min(T[-1], t))
+            i = max(0, min(len(T) - 2, bisect.bisect_right(T, t) - 1))
+            f = (t - T[i]) / (T[i + 1] - T[i])
+            return V[i] + f * (V[i + 1] - V[i])
+
+        h.fn = fn
+        h.expr = None
+        err = 0.0
+        for i in range(len(T) - 1):
+            tm = 0.5 * (T[i] + T[i + 1])
+            err = max(err, abs(wrap(fn(tm) - true(tm))))
+        h.check = err
+        if err > 2e-3:
+            raise ValueError(f"{name}: tabulated hinge is off by {err:.2e} rad")
+
     def _expr_hinge(self, name, h):
         """Hinges written as a formula: EXPR (in the open angle T, degrees),
         PULL (rotation in the flap's Pull p) and SLIDE (distance in mm along
@@ -1040,6 +1518,9 @@ class Model:
                 continue
             if h.kind in ("EXPR", "PULL", "SLIDE"):
                 self._expr_hinge(name, h)
+                continue
+            if h.kind == "TABLE":
+                self._table_hinge(name, h)
                 continue
             if h.kind == "LINEAR":
                 p90, p1 = self.true_psi(name, 90.0), self.true_psi(name, 180.0)
@@ -1187,20 +1668,24 @@ class Model:
                 M = host.asm(90.0).inverted() @ p.asm(90.0)
                 for poly in p.polys:
                     q = [(M @ v3(c)).to_2d()[:] for c in poly]
-                    prints.setdefault(host.piece, []).append((lab, "tab", q, host))
+                    # which face of the host it is glued to (printed or back)
+                    face = 1 if (M @ v3(poly[0])).z >= 0 else -1
+                    prints.setdefault(host.piece, []).append((lab, "tab", q, host, face))
             elif name in self.cut_panels:
                 for poly in p.polys:
-                    prints.setdefault(p.piece, []).append((lab, "cut", poly, p))
+                    prints.setdefault(p.piece, []).append((lab, "cut", poly, p, 0))
         for piece, items in prints.items():
-            for i, (la, ka, pa, ha) in enumerate(items):
+            for i, (la, ka, pa, ha, fa) in enumerate(items):
                 if ka == "tab":
                     on = sum(self._overlap(pa, q) for q in ha.polys)
                     if on < abs(poly_area(pa)) - 1.0:
                         self.warn(f"{la}: a glue tab hangs off {ha.label.split(':')[0]}")
-                for lb, kb, pb, hb in items[i + 1:]:
+                for lb, kb, pb, hb, fb in items[i + 1:]:
                     if {ka, kb} == {"tab", "cut"} and (ha if ka == "tab" else hb) is \
                             (hb if ka == "tab" else ha):
                         continue  # a tab glued onto that very cut-in panel
+                    if ka == kb == "tab" and fa != fb:
+                        continue  # glued to opposite faces of the paper
                     if la != lb and self._overlap(pa, pb) > 1.0:
                         self.warn(f"{la} and {lb} overlap on the paper")
 

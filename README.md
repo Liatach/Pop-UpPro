@@ -9,7 +9,8 @@ them.**
 
 * **Preset mechanisms** you tune with sliders: V-folds (panels or beaks),
   cut-in mouths, glued box folds, cut-in box layers, 180° cubes with lids,
-  and pull-tab flaps.
+  pull-tab flaps, and tubes (hexagons, boxes) tethered together on parallel
+  strips.
 * **Stack them**: boxes on boxes, steps up and forward, and inset (valley)
   boxes; V-folds and mouths sit on any box fold too.
 * **Movement test**: one Open slider (0–180°) drives a driver-only rig, with
@@ -81,6 +82,8 @@ includes 12 x 12 and 12 x 24 in cutting mats.
 | **Box fold** | A separate strip glued across a fold (parallel fold) | Position, Height (along the fold), Width Left, Width Right, tab size |
 | **Box layer** | The same parallel fold cut into the paper itself | Position, Height, Width Left, Width Right |
 | **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
+| **Tube** | Hexagon, box or recessed tube on two parallel sticking strips (Birmingham 51, 67, 68) | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs |
+| **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
 | **Flap** | A lift-the-flap worked by a pull tab, with its own **Pull** slider | Page, From Spine, Up the Page, Hinge edge, Width, Length, Hinge Tab, Lift angle, Glue Point (5 mm from the hinge by default), Strip Width, Slit Gap, Pull Tab |
 
 ### Cube (180°)
@@ -91,6 +94,35 @@ the back walls follow as a parallelogram. The lid is two right triangles on
 the front walls, creased along the diagonal and joined by a glue tab: it
 rises to a ridge (Peaked) or sinks into the box (Dipped) as the card closes.
 A flat one-piece lid can't fold, so the lid is always two triangles.
+
+### Tubes and tethers (parallel sticking strips)
+
+A tube's side walls are glued to two strips parallel to the fold, the same
+distance either side of it. Its front and back are pairs of walls whose
+creases stay vertical above the fold, so the tube stays upright and folds
+flat. A pair as wide as the strip distance gives a flat face when the card is
+open flat (a box); wider pairs point out (a hexagon) or in (a recess).
+
+Every wall in this family leans together, halfway between the pages, and
+every crease stays parallel, so one tube can pull others into shape:
+
+* **Tethers** join a tube's corner or crease to another tube's, or to a small
+  foot glued on a strip. A tether stays flat (no crease) when its ends keep
+  the same distance apart, such as two corners on the same strip. Otherwise
+  it gets a crease, sized so it still folds flat when the card shuts, for
+  example a tether crossing the centre. **Bend** picks the side the crease
+  goes (Auto keeps it between the strips).
+* All tubes joined by tethers must share the same **Strip Distance**: a strip
+  further out sits lower, so the walls would have to slide.
+* Anything standing at strip level must stay between the two strips, or it
+  would pass under the pages as the card closes. The checks warn if a tether
+  swings outside.
+* Tethers whose ends would collide, or meet head-on along the fold as the
+  card shuts, can't fold flat and are refused.
+
+Their fold angles are solved when the card is built and stored in the rig as
+driver curves (sampled every degree, more finely where needed), so the rig
+still needs no scripts.
 
 ### Flap and the Pull control
 
@@ -218,7 +250,8 @@ each tab glues to.
 python tests/test_core.py      # kinematics, stacking, overlap checks (needs: pip install bpy)
 python tests/test_blender.py   # end to end in Blender
 python tests/test_v04.py       # closing stop, solid paper, exports, safe bakes
-python tests/test_v05.py       # 180° cube, pull-tab flaps
+python tests/test_v05.py       # 180° cube, pull-tab flaps, stacking
+python tests/test_v06.py       # tubes and tethers on parallel strips
 ```
 
 ## Limits and roadmap
@@ -227,8 +260,9 @@ python tests/test_v05.py       # 180° cube, pull-tab flaps
   V-folds.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
-* Next mechanisms: the 90° box with lid, floating layers on pedestals,
-  V-folds on V-folds, arch V-folds, moving arms.
+* Next mechanisms: roofs and lids for tubes (pyramid caps, Birmingham 52),
+  the 90° box with lid, floating layers on pedestals, V-folds on V-folds,
+  arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe
   route for printing.
 
