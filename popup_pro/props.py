@@ -31,6 +31,8 @@ KINDS = [
      "either side of the fold", "MESH_CYLINDER", 6),
     ("TETHER", "Tether", "Wall from a tube's corner or crease to another tube or to a foot "
      "on a strip; pulled open by the tubes", "LINKED", 7),
+    ("PYRAMID", "Pyramid", "Pyramid or tent standing on two parallel strips either side "
+     "of the fold", "CONE", 8),
 ]
 
 POINTS = [
@@ -102,7 +104,7 @@ def host_items(self, context):
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
             if m.kind in ("BOX", "BOXCUT") and m.uid not in bad and \
-                    self.kind not in ("FLAP", "TUBE", "TETHER"):
+                    self.kind not in ("FLAP", "TUBE", "TETHER", "PYRAMID"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
                               "MESH_CUBE", m.uid))
     _host_items = items
@@ -220,6 +222,14 @@ class PopupMech(bpy.types.PropertyGroup):
     back_style: EnumProperty(name="Back", items=[
         ("OUT", "Pointed Out", "The back crease points backward (hexagon)"),
         ("IN", "Pointed In", "The back crease points into the tube")], update=_changed)
+    roof: BoolProperty(name="Roof", description="Put a pyramid or ridge roof on top",
+                       default=False, update=_changed)
+    roof_height: FloatProperty(name="Roof Height", description="How far the roof rises "
+                               "above the walls, card open flat (mm)", default=30.0, min=1.0,
+                               soft_max=150.0, update=_changed)
+    ridge: FloatProperty(name="Ridge", description="Length of the ridge along the fold (mm). "
+                         "0 makes a pyramid; the full length makes a tent with upright ends",
+                         default=0.0, min=0.0, soft_max=200.0, update=_changed)
     # tether
     from_uid: IntProperty()
     from_tube: EnumProperty(name="From", items=tube_items, get=_get_from, set=_set_from)
@@ -285,7 +295,13 @@ class PopupMech(bpy.types.PropertyGroup):
         if self.kind == "TUBE":
             d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
                      front=self.front, back=self.back, front_style=self.front_style,
-                     back_style=self.back_style, tab_side=self.tab_side)
+                     back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
+                     roof_height=self.roof_height, ridge=self.ridge)
+        elif self.kind == "PYRAMID":
+            d.update(type="PYRAMID", x=self.x, depth=self.depth, height=self.height,
+                     ridge=self.ridge, front=self.front, back=self.back,
+                     front_style=self.front_style, back_style=self.back_style,
+                     tab_side=self.tab_side)
         elif self.kind == "TETHER":
             d.update(type="TETHER", from_uid=self.from_uid, from_pt=self.from_pt, to=self.to,
                      to_uid=self.to_uid, to_pt=self.to_pt, to_y=self.to_y, slack=self.slack,

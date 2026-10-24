@@ -356,9 +356,12 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
             if p["kind"] != "tab":
                 continue
             host = model.panels[model.panels[p["name"]].parent]
-            Mp = prints[host.piece] @ host.asm(90.0).inverted() @ D90[p["name"]]
+            rel = host.asm(90.0).inverted() @ D90[p["name"]]
+            Mp = prints[host.piece] @ rel
             for piece_faces in faces_by_piece.get(p["piece"], []):
                 if piece_faces[0] == pi:
+                    if (rel @ piece_faces[1][0].to_3d()).z < 0:
+                        continue  # glued to the back: a guide would show on the art
                     guides.setdefault(host.piece, []).append(
                         [(Mp @ q.to_3d()).to_2d() for q in piece_faces[1]])
 

@@ -4,7 +4,8 @@ from . import live
 
 KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FACE",
              "MOUTH": "MOD_SIMPLEDEFORM", "CUBE": "CUBE", "FLAP": "MOD_CLOTH",
-             "TUBE": "MESH_CYLINDER", "TETHER": "LINKED"}
+             "TUBE": "MESH_CYLINDER", "TETHER": "LINKED",
+             "PYRAMID": "CONE"}
 
 
 def draw_export(layout, st):
@@ -52,7 +53,8 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("BOX", "Box Fold (glued strip)"),
                         ("BOXCUT", "Box Layer (cut in)"),
                         ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap"),
-                        ("TUBE", "Tube (parallel strips)"), ("TETHER", "Tether")):
+                        ("TUBE", "Tube (parallel strips)"), ("TETHER", "Tether"),
+                        ("PYRAMID", "Pyramid / Tent (parallel strips)")):
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
         st = context.scene.popup
         if st.mechs and st.active < len(st.mechs):
@@ -146,6 +148,24 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "front")
             col.prop(m, "front_style")
             col.prop(m, "back")
+            col.prop(m, "back_style")
+            col.prop(m, "tab")
+            col.prop(m, "tab_side", text="Base Tabs")
+            col.prop(m, "roof")
+            if m.roof:
+                col.prop(m, "roof_height")
+                col.prop(m, "ridge")
+            self.draw_warnings(context, m)
+            return
+        if m.kind == "PYRAMID":
+            col.prop(m, "y", text="Position")
+            col.prop(m, "x", text="Strip Distance")
+            col.prop(m, "depth", text="Base Length")
+            col.prop(m, "height")
+            col.prop(m, "ridge")
+            col.prop(m, "front", text="Front Width")
+            col.prop(m, "front_style")
+            col.prop(m, "back", text="Back Width")
             col.prop(m, "back_style")
             col.prop(m, "tab")
             col.prop(m, "tab_side", text="Base Tabs")

@@ -53,9 +53,12 @@ DEFAULTS = {
     "FLAP": dict(y=170.0, x=70.0, width=40.0, length=35.0, tab=8.0),
     "TUBE": dict(y=80.0, x=25.0, depth=40.0, height=50.0, front=30.0, back=30.0, tab=10.0),
     "TETHER": dict(height=30.0, tab=8.0, to_y=40.0),
+    "PYRAMID": dict(y=80.0, x=25.0, depth=50.0, height=40.0, ridge=0.0, front=25.0,
+                    back=25.0, tab=10.0),
 }
 NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth",
-         "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether"}
+         "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
+         "PYRAMID": "Pyramid"}
 
 
 def _add(st, kind):

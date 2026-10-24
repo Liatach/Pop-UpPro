@@ -9,8 +9,8 @@ them.**
 
 * **Preset mechanisms** you tune with sliders: V-folds (panels or beaks),
   cut-in mouths, glued box folds, cut-in box layers, 180° cubes with lids,
-  pull-tab flaps, and tubes (hexagons, boxes) tethered together on parallel
-  strips.
+  pull-tab flaps, tubes (hexagons, boxes) tethered together on parallel
+  strips, and pyramids, tents and roofs.
 * **Stack them**: boxes on boxes, steps up and forward, and inset (valley)
   boxes; V-folds and mouths sit on any box fold too.
 * **Movement test**: one Open slider (0–180°) drives a driver-only rig, with
@@ -84,6 +84,7 @@ includes 12 x 12 and 12 x 24 in cutting mats.
 | **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
 | **Tube** | Hexagon, box or recessed tube on two parallel sticking strips (Birmingham 51, 67, 68) | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs |
 | **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
+| **Pyramid** | Pyramid, hexagonal pyramid or tent on two parallel sticking strips (Birmingham 52) | Position, Strip Distance, Base Length, Height, Ridge, Front and Back Width, each Pointed Out or In, base tabs |
 | **Flap** | A lift-the-flap worked by a pull tab, with its own **Pull** slider | Page, From Spine, Up the Page, Hinge edge, Width, Length, Hinge Tab, Lift angle, Glue Point (5 mm from the hinge by default), Strip Width, Slit Gap, Pull Tab |
 
 ### Cube (180°)
@@ -123,6 +124,27 @@ every crease stays parallel, so one tube can pull others into shape:
 Their fold angles are solved when the card is built and stored in the rig as
 driver curves (sampled every degree, more finely where needed), so the rig
 still needs no scripts.
+
+### Pyramids, tents and roofs (Birmingham 52)
+
+![A hexagonal tower with a pyramid cap, a house with a ridge roof and a
+pyramid, opening](docs/images/roofs.png)
+
+A pyramid's two sloping sides are glued to the same pair of strips as a
+tube, and meet above the fold at an apex. Give it a **Ridge** and it becomes
+a tent: a ridge as long as the base gives upright gable ends, a shorter one a
+hipped roof. Each end is a pair of triangles creased down the middle above
+the fold. Its bottom edge floats free, as in the book, and the ends fold flat
+as the card shuts. **Front** and **Back Width** shape the ends just as on a
+tube: as wide as the strip distance gives a flat end, wider points it out
+(a hexagonal pyramid) or, Pointed In, tucks it in. A flat end can crease
+either way as the card starts to close; Pointed Out sends the crease
+outwards, Pointed In tucks it under.
+
+A tube can wear the same roof: tick **Roof** on the tube and set **Roof
+Height** and **Ridge**. The roof is a separate piece whose tabs glue inside
+the top of the side walls. Lying flat, a roof adds its slope length to the
+tube's height, and the checks warn if that runs past the page edge.
 
 ### Flap and the Pull control
 
@@ -252,6 +274,8 @@ python tests/test_blender.py   # end to end in Blender
 python tests/test_v04.py       # closing stop, solid paper, exports, safe bakes
 python tests/test_v05.py       # 180° cube, pull-tab flaps, stacking
 python tests/test_v06.py       # tubes and tethers on parallel strips
+python tests/test_roofs.py     # pyramid, tent, hip and tube-cap kinematics
+python tests/test_v07.py       # roofs end to end, rig against the solved geometry
 ```
 
 ## Limits and roadmap
@@ -260,9 +284,8 @@ python tests/test_v06.py       # tubes and tethers on parallel strips
   V-folds.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
-* Next mechanisms: roofs and lids for tubes (pyramid caps, Birmingham 52),
-  the 90° box with lid, floating layers on pedestals, V-folds on V-folds,
-  arch V-folds, moving arms.
+* Next mechanisms: the 90° box with lid, floating layers on pedestals,
+  V-folds on V-folds, arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe
   route for printing.
 
