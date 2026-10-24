@@ -222,8 +222,10 @@ def ensure_sketch(scene):
     if obj is None or obj.type != "GREASEPENCIL":
         gp = bpy.data.grease_pencils.new(N(scene, SKETCH))
         obj = bpy.data.objects.new(N(scene, SKETCH), gp)
-        from .build import folded_collection
-        folded_collection(scene).objects.link(obj)
+        # not in a carousel stage's folded collection: Grease Pencil layers
+        # parented to bones don't follow them in a collection instance
+        from .build import _collection
+        _collection(scene).objects.link(obj)
     if not obj.data.materials:
         obj.data.materials.append(ink_material())
     return obj

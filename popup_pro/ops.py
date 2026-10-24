@@ -611,6 +611,79 @@ class POPUP_OT_remove_opening(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class POPUP_OT_draw_holes(bpy.types.Operator):
+    """Draw hole outlines with Grease Pencil straight onto the flat layout (any
+    piece, either half of a fold). Closed strokes are cut at the next rebuild"""
+    bl_idname = "popup.draw_holes"
+    bl_label = "Draw Holes"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.layout is not None
+
+    def execute(self, context):
+        from . import holes
+        sc = context.scene
+        st = sc.popup
+        if context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        obj, layer = holes.hole_sketch(sc)
+        obj.data.layers.active = layer
+        obj.active_material_index = len(obj.data.materials) - 1
+        st.layout.hide_set(False)
+        for o in context.selected_objects:
+            o.select_set(False)
+        obj.hide_set(False)
+        obj.select_set(True)
+        context.view_layer.objects.active = obj
+        ts = sc.tool_settings
+        ts.gpencil_stroke_placement_view3d = "SURFACE"
+        ts.gpencil_surface_offset = 0.2 / st.mm_per_unit
+        try:
+            bpy.ops.object.mode_set(mode="PAINT_GREASE_PENCIL")
+        except (RuntimeError, TypeError):
+            pass
+        area, rv3d = _view3d(context)
+        if rv3d is not None:  # look straight down on the layout
+            bb = [st.layout.matrix_world @ Vector(c) for c in st.layout.bound_box]
+            mid = sum(bb, Vector()) / 8.0
+            rv3d.view_rotation = Quaternion((1, 0, 0, 0))
+            rv3d.view_location = mid
+            rv3d.view_perspective = "ORTHO"
+        return {"FINISHED"}
+
+
+class POPUP_OT_keep_holes(bpy.types.Operator):
+    """Fix the drawn hole outlines onto their pieces (they then stay with them
+    when the layout is rearranged) and clear the strokes. Edit brings them
+    back as strokes"""
+    bl_idname = "popup.keep_holes"
+    bl_label = "Keep Drawn Holes"
+    bl_options = {"REGISTER", "UNDO"}
+    edit: BoolProperty(default=False)
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def execute(self, context):
+        from . import holes
+        sc = context.scene
+        if context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        model, layout = build.make_model(sc)
+        if self.edit:
+            n = holes.edit_kept(sc, model, layout)
+            build.rebuild(sc, force=True)
+            self.report({"INFO"}, f"{n} hole outline(s) back as strokes")
+            return {"FINISHED"}
+        n = holes.keep_drawn(sc, model, layout)
+        build.rebuild(sc, force=True)
+        self.report({"INFO"}, f"{n} hole(s) kept")
+        return {"FINISHED"}
+
+
 class POPUP_OT_trace_holes(bpy.types.Operator):
     """Cut out everything painted see-through in the art (paint with Erase
     Alpha in Texture Paint). Run again after repainting"""
@@ -640,7 +713,8 @@ class POPUP_OT_trace_holes(bpy.types.Operator):
         return {"FINISHED"}
 
 
-classes = (POPUP_OT_export_carousel, POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
+classes = (POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
+           POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
            POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,

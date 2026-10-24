@@ -448,12 +448,12 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
         row.operator("popup.trace_holes", icon="MOD_BOOLEAN")
         row.operator("popup.trace_holes", text="", icon="X").clear = True
         box = lay.box()
-        box.label(text="Sketched holes: closed strokes on a panel", icon="GREASEPENCIL")
+        box.label(text="Drawn holes: closed strokes on the flat layout", icon="GREASEPENCIL")
+        box.operator("popup.draw_holes", icon="MOD_BOOLEAN")
         row = box.row(align=True)
-        row.prop(st, "sketch_panel", text="")
-        op = row.operator("popup.sketch", text="Draw Holes", icon="MOD_BOOLEAN")
-        op.cut = True
-        box.operator("popup.build", text="Cut Sketched Holes", icon="FILE_REFRESH")
+        row.operator("popup.build", text="Cut", icon="FILE_REFRESH")
+        row.operator("popup.keep_holes", text="Keep", icon="CHECKMARK").edit = False
+        row.operator("popup.keep_holes", text="Edit", icon="GREASEPENCIL").edit = True
 
 
 class POPUP_PT_checks(_Base, bpy.types.Panel):

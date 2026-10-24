@@ -58,15 +58,23 @@ def build_layout(model, margin=8.0, gap=6.0):
     cx = cy = row = 0.0
     for piece in loose:
         pts = [q for n in piece.panels for poly in model.panels[n].polys for q in poly]
+        SW, SH = piece_sheet
         best = None
+        opts = []
         for k in (0, 1):
             rp = [rot2(q, k * math.pi / 2) for q in pts]
             x0, y0, x1, y1 = bbox2(rp)
-            w, h = x1 - x0, y1 - y0
-            if best is None or (w >= h and best[3] < best[4]):
-                best = (k, x0, y0, w, h)
+            opts.append((k, x0, y0, x1 - x0, y1 - y0))
+        if getattr(piece, "upright", False):
+            # the way up it stands (frames, stage sets), if it fits the sheet
+            k0 = opts[0]
+            fits = k0[3] <= SW - 2 * margin and k0[4] <= SH - 2 * margin
+            best = k0 if fits else opts[1]
+        else:
+            for o in opts:
+                if best is None or (o[3] >= o[4] and best[3] < best[4]):
+                    best = o
         k, x0, y0, w, h = best
-        SW, SH = piece_sheet
         if sheet is None:
             sheet = new_sheet(piece_sheet)
             cx, cy, row = margin, margin, 0.0

@@ -216,6 +216,13 @@ move around.
   back of each stage's right page is glued to the back of the next stage's
   left page. *Shared Page* prints each pair of neighbouring pages on one
   leaf, double-sided.
+* Each stage stands a paper thickness clear of its neighbours, so glued
+  pages sit back to back with Solid Paper on instead of passing through
+  each other.
+* Frames print the way up they stand, on A4 portrait by default in a stage.
+* Grease Pencil sketches show in each stage's own scene but not in the
+  carousel view (a stage's sketches are tied to its rig, which a collection
+  instance can't carry); painted art shows in both.
 * **Export** (in the carousel panel) writes every stage's sheets, named by
   stage, plus a carousel page with the joins and building order. With shared
   pages, the leaf sheets replace each stage's card sheet.
@@ -261,9 +268,12 @@ The **Openings and Holes** panel cuts real holes in the paper. They show in
   **Cut Painted Holes** traces them into smooth cut outlines (run it again
   after repainting, or ✕ to drop them). This is the way to perforate a
   staging frame.
-* **Sketched holes**: **Draw Holes** opens a red *cut* Grease Pencil layer on
-  the chosen panel. Closed strokes on it are cut out at the next rebuild,
-  and they never print as art.
+* **Drawn holes**: **Draw Holes** turns the view to look straight down on the
+  flat layout and starts a red Grease Pencil layer over it. Draw closed
+  outlines on any piece, across a fold if you like. They are cut at the next
+  rebuild (**Cut**). **Keep** fixes them onto their pieces and clears the
+  strokes, so they stay put if the layout is rearranged; **Edit** puts them
+  back as strokes. Holes sketched on panels in v0.10 are folded in by Keep.
 
 Overlapping holes join together. Painted islands left inside a painted hole
 stay as paper.

@@ -65,12 +65,16 @@ for i in range(4):
     ia = bpy.data.objects[f"Stage {i + 1} · Carousel"].evaluated_get(dg).matrix_world
     ib = bpy.data.objects[f"Stage {i + 2} · Carousel"].evaluated_get(dg).matrix_world
     s_ = 1 / a.popup.mm_per_unit
+    th = a.popup.paper_thickness
+    Mb = mb.panels["Page.L"].asm(t)
+    nb = (ib.to_3x3() @ Mb.to_3x3() @ Vector((0, 0, 1))).normalized()
     for q in ((60.0, 30.0), (140.0, 200.0)):
         pa = ia @ ((ma.panels["Page.R"].asm(t) @ Vector((q[0], q[1], 0))) * s_)
-        pb = ib @ ((mb.panels["Page.L"].asm(t) @ Vector((-q[0], q[1], 0))) * s_)
-        worst = max(worst, (pa - pb).length / s_)
+        pb = ib @ ((Mb @ Vector((-q[0], q[1], 0))) * s_)
+        # stage i's page sits two paper thicknesses behind the next one's
+        worst = max(worst, abs((pa - pb).dot(nb) / s_ + 2 * th))
 assert worst < 0.01, worst
-print(f"neighbouring pages lie back to back ({worst:.4f} mm)")
+print(f"neighbouring pages sit back to back, a paper thickness each ({worst:.4f} mm)")
 
 # stage count: 6 stages of 60 degrees, frames re-sized
 sc.popup.stage_count = 6
@@ -130,6 +134,39 @@ m1, lay1 = build.make_model(s1)
 assert len(holes.collect(s1, m1, lay1)[f"Frame{stage_frame.uid}"]) == 2
 print("sketched hole cut")
 
+# holes drawn over the flat layout: cut live, kept onto their piece, edited
+obj, layer = holes.hole_sketch(s1)
+m1, lay1 = build.make_model(s1)
+P = lay1["prints"][f"Frame{frame1.uid}"]
+Lw = obj.matrix_world.inverted() @ st.layout.matrix_world
+dr = layer.current_frame().drawing
+dr.add_strokes([16])
+stroke = dr.strokes[0]
+for i, pt in enumerate(stroke.points):
+    a = 2 * math.pi * i / 16
+    q = Vector((15 + 6 * math.cos(a), 150 + 6 * math.sin(a), 0))  # right half, near the top
+    pt.position = Lw @ ((P @ q) / st.mm_per_unit)
+stroke.cyclic = True
+carousel.rebuild_stage(s1)
+m1, lay1 = build.make_model(s1)
+assert len(holes.collect(s1, m1, lay1)[f"Frame{frame1.uid}"]) == 2
+with carousel.in_scene(s1):
+    assert bpy.ops.popup.keep_holes(edit=False) == {"FINISHED"}
+assert len(holes.hole_sketch(s1)[1].current_frame().drawing.strokes) == 0
+assert not any(l.name.endswith(art.CUT_SUFFIX) for l in
+               bpy.data.objects[N(s1, art.SKETCH)].data.layers)  # old cut layers folded in
+kept = holes.stored(st)
+assert len(kept[f"Frame{frame1.uid}"]) == 1 and len(kept[f"Frame{stage_frame.uid}"]) == 1
+with carousel.in_scene(s1):
+    assert bpy.ops.popup.keep_holes(edit=True) == {"FINISHED"}
+assert len(holes.hole_sketch(s1)[1].current_frame().drawing.strokes) == 2
+with carousel.in_scene(s1):
+    assert bpy.ops.popup.keep_holes(edit=False) == {"FINISHED"}
+m1, lay1 = build.make_model(s1)
+assert len(holes.collect(s1, m1, lay1)[f"Frame{frame1.uid}"]) == 2
+assert holes.hole_sketch(s1)[0].name not in build.folded_collection(s1).all_objects
+print("holes drawn on the layout: cut, kept on their piece, edited, kept again")
+
 # painted hole: a see-through blob in Frame 1's art tile
 with carousel.in_scene(s1):
     img = art.add_art_texture(s1, dpi=60)
@@ -162,7 +199,7 @@ assert n == 1, n
 carousel.rebuild_stage(s1)
 assert not st.warnings, st.warnings
 m1, lay1 = build.make_model(s1)
-assert len(holes.collect(s1, m1, lay1)[f"Frame{frame1.uid}"]) == 2
+assert len(holes.collect(s1, m1, lay1)[f"Frame{frame1.uid}"]) == 3  # window, drawn, painted
 print("painted hole traced and cut")
 
 # the rig still follows the geometry, holes and all

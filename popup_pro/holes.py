@@ -11,7 +11,8 @@ in 3D and print as cut lines:
 * Painted holes: paint transparency into the art (Texture Paint, Erase Alpha)
   and press Cut Painted Holes: the see-through areas are traced into outlines
   (kept until traced again).
-* Sketched holes: closed Grease Pencil strokes on a panel's "cut" layer.
+* Drawn holes: closed Grease Pencil strokes drawn over the flat layout (the
+  "Pop-up Holes" object); Keep fixes them onto their pieces.
 """
 
 import json
@@ -149,6 +150,138 @@ def sketched(scene, model, layout):
     return out
 
 
+HOLES = "Pop-up Holes"  # Grease Pencil drawn on the flat layout
+
+
+def hole_sketch(scene, create=True):
+    """The flat Grease Pencil object hole outlines are drawn into, over the
+    layout. It never moves with the card, and isn't part of what a carousel
+    shows."""
+    from . import art, build
+    from .naming import N
+    name = N(scene, HOLES)
+    obj = bpy.data.objects.get(name)
+    if obj is not None and obj.type != "GREASEPENCIL":
+        obj = None
+    if obj is None and create:
+        gp = bpy.data.grease_pencils.new(name)
+        obj = bpy.data.objects.new(name, gp)
+    if obj is None:
+        return None, None
+    coll = build._collection(scene)
+    if obj.name not in coll.objects:
+        coll.objects.link(obj)
+    gp = obj.data
+    mat = art.cut_material()
+    if mat.name not in [m.name for m in gp.materials if m]:
+        gp.materials.append(mat)
+    layer = next((l for l in gp.layers if l.name == "cut"), None)
+    if layer is None:
+        layer = gp.layers.new("cut")
+        layer.frames.new(scene.frame_start)
+    gp.layers.active = layer
+    return obj, layer
+
+
+def _drawn(scene):
+    """Closed outlines drawn on the hole sketch, in layout millimetres."""
+    obj, layer = hole_sketch(scene, create=False)
+    st = scene.popup
+    if obj is None or st.layout is None:
+        return []
+    mmu = st.mm_per_unit
+    L = st.layout.matrix_world.inverted() @ obj.matrix_world
+    out = []
+    fr = layer.current_frame()
+    if fr is None or fr.drawing is None:
+        return out
+    for stroke in fr.drawing.strokes:
+        pts = [((L @ Vector(q.position)) * mmu).to_2d()[:] for q in stroke.points]
+        if len(pts) >= 3 and abs(poly_area(pts)) > 1.0:
+            out.append(pts)
+    return out
+
+
+def _to_piece(model, layout, pts):
+    """The piece a layout outline lies on, and the outline in its pattern."""
+    c = Vector((sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts), 0))
+    for name, piece in model.pieces.items():
+        Pi = layout["prints"][name].inverted()
+        q = (Pi @ c).to_2d()
+        for pn in piece.panels:
+            for poly in model.panels[pn].polys:
+                if _inside(tuple(q), poly):
+                    return name, [(Pi @ Vector((x, y, 0))).to_2d()[:] for x, y in pts]
+    return None, None
+
+
+def drawn(scene, model, layout):
+    out = []
+    for pts in _drawn(scene):
+        piece, poly = _to_piece(model, layout, pts)
+        if piece is not None:
+            out.append((piece, poly))
+    return out
+
+
+def stored(st):
+    try:
+        return json.loads(st.get("pop_sketched", "{}"))
+    except ValueError:
+        return {}
+
+
+def keep_drawn(scene, model, layout):
+    """Fix what's drawn (and any old per-panel cut layers) as hole outlines on
+    their pieces, and clear the strokes: the holes then stay with their
+    pieces however the layout is rearranged."""
+    from . import art
+    from .naming import N
+    st = scene.popup
+    keep = stored(st)
+    n = 0
+    for piece, poly in drawn(scene, model, layout) + sketched(scene, model, layout):
+        keep.setdefault(piece, []).append([(round(x, 3), round(y, 3)) for x, y in poly])
+        n += 1
+    st["pop_sketched"] = json.dumps(keep)
+    obj, layer = hole_sketch(scene, create=False)
+    if layer is not None:
+        fr = layer.current_frame()
+        if fr is not None and fr.drawing is not None and len(fr.drawing.strokes):
+            fr.drawing.remove_strokes()
+    old = bpy.data.objects.get(N(scene, art.SKETCH))
+    if old is not None and old.type == "GREASEPENCIL":
+        for lay in [l for l in old.data.layers if l.name.endswith(art.CUT_SUFFIX)]:
+            old.data.layers.remove(lay)
+    return n
+
+
+def edit_kept(scene, model, layout):
+    """Put the kept hole outlines back on the layout as strokes to edit."""
+    st = scene.popup
+    keep = stored(st)
+    obj, layer = hole_sketch(scene)
+    mmu = st.mm_per_unit
+    L = obj.matrix_world.inverted() @ st.layout.matrix_world
+    dr = layer.current_frame().drawing
+    n = 0
+    for piece, polys in keep.items():
+        if piece not in layout["prints"]:
+            continue
+        P = layout["prints"][piece]
+        for poly in polys:
+            dr.add_strokes([len(poly)])
+            stroke = dr.strokes[len(dr.strokes) - 1]
+            for pt, (x, y) in zip(stroke.points, poly):
+                pt.position = L @ ((P @ Vector((x, y, 0))) / mmu)
+                pt.radius = 0.02
+            stroke.cyclic = True
+            stroke.material_index = len(obj.data.materials) - 1
+            n += 1
+    st["pop_sketched"] = "{}"
+    return n
+
+
 def collect(scene, model, layout=None):
     """{piece: [hole outline, ...]} in pattern millimetres."""
     st = scene.popup
@@ -174,8 +307,11 @@ def collect(scene, model, layout=None):
     for piece, polys in painted(st).items():
         for poly in polys:
             put(piece, [tuple(q) for q in poly], keep_turn=True)
+    for piece, polys in stored(st).items():
+        for poly in polys:
+            put(piece, [tuple(q) for q in poly])
     if layout is not None:
-        for piece, poly in sketched(scene, model, layout):
+        for piece, poly in drawn(scene, model, layout) + sketched(scene, model, layout):
             put(piece, poly)
     return holes
 

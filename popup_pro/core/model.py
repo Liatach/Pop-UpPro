@@ -1231,7 +1231,7 @@ class Model:
             self.warn(f"{lab}: too small; skipped")
             return
         piece = f"Frame{uid}"
-        self.add_piece(Piece(piece, lab, 1 + uid, (0.0, 0.5 * (y0 + y1))))
+        self.add_piece(Piece(piece, lab, 1 + uid, (0.0, 0.5 * (y0 + y1)))).upright = True
 
         def dirs(t):
             S, e, xh, Y, sn, cs = self.strip_frame(host, t)
@@ -1376,6 +1376,7 @@ class Model:
         base = f"VFold{m['uid']}"
         if f"{base}.HalfL" not in self.panels:
             return
+        self.pieces[base].upright = True
         # seen from inside the stage the card's right half is on the left
         h = Host(self, f"{base}.HalfR", 0.0, 0.0, f"{base}.HalfL", 0.0, 0.0, m["label"]).finish()
         h.open_max, h.size, h.key = 2.0 * phi, (A, Hs), m["uid"]

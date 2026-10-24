@@ -98,6 +98,7 @@ def new_stage(master, index):
     st.keep_open = False
     st.hold = "SYM"
     st.mm_per_unit = master.popup.mm_per_unit
+    st.paper = "A4P"  # frames print the way up they stand
     sc.unit_settings.system = master.unit_settings.system
     sc.unit_settings.scale_length = master.unit_settings.scale_length
     _add(st, "FRAME")  # staging frame at the front
@@ -169,6 +170,24 @@ def assemble(master):
         v.targets[0].id = c
         v.targets[0].data_path = f'["{OPEN}"]'
         d.expression = f"radians(T)*{i}/{n}"
+        # Each stage's paper lies behind its printed side, so neighbouring
+        # pages glued back to back would share the same thickness. Move each
+        # stage out along its own centre line until its pages stand one
+        # paper thickness clear of the shared plane on its own side.
+        for axis, fn in ((0, "sin"), (2, "cos")):
+            fc = inst.driver_add("location", axis)
+            d = fc.driver
+            d.type = "SCRIPTED"
+            for name, idb, path, kind in (("T", c, f'["{OPEN}"]', "OBJECT"),
+                                          ("th", sc, "popup.paper_thickness", "SCENE"),
+                                          ("mu", sc, "popup.mm_per_unit", "SCENE")):
+                v = d.variables.new()
+                v.name = name
+                v.targets[0].id_type = kind
+                v.targets[0].id = idb
+                v.targets[0].data_path = path
+            d.expression = (f"th/mu/max(sin(radians(T)/{2 * n}),0.25)*"
+                            f"{fn}(radians(T)*{i}/{n})")
     for o in list(coll.objects):  # stages dropped by a smaller count
         if o.name.startswith("Stage ") and o.name not in keep:
             bpy.data.objects.remove(o, do_unlink=True)
@@ -176,11 +195,25 @@ def assemble(master):
 
 def link_stage(scene):
     """Drive a stage's Open from its carousel (after every rebuild)."""
+    from . import art, build
     st = scene.popup
     master = st.stage_master
     rig = st.rig
     if master is None or rig is None:
         return
+    # sketches stay out of what the carousel shows (bone-parented Grease
+    # Pencil layers don't follow the rig inside a collection instance)
+    if not st.get("pop_paper_checked"):
+        # stages made before frames printed upright: portrait paper fits them
+        st["pop_paper_checked"] = True
+        if st.paper == "A4L":
+            st["paper"] = 1  # A4 portrait (no rebuild loop: applies next build)
+    sk = bpy.data.objects.get(N(scene, art.SKETCH))
+    fold, main = build.folded_collection(scene), build._collection(scene)
+    if sk is not None and sk.name in fold.objects:
+        fold.objects.unlink(sk)
+        if sk.name not in main.objects:
+            main.objects.link(sk)
     c = ctrl(master)
     if c is None:
         return
