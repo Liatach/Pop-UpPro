@@ -108,6 +108,8 @@ print("stacked:", st.status)
 assert layer.parent is None and layer.hide  # its V-fold was deleted
 assert min(m.uid for m in st.mechs) > 3  # ids are not reused
 for f in files:
+    if f.endswith(("_layout.svg", "_reverse.svg")):
+        continue  # assembly page and reverse sheets have no art layers
     d = open(f).read()
     print(os.path.basename(f), "valley", d.count("#1d5fbf"), "mountain", d.count("#c0182a"),
           "glue", d.count("#d9d4c7"), "sketch paths", d.split('id="sketch"')[1].split('id="glue"')[0].count("<path"))

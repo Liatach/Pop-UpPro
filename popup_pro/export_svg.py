@@ -69,7 +69,8 @@ def settings_from(st):
                 line_width=st.line_width, dashed=st.dashed_folds,
                 include_art=st.export_art, include_sketch=st.export_sketch,
                 include_guides=st.export_guides, include_labels=st.export_labels,
-                tab_fill=st.tab_fill, tab_color=tuple(st.tab_color), bleed=st.bleed)
+                tab_fill=st.tab_fill, tab_color=tuple(st.tab_color), bleed=st.bleed,
+                include_reverse=st.export_reverse, include_layout=st.export_layout)
 
 
 def inflate(poly, d, miter=3.0):
@@ -196,12 +197,17 @@ def _tile_pngs(img, tmp):
 def export(scene, filepath, include_art=True, include_sketch=True, include_guides=True,
            include_labels=True, content="PRINT", line_style="DEFAULT",
            line_color=(0.0, 0.0, 0.0), line_opacity=1.0, line_width=0.3, dashed=True,
-           tab_fill=False, tab_color=(0.85, 0.83, 0.78), bleed=0.0):
+           tab_fill=False, tab_color=(0.85, 0.83, 0.78), bleed=0.0, include_reverse=True,
+           include_layout=True):
     """content: PRINT (art, tabs, guides, labels, all lines), ART_CUT (art and
     tabs outlined by cut lines only: nothing drawn over the art), or for
     cutting machines CUT, CREASE, LINES (plain solid strokes, no art or text;
     LINES draws creases red). tab_fill colours plain tabs (else paper white).
-    bleed (mm) lets the art run past each piece's outline."""
+    bleed (mm) lets the art run past each piece's outline.
+    With guides on (PRINT), a piece that has tabs glued to its back gets a
+    mirrored reverse sheet to print on the other side of its sheet, and
+    include_layout adds an assembly page: where every part glues on the card
+    and a parts list."""
     st = scene.popup
     rig = st.rig
     STYLE = line_styles(content, line_style, line_width, line_color, line_opacity, dashed)
@@ -211,6 +217,8 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
         bleed = 0.0
     if content == "ART_CUT":
         include_guides = include_labels = False
+    if content != "PRINT":
+        include_reverse = include_layout = False
     show = {"cut": content in ("PRINT", "ART_CUT", "CUT", "LINES"),
             "fold": content in ("PRINT", "CREASE", "LINES")}
     glue_style = (f'fill="{_hex(tab_color)}" stroke="none"' if tab_fill else None)
@@ -351,19 +359,22 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
 
     # ---- guides: where each tab is glued, drawn on the piece it glues to
     guides = {}
-    if include_guides:
-        for pi, p in enumerate(panel_info):
-            if p["kind"] != "tab":
-                continue
-            host = model.panels[model.panels[p["name"]].parent]
-            rel = host.asm(90.0).inverted() @ D90[p["name"]]
-            Mp = prints[host.piece] @ rel
-            for piece_faces in faces_by_piece.get(p["piece"], []):
-                if piece_faces[0] == pi:
-                    if (rel @ piece_faces[1][0].to_3d()).z < 0:
-                        continue  # glued to the back: a guide would show on the art
-                    guides.setdefault(host.piece, []).append(
-                        [(Mp @ q.to_3d()).to_2d() for q in piece_faces[1]])
+    back_guides = {}  # glued to the back of a piece: drawn on its reverse sheet
+    joins = []  # (tab's piece, host piece, back?) for the parts list
+    for pi, p in enumerate(panel_info):
+        if p["kind"] != "tab":
+            continue
+        host = model.panels[model.panels[p["name"]].parent]
+        rel = host.asm(90.0).inverted() @ D90[p["name"]]
+        Mp = prints[host.piece] @ rel
+        for piece_faces in faces_by_piece.get(p["piece"], []):
+            if piece_faces[0] == pi:
+                back = (rel @ piece_faces[1][0].to_3d()).z < 0
+                if (p["piece"], host.piece, back) not in joins and p["piece"] != host.piece:
+                    joins.append((p["piece"], host.piece, back))
+                poly = [(Mp @ q.to_3d()).to_2d() for q in piece_faces[1]]
+                (back_guides if back else guides).setdefault(host.piece, []).append(
+                    (poly, p["piece"]))
 
     written = []
     root, ext = os.path.splitext(filepath)
@@ -442,11 +453,13 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
                     lx, ly = min(xs) + 3, max(ys) - 2
                 else:
                     lx, ly = min(xs), max(ys) + 3.2
+                note = (" (glue markers for the back: see reverse sheet)"
+                        if include_reverse and include_guides and back_guides.get(piece) else "")
                 L["labels"].append(f'<text x="{lx:.2f}" y="{ly:.2f}" font-size="2.8" '
                                    f'font-family="sans-serif" fill="#8a8a8a">'
-                                   f'{escape(info["label"])}</text>')
+                                   f'{escape(info["label"] + note)}</text>')
         for piece in pieces:
-            for g in guides.get(piece, []):
+            for g, _src in (guides.get(piece, []) if include_guides else []):
                 L["guides"].append(f'<path d="M{" L".join(_fmt(P(q)) for q in g)} Z" '
                                    f'{GUIDE}/>')
         body = []
@@ -464,4 +477,136 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(svg)
         written.append(path)
+        # ---- reverse: tab markers for the back of this sheet's pieces
+        rev = [pc for pc in pieces if back_guides.get(pc)]
+        if include_reverse and include_guides and rev:
+            path = f"{root}{suffix}_sheet{si + 1}_reverse.svg"
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(_reverse_svg(si, SW, SH, P, pieces, rev, segs_by_piece, faces_by_piece,
+                                      back_guides, meta))
+            written.append(path)
+    if include_layout:
+        path = f"{root}_layout.svg"
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(_layout_svg(sheets[0], faces_by_piece, segs_by_piece, guides, back_guides,
+                                 joins, meta))
+        written.append(path)
     return written
+
+
+FAINT = 'fill="none" stroke="#b8b8b8" stroke-width="0.2"'
+MARK = 'fill="#fff3c4" stroke="#6b5b2a" stroke-width="0.3" stroke-dasharray="1 0.8"'
+TEXT = 'font-family="sans-serif" fill="#333333"'
+
+
+def _svg_doc(SW, SH, body):
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" '
+            f'width="{SW:.2f}mm" height="{SH:.2f}mm" viewBox="0 0 {SW:.3f} {SH:.3f}">\n'
+            + body + "\n</svg>\n")
+
+
+def _outline(segs, P):
+    return "".join(f'<path d="M{_fmt(P(s.a))} L{_fmt(P(s.b))}" {FAINT}/>' for s in segs
+                   if not any(k[0] in ("fold", "skip") for _, _, k in s.marks))
+
+
+def _reverse_svg(si, SW, SH, P, pieces, rev, segs_by_piece, faces_by_piece, back_guides,
+                 meta):
+    """The back of a sheet, mirrored left to right so it lines up when printed
+    on the other side: faint outlines of every piece, the glue markers for
+    tabs that stick to the back, and labels that read the right way round."""
+    def R(q):
+        x, y = P(q)
+        return (SW - x, y)
+
+    out = []
+    for piece in pieces:
+        out.append(_outline(segs_by_piece.get(piece, []), R))
+    for piece in rev:
+        for g, src in back_guides[piece]:
+            out.append(f'<path d="M{" L".join(_fmt(R(q)) for q in g)} Z" {MARK}/>')
+            c = sum((Vector(R(q)) for q in g), Vector((0, 0))) / len(g)
+            out.append(f'<text x="{c.x:.2f}" y="{c.y + 1:.2f}" font-size="2.4" '
+                       f'text-anchor="middle" {TEXT}>glue {escape(meta["pieces"][src]["label"])}'
+                       f'</text>')
+        pts = [R(q) for _, f, _ in faces_by_piece.get(piece, []) for q in f]
+        if pts:
+            x = sum(q[0] for q in pts) / len(pts)
+            y = max(q[1] for q in pts) + 4
+            out.append(f'<text x="{x:.2f}" y="{y:.2f}" font-size="3.2" font-weight="bold" '
+                       f'text-anchor="middle" {TEXT}>BACK of {escape(meta["pieces"][piece]["label"])}'
+                       f'</text>')
+    flip = "short" if SW > SH else "long"
+    out.append(f'<text x="6" y="8" font-size="5" font-weight="bold" {TEXT}>'
+               f'REVERSE OF SHEET {si + 1}</text>')
+    out.append(f'<text x="6" y="13" font-size="3" {TEXT}>Print on the back of sheet {si + 1} '
+               f'(double-sided, flip on {flip} edge), or hold up to the light and copy the '
+               f'markers. Grey outlines should sit behind the cut lines.</text>')
+    return _svg_doc(SW, SH, "\n".join(out))
+
+
+PALETTE = ("#e8d5a3", "#b9d7c4", "#c9c3e6", "#f2bfb0", "#b7d3e8", "#e3c9dc", "#d9e3b0")
+
+
+def _layout_svg(sheet, faces_by_piece, segs_by_piece, guides, back_guides, joins, meta):
+    """Assembly page: the open card with every part's glue footprint shaded
+    and numbered, and a parts list saying which sheet each part is on and
+    what it glues to."""
+    SW, SH = sheet["size"]
+    ox, oy = sheet["origin"]
+    pieces = [k for k, v in meta["pieces"].items() if not v["is_card"]]
+    num = {pc: i + 1 for i, pc in enumerate(pieces)}
+    rows = len(pieces) + 3
+    H2 = SH + 8 + 5 * rows
+
+    def P(q):
+        return (q[0] - ox, SH - (q[1] - oy))
+
+    out = [f'<rect x="0" y="0" width="{SW:.2f}" height="{H2:.2f}" fill="#ffffff"/>']
+    out.append(_outline(segs_by_piece.get("Card", []), P))
+    for s in segs_by_piece.get("Card", []):  # the spine and other creases, faint
+        for t0, t1, k in s.marks:
+            if k[0] == "fold":
+                a, b = s.a.lerp(s.b, t0), s.a.lerp(s.b, t1)
+                out.append(f'<path d="M{_fmt(P(a))} L{_fmt(P(b))}" {FAINT} '
+                           f'stroke-dasharray="2 1"/>')
+    for g, src in guides.get("Card", []):
+        col = PALETTE[(num.get(src, 1) - 1) % len(PALETTE)]
+        out.append(f'<path d="M{" L".join(_fmt(P(q)) for q in g)} Z" fill="{col}" '
+                   f'stroke="#6b6b6b" stroke-width="0.25"/>')
+    placed = set()
+    for g, src in guides.get("Card", []):
+        if src in placed:
+            continue
+        placed.add(src)
+        q = [P(v) for v in g]
+        c = (sum(v[0] for v in q) / len(q), sum(v[1] for v in q) / len(q))
+        out.append(f'<circle cx="{c[0]:.2f}" cy="{c[1]:.2f}" r="2.6" fill="#ffffff" '
+                   f'stroke="#333333" stroke-width="0.3"/>')
+        out.append(f'<text x="{c[0]:.2f}" y="{c[1] + 1.1:.2f}" font-size="3" '
+                   f'text-anchor="middle" font-weight="bold" {TEXT}>{num.get(src, "?")}</text>')
+    y = SH + 8
+    out.append(f'<text x="6" y="{y:.2f}" font-size="4.5" font-weight="bold" {TEXT}>'
+               f'Assembly: parts and where they glue</text>')
+    y += 6
+    for pc in pieces:
+        info = meta["pieces"][pc]
+        onto = []
+        for a, b, back in joins:
+            if a == pc:
+                name = "the card" if meta["pieces"][b]["is_card"] else meta["pieces"][b]["label"]
+                onto.append(f"the back of {name}" if back else name)
+        text = f'{num[pc]}. {info["label"]} (sheet {info["sheet"] + 1})'
+        if onto:
+            text += ": tabs glue to " + ", ".join(onto)
+        if any(b == pc and back for a, b, back in joins):
+            text += f'. Glue markers for its back are on sheet {info["sheet"] + 1} reverse'
+        text += "."
+        col = PALETTE[(num[pc] - 1) % len(PALETTE)]
+        out.append(f'<rect x="6" y="{y - 3:.2f}" width="4" height="4" fill="{col}" '
+                   f'stroke="#6b6b6b" stroke-width="0.2"/>')
+        out.append(f'<text x="12" y="{y:.2f}" font-size="3.2" {TEXT}>{escape(text)}</text>')
+        y += 5
+    return _svg_doc(SW, H2, "\n".join(out))

@@ -35,6 +35,10 @@ def draw_export(layout, st):
         col.prop(st, "export_sketch")
         if st.export_content == "PRINT":
             col.prop(st, "export_guides")
+            sub = col.column()
+            sub.active = st.export_guides
+            sub.prop(st, "export_reverse")
+            col.prop(st, "export_layout")
             col.prop(st, "export_labels")
     col.prop(st, "paper", text="Piece Paper")
 
@@ -152,9 +156,12 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "tab")
             col.prop(m, "tab_side", text="Base Tabs")
             col.prop(m, "roof")
-            if m.roof:
+            if m.roof == "POINTED":
                 col.prop(m, "roof_height")
                 col.prop(m, "ridge")
+            elif m.roof == "FLAT":
+                col.prop(m, "roof_fold")
+                col.prop(m, "eave")
             self.draw_warnings(context, m)
             return
         if m.kind == "PYRAMID":

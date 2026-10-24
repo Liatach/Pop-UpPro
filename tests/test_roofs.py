@@ -46,9 +46,9 @@ CASES = {
     "hip": dict(type="PYRAMID", x=25, y=60, depth=60, height=30, ridge=30, front=35,
                 back=35),
     "tower cap": dict(type="TUBE", x=25, y=80, depth=40, height=50, front=32, back=32,
-                      roof=True, roof_height=30),
+                      roof="POINTED", roof_height=30),
     "house cap": dict(type="TUBE", x=25, y=60, depth=60, height=30, front=25, back=25,
-                      roof=True, roof_height=25, ridge=40),
+                      roof="POINTED", roof_height=25, ridge=40),
 }
 for name, mech in CASES.items():
     mech = dict(mech, uid=1, label=name, tab=10)
@@ -92,6 +92,38 @@ for name, mech in CASES.items():
                 for n2, q2 in ps[i + 1:]:
                     assert Model._overlap(q1, q2) < 0.5, (name, n1, n2)
     print(f"{name:10s} {folds:2d} folds shut, glue joins {glue:.0e} mm, hinge error {err:.0e} rad")
+
+# flat roofs: two halves creased above the fold, hinged on the wall tops by
+# tabs folded in off the walls, optionally overhanging
+FLAT = dict(type="TUBE", uid=1, label="Keep", x=25, y=70, depth=40, height=40, front=32,
+            back=32, tab=10, roof="FLAT")
+for name, kw in {"flat peak": {}, "flat dip": dict(roof_fold="DIP"),
+                 "flat eave": dict(eave=8), "box eave": dict(front=25, back=25, eave=8),
+                 "dip eave": dict(roof_fold="DIP", eave=6),
+                 "recessed": dict(front_style="IN", front=30)}.items():
+    for hold in ("RIGHT", "SYM"):
+        m = Model(dict(W=148.5, H=210, hold=hold), [dict(FLAT, **kw)])
+        m.check_fit()
+        assert not m.warnings, (name, m.warnings)
+        err = max(p.hinge.check for p in m.panels.values() if p.hinge)
+        assert err < 5e-4, (name, err)
+        for n1, n2, p, q in shared_edges(m):
+            seps = [max((m.panels[n1].asm(t) @ x.to_3d() - m.panels[n2].asm(t) @ x.to_3d()).length
+                        for x in (p, q)) for t in SAMPLES]
+            tab = any(k in n1 + n2 for k in ("Tab", "Top", "Close"))
+            assert max(seps) < (0.2 if tab else 1e-3), (name, n1, n2, seps)
+        gap = 0.0
+        for sd in "LR":
+            tab, half = m.panels[f"Tube1.Top{sd}"], m.panels[f"Roof1.{sd}"]
+            for t in SAMPLES:
+                for x, y in tab.polys[0]:
+                    w = half.asm(t).inverted() @ (tab.asm(t) @ Vector((x, y, 0)))
+                    gap = max(gap, abs(w.z + 0.15))
+        assert gap < 1e-3, (name, gap)
+    print(f"{name:10s} halves fold shut, roof tabs stay under the roof ({gap:.0e} mm)")
+m = Model(dict(W=148.5, H=210), [dict(FLAT, roof_fold="DIP", height=20)])
+assert any("tucks" in w for w in m.warnings), m.warnings
+print("dip deeper than the walls flagged")
 
 # a roof taller than the page is wide sticks out when shut
 m = Model(dict(W=148.5, H=210), [dict(CASES["tower cap"], uid=1, label="Tall", tab=10,

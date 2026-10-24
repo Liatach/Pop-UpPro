@@ -222,8 +222,18 @@ class PopupMech(bpy.types.PropertyGroup):
     back_style: EnumProperty(name="Back", items=[
         ("OUT", "Pointed Out", "The back crease points backward (hexagon)"),
         ("IN", "Pointed In", "The back crease points into the tube")], update=_changed)
-    roof: BoolProperty(name="Roof", description="Put a pyramid or ridge roof on top",
-                       default=False, update=_changed)
+    roof: EnumProperty(name="Roof", items=[
+        ("NONE", "None", "Open top"),
+        ("POINTED", "Pointed", "Pyramid or ridge roof (set Roof Height and Ridge)"),
+        ("FLAT", "Flat", "Flat roof creased down the middle above the fold, optionally "
+         "overhanging the walls")], update=_changed)
+    roof_fold: EnumProperty(name="Fold", items=[
+        ("PEAK", "Peak", "The centre crease rises as the card closes"),
+        ("DIP", "Dip", "The centre crease sinks into the tube as the card closes (needs "
+         "walls at least as tall as the strip distance)")], update=_changed)
+    eave: FloatProperty(name="Overhang", description="How far a flat roof reaches past the "
+                        "walls all round (mm)", default=0.0, min=0.0, soft_max=40.0,
+                        update=_changed)
     roof_height: FloatProperty(name="Roof Height", description="How far the roof rises "
                                "above the walls, card open flat (mm)", default=30.0, min=1.0,
                                soft_max=150.0, update=_changed)
@@ -296,7 +306,8 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
                      front=self.front, back=self.back, front_style=self.front_style,
                      back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
-                     roof_height=self.roof_height, ridge=self.ridge)
+                     roof_height=self.roof_height, ridge=self.ridge,
+                     roof_fold=self.roof_fold, eave=self.eave)
         elif self.kind == "PYRAMID":
             d.update(type="PYRAMID", x=self.x, depth=self.depth, height=self.height,
                      ridge=self.ridge, front=self.front, back=self.back,
@@ -414,6 +425,12 @@ class PopupSettings(bpy.types.PropertyGroup):
     export_sketch: BoolProperty(name="Sketches", default=True)
     export_guides: BoolProperty(name="Glue Guides", default=True)
     export_labels: BoolProperty(name="Labels", default=True)
+    export_reverse: BoolProperty(name="Reverse Sides", default=True,
+                                 description="For pieces with tabs glued to their back, a "
+                                 "mirrored sheet of glue markers to print on the other side")
+    export_layout: BoolProperty(name="Assembly Page", default=True,
+                                description="A page showing where each part glues on the card, "
+                                "with a parts list")
     # paper --------------------------------------------------------------
     paper_thickness: FloatProperty(name="Paper Thickness", default=0.3, min=0.05, max=3.0,
                                    precision=2, update=_changed,

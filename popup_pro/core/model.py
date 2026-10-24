@@ -948,11 +948,130 @@ class Model:
             FL=(P["FL_"].name, "BL"), BL=(P["FL_"].name, "FL"),
             FR=(P["FR_"].name, "BR"), BR=(P["FR_"].name, "FR"),
             CF=(P["GFL"].name, "FL"), CB=(P["GBR"].name, "BR"))
-        if m.get("roof", False):
+        roof = m.get("roof", "NONE")
+        roof = {True: "POINTED", False: "NONE"}.get(roof, roof)
+        if roof == "POINTED":
             self._roof(uid, f"Roof{uid}", f"{lab} roof", 300 + uid, host, a, y0, D, wf, wb,
                        sf, sb, hgt, float(m.get("roof_height", 30.0)),
                        float(m.get("ridge", 0.0)), tb, "IN",
                        walls=(P["FL_"].name, P["FR_"].name))
+        elif roof == "FLAT":
+            self._flat_roof(uid, f"{lab} roof", host, a, y0, D, wf, wb, sf, sb, hgt,
+                            float(m.get("eave", 0.0)), m.get("roof_fold", "PEAK"), tb,
+                            P["FL_"], P["FR_"], u[3])
+
+    def _flat_roof(self, uid, lab, host, a, y0, D, wf, wb, sf, sb, hgt, eave, fold, tb,
+                   wl, wr, u3):
+        """Flat roof on a tube: two halves creased down the middle above the
+        fold, each hinged on a side wall's top edge by a tab folded in off the
+        wall and glued underneath. Eave lets it overhang the walls all round.
+
+        A half of width a hinged at plan x = -a sin(t/2) reaches the mirror
+        plane a cos(t/2) above (Peak) or below (Dip) its hinge: flat when the
+        card is open, standing up (or tucked down inside the walls) when shut."""
+        k = 1.0 if fold == "PEAK" else -1.0
+        piece = f"Roof{uid}"
+        self.add_piece(Piece(piece, lab, 300 + uid, (0.0, y0 + 0.5 * D)))
+        pfo = sf * math.sqrt(max(wf * wf - a * a, 0.0))
+        pbo = sb * math.sqrt(max(wb * wb - a * a, 0.0))
+        out = a + hgt + (a if k > 0 else 0.0) + (eave if k < 0 else 0.0)
+        if out > self.W + 1e-6:
+            self.warn(f"{lab}: lies {out:.0f} mm out from the fold when shut, more than the "
+                      f"page width, so it sticks out")
+        if k > 0 and eave > hgt + 1e-6:
+            self.warn(f"{lab}: an eave deeper than the walls are tall hits the page as "
+                      f"the card shuts")
+        if k < 0 and a > hgt + 1e-6:
+            self.warn(f"{lab}: a dipped roof tucks {a:.0f} mm down inside walls only "
+                      f"{hgt:.0f} mm tall; use Peak or taller walls")
+        if k < 0 and (sf < 0 or sb < 0):
+            self.warn(f"{lab}: a dipped roof runs into ends that point in; use Peak")
+        if y0 - max(pfo, 0.0) - eave < -1e-6 or y0 + D + max(pbo, 0.0) + eave > self.H + 1e-6:
+            self.warn(f"{lab}: runs past the top or bottom of the card")
+
+        # left half outline at open, grown by the eave on its outer edges
+        outline = [(0.0, y0 + D + pbo), (-a, y0 + D), (-a, y0), (0.0, y0 - pfo)]
+
+        def line(p, q, d):
+            """Edge p -> q moved d to its left (the outline runs anticlockwise)."""
+            ux, uy = q[0] - p[0], q[1] - p[1]
+            L = math.hypot(ux, uy)
+            nx, ny = -uy / L, ux / L
+            return (p[0] + d * nx, p[1] + d * ny), (ux / L, uy / L)
+
+        def meet(l1, l2):
+            (p, u), (q, v) = l1, l2
+            den = u[0] * v[1] - u[1] * v[0]
+            if abs(den) < 1e-9:
+                return q
+            s_ = ((q[0] - p[0]) * v[1] - (q[1] - p[1]) * v[0]) / den
+            return (p[0] + s_ * u[0], p[1] + s_ * u[1])
+
+        e_ = max(eave, 0.0)
+        lines = [line(outline[i], outline[i + 1], -e_) for i in range(3)]
+        mid = ((0.0, 0.0), (0.0, 1.0))
+        polyL = [meet(mid, lines[0]), meet(lines[0], lines[1]), meet(lines[1], lines[2]),
+                 meet(lines[2], mid)]
+        if ccw(polyL) and poly_area(ccw(polyL)) < 1.0:
+            self.warn(f"{lab}: roof too small; skipped")
+            return
+        polyR = [(-x, y) for x, y in polyL]
+
+        def dirs(t):
+            S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+            fL = S + (a * cs + hgt) * e - a * sn * xh
+            dL = sn * xh + k * cs * e
+            C0 = fL + a * dL
+            return C0, dL, (sn * xh - k * cs * e), Y
+
+        def asm_L(t):  # pattern x = -a on the hinge, 0 on the crease
+            C0, dL, dR, Y = dirs(t)
+            return frame(C0, dL, Y)
+
+        def asm_R(t):
+            C0, dL, dR, Y = dirs(t)
+            return frame(C0, dR, Y)
+
+        HL = self.add(Panel(f"{piece}.L", piece, "panel", [polyL], asm_L, wl.name, None,
+                            f"{lab}: left half"))
+        HL.hinge = self._hinge_on(wl.name, asm_L, (-a, y0 + D), (-a, y0))
+        HR = self.add(Panel(f"{piece}.R", piece, "panel", [polyR], asm_R, wr.name, None,
+                            f"{lab}: right half"))
+        HR.hinge = self._hinge_on(wr.name, asm_R, (a, y0), (a, y0 + D))
+        # tabs folded in off the wall tops, glued under the halves
+        w = min(tb, a - 1.0)
+        if w < 3.0:
+            self.warn(f"{lab}: strips too close to the fold for roof tabs")
+            return
+        c = min(0.3 * w, 0.2 * D)
+        for side, wall, half, u0, F in (
+                ("L", wl, HL, 0.0, frame(Vector((-a, y0 + D, -TAB_LIFT)), (0, -1, 0), (1, 0, 0))),
+                ("R", wr, HR, u3, frame(Vector((a, y0, -TAB_LIFT)), (0, 1, 0), (-1, 0, 0)))):
+            poly = [(u0, hgt), (u0 + D, hgt), (u0 + D - c, hgt + w), (u0 + c, hgt + w)]
+            sg = -1.0 if side == "L" else 1.0
+            if side == "L":
+                fwd = lambda q: (-a + q[1] - hgt, y0 + D - q[0])
+                back = lambda q: (y0 + D - q[1], hgt + q[0] + a)
+            else:
+                fwd = lambda q, u0=u0: (a - (q[1] - hgt), y0 + q[0] - u0)
+                back = lambda q, u0=u0: (u0 + q[1] - y0, hgt + a - q[0])
+            # keep it under the half (ends that point in cut across it)
+            on = [fwd(q) for q in poly]
+            for n2, d2 in halfplanes(ccw(half.polys[0])):
+                if abs(n2[0] * sg * a + n2[1] * y0 - d2) < 1e-6 and \
+                        abs(n2[0] * sg * a + n2[1] * (y0 + D) - d2) < 1e-6:
+                    continue
+                on = clip_halfplane(on, n2, d2 + 0.3)
+                if len(on) < 3:
+                    break
+            if len(on) < 3:
+                continue
+            poly = [back(q) for q in on]
+            A = F @ frame(Vector((u0, hgt, 0)), (1, 0, 0), (0, 1, 0)).inverted()
+            asm_h = half.asm
+            self.add(Panel(f"Tube{uid}.Top{side}", f"Tube{uid}", "tab", [poly],
+                           (lambda t, f=asm_h, A=A: f(t) @ A), half.name, None,
+                           f"{lab}: roof tab {side}"))
 
     def _pyramid(self, m, host):
         """Pyramid or tent standing straight on two parallel sticking strips

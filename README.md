@@ -82,7 +82,7 @@ includes 12 x 12 and 12 x 24 in cutting mats.
 | **Box fold** | A separate strip glued across a fold (parallel fold) | Position, Height (along the fold), Width Left, Width Right, tab size |
 | **Box layer** | The same parallel fold cut into the paper itself | Position, Height, Width Left, Width Right |
 | **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
-| **Tube** | Hexagon, box or recessed tube on two parallel sticking strips (Birmingham 51, 67, 68) | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs |
+| **Tube** | Hexagon, box or recessed tube on two parallel sticking strips (Birmingham 51, 67, 68) | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
 | **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
 | **Pyramid** | Pyramid, hexagonal pyramid or tent on two parallel sticking strips (Birmingham 52) | Position, Strip Distance, Base Length, Height, Ridge, Front and Back Width, each Pointed Out or In, base tabs |
 | **Flap** | A lift-the-flap worked by a pull tab, with its own **Pull** slider | Page, From Spine, Up the Page, Hinge edge, Width, Length, Hinge Tab, Lift angle, Glue Point (5 mm from the hinge by default), Strip Width, Slit Gap, Pull Tab |
@@ -128,7 +128,7 @@ still needs no scripts.
 ### Pyramids, tents and roofs (Birmingham 52)
 
 ![A hexagonal tower with a pyramid cap, a house with a ridge roof and a
-pyramid, opening](docs/images/roofs.png)
+pyramid, opening](docs/images/roofs.jpg)
 
 A pyramid's two sloping sides are glued to the same pair of strips as a
 tube, and meet above the fold at an apex. Give it a **Ridge** and it becomes
@@ -141,10 +141,24 @@ tube: as wide as the strip distance gives a flat end, wider points it out
 either way as the card starts to close; Pointed Out sends the crease
 outwards, Pointed In tucks it under.
 
-A tube can wear the same roof: tick **Roof** on the tube and set **Roof
-Height** and **Ridge**. The roof is a separate piece whose tabs glue inside
-the top of the side walls. Lying flat, a roof adds its slope length to the
-tube's height, and the checks warn if that runs past the page edge.
+A tube can wear the same roof: set its **Roof** to *Pointed* and choose
+**Roof Height** and **Ridge**. The roof is a separate piece whose tabs glue
+inside the top of the side walls. Lying flat, a roof adds its slope length to
+the tube's height, and the checks warn if that runs past the page edge.
+
+**Flat** roofs are two halves creased straight down the middle above the
+fold. Tabs folded in off the tops of the side walls are glued underneath, so
+the roof can **Overhang** the walls all round, like eaves.
+
+![Flat roof with an overhang: Peak (top) and Dip (bottom) at 180, 130 and
+80 degrees](docs/images/flat_roof.jpg)
+
+* **Peak**: the centre crease rises as the card closes and the halves stand
+  up when shut. This adds the strip distance to how far the tube reaches
+  out.
+* **Dip**: the centre crease sinks into the tube and the halves tuck down
+  inside the walls, so nothing extra sticks out. This needs walls at least
+  as tall as the strip distance, and ends that don't point in.
 
 ### Flap and the Pull control
 
@@ -241,6 +255,23 @@ labels. Folds and slits are read from the actual mesh, so hand-edited
 outlines print as edited. Glue guides (dotted) are drawn on whichever piece
 each tab glues to.
 
+Some tabs glue to the back of a piece, for example a roof's tabs inside a
+tube's walls or a flat roof's tabs under the roof. Their guides are kept off
+the art, and with **Reverse Sides** on, those sheets get a mirrored
+`_sheetN_reverse.svg`. It shows faint outlines of every piece, the glue
+markers, and labels reading *BACK of ...*. Print it on the other side of the
+sheet (double-sided: flip on the long edge for portrait sheets, the short
+edge for landscape), or hold the sheets up to the light and trace the
+markers. Pieces that have markers on the back say so in their label.
+
+![A sheet of roof pieces and its reverse](docs/images/reverse.png)
+
+**Assembly Page** (`_layout.svg`) shows the open card with each part's glue
+footprint shaded and numbered, plus a parts list: which sheet each part is
+on, and what its tabs glue to.
+
+![Assembly page](docs/images/assembly.png)
+
 | Card sheet | Stacked layers sheet |
 |---|---|
 | ![](docs/images/sheet1.png) | ![](docs/images/stacked_sheet.png) |
@@ -274,8 +305,8 @@ python tests/test_blender.py   # end to end in Blender
 python tests/test_v04.py       # closing stop, solid paper, exports, safe bakes
 python tests/test_v05.py       # 180° cube, pull-tab flaps, stacking
 python tests/test_v06.py       # tubes and tethers on parallel strips
-python tests/test_roofs.py     # pyramid, tent, hip and tube-cap kinematics
-python tests/test_v07.py       # roofs end to end, rig against the solved geometry
+python tests/test_roofs.py     # pyramid, tent, hip, tube-cap and flat-roof kinematics
+python tests/test_v07.py       # roofs end to end, reverse sheets, assembly page
 ```
 
 ## Limits and roadmap

@@ -46,20 +46,26 @@ sc = bpy.context.scene
 st = sc.popup
 st.live = False
 st.hold = "SYM"
+st.size = "A4"
 tower = _add(st, "TUBE")
-tower.label, tower.y, tower.depth, tower.front, tower.back = "Tower", 112, 36, 30, 30
-tower.height, tower.roof, tower.roof_height = 45, True, 32
+tower.label, tower.y, tower.depth, tower.front, tower.back = "Tower", 100, 30, 30, 30
+tower.height, tower.roof, tower.roof_height = 45, "POINTED", 32
 house = _add(st, "TUBE")
-house.label, house.y, house.depth, house.front, house.back = "House", 30, 56, 25, 25
-house.height, house.roof, house.roof_height, house.ridge = 28, True, 22, 36
+house.label, house.y, house.depth, house.front, house.back = "House", 25, 24, 18, 18
+house.x = 18
+house.height, house.roof, house.roof_height, house.ridge = 28, "POINTED", 22, 20
+keep = _add(st, "TUBE")
+keep.label, keep.y, keep.x, keep.depth, keep.front, keep.back = "Keep", 195, 32, 26, 34, 34
+keep.height, keep.roof, keep.eave = 34, "FLAT", 6
 pyr = _add(st, "PYRAMID")
-pyr.label, pyr.y, pyr.x, pyr.depth, pyr.height = "Pyramid", 168, 18, 30, 28
-pyr.front = pyr.back = 18
+pyr.label, pyr.y, pyr.x, pyr.depth, pyr.height = "Pyramid", 275, 10, 10, 14
+pyr.front = pyr.back = 10
 assert bpy.ops.popup.build() == {"FINISHED"}
 assert not st.warnings, st.warnings
 model = build.make_model(sc)[0]
 names = set(model.panels)
-for want in ("Roof1.SL", "Roof1.FR", "Roof2.SR", "Roof2.BL", "Pyramid3.FL", "Pyramid3.TabR"):
+for want in ("Roof1.SL", "Roof1.FR", "Roof2.SR", "Roof2.BL", "Roof3.L", "Tube3.TopR",
+             "Pyramid4.FL", "Pyramid4.TabR"):
     assert want in names, (want, sorted(names))
 rig, card = st.rig, st.card
 s = 1 / st.mm_per_unit
@@ -87,10 +93,16 @@ assert worst < 0.1, worst
 print(f"roofs: rig matches geometry within {worst:.4f} mm; {len(drv)} drivers; "
       f"closes to {t0:.1f} deg")
 files = export_svg.export(sc, os.path.join(OUT, "v07.svg"), **export_svg.settings_from(st))
-svg = open(files[0]).read()
-print("exported", len(files), "sheets")
+rev = [f for f in files if f.endswith("_reverse.svg")]
+assert rev and any(f.endswith("_layout.svg") for f in files), files
+r = open(rev[0]).read()
+assert "REVERSE OF SHEET" in r and "BACK of" in r and "glue" in r
+lay_svg = open(next(f for f in files if f.endswith("_layout.svg"))).read()
+for name in ("Tower", "House", "Keep roof", "Pyramid"):
+    assert name in lay_svg, name
+print("exported", len(files), "files:", ", ".join(os.path.basename(f) for f in files))
 # a roof that lies further out than the page when shut is flagged
-tower.roof_height = 90
+tower.roof_height = 150
 build.rebuild(sc, force=True)
 assert any("sticks out" in w for w in st.warnings.split("\n")) or "sticks out" in st.warnings, st.warnings
 print("over-tall roof flagged")
