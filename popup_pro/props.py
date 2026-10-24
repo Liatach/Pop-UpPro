@@ -23,6 +23,10 @@ KINDS = [
     ("BOXCUT", "Box layer", "Parallel fold cut out of the paper itself", "SNAP_FACE", 2),
     ("MOUTH", "Mouth", "Slit and two pairs of triangles cut into the paper; the jaws "
      "open as the card opens", "MOD_SIMPLEDEFORM", 3),
+    ("CUBE", "Cube (180°)", "Box standing on one corner edge on the fold; rises as a "
+     "card opens flat", "CUBE", 4),
+    ("FLAP", "Flap", "Lift-the-flap worked by a pull tab, with its own Pull control",
+     "MOD_CLOTH", 5),
 ]
 
 FOLDS = [
@@ -52,7 +56,7 @@ def host_items(self, context):
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
-            if m.kind in ("BOX", "BOXCUT") and m.uid not in bad:
+            if m.kind in ("BOX", "BOXCUT") and m.uid not in bad and self.kind != "FLAP":
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
                               "MESH_CUBE", m.uid))
     _host_items = items
@@ -85,6 +89,42 @@ class PopupMech(bpy.types.PropertyGroup):
         ("QUAD", "Panels", "Each half is a four-sided panel"),
         ("TRI", "Beak", "Each half is a triangle meeting at a point: beaks and mouths")],
         update=_changed)
+    # cube
+    size: FloatProperty(name="Size", description="Width of each wall (mm)", default=40.0,
+                        min=5.0, soft_max=150.0, update=_changed)
+    lid: EnumProperty(name="Lid", items=[
+        ("PEAK", "Peaked", "Two-triangle lid that rises to a ridge as the card closes"),
+        ("DIP", "Dipped", "Two-triangle lid that sinks into the box as the card closes"),
+        ("NONE", "None", "Open top")], update=_changed)
+    # flap
+    side: EnumProperty(name="Page", items=[("R", "Right", ""), ("L", "Left", "")],
+                       update=_changed)
+    x: FloatProperty(name="From Spine", description="Distance from the spine to the "
+                     "middle of the hinge (mm)", default=70.0, min=0.0, soft_max=300.0,
+                     update=_changed)
+    hinge: EnumProperty(name="Hinge", description="Which edge of the flap is hinged",
+                        items=[("TOP", "Top", ""), ("BOTTOM", "Bottom", ""),
+                               ("LEFT", "Left", ""), ("RIGHT", "Right", "")], update=_changed)
+    length: FloatProperty(name="Length", description="Hinge to the free edge (mm)",
+                          default=35.0, min=5.0, soft_max=200.0, update=_changed)
+    angle: FloatProperty(name="Lift", description="How far the flap lifts at full pull "
+                         "(degrees)", default=150.0, min=10.0, max=175.0, update=_changed)
+    pull: EnumProperty(name="Lifts", items=[
+        ("TOWARD", "Toward the Pull", "The flap swings over towards the side you pull"),
+        ("AWAY", "Away from the Pull", "The strip doubles back under the flap; the flap "
+         "swings away from the side you pull")], update=_changed)
+    strip: FloatProperty(name="Strip Width", default=10.0, min=3.0, soft_max=40.0,
+                         update=_changed)
+    glue_at: FloatProperty(name="Glue Point", description="Where the strip is glued under "
+                           "the flap, measured from the hinge (mm). Closer lifts further "
+                           "for less pull", default=15.0, min=3.0, soft_max=150.0,
+                           update=_changed)
+    gap: FloatProperty(name="Slit Gap", description="Gap between the hinge tab and the slit "
+                       "the strip comes up through (mm)", default=4.0, min=1.0, soft_max=30.0,
+                       update=_changed)
+    pull_out: FloatProperty(name="Pull Tab", description="How far the strip sticks out "
+                            "past the card edge (mm)", default=30.0, min=5.0, soft_max=100.0,
+                            update=_changed)
     # mouth
     jaw: FloatProperty(name="Jaw Length", description="How far the slit runs from the "
                        "fold on each side (mm)", default=30.0, min=2.0, soft_max=150.0,
@@ -126,7 +166,15 @@ class PopupMech(bpy.types.PropertyGroup):
     def to_dict(self):
         d = dict(uid=self.uid, label=self.label, y=self.y, tab=self.tab,
                  host=self.host_uid, fold=self.fold)
-        if self.kind == "MOUTH":
+        if self.kind == "CUBE":
+            d.update(type="CUBE", size=self.size, height=self.height, lid=self.lid,
+                     tab_side=self.tab_side)
+        elif self.kind == "FLAP":
+            d.update(type="FLAP", side=self.side, x=self.x, hinge=self.hinge,
+                     width=self.width, length=self.length, angle=self.angle,
+                     pull=self.pull, strip=self.strip, glue_at=self.glue_at, gap=self.gap,
+                     pull_out=self.pull_out)
+        elif self.kind == "MOUTH":
             d.update(type="MOUTH", jaw=self.jaw, upper=self.upper, lower=self.lower)
         elif self.kind == "VFOLD":
             d.update(type="VFOLD", phi_l=self.phi_l, alpha_l=self.alpha_l,

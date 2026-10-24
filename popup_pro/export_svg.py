@@ -273,7 +273,8 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
                 if ov is None:
                     continue
                 lo, hi = ov
-                if o.panel == s.panel:  # split inside one panel: no line
+                if o.panel == s.panel or frozenset((names[s.panel], names[o.panel])) in model.soft:
+                    # split inside one panel, or a strip sliding through a slit: no line
                     olo, ohi = _interval_other(s, o, lo, hi)
                     s.marks.append((lo, hi, ("skip",)))
                     o.marks.append((olo, ohi, ("skip",)))

@@ -8,11 +8,13 @@ them.**
 ## Features
 
 * **Preset mechanisms** you tune with sliders: V-folds (panels or beaks),
-  cut-in mouths, glued box folds and cut-in box layers.
+  cut-in mouths, glued box folds, cut-in box layers, 180° cubes with lids,
+  and pull-tab flaps.
 * **Stack them**: boxes on boxes, steps up and forward, and inset (valley)
   boxes; V-folds and mouths sit on any box fold too.
 * **Movement test**: one Open slider (0–180°) drives a driver-only rig, with
-  no Python auto-run needed. One click keyframes open-and-close.
+  no Python auto-run needed, and each flap has its own Pull slider. One click
+  keyframes open-and-close, or a pull.
 * **Art stays on the paper**: paint flat or folded (Texture Paint or Paint
   System), or sketch with Grease Pencil on any panel, and it rides along.
 * **Checks** as you design: tearing V-folds, panels poking through the card,
@@ -78,6 +80,34 @@ includes 12 x 12 and 12 x 24 in cutting mats.
 | **Mouth** | A slit across a fold with two pairs of triangles cut into the paper; the jaws open as the card opens | Slit Position, Jaw Length (slit each side of the fold), Upper Jaw, Lower Jaw |
 | **Box fold** | A separate strip glued across a fold (parallel fold) | Position, Width, Height (up the left panel), Depth (across the right panel), tab size |
 | **Box layer** | The same parallel fold cut into the paper itself | Position, Width, Height, Depth |
+| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Front Corner (position), Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
+| **Flap** | A lift-the-flap worked by a pull tab, with its own **Pull** slider | Page, From Spine, Up the Page, Hinge edge, Width, Length, Hinge Tab, Lifts (Toward or Away from the Pull), Lift angle, Glue Point, Strip Width, Slit Gap, Pull Tab |
+
+### Cube (180°)
+
+Four walls in one strip with a closing tab. The two front walls are a V-fold
+on the fold (45° glue lines, square corners), glued down by the base tabs;
+the back walls follow as a parallelogram. The lid is two right triangles on
+the front walls, creased along the diagonal and joined by a glue tab: it
+rises to a ridge (Peaked) or sinks into the box (Dipped) as the card closes.
+A flat one-piece lid can't fold, so the lid is always two triangles.
+
+### Flap and the Pull control
+
+The flap is glued down by a tab along its hinge. A strip is glued under the
+flap at the **Glue Point**. It runs back through a slit in the page, behind
+the page, and out past the card edge as a pull tab. Pulling it lifts the
+flap:
+
+* **Toward the Pull**: the flap swings over towards the side you pull.
+* **Away from the Pull**: the strip doubles back under the flap, so the flap
+  swings the other way.
+
+Each flap has a **Pull** slider (0–1) and **Keyframe Pull Test**, separate
+from the card's Open slider, so you can animate both. The checks warn when the
+strip would run across the spine, or the pull tab is too short for the travel.
+The strip runs behind the page, so glue a backing card behind it, leaving the
+edge open where the tab comes out.
 
 ### Stacking: Host and Where
 
@@ -186,6 +216,7 @@ each tab glues to.
 python tests/test_core.py      # kinematics, stacking, overlap checks (needs: pip install bpy)
 python tests/test_blender.py   # end to end in Blender
 python tests/test_v04.py       # closing stop, solid paper, exports, safe bakes
+python tests/test_v05.py       # 180° cube, pull-tab flaps
 ```
 
 ## Limits and roadmap
@@ -194,8 +225,8 @@ python tests/test_v04.py       # closing stop, solid paper, exports, safe bakes
   V-folds.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
-* Next mechanisms: floating layers and pedestals, V-folds on V-folds, arch
-  V-folds, moving arms, pull tabs.
+* Next mechanisms: the 90° box with lid, floating layers on pedestals,
+  V-folds on V-folds, arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe
   route for printing.
 

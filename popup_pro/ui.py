@@ -3,7 +3,7 @@ import bpy
 from . import live
 
 KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FACE",
-             "MOUTH": "MOD_SIMPLEDEFORM"}
+             "MOUTH": "MOD_SIMPLEDEFORM", "CUBE": "CUBE", "FLAP": "MOD_CLOTH"}
 
 
 def draw_export(layout, st):
@@ -49,7 +49,8 @@ class POPUP_MT_add(bpy.types.Menu):
     def draw(self, context):
         for k, name in (("VFOLD", "V-fold"), ("MOUTH", "Mouth (cut in)"),
                         ("BOX", "Box Fold (glued strip)"),
-                        ("BOXCUT", "Box Layer (cut in)")):
+                        ("BOXCUT", "Box Layer (cut in)"),
+                        ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap")):
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
 
 
@@ -117,11 +118,20 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.use_property_split = True
         col.use_property_decorate = False
         col.prop(m, "kind", text="Type")
+        if m.kind == "FLAP":
+            self.draw_flap(context, col, m)
+            return
         col.prop(m, "host")
         if m.host_uid:
             col.prop(m, "fold")
-        col.prop(m, "y", text="Slit Position" if m.kind == "MOUTH" else "Position")
-        if m.kind == "MOUTH":
+        col.prop(m, "y", text={"MOUTH": "Slit Position", "CUBE": "Front Corner"}.get(m.kind, "Position"))
+        if m.kind == "CUBE":
+            col.prop(m, "size")
+            col.prop(m, "height")
+            col.prop(m, "lid")
+            col.prop(m, "tab")
+            col.prop(m, "tab_side", text="Base Tabs")
+        elif m.kind == "MOUTH":
             col.prop(m, "jaw")
             col.prop(m, "upper")
             col.prop(m, "lower")
@@ -144,6 +154,33 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "depth", text="Depth (right page)")
             if m.kind == "BOX":
                 col.prop(m, "tab")
+
+
+def _draw_flap(self, context, col, m):
+    st = context.scene.popup
+    col.prop(m, "side")
+    col.prop(m, "x")
+    col.prop(m, "y", text="Up the Page")
+    col.prop(m, "hinge")
+    col.prop(m, "width")
+    col.prop(m, "length")
+    col.prop(m, "tab", text="Hinge Tab")
+    col.separator()
+    col.prop(m, "pull")
+    col.prop(m, "angle")
+    col.prop(m, "glue_at")
+    col.prop(m, "strip")
+    col.prop(m, "gap")
+    col.prop(m, "pull_out")
+    rig = st.rig
+    name = f"pop_pull_{m.uid}"
+    if rig is not None and name in rig:
+        box = col.box()
+        box.prop(rig, f'["{name}"]', text="Pull", slider=True)
+        box.operator("popup.animate_pull", icon="PLAY").uid = m.uid
+
+
+POPUP_PT_mechs.draw_flap = _draw_flap
 
 
 class POPUP_PT_checks(_Base, bpy.types.Panel):

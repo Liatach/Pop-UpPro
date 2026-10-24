@@ -49,8 +49,11 @@ DEFAULTS = {
     "BOX": dict(y=130.0, width=50.0, height=40.0, depth=30.0, tab=12.0),
     "BOXCUT": dict(y=20.0, width=40.0, height=30.0, depth=30.0),
     "MOUTH": dict(y=150.0, jaw=30.0, upper=20.0, lower=15.0),
+    "CUBE": dict(y=60.0, size=40.0, height=40.0, tab=10.0),
+    "FLAP": dict(y=170.0, x=70.0, width=40.0, length=35.0, tab=8.0),
 }
-NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth"}
+NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth",
+         "CUBE": "Cube", "FLAP": "Flap"}
 
 
 def _add(st, kind):
@@ -68,6 +71,10 @@ def _add(st, kind):
     for k, v in DEFAULTS[kind].items():
         setattr(m, k, v)
     m.y = min(m.y, max(0.0, H - (m.width if kind in ("BOX", "BOXCUT") else 0.0) - 10))
+    if kind == "CUBE":
+        m.y = min(m.y, max(0.0, H - m.size * 1.42 - 5))
+    if kind == "FLAP":
+        m.y = min(m.y, max(m.tab + m.length, H - 15))
     st["live"] = was_live
     st.active = len(st.mechs) - 1
     return m
@@ -157,6 +164,37 @@ class POPUP_OT_animate(bpy.types.Operator):
             rig["pop_open"] = v
             rig.keyframe_insert('["pop_open"]', frame=f)
         sc.frame_end = keys[-1][0]
+        sc.frame_set(f0)
+        return {"FINISHED"}
+
+
+class POPUP_OT_animate_pull(bpy.types.Operator):
+    """Keyframe a pull test for this flap: pull fully out and back in, from the
+    current frame"""
+    bl_idname = "popup.animate_pull"
+    bl_label = "Keyframe Pull Test"
+    bl_options = {"REGISTER", "UNDO"}
+    uid: IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def execute(self, context):
+        from .build import pull_prop
+        sc = context.scene
+        rig = sc.popup.rig
+        name = pull_prop(self.uid)
+        if name not in rig:
+            self.report({"ERROR"}, "Rebuild the card first")
+            return {"CANCELLED"}
+        n = sc.popup.anim_frames
+        f0 = sc.frame_current
+        for f, v in ((f0, 0.0), (f0 + n // 2, 1.0), (f0 + n // 2 + max(1, n // 4), 1.0),
+                     (f0 + n + max(1, n // 4), 0.0)):
+            rig[name] = v
+            rig.keyframe_insert(f'["{name}"]', frame=f)
+        sc.frame_end = max(sc.frame_end, f0 + n + max(1, n // 4))
         sc.frame_set(f0)
         return {"FINISHED"}
 
@@ -362,7 +400,7 @@ class POPUP_OT_view_layout(bpy.types.Operator):
 
 
 classes = (POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_set_open,
-           POPUP_OT_animate, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
+           POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 
 

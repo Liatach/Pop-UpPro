@@ -72,6 +72,7 @@ class Panel:
         self.parent = parent
         self.hinge = hinge
         self.label = label or name
+        self.outside = False  # lies behind the card (pull strips): skip fit checks
 
     @property
     def glue(self):
@@ -206,6 +207,9 @@ class Model:
         self.joints = {}
         self.hosts = {}
         self.cut_panels = set()
+        self.pull = {}  # flap uid -> pull 0..1 (the Pull slider)
+        self.soft = set()  # panel pairs joined by a sliding bend, not a fold
+        self.flaps = {}  # flap uid -> info for the UI and checks
         self._build()
         self.solve_hinges()
 
@@ -327,7 +331,7 @@ class Model:
         for m in self.mechs:
             visit(m)
         for m in order:
-            h = m.get("host", 0)
+            h = m.get("host", 0) if m["type"] != "FLAP" else 0
             host = self.hosts.get((h, m.get("fold", "A")) if h else (0, "S"))
             if host is None:
                 self.warn(f"{m['label']}: its host was skipped; skipped too")
@@ -338,6 +342,10 @@ class Model:
                 self._mouth(m, host)
             elif m["type"] == "BOX":
                 self._box(m, host)
+            elif m["type"] == "CUBE":
+                self._cube(m, host)
+            elif m["type"] == "FLAP":
+                self._flap(m)
 
     # ------------------------------------------------------- page directions
     def dirs(self, t):
@@ -616,6 +624,315 @@ class Model:
             self.warn(f"{lab}: tears if opened past {min(tears):.0f} degrees (make the "
                       f"piece angle at least the glue angle)")
 
+    # ------------------------------------------------------------------ cube
+    def _cube(self, m, host):
+        """180-degree cube standing on one vertical edge on the fold.
+
+        Four walls in a strip: back-left A, front-left B, front-right C,
+        back-right D, closed by a tab on A glued inside D. B and C are a
+        V-fold on the fold (glue lines at 45 degrees, square corners), glued
+        down by base tabs; A and D complete the parallelogram. The optional
+        lid is two right triangles on B and C, creased along the diagonal and
+        joined by a glue tab: it folds as a V on the front corner, peaked or
+        dipped."""
+        uid, lab = m["uid"], m["label"]
+        sz, hgt = float(m["size"]), float(m["height"])
+        y0 = float(m["y"])
+        tb = min(float(m.get("tab", 10.0)), 0.45 * sz)
+        piece = f"Cube{uid}"
+        self.add_piece(Piece(piece, lab, 1 + uid, (2 * sz, 0.5 * hgt)))
+        key = f"{piece}.V"
+        r2 = math.sqrt(0.5)
+        uLf, uRf = (-r2, r2), (r2, r2)
+        self.joints[key] = dict(host=host, y=y0, uL=uLf, uR=uRf,
+                                aL=math.pi / 2, aR=math.pi / 2)
+        if host.is_spine and (y0 < 0 or y0 + sz * math.sqrt(2) > self.H):
+            self.warn(f"{lab}: runs past the top or bottom of the card")
+        # strip pattern: tab | A [0,s] | B [s,2s] | C [2s,3s] | D [3s,4s]
+        s1, s2, s3, s4 = sz, 2 * sz, 3 * sz, 4 * sz
+        B = [(s1, 0), (s2, 0), (s2, hgt), (s1, hgt)]
+        C = [(s2, 0), (s3, 0), (s3, hgt), (s2, hgt)]
+        A = [(0, 0), (s1, 0), (s1, hgt), (0, hgt)]
+        D = [(s3, 0), (s4, 0), (s4, hgt), (s3, hgt)]
+        ch = min(0.3 * tb, 0.2 * hgt)
+        close = [(-tb, ch), (0, 0), (0, hgt), (-tb, hgt - ch)]
+        hb = self._half(f"{piece}.B", piece, [B], (s2, 0), (-1, 0), (0, 1), "L", key,
+                        f"{lab}: front left")
+        hc = self._half(f"{piece}.C", piece, [C], (s2, 0), (1, 0), (0, 1), "R", key,
+                        f"{lab}: front right")
+
+        def parts(t):
+            c, uL, uR, ok, P3 = self.crease(key, t)
+            return c, uL, uR, P3
+
+        def pat(o):
+            return frame(v3(o), (1, 0, 0), (0, 1, 0)).inverted()
+
+        def asm_a(t):
+            c, uL, uR, P3 = parts(t)
+            return frame(P3 + sz * uL, -uR, c) @ pat((s1, 0))
+
+        def asm_d(t):
+            c, uL, uR, P3 = parts(t)
+            return frame(P3 + sz * uR, uL, c) @ pat((s3, 0))
+
+        def asm_close(t):
+            c, uL, uR, P3 = parts(t)
+            nD = uL.cross(c).normalized()
+            return frame(P3 + sz * (uL + uR) - TAB_LIFT * nD, uL, c) @ pat((0, 0))
+
+        # side corners: the angle between the front walls' bottom edges,
+        # cos = uL . uR = cos^2(t/2)
+        def corner(t):
+            return math.acos(max(-1.0, min(1.0, math.cos(math.radians(max(t, T_MIN)) / 2) ** 2)))
+
+        cex = "acos(cos(radians(T)/2)*cos(radians(T)/2))"
+        hy = hinge_frame_2d((s1, 0), (0, 1))
+        self.add(Panel(f"{piece}.A", piece, "panel", [A], asm_a, hb.name,
+                       Hinge(hy, hy, "EXPR", dict(var="t", fn=corner, expr=cex)),
+                       f"{lab}: back left"))
+        hy2 = hinge_frame_2d((s3, 0), (0, 1))
+        dd = self.add(Panel(f"{piece}.D", piece, "panel", [D], asm_d, hc.name,
+                            Hinge(hy2, hy2, "EXPR", dict(var="t", fn=corner, expr=cex)),
+                            f"{lab}: back right"))
+        self.add(Panel(f"{piece}.Close", piece, "tab", [close], asm_close, dd.name, None,
+                       f"{lab}: closing tab"))
+
+        # base tabs: B and C glue to the host along their bottom edges
+        inside = m.get("tab_side", "IN") == "IN"
+        for side, poly_u, gdir, q, parent, Tp, sgn in (
+            ("L", (s1, s2), uLf, (r2, r2), host.p1, host.T1, -1.0),
+            ("R", (s2, s3), uRf, (-r2, r2), host.p2, host.T2, 1.0),
+        ):
+            qv = Vector((q[0], q[1], 0)) * (1 if inside else -1)
+            gv = Vector((gdir[0], gdir[1], 0))
+            lift = host.lift[0 if side == "L" else 1]
+            # strip (u, v<0) -> virtual page: along the edge, and off it by -v
+            o_strip = s2
+            xdir = -gv if side == "L" else gv  # strip +u direction on the page
+            T = frame(Vector((0, y0, lift * TAB_LIFT)), xdir, -qv) @ pat((o_strip, 0))
+            u0, u1 = poly_u
+            poly = [(u0 + ch, -tb), (u0, 0), (u1, 0), (u1 - ch, -tb)]
+            # keep each tab on its own side of the fold
+            n2 = (sgn * T[0][0], sgn * T[0][1])
+            poly = clip_halfplane(poly, n2, 0.5 - sgn * T[0][3])
+            pa = self.panels[parent].asm
+            Tpat = Tp @ T
+            self.add(Panel(f"{piece}.Tab{side}", piece, "tab", [poly],
+                           (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
+                           f"{lab}: base tab {side}"))
+
+        lid = m.get("lid", "PEAK")
+        if lid != "NONE":
+            sg = 1.0 if lid == "PEAK" else -1.0
+
+            def lid_dir(t):
+                c, uL, uR, P3 = parts(t)
+                G = max(-1.0, min(1.0, uL.dot(uR)))
+                a = r2 / (1 + G)
+                k = sg * math.sqrt(max(G, 0.0) / (1 + G))
+                return (a * (uL + uR) + k * c).normalized(), c, uL, uR, P3
+
+            def asm_lb(t):
+                cp, c, uL, uR, P3 = lid_dir(t)
+                return frame(P3 + hgt * c, -uL, math.sqrt(2) * cp - uL) @ pat((s2, hgt))
+
+            def asm_lc(t):
+                cp, c, uL, uR, P3 = lid_dir(t)
+                return frame(P3 + hgt * c, uR, math.sqrt(2) * cp - uR) @ pat((s2, hgt))
+
+            LB = [(s2, hgt), (s1, hgt), (s1, hgt + sz)]
+            LC = [(s2, hgt), (s3, hgt), (s3, hgt + sz)]
+            # glue tab on the right lid's diagonal, tucked under the left lid
+            d = Vector((1, 1, 0)).normalized()
+            nrm = Vector((-1, 1, 0)).normalized()
+            P0 = Vector((s2, hgt, 0))
+            Lh = math.sqrt(2) * sz
+            gt = min(tb, 0.25 * Lh)
+            tab_poly = [tuple((P0 + d * 0.15 * Lh)[:2]), tuple((P0 + d * 0.85 * Lh)[:2]),
+                        tuple((P0 + d * 0.8 * Lh + nrm * gt)[:2]),
+                        tuple((P0 + d * 0.2 * Lh + nrm * gt)[:2])]
+            fn = (lambda t: math.atan2(math.sin(math.radians(t) / 2),
+                                       sg * math.sqrt(2) * math.cos(math.radians(t) / 2)))
+            ex = (f"atan2(sin(radians(T)/2),{sg * math.sqrt(2):.9g}*cos(radians(T)/2))")
+            ht = hinge_frame_2d((s2, hgt), (-1, 0))
+            lb = self.add(Panel(f"{piece}.LidL", piece, "panel", [LB], asm_lb, hb.name,
+                                Hinge(ht, ht, "EXPR", dict(var="t", fn=lambda t: fn(max(t, T_MIN)), expr=ex)),
+                                f"{lab}: lid left"))
+            ht2 = hinge_frame_2d((s2, hgt), (1, 0))
+            self.add(Panel(f"{piece}.LidR", piece, "panel", [LC], asm_lc, hc.name,
+                           Hinge(ht2, ht2, "EXPR", dict(var="t", fn=lambda t: fn(max(t, T_MIN)), expr=ex)),
+                           f"{lab}: lid right"))
+
+            def asm_lt(t):
+                cp, c, uL, uR, P3 = lid_dir(t)
+                M = asm_lb(t)
+                nL = M.to_3x3() @ Z
+                into = (uL - uL.dot(cp) * cp).normalized()  # across the crease, into the left lid
+                return frame(P3 + hgt * c - TAB_LIFT * nL, cp, into) \
+                    @ frame(v3((s2, hgt)), (1, 1, 0), (-1, 1, 0)).inverted()
+
+            self.add(Panel(f"{piece}.LidTab", piece, "tab", [tab_poly], asm_lt, lb.name, None,
+                           f"{lab}: lid glue tab"))
+
+        tears = [t for t in SAMPLES if not self.crease(key, t)[3]]
+        if tears:
+            self.warn(f"{lab}: cannot fold below {max(tears):.0f} degrees")
+
+    # ------------------------------------------------------------------ flap
+    def _flap(self, m):
+        """Pull-tab flap on a page. The flap is glued down along its hinge by a
+        tab. A strip glued under the flap runs back through a slit in the page
+        and under it to the card edge; pulling it shortens the part above
+        the page, which lifts the flap. 'Toward': the flap swings towards
+        the pull; 'Away': the strip doubles back under the flap, so the flap
+        swings away from the pull."""
+        uid, lab = m["uid"], m["label"]
+        W, H = self.W, self.H
+        left = m.get("side", "R") == "L"
+        page = "Page.L" if left else "Page.R"
+        hx = -float(m["x"]) if left else float(m["x"])
+        hy = float(m["y"])
+        uu = {"TOP": (0, -1), "BOTTOM": (0, 1), "LEFT": (1, 0), "RIGHT": (-1, 0)}[m.get("hinge", "TOP")]
+        U = Vector((uu[0], uu[1], 0))
+        Hd = Z.cross(U)
+        Wf, Lf = float(m["width"]), float(m["length"])
+        tb = min(float(m.get("tab", 10.0)), 30.0)
+        amax = float(m.get("angle", 150.0))
+        ws = min(float(m.get("strip", 10.0)), Wf - 2)
+        g = max(3.0, min(float(m.get("glue_at", 0.5 * Lf)), Lf - 2))
+        gap = float(m.get("gap", 4.0))
+        sl = tb + gap  # slit distance behind the hinge
+        gl = min(10.0, Lf - g + 0.0, 0.5 * g) if Lf - g > 1 else 1.0
+        toward = m.get("pull", "TOWARD") == "TOWARD"
+        pdir = -U if toward else U
+        H3 = Vector((hx, hy, 0.0))
+        S3 = H3 - sl * U
+
+        def on_page(pt):
+            x0, x1 = (-W, 0.0) if left else (0.0, W)
+            return x0 - 1e-6 <= pt.x <= x1 + 1e-6 and -1e-6 <= pt.y <= H + 1e-6
+
+        corners = [H3 + a * U + b * Hd for a in (-tb, Lf) for b in (-Wf / 2, Wf / 2)]
+        if not all(on_page(c) for c in corners):
+            self.warn(f"{lab}: the flap runs off its page")
+        # distance from the slit to the page edge along the pull direction
+        x0, x1 = (-W, 0.0) if left else (0.0, W)
+        dists = []
+        for axis, lo, hi in ((0, x0, x1), (1, 0.0, H)):
+            dv = pdir[axis]
+            if abs(dv) > 1e-9:
+                for edge in (lo, hi):
+                    tt = (edge - S3[axis]) / dv
+                    if tt > 0:
+                        dists.append((tt, axis, edge))
+        tt, axis, edge = min(dists)
+        if axis == 0 and abs(edge) < 1e-9:
+            self.warn(f"{lab}: the pull strip would run across the spine; turn the flap "
+                      f"or swap Pull so it exits an outer edge")
+        out = float(m.get("pull_out", 30.0))
+        Lu = tt + out
+        A = math.radians(amax)
+
+        pf, ps = f"Flap{uid}", f"Pull{uid}"
+        self.add_piece(Piece(pf, lab, 1 + uid, (0.5 * Lf, 0.0)))
+        self.add_piece(Piece(ps, f"{lab} strip", 500 + uid, (0.5 * Lu, 0.0)))
+        self.pull.setdefault(uid, 0.0)
+        pa = self.panels[page].asm
+
+        def theta():
+            return A * max(0.0, min(1.0, self.pull.get(uid, 0.0)))
+
+        def fdir(th):
+            return math.cos(th) * U + math.sin(th) * Z
+
+        flap_poly = [(0, -Wf / 2), (Lf, -Wf / 2), (Lf, Wf / 2), (0, Wf / 2)]
+        ch = min(0.3 * tb, 0.2 * Wf)
+        tab_poly = [(-tb, -Wf / 2 + ch), (0, -Wf / 2), (0, Wf / 2), (-tb, Wf / 2 - ch)]
+        Tt = frame(H3 + TAB_LIFT * Z, U, Hd)
+        tab = self.add(Panel(f"{pf}.Tab", pf, "tab", [tab_poly], lambda t: pa(t) @ Tt, page,
+                             None, f"{lab}: hinge tab"))
+
+        def asm_flap(t):
+            return pa(t) @ frame(H3 + TAB_LIFT * Z, fdir(theta()), Hd)
+
+        hf = hinge_frame_2d((0, 0), (0, 1))
+        flap = self.add(Panel(f"{pf}.Flap", pf, "panel", [flap_poly], asm_flap, tab.name,
+                              Hinge(hf, hf, "PULL", dict(var="p", uid=uid,
+                                                         fn=lambda q: A * q,
+                                                         expr=f"radians({amax:.6g}*p)")),
+                              f"{lab}: flap"))
+
+        # the strip: glue end under the flap | link to the slit | under the page
+        eps = 2 * TAB_LIFT
+        glue_poly = [(-gl, -ws / 2), (0, -ws / 2), (0, ws / 2), (-gl, ws / 2)]
+
+        zl = TAB_LIFT
+
+        def Gs(th):
+            """Glue point under the flap (just below its surface), in page coords."""
+            f = fdir(th)
+            nf = f.cross(Hd)
+            return H3 + zl * Z + g * f - eps * nf
+
+        def vparts(th):
+            # S - G in (U, Z) components
+            c_, s_ = math.cos(th), math.sin(th)
+            return (-sl - g * c_ - eps * s_, -zl - g * s_ + eps * c_)
+
+        Lk = math.hypot(*vparts(0.0))
+        link_poly = [(0, -ws / 2), (Lk, -ws / 2), (Lk, ws / 2), (0, ws / 2)]
+        under_poly = [(Lk, -ws / 2), (Lk + Lu, -ws / 2), (Lk + Lu, ws / 2), (Lk, ws / 2)]
+
+        def asm_glue(t):
+            th = theta()
+            return pa(t) @ frame(Gs(th), -fdir(th), Hd)
+
+        def asm_link(t):
+            th = theta()
+            return pa(t) @ frame(Gs(th), (S3 - Gs(th)).normalized(), Hd)
+
+        def d_of(q):
+            return Lk - math.hypot(*vparts(A * q))
+
+        Mu0 = frame(S3 - eps * Z, pdir, Hd) @ Matrix.Translation((-Lk, 0, 0))
+
+        def asm_under(t):
+            q = max(0.0, min(1.0, self.pull.get(uid, 0.0)))
+            return pa(t) @ Matrix.Translation(d_of(q) * pdir) @ Mu0
+
+        glue = self.add(Panel(f"{ps}.Glue", ps, "tab", [glue_poly], asm_glue, flap.name, None,
+                              f"{lab}: strip glue end"))
+        T = f"radians({amax:.6g}*p)"
+        fn_link = (lambda q: math.atan2(vparts(A * q)[1], vparts(A * q)[0]) - A * q)
+        ex_link = (f"atan2({-zl:.6g}-{g:.6g}*sin({T})+{eps:.6g}*cos({T}),"
+                   f"{-sl:.6g}-{g:.6g}*cos({T})-{eps:.6g}*sin({T}))-{T}")
+        hl = hinge_frame_2d((0, 0), (0, 1))
+        link = self.add(Panel(f"{ps}.Link", ps, "panel", [link_poly], asm_link, glue.name,
+                              Hinge(hl, hl, "PULL", dict(var="p", uid=uid, fn=fn_link, expr=ex_link)),
+                              f"{lab}: strip"))
+        Fc = frame(Vector((Lk, 0, 0)), (0, -1, 0), (1, 0, 0))
+        Hp = Mu0 @ Fc
+        # |S - G|^2 = K0 + Kc cos(th) + Ks sin(th)
+        K0 = sl * sl + g * g + eps * eps + zl * zl
+        Kc = 2 * sl * g - 2 * zl * eps
+        Ks = 2 * sl * eps + 2 * zl * g
+        ex_d = f"{Lk:.9g}-sqrt({K0:.9g}{Kc:+.9g}*cos({T}){Ks:+.9g}*sin({T}))"
+        under = self.add(Panel(f"{ps}.Under", ps, "panel", [under_poly], asm_under, page,
+                               Hinge(Hp, Fc, "SLIDE", dict(var="p", uid=uid, fn=d_of, expr=ex_d)),
+                               f"{lab}: pull tab"))
+        under.outside = True
+        self.soft.add(frozenset((link.name, under.name)))
+        # slit in the page where the strip comes through
+        slot = [S3 + a * U + b * Hd for a, b in ((-0.6, -ws / 2 - 1), (0.6, -ws / 2 - 1),
+                                                 (0.6, ws / 2 + 1), (-0.6, ws / 2 + 1))]
+        self.carve("Card", [tuple(v[:2]) for v in slot], {page}, lab)
+        dmax = d_of(1.0)
+        if dmax > out - 3:
+            self.warn(f"{lab}: pulling {dmax:.0f} mm needs a longer Pull Tab "
+                      f"(it would vanish into the card)")
+        self.flaps[uid] = dict(label=lab, travel=dmax)
+
     # ----------------------------------------------------------------- mouth
     def _mouth(self, m, host):
         """Pop-up mouth cut into the paper: a slit across the fold and two
@@ -670,11 +987,59 @@ class Model:
             raise ValueError(f"{name}: fold is not a pure hinge at t={t}")
         return angle_from_roty(M)
 
+    def true_slide(self, name, t):
+        p = self.panels[name]
+        h = p.hinge
+        M = h.Hp.inverted() @ self.rel(name, t) @ h.Fc
+        tr = M.to_translation()
+        if not is_roty(M.to_3x3().to_4x4(), 1e-4) or abs(angle_from_roty(M)) > 1e-4 \
+                or abs(tr.x) > 1e-3 or abs(tr.z) > 1e-3:
+            raise ValueError(f"{name}: not a pure slide")
+        return tr.y
+
+    def _expr_hinge(self, name, h):
+        """Hinges written as a formula: EXPR (in the open angle T, degrees),
+        PULL (rotation in the flap's Pull p) and SLIDE (distance in mm along
+        the bone's Y, in p). The formula's sign and constant offset are fitted
+        to the solved geometry, then checked."""
+        sph = h.sph
+        uid = sph.get("uid")
+        if sph["var"] == "t":
+            pts = [(t, None) for t in SAMPLES]
+        else:
+            pts = [(90.0, q) for q in (0.0, 0.15, 0.35, 0.5, 0.65, 0.85, 1.0)]
+        rows = []
+        for t, q in pts:
+            if q is not None:
+                self.pull[uid] = q
+            true = self.true_slide(name, t) if h.kind == "SLIDE" else self.true_psi(name, t)
+            rows.append((true, sph["fn"](t if q is None else q)))
+        if uid is not None:
+            self.pull[uid] = 0.0
+        wrap = (lambda d: d) if h.kind == "SLIDE" else \
+            (lambda d: (d + math.pi) % (2 * math.pi) - math.pi)
+        best = None
+        for sg in ((1.0,) if h.kind == "SLIDE" else (1.0, -1.0)):
+            c = rows[0][0] - sg * rows[0][1]
+            err = max(abs(wrap(tv - sg * fv - c)) for tv, fv in rows)
+            if best is None or err < best[0]:
+                best = (err, sg, c)
+        err, sg, c = best
+        h.expr = f"{c:.9g}{'+' if sg > 0 else '-'}({sph['expr']})"
+        h.fn = lambda x, sg=sg, c=c, f=sph["fn"]: c + sg * f(x)
+        h.check = err
+        tol = 0.02 if h.kind == "SLIDE" else 2e-3
+        if err > tol:
+            raise ValueError(f"{name}: driver formula is off by {err:.2e}")
+
     def solve_hinges(self):
         for name in self.order:
             p = self.panels[name]
             h = p.hinge
             if h is None:
+                continue
+            if h.kind in ("EXPR", "PULL", "SLIDE"):
+                self._expr_hinge(name, h)
                 continue
             if h.kind == "LINEAR":
                 p90, p1 = self.true_psi(name, 90.0), self.true_psi(name, 180.0)
@@ -764,7 +1129,7 @@ class Model:
         foot = []
         for name in self.order:
             p = self.panels[name]
-            if p.kind == "page":
+            if p.kind == "page" or p.outside:
                 continue
             M = p.asm(t0)
             for poly in p.polys:
@@ -842,7 +1207,7 @@ class Model:
         W, H = self.W, self.H
         for name in self.order:
             p = self.panels[name]
-            if p.kind != "panel":
+            if p.kind != "panel" or p.outside:
                 continue
             lab = p.label.split(":")[0]
             pts = [v3(q) for poly in p.polys for q in poly]

@@ -237,17 +237,42 @@ def _driver(rig, pb, hinge, const, t0=0.0):
             arm[prop] = 0.0
             hd = _fresh(arm.driver_add(f'["{prop}"]'))
             _var(hd, "t", "OBJECT", rig, '["pop_open"]')
-            hd.expression = TERM.format(*hinge.parts[key]).replace("T", open_expr(t0))
-            assert len(hd.expression) < 256, hd.expression
+            full = TERM.format(*hinge.parts[key]).replace("T", open_expr(t0))
+            if len(full) > 255:
+                raise RuntimeError(f"driver for {pb.name} is too long")
+            hd.expression = full
             _var(d, key.lower(), "ARMATURE", arm, f'["{prop}"]')
+    elif hinge.kind == "PULL":
+        _var(d, "p", "OBJECT", rig, f'["{pull_prop(hinge.sph["uid"])}"]')
     else:
         _var(d, "t", "OBJECT", rig, '["pop_open"]')
     expr = hinge.expr
-    if hinge.kind != "SPHERICAL":
+    if hinge.kind == "LINEAR":
         expr = expr.replace("radians(t)", f"radians({open_expr(t0)})")
-    d.expression = f"{const:.9g}+({expr})"
-    assert len(d.expression) < 256, d.expression
+    elif hinge.kind == "EXPR":
+        expr = expr.replace("radians(T)", f"radians({open_expr(t0)})")
+    full = f"{const:.9g}+({expr})"
+    if len(full) > 255:  # Blender truncates silently
+        raise RuntimeError(f"driver for {pb.name} is too long ({len(full)} characters)")
+    d.expression = full
     return d
+
+
+def pull_prop(uid):
+    return f"pop_pull_{uid}"
+
+
+def _slide_drivers(rig, pb, hinge, K, s):
+    """A part that slides along its bone's Y (the pull strip): the pose is
+    K @ Translate(0, d, 0), so each location channel is K.t + K.R[:,1] * d."""
+    Kt, Kr = K.to_translation(), K.to_3x3()
+    for i in range(3):
+        d = _fresh(pb.driver_add("location", i))
+        _var(d, "p", "OBJECT", rig, f'["{pull_prop(hinge.sph["uid"])}"]')
+        full = f"{Kt[i]:.9g}{Kr[i][1] * s:+.9g}*({hinge.expr})"
+        if len(full) > 255:
+            raise RuntimeError(f"driver for {pb.name} is too long ({len(full)} characters)")
+        d.expression = full
 
 
 def build_rig(scene, rig, model, layout, s, t0=0.0):
@@ -311,7 +336,9 @@ def build_rig(scene, rig, model, layout, s, t0=0.0):
         e = K.to_euler("YZX")
         pb.location = K.to_translation()
         pb.rotation_euler = e
-        if p.hinge is not None:
+        if p.hinge is not None and p.hinge.kind == "SLIDE":
+            _slide_drivers(rig, pb, p.hinge, K, s)
+        elif p.hinge is not None:
             _driver(rig, pb, p.hinge, e.y, t0)
     rig.hide_set(hidden)
     if prev_active is not None and prev_active.name in view_layer.objects:
@@ -339,6 +366,7 @@ def write_meta(rig, model, layout, s):
                         anchor=list(p.anchor), is_card=p.is_card)
                 for k, p in model.pieces.items() if p.panels},
         sheets=[dict(size=list(sh.size), origin=list(sh.origin)) for sh in layout["sheets"]],
+        flaps={str(k): v for k, v in model.flaps.items()},
     )
     rig["pop_meta"] = json.dumps(meta)
 
@@ -370,6 +398,15 @@ def rebuild(scene, force=False):
     art.release_orphans(scene, set(model.order))
     t0 = model.close_angle(st.paper_thickness) if st.keep_open else 0.0
     rig["pop_close"] = t0
+    for uid in model.flaps:
+        name = pull_prop(uid)
+        try:
+            rig[name] = min(1.0, max(0.0, float(rig.get(name, 0.0))))  # keep it a float
+        except (TypeError, ValueError):
+            rig[name] = 0.0
+        rig.id_properties_ui(name).update(min=0.0, max=1.0, soft_min=0.0, soft_max=1.0,
+                                          description="Pull the flap's tab (0 = flat, 1 = "
+                                          "fully lifted)")
     build_rig(scene, rig, model, layout, s, t0)
     ensure_solid(card, st)
     write_meta(rig, model, layout, s)
