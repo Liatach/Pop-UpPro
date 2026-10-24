@@ -5,6 +5,7 @@ from bpy.props import EnumProperty, FloatProperty, IntProperty, StringProperty, 
 from bpy_extras.io_utils import ExportHelper
 from mathutils import Quaternion, Vector
 
+from .naming import N
 from . import art, build, live
 
 
@@ -55,10 +56,13 @@ DEFAULTS = {
     "TETHER": dict(height=30.0, tab=8.0, to_y=40.0),
     "PYRAMID": dict(y=80.0, x=25.0, depth=50.0, height=40.0, ridge=0.0, front=25.0,
                     back=25.0, tab=10.0),
+    "FRAME": dict(y=0.0, tab=8.0),
+    "FLOOR": dict(tab=8.0),
+    "CEILING": dict(tab=8.0),
 }
 NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth",
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
-         "PYRAMID": "Pyramid"}
+         "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling"}
 
 
 def _add(st, kind):
@@ -76,6 +80,14 @@ def _add(st, kind):
     for k, v in DEFAULTS[kind].items():
         setattr(m, k, v)
     m.y = min(m.y, max(0.0, H - (m.width if kind in ("BOX", "BOXCUT") else 0.0) - 10))
+    W = st.card_dict()["W"]
+    if kind == "FRAME":  # first frame stands at the front of the stage, the rest behind
+        n = sum(1 for x in st.mechs if x.kind == "FRAME")
+        m.label = "Staging frame" if n == 1 else f"Frame {n - 1}"
+        m.x = W - 1.0 if n == 1 else max(10.0, W * (1.0 - 0.25 * (n - 1)))
+        m.y, m.height = 0.0, H
+    if kind in ("FLOOR", "CEILING"):
+        m.depth = W
     if kind == "CUBE":
         m.y = min(m.y, max(0.0, H - m.size * 1.42 - 5))
     if kind == "FLAP":
@@ -105,6 +117,12 @@ class POPUP_OT_add(bpy.types.Operator):
 
     def execute(self, context):
         st = context.scene.popup
+        if self.kind == "FRAME" and sum(1 for x in st.mechs if x.kind == "FRAME") >= 4:
+            self.report({"ERROR"}, "A stage has a staging frame and up to three frames")
+            return {"CANCELLED"}
+        if self.kind in ("FLOOR", "CEILING") and any(x.kind == self.kind for x in st.mechs):
+            self.report({"ERROR"}, f"This stage already has a {self.kind.lower()}")
+            return {"CANCELLED"}
         m = _add(st, self.kind)
         if self.host:
             from .props import fit_to_host
@@ -142,14 +160,21 @@ class POPUP_OT_set_open(bpy.types.Operator):
     bl_idname = "popup.set_open"
     bl_label = "Set Open Angle"
     bl_options = {"REGISTER", "UNDO"}
-    angle: FloatProperty(min=0.0, max=180.0)
+    angle: FloatProperty(min=0.0, max=360.0)
 
     @classmethod
     def poll(cls, context):
-        return context.scene.popup.rig is not None
+        st = context.scene.popup
+        return st.rig is not None or st.is_carousel
 
     def execute(self, context):
-        rig = context.scene.popup.rig
+        st = context.scene.popup
+        if st.is_carousel or st.stage_master is not None:
+            from . import carousel
+            carousel.set_open(context.scene, self.angle)
+            context.view_layer.update()
+            return {"FINISHED"}
+        rig = st.rig
         rig["pop_open"] = self.angle
         rig.update_tag()
         context.view_layer.update()
@@ -168,25 +193,32 @@ class POPUP_OT_animate(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.popup.rig is not None
+        st = context.scene.popup
+        return st.rig is not None or st.is_carousel
 
     def execute(self, context):
         sc = context.scene
-        rig = sc.popup.rig
+        st = sc.popup
+        rig, prop, full = st.rig, '["pop_open"]', 180.0
+        if st.is_carousel or st.stage_master is not None:
+            from . import carousel  # the carousel's Open drives every stage
+            master = st.stage_master or sc
+            rig, prop, full = carousel.ctrl(master), f'["{carousel.OPEN}"]', 360.0
+            sc = master
         n = sc.popup.anim_frames
         f0 = sc.frame_start
         ad = rig.animation_data
         if ad and ad.action:
             for fc in list(getattr(ad.action, "fcurves", [])):
-                if fc.data_path == '["pop_open"]':
+                if fc.data_path == prop:
                     ad.action.fcurves.remove(fc)
-        keys = [(f0, 0.0), (f0 + n, 180.0)]
+        keys = [(f0, 0.0), (f0 + n, full)]
         if self.mode == "CYCLE":
             hold = max(1, n // 4)
-            keys += [(f0 + n + hold, 180.0), (f0 + 2 * n + hold, 0.0)]
+            keys += [(f0 + n + hold, full), (f0 + 2 * n + hold, 0.0)]
         for f, v in keys:
-            rig["pop_open"] = v
-            rig.keyframe_insert('["pop_open"]', frame=f)
+            rig[prop[2:-2]] = v
+            rig.keyframe_insert(prop, frame=f)
         sc.frame_end = keys[-1][0]
         sc.frame_set(f0)
         return {"FINISHED"}
@@ -269,7 +301,7 @@ class POPUP_OT_paint(bpy.types.Operator):
     def execute(self, context):
         sc = context.scene
         st = sc.popup
-        if bpy.data.images.get(art.ART_IMAGE) is None:
+        if bpy.data.images.get(N(sc, art.ART_IMAGE)) is None:
             art.add_art_texture(sc)
         if context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
@@ -304,6 +336,8 @@ class POPUP_OT_sketch(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
     panel: StringProperty()
     align: BoolProperty(name="Align View", default=True)
+    cut: BoolProperty(name="Holes", default=False,
+                      description="Draw closed outlines that are cut out of the panel")
 
     @classmethod
     def poll(cls, context):
@@ -318,7 +352,7 @@ class POPUP_OT_sketch(bpy.types.Operator):
             return {"CANCELLED"}
         if context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
-        obj, layer = art.sketch_layer(sc, panel)
+        obj, layer = art.sketch_layer(sc, panel, cut=self.cut)
         for o in context.selected_objects:
             o.select_set(False)
         obj.hide_set(False)
@@ -423,7 +457,160 @@ class POPUP_OT_view_layout(bpy.types.Operator):
         return {"FINISHED"}
 
 
-classes = (POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_set_open,
+class POPUP_OT_make_carousel(bpy.types.Operator):
+    """Make this scene a carousel: a stage scene for each stage (each a Pop-Up
+    card of its own, opening to 360 / Stages degrees), shown together round
+    one spine"""
+    bl_idname = "popup.make_carousel"
+    bl_label = "Make Carousel"
+    bl_options = {"REGISTER", "UNDO"}
+    count: IntProperty(name="Stages", default=5, min=2, max=9)
+
+    @classmethod
+    def poll(cls, context):
+        st = context.scene.popup
+        return st.stage_master is None and st.rig is None
+
+    def execute(self, context):
+        from . import carousel
+        carousel.make(context.scene, self.count)
+        context.scene.frame_set(context.scene.frame_current)
+        return {"FINISHED"}
+
+
+class POPUP_OT_goto_stage(bpy.types.Operator):
+    """Edit one stage on its own (0: back to the whole carousel)"""
+    bl_idname = "popup.goto_stage"
+    bl_label = "Go to Stage"
+    index: IntProperty(default=0)
+
+    def execute(self, context):
+        from . import carousel
+        st = context.scene.popup
+        master = st.stage_master or context.scene
+        if self.index == 0:
+            carousel.goto(context, master)
+            return {"FINISHED"}
+        sts = carousel.stages(master)
+        if not 1 <= self.index <= len(sts):
+            return {"CANCELLED"}
+        carousel.goto(context, sts[self.index - 1])
+        return {"FINISHED"}
+
+
+class POPUP_OT_carousel_sync(bpy.types.Operator):
+    """Rebuild every stage and the carousel"""
+    bl_idname = "popup.carousel_sync"
+    bl_label = "Rebuild Carousel"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        from . import carousel
+        carousel.make(context.scene.popup.stage_master or context.scene)
+        return {"FINISHED"}
+
+
+class POPUP_OT_export_carousel(bpy.types.Operator, ExportHelper):
+    """Export every stage of the carousel (and its leaves, for shared pages)"""
+    bl_idname = "popup.export_carousel"
+    bl_label = "Export Carousel SVG"
+    filename_ext = ".svg"
+
+    def invoke(self, context, event):
+        if not self.filepath:
+            self.filepath = bpy.path.ensure_ext(
+                bpy.path.abspath("//") + context.scene.name, ".svg")
+        return ExportHelper.invoke(self, context, event)
+
+    def draw(self, context):
+        from .ui import draw_export
+        draw_export(self.layout, context.scene.popup)
+
+    def execute(self, context):
+        from . import carousel, export_svg
+        sc = context.scene
+        master = sc.popup.stage_master or sc
+        try:
+            files = carousel.export(master, self.filepath,
+                                    **export_svg.settings_from(master.popup))
+        except RuntimeError as ex:
+            self.report({"ERROR"}, str(ex))
+            return {"CANCELLED"}
+        self.report({"INFO"}, f"Wrote {len(files)} file(s)")
+        return {"FINISHED"}
+
+
+class POPUP_OT_add_opening(bpy.types.Operator):
+    """Add a window, doorway or arch cut through the paper"""
+    bl_idname = "popup.add_opening"
+    bl_label = "Add Opening"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        st = context.scene.popup
+        o = st.openings.add()
+        o.label = f"Opening {len(st.openings)}"
+        # on the selected mechanism if it can take one, else the card
+        if st.mechs and st.active < len(st.mechs):
+            m = st.mechs[st.active]
+            if m.kind not in ("BOXCUT", "MOUTH", "FLOOR", "CEILING"):
+                o.on_uid = m.uid
+        if o.on_uid == 0:
+            o.x = 0.5 * st.card_dict()["W"]
+        st.active_opening = len(st.openings) - 1
+        live.schedule(context.scene)
+        return {"FINISHED"}
+
+
+class POPUP_OT_remove_opening(bpy.types.Operator):
+    """Remove the selected opening"""
+    bl_idname = "popup.remove_opening"
+    bl_label = "Remove Opening"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        st = context.scene.popup
+        if 0 <= st.active_opening < len(st.openings):
+            o = st.openings[st.active_opening]
+            o.through = "NONE"  # neighbours lose it too
+            st.openings.remove(st.active_opening)
+            st.active_opening = max(0, st.active_opening - 1)
+        live.schedule(context.scene)
+        return {"FINISHED"}
+
+
+class POPUP_OT_trace_holes(bpy.types.Operator):
+    """Cut out everything painted see-through in the art (paint with Erase
+    Alpha in Texture Paint). Run again after repainting"""
+    bl_idname = "popup.trace_holes"
+    bl_label = "Cut Painted Holes"
+    bl_options = {"REGISTER", "UNDO"}
+    clear: BoolProperty(default=False)
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def execute(self, context):
+        from . import holes
+        sc = context.scene
+        if self.clear:
+            sc.popup["pop_painted"] = "{}"
+            n = 0
+        else:
+            try:
+                n = holes.trace_painted(sc)
+            except RuntimeError as ex:
+                self.report({"ERROR"}, str(ex))
+                return {"CANCELLED"}
+        build.rebuild(sc, force=True)
+        self.report({"INFO"}, f"{n} painted hole(s)")
+        return {"FINISHED"}
+
+
+classes = (POPUP_OT_export_carousel, POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
+           POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

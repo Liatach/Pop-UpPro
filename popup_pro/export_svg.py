@@ -19,6 +19,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import live
+from .naming import N
 from .art import ART_IMAGE, PRINT_IMAGE, SKETCH
 from .build import TILE_MM, make_model
 
@@ -310,18 +311,20 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
     tmp = tempfile.mkdtemp(prefix="popup_svg_")
     tiles = {}
     if include_art:
-        img = bpy.data.images.get(PRINT_IMAGE) or bpy.data.images.get(ART_IMAGE)
+        img = bpy.data.images.get(N(scene, PRINT_IMAGE)) or bpy.data.images.get(N(scene, ART_IMAGE))
         if img is not None:
             tiles = _tile_pngs(img, tmp)
 
     # ---- sketch strokes, grouped by piece, in layout mm
     strokes_by_piece = {}
-    sk = bpy.data.objects.get(SKETCH)
+    sk = bpy.data.objects.get(N(scene, SKETCH))
     if include_sketch and sk is not None and sk.type == "GREASEPENCIL":
         gp = sk.data
         for layer in gp.layers:
             if layer.hide or layer.parent != rig or layer.parent_bone not in names:
                 continue
+            if layer.name.endswith(" cut"):
+                continue  # hole outlines: cut out of the mesh, printed as cut lines
             bone = rig.data.bones.get(layer.parent_bone)
             if bone is None:
                 continue

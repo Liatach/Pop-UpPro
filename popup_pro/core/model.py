@@ -30,6 +30,7 @@ TAB_LIFT = 0.15  # mm a glued tab floats above the page (avoids z-fighting)
 SAMPLES = [0.5, 5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
 
 IN = 25.4
+NO_HOST = ("FLAP", "TUBE", "TETHER", "PYRAMID", "FRAME", "FLOOR", "CEILING")
 
 
 def _card(w, h, label, desc):
@@ -212,6 +213,16 @@ class Model:
         self.flaps = {}  # flap uid -> info for the UI and checks
         self.tubes = {}  # tube uid -> plan geometry for tethers
         self.tethers = {}
+        self.frames = {}  # stage frame uid -> info
+        self.floors = []  # floor / ceiling uids built so far (frames clear them)
+        self.edge_tab = {}  # floor ("bottom") / ceiling ("top") tab widths
+        # A carousel stage only ever opens to 360/n degrees; everything is
+        # sampled and checked up to there.
+        self.tmax = min(180.0, float(card.get("tmax", 180.0)))
+        self.samples = sorted({s for s in SAMPLES if s < self.tmax - 1e-6} |
+                              {self.tmax, round(0.5 * self.tmax, 3)})
+        self.TABLE_T = [T_MIN] + [float(d) for d in range(1, int(math.ceil(self.tmax)))] + \
+            [self.tmax]
         self._build()
         self.solve_hinges()
 
@@ -316,7 +327,7 @@ class Model:
             if st == 1:
                 return False
             state[m["uid"]] = 1
-            h = m.get("host", 0) if m["type"] not in ("FLAP", "TUBE", "TETHER", "PYRAMID") else 0
+            h = m.get("host", 0) if m["type"] not in NO_HOST else 0
             ok = True
             if m["type"] == "TETHER":
                 deps = [m.get("from_uid", 0)]
@@ -347,10 +358,11 @@ class Model:
                 m["_skip"] = True
             return ok
 
-        for m in self.mechs:
+        # floors and ceilings first: frames are cut to clear them
+        for m in sorted(self.mechs, key=lambda m: 0 if m["type"] in ("FLOOR", "CEILING") else 1):
             visit(m)
         for m in order:
-            h = m.get("host", 0) if m["type"] not in ("FLAP", "TUBE", "TETHER", "PYRAMID") else 0
+            h = m.get("host", 0) if m["type"] not in NO_HOST else 0
             fold = m.get("fold", "A")
             if h and by_uid[h]["type"] == "TUBE":
                 fold = "R"  # the roof's centre crease
@@ -374,6 +386,10 @@ class Model:
                 self._tether(m)
             elif m["type"] == "PYRAMID":
                 self._pyramid(m, host)
+            elif m["type"] == "FRAME":
+                self._frame(m, host)
+            elif m["type"] in ("FLOOR", "CEILING"):
+                self._floor(m, host)
 
     # ------------------------------------------------------- page directions
     def dirs(self, t):
@@ -523,6 +539,13 @@ class Model:
         reaches into the gap between the host panels."""
         J = self.joints[key]
         sgn = self._branch.get(key)
+        if sgn is None and "pref" in J:
+            # floors rise into the stage, ceilings drop into it
+            tr = min(90.0, 0.5 * self.tmax)
+            base, k, n, nl, nr, *_ = self._crease_parts(J, tr)
+            want = J["host"].L(tr).to_3x3() @ Vector((J["pref"][0], J["pref"][1], 0.0))
+            sgn = max((1.0, -1.0), key=lambda s: (base + s * k * n).normalized().dot(want))
+            self._branch[key] = sgn
         if sgn is None:
             base, k, n, nl, nr, *_ = self._crease_parts(J, 90.0)
             sgn = max((1.0, -1.0), key=lambda s: (base + s * k * n).normalized().dot(nl + nr))
@@ -588,6 +611,8 @@ class Model:
         uLp = (-math.sin(all_), math.cos(all_))
         uRp = (math.sin(alr), math.cos(alr))
         self.joints[base] = dict(host=host, y=yP, uL=uLf, uR=uRf, aL=all_, aR=alr)
+        if m.get("pref"):
+            self.joints[base]["pref"] = m["pref"]
 
         # Pattern: crease along +Y' from P' = (0, 0); halves either side.
         GL = (g * uLp[0], g * uLp[1])
@@ -647,7 +672,7 @@ class Model:
                            (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
                            f"{lab}: tab {side}"))
 
-        tears = [s for s in SAMPLES if not self.crease(base, s)[3]]
+        tears = [s for s in self.samples if not self.crease(base, s)[3]]
         if tears:
             self.warn(f"{lab}: tears if opened past {min(tears):.0f} degrees (make the "
                       f"piece angle at least the glue angle)")
@@ -803,7 +828,7 @@ class Model:
             self.add(Panel(f"{piece}.LidTab", piece, "tab", [tab_poly], asm_lt, lb.name, None,
                            f"{lab}: lid glue tab"))
 
-        tears = [t for t in SAMPLES if not self.crease(key, t)[3]]
+        tears = [t for t in self.samples if not self.crease(key, t)[3]]
         if tears:
             self.warn(f"{lab}: cannot fold below {max(tears):.0f} degrees")
 
@@ -1088,10 +1113,11 @@ class Model:
                 self._rib(uid, lab, host, y0, D, hgt, a, tb, w, rib, HL, HR)
 
     def _glue_asm(self, target, src_asm, e0, e1, side_src, side_tgt, below=False,
-                  t=90.0):
+                  t=None):
         """Placement for a tab hanging off edge e0-e1 of a panel (placed by
         src_asm) that folds over and glues flat on target, on the side_tgt
         side of that edge (target pattern), on its back if below."""
+        t = min(90.0, 0.5 * self.tmax) if t is None else t
         Rel = target.asm(t).inverted() @ src_asm(t)
         q0, q1 = Rel @ v3(e0), Rel @ v3(e1)
         q0.z = q1.z = 0.0
@@ -1166,9 +1192,135 @@ class Model:
                    float(m["height"]), float(m.get("ridge", 0.0)), tb,
                    m.get("tab_side", "IN"))
 
-    def _hinge_on(self, parent, asm, c0, c1, t=90.0):
+    # ----------------------------------------------------------- stage set
+    def _frame(self, m, host):
+        """Stage frame (Birmingham 118): a panel across the stage, glued by a
+        tab down each side to the pages at Depth from the spine, with a
+        centre crease that folds back towards the spine as the stage closes.
+        Each half is Depth x sin(open/2) wide, so the frame pulls flat
+        exactly when the stage is fully open (360/n degrees in a carousel):
+        it is the frames, floors and ceilings that stop the stage there."""
+        uid, lab = m["uid"], m["label"]
+        if not host.is_spine:
+            self.warn(f"{lab}: frames stand on the stage's own fold")
+            return
+        a = min(float(m["x"]), self.W)
+        y0 = max(0.0, float(m.get("y", 0.0)))
+        y1 = min(self.H, y0 + float(m.get("height", self.H)))
+        B = a * math.sin(math.radians(0.5 * self.tmax))
+        if a < 5.0 or y1 - y0 < 5.0 or B < 3.0:
+            self.warn(f"{lab}: too small; skipped")
+            return
+        piece = f"Frame{uid}"
+        self.add_piece(Piece(piece, lab, 1 + uid, (0.0, 0.5 * (y0 + y1))))
+
+        def dirs(t):
+            S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+            s = math.sqrt(max(B * B - a * a * sn * sn, 0.0))
+            fL = S + a * cs * e - a * sn * xh
+            dL = (a * sn * xh - s * e) / B  # crease dips towards the spine
+            dR = (a * sn * xh + s * e) / B
+            return fL + B * dL, dL, dR, Y
+
+        def asm_L(t):
+            C0, dL, dR, Y = dirs(t)
+            return frame(C0, dL, Y)
+
+        def asm_R(t):
+            C0, dL, dR, Y = dirs(t)
+            return frame(C0, dR, Y)
+
+        # Floors rise into the stage and ceilings drop into it as it closes:
+        # cut the frame's bottom (top) back so it clears them all the way.
+        polyL = [(-B, y0), (0, y0), (0, y1), (-B, y1)]
+        for fl in self.floors:
+            half = self.panels.get(f"VFold{fl}.HalfL")
+            if half is None:
+                continue
+            for t in self.samples:
+                if t > self.tmax - 0.5:
+                    continue
+                F, M = half.asm(t), asm_L(t)
+                nF = F.to_3x3() @ Z
+                n2 = (nF.dot(M.col[0].to_3d()), nF.dot(M.col[1].to_3d()))
+                if math.hypot(*n2) < 0.2:
+                    continue  # lying flat together: stacked, not crossing
+                d0 = nF.dot(M.translation - F.translation)
+                mid = (-0.5 * B, 0.5 * (y0 + y1))
+                if n2[0] * mid[0] + n2[1] * mid[1] + d0 < 0:
+                    n2, d0 = (-n2[0], -n2[1]), -d0
+                polyL = clip_halfplane(polyL, n2, 1.0 - d0)
+                if len(polyL) < 3:
+                    self.warn(f"{lab}: squeezed out by the floor or ceiling; skipped")
+                    return
+        polyR = [(-x, y) for x, y in polyL]
+        HL = self.add(Panel(f"{piece}.L", piece, "panel", [polyL], asm_L, host.p1, None,
+                            f"{lab}: left half"))
+        HL.hinge = self._hinge_on(host.p1, asm_L, (-B, y1), (-B, y0))
+        HR = self.add(Panel(f"{piece}.R", piece, "panel", [polyR], asm_R, host.p2, None,
+                            f"{lab}: right half"))
+        HR.hinge = self._hinge_on(host.p2, asm_R, (B, y0), (B, y1))
+        # closed form: the half's angle to its page
+        h_ = "radians(T)/2"
+        q_ = f"sqrt(max({B * B:.9g}-{a * a:.9g}*sin({h_})*sin({h_}),0))"
+        ex = f"atan2(-{q_},{a:.9g}*sin({h_}))-{h_}"
+
+        def fn(t):
+            hh = math.radians(max(t, T_MIN)) / 2
+            q = math.sqrt(max(B * B - a * a * math.sin(hh) ** 2, 0.0))
+            return math.atan2(-q, a * math.sin(hh)) - hh
+
+        for hh in (HL, HR):
+            hh.hinge.kind = "EXPR"
+            hh.hinge.sph = dict(var="t", fn=fn, expr=ex)
+        # side tabs fold back behind the frame and glue to the pages, clear of
+        # the floor's and ceiling's tabs along the page edges
+        w = min(float(m.get("tab", 8.0)), 0.5 * a)
+        ys = [q[1] for q in polyL if abs(q[0] + B) < 1e-6] or [y0, y1]
+        ya, yb = min(ys), max(ys)
+        if "bottom" in self.edge_tab:
+            ya = max(ya, self.edge_tab["bottom"] + 1.0)
+        if "top" in self.edge_tab:
+            yb = min(yb, self.H - self.edge_tab["top"] - 1.0)
+        c = min(0.3 * w, 0.2 * (yb - ya))
+        for side, half, x, sgn, pg in (("L", HL, -B, -1.0, host.p1), ("R", HR, B, 1.0, host.p2)):
+            if yb - ya < 4.0:
+                break
+            poly = [(x, ya), (x, yb), (x + sgn * w, yb - c), (x + sgn * w, ya + c)]
+            tasm = self._glue_asm(self.panels[pg], half.asm, (x, ya), (x, yb),
+                                  (sgn, 0.0), (-sgn, 0.0))
+            self.add(Panel(f"{piece}.Tab{side}", piece, "tab", [poly], tasm, pg, None,
+                           f"{lab}: side tab {side}"))
+        self.frames[uid] = dict(depth=a, width=2 * B, label=lab)
+
+    def _floor(self, m, host):
+        """Floor (or ceiling) of a stage: a V-fold whose glue lines run along
+        the bottom (top) edges of the pages, straight out from the fold. Its
+        two halves meet the pages at half the stage angle, so it lies flat
+        when the stage is fully open and folds up into the stage (down, for a
+        ceiling) as it closes."""
+        ceiling = m["type"] == "CEILING"
+        if self.tmax > 150.0:
+            # flat at 180 it would have to lie in the page planes a moment
+            # later: paper can't do that, so floors need three stages or more
+            self.warn(f"{m['label']}: floors and ceilings need a stage angle under 150 "
+                      f"degrees (three or more stages); skipped")
+            return
+        depth = min(float(m.get("depth", self.W)), self.W)
+        al = 0.5 * self.tmax
+        d = dict(m, type="VFOLD", phi_l=90.0, phi_r=90.0, alpha_l=al, alpha_r=al,
+                 glue=depth, height=depth * math.cos(math.radians(al)), shape="TRI",
+                 y=self.H if ceiling else 0.0, tab_side="OUT" if ceiling else "IN",
+                 pref=(0.0, -1.0) if ceiling else (0.0, 1.0))
+        self._vfold(d, host)
+        if f"VFold{m['uid']}.HalfL" in self.panels:
+            self.floors.append(m["uid"])
+            self.edge_tab["top" if ceiling else "bottom"] = float(m.get("tab", 8.0))
+
+    def _hinge_on(self, parent, asm, c0, c1, t=None):
         """Hinge for a panel (pattern fold line c0 -> c1, placed by asm) on a
         parent panel: the same line found in the parent's pattern."""
+        t = min(90.0, 0.5 * self.tmax) if t is None else t
         Rel = self.panels[parent].asm(t).inverted() @ asm(t)
         p0, p1 = Rel @ v3(c0), Rel @ v3(c1)
         return Hinge(hinge_frame_2d(p0[:2], (p1 - p0)[:2]),
@@ -1960,7 +2112,7 @@ class Model:
         sph = h.sph
         uid = sph.get("uid")
         if sph["var"] == "t":
-            pts = [(t, None) for t in SAMPLES]
+            pts = [(t, None) for t in self.samples]
         else:
             pts = [(90.0, q) for q in (0.0, 0.15, 0.35, 0.5, 0.65, 0.85, 1.0)]
         rows = []
@@ -2010,6 +2162,8 @@ class Model:
                 self._spherical(name, p, h)
             err = 0.0
             for s in self._valid_samples(p):
+                if h.kind == "SPHERICAL" and s > self.tmax - 0.5 and self.tmax < 180.0:
+                    continue  # flat at the stage's full opening: a square-root corner
                 d = h.fn(s) - self.true_psi(name, s)
                 d = (d + math.pi) % (2 * math.pi) - math.pi
                 err = max(err, abs(d))
@@ -2020,9 +2174,9 @@ class Model:
     def _valid_samples(self, p):
         """Angles where the paper can actually follow (no tearing)."""
         if p.hinge.kind != "SPHERICAL":
-            return SAMPLES
+            return self.samples
         key = p.hinge.sph["key"]
-        return [s for s in SAMPLES if self.crease(key, s)[3]]
+        return [s for s in self.samples if self.crease(key, s)[3]]
 
     def _spherical(self, name, p, h):
         sph = h.sph
@@ -2058,7 +2212,7 @@ class Model:
             rr = max(math.sqrt(a_ * a_ + b_ * b_), 1e-9)
             return math.atan2(b_, a_) + s * math.acos(max(-1.0, min(1.0, d_ / rr)))
 
-        ok = self._valid_samples(p) or [180.0]
+        ok = [x for x in self._valid_samples(p) if x < self.tmax - 1.0] or [180.0]
         t_ref = min(ok, key=lambda x: abs(x - 90.0))
         ref = self.true_psi(name, t_ref)
         s = min((1.0, -1.0), key=lambda s: abs(
@@ -2177,7 +2331,7 @@ class Model:
             lab = p.label.split(":")[0]
             pts = [v3(q) for poly in p.polys for q in poly]
             poke = None
-            for t in SAMPLES:
+            for t in self.samples:
                 M = p.asm(t)
                 l, r, nl, nr = self.dirs(t)
                 for q in pts:

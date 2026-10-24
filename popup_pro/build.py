@@ -17,6 +17,8 @@ import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
+from .naming import N
+
 from .core.geom import frame, scaled, v3
 from .core.layout import build_layout
 from .core.model import Model
@@ -62,15 +64,40 @@ def panel_frame(panel):
 
 # ------------------------------------------------------------- objects
 def _collection(scene):
-    coll = bpy.data.collections.get(COLL)
+    name = N(scene, COLL)
+    coll = bpy.data.collections.get(name)
     if coll is None:
-        coll = bpy.data.collections.new(COLL)
+        coll = bpy.data.collections.new(name)
     if coll.name not in scene.collection.children:
         try:
             scene.collection.children.link(coll)
         except RuntimeError:
             pass
     return coll
+
+
+def folded_collection(scene):
+    """Where the folded card, its rig and sketches live. A carousel stage keeps
+    them in a child collection of their own, which the carousel instances
+    round its spine (the flat layout stays out of it)."""
+    coll = _collection(scene)
+    if scene.popup.stage_master is None:
+        return coll
+    name = N(scene, "Pop-up Folded")
+    sub = bpy.data.collections.get(name)
+    if sub is None:
+        sub = bpy.data.collections.new(name)
+    if sub.name not in coll.children:
+        coll.children.link(sub)
+    return sub
+
+
+def _place(obj, coll, scene):
+    """Link obj to coll only (out of the scene's other Pop-up collections)."""
+    for c in (_collection(scene), folded_collection(scene)):
+        if c != coll and obj.name in c.objects:
+            c.objects.unlink(obj)
+    _link(obj, coll)
 
 
 def _link(obj, coll):
@@ -82,10 +109,11 @@ def ensure_objects(scene):
     st = scene.popup
     coll = _collection(scene)
     if st.rig is None or st.rig.name not in bpy.data.objects:
-        arm = bpy.data.armatures.new("Pop-up Rig")
-        st.rig = bpy.data.objects.new("Pop-up Rig", arm)
+        arm = bpy.data.armatures.new(N(scene, "Pop-up Rig"))
+        st.rig = bpy.data.objects.new(N(scene, "Pop-up Rig"), arm)
         arm.display_type = "STICK"
-    _link(st.rig, coll)
+    fold = folded_collection(scene)
+    _place(st.rig, fold, scene)
     rig = st.rig
     if "pop_open" not in rig:
         rig["pop_open"] = 90.0
@@ -93,12 +121,12 @@ def ensure_objects(scene):
     ui.update(min=0.0, max=180.0, soft_min=0.0, soft_max=180.0, subtype="NONE",
               description="How far the card is open, in degrees (0 closed, 180 flat)")
     if st.card is None or st.card.name not in bpy.data.objects:
-        me = st.layout.data if st.layout else bpy.data.meshes.new("Pop-up Paper")
-        st.card = bpy.data.objects.new("Pop-up Card", me)
-    _link(st.card, coll)
+        me = st.layout.data if st.layout else bpy.data.meshes.new(N(scene, "Pop-up Paper"))
+        st.card = bpy.data.objects.new(N(scene, "Pop-up Card"), me)
+    _place(st.card, fold, scene)
     if st.layout is None or st.layout.name not in bpy.data.objects:
-        st.layout = bpy.data.objects.new("Pop-up Layout", st.card.data)
-    _link(st.layout, coll)
+        st.layout = bpy.data.objects.new(N(scene, "Pop-up Layout"), st.card.data)
+    _place(st.layout, coll, scene)
     if st.layout.data != st.card.data:
         st.layout.data = st.card.data
     mod = st.card.modifiers.get("Pop-up Rig")
@@ -129,10 +157,11 @@ def ensure_solid(card, st):
     mod.use_rim = True
 
 
-def ensure_material(mesh):
-    mat = bpy.data.materials.get("Pop-up Paper")
+def ensure_material(mesh, scene=None):
+    name = N(scene, "Pop-up Paper")
+    mat = bpy.data.materials.get(name)
     if mat is None:
-        mat = bpy.data.materials.new("Pop-up Paper")
+        mat = bpy.data.materials.new(name)
         mat.use_nodes = True
         nt = mat.node_tree
         bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
@@ -153,7 +182,9 @@ def mesh_hash(mesh):
     return f"{n}:{len(mesh.polygons)}:{s:.4f}"
 
 
-def build_mesh(mesh, model, layout, s):
+def build_mesh(mesh, model, layout, s, holes=None):
+    from .holes import cut
+    holes = holes or {}
     bm = bmesh.new()
     lay = bm.faces.layers.int.new("pop_panel")
     uvl = bm.loops.layers.uv.new(ART_UV)
@@ -163,7 +194,11 @@ def build_mesh(mesh, model, layout, s):
         P = layout["prints"][p.piece]
         cache = {}
         idx = []
+        polys = []
         for poly in p.polys:
+            tris = cut(poly, holes[p.piece]) if holes.get(p.piece) else None
+            polys += [poly] if tris is None else tris
+        for poly in polys:
             vs = []
             for q in poly:
                 key = (round(q[0], 5), round(q[1], 5))
@@ -405,8 +440,9 @@ def rebuild(scene, force=False):
         st.status = "Panels edited by hand: Rebuild resets their shapes"
         st.warnings = "\n".join(model.warnings)
         return model
-    groups = build_mesh(mesh, model, layout, s)
-    ensure_material(mesh)
+    from . import holes as _holes
+    groups = build_mesh(mesh, model, layout, s, _holes.collect(scene, model, layout))
+    ensure_material(mesh, scene)
     for obj in (card,):
         obj.vertex_groups.clear()
         for name in model.order:
@@ -415,7 +451,9 @@ def rebuild(scene, force=False):
                 vg.add(groups[name], 1.0, "REPLACE")
     from . import art
     art.release_orphans(scene, set(model.order))
-    t0 = model.close_angle(st.paper_thickness) if st.keep_open else 0.0
+    stage = st.stage_master is not None
+    # a stage opens and shuts with the carousel, which never squashes it shut
+    t0 = model.close_angle(st.paper_thickness) if st.keep_open and not stage else 0.0
     rig["pop_close"] = t0
     for uid in model.flaps:
         name = pull_prop(uid)
@@ -437,4 +475,7 @@ def rebuild(scene, force=False):
         o.update_tag()
     from . import art
     art.refresh_material(scene)
+    if stage:
+        from . import carousel
+        carousel.link_stage(scene)
     return model

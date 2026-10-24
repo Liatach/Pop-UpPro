@@ -1,11 +1,13 @@
 import bpy
 
 from . import live
+from .naming import N
 
 KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FACE",
              "MOUTH": "MOD_SIMPLEDEFORM", "CUBE": "CUBE", "FLAP": "MOD_CLOTH",
              "TUBE": "MESH_CYLINDER", "TETHER": "LINKED",
-             "PYRAMID": "CONE"}
+             "PYRAMID": "CONE", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
+             "CEILING": "TRIA_UP_BAR"}
 
 
 def draw_export(layout, st):
@@ -61,6 +63,11 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("PYRAMID", "Pyramid / Tent (parallel strips)")):
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
         st = context.scene.popup
+        if st.stage_master is not None:
+            self.layout.separator()
+            self.layout.label(text="Stage:")
+            for k, name in (("FRAME", "Frame"), ("FLOOR", "Floor"), ("CEILING", "Ceiling")):
+                self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
         if st.mechs and st.active < len(st.mechs):
             h = st.mechs[st.active]
             if h.kind in ("BOX", "BOXCUT"):
@@ -88,6 +95,12 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
 
     def draw(self, context):
         st = context.scene.popup
+        if st.is_carousel:
+            self.draw_carousel(context, st)
+            return
+        if st.stage_master is not None:
+            self.draw_stage(context, st)
+            return
         col = self.layout.column()
         col.use_property_split = True
         col.use_property_decorate = False
@@ -121,10 +134,88 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
             col.prop(st, "solid_paper")
             if st.keep_open and "pop_close" in rig:
                 col.label(text=f"Closes to {rig['pop_close']:.1f}°", icon="INFO")
+        if st.rig is None:
+            self.layout.separator()
+            self.layout.operator("popup.make_carousel", icon="MESH_CIRCLE")
+
+    def _open(self, lay, master, full):
+        from . import carousel
+        c = carousel.ctrl(master)
+        box = lay.box()
+        if c is None or carousel.OPEN not in c:
+            box.label(text="Rebuild the carousel", icon="ERROR")
+            return box
+        box.prop(c, f'["{carousel.OPEN}"]', text="Carousel Open", slider=True)
+        row = box.row(align=True)
+        for a in (0, 90, 180, 270, 360):
+            row.operator("popup.set_open", text=f"{a}°").angle = a
+        row = box.row(align=True)
+        row.operator("popup.animate", icon="PLAY").mode = "CYCLE"
+        row.prop(master.popup, "anim_frames", text="")
+        return box
+
+    def draw_carousel(self, context, st):
+        lay = self.layout
+        col = lay.column()
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(st, "size", text="Stage Size")
+        if st.size == "CUSTOM":
+            col.prop(st, "page_depth")
+            col.prop(st, "spine_length", text="Height")
+        col.prop(st, "stage_count")
+        col.label(text=f"Each stage opens to {360.0 / st.stage_count:.1f}°", icon="INFO")
+        col.prop(st, "join")
+        row = lay.row(align=True)
+        row.operator("popup.carousel_sync", icon="FILE_REFRESH")
+        row.operator("popup.export_carousel", text="Export", icon="EXPORT")
+        self._open(lay, context.scene, 360.0)
+        box = lay.box()
+        box.label(text="Stages")
+        for i, r in enumerate(st.stages):
+            if r.scene is None:
+                continue
+            row = box.row(align=True)
+            warn = r.scene.popup.warnings
+            row.label(text=f"{i + 1}. {r.scene.name}", icon="ERROR" if warn else "SCENE_DATA")
+            row.operator("popup.goto_stage", text="Edit", icon="RIGHTARROW").index = i + 1
+
+    def draw_stage(self, context, st):
+        lay = self.layout
+        master = st.stage_master
+        row = lay.row(align=True)
+        row.label(text=f"Stage {st.stage_index} of {master.name}", icon="SCENE_DATA")
+        row.operator("popup.goto_stage", text="Carousel", icon="MESH_CIRCLE").index = 0
+        row = lay.row(align=True)
+        n = len(master.popup.stages)
+        if st.stage_index > 1:
+            row.operator("popup.goto_stage", text="Previous", icon="TRIA_LEFT").index = \
+                st.stage_index - 1
+        if st.stage_index < n:
+            row.operator("popup.goto_stage", text="Next", icon="TRIA_RIGHT").index = \
+                st.stage_index + 1
+        lay.label(text=f"Opens to {360.0 / master.popup.stage_count:.1f}°; size from the "
+                       f"carousel", icon="INFO")
+        row = lay.row(align=True)
+        row.scale_y = 1.3
+        row.operator("popup.build", text="Rebuild", icon="FILE_REFRESH")
+        row.prop(st, "live", text="", icon="AUTO")
+        if st.status:
+            lay.label(text=st.status, icon="ERROR" if st.edited else "INFO")
+        box = self._open(lay, master, 360.0)
+        col = box.column()
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(st, "paper_thickness")
+        col.prop(st, "solid_paper")
 
 
 class POPUP_PT_mechs(_Base, bpy.types.Panel):
     bl_label = "Mechanisms"
+
+    @classmethod
+    def poll(cls, context):
+        return not context.scene.popup.is_carousel
 
     def draw(self, context):
         st = context.scene.popup
@@ -164,6 +255,23 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "eave")
                 if m.roof_fold == "DIP":
                     col.prop(m, "rib")
+            self.draw_warnings(context, m)
+            return
+        if m.kind == "FRAME":
+            import math as _m
+            master = st.stage_master
+            tmax = 360.0 / master.popup.stage_count if master else 180.0
+            col.prop(m, "x", text="Depth")
+            col.prop(m, "y", text="Bottom")
+            col.prop(m, "height")
+            col.prop(m, "tab")
+            col.label(text=f"Width {2 * m.x * _m.sin(_m.radians(tmax / 2)):.1f} mm "
+                           f"(flat at {tmax:.0f}°)", icon="INFO")
+            self.draw_warnings(context, m)
+            return
+        if m.kind in ("FLOOR", "CEILING"):
+            col.prop(m, "depth")
+            col.prop(m, "tab")
             self.draw_warnings(context, m)
             return
         if m.kind == "PYRAMID":
@@ -271,6 +379,57 @@ POPUP_PT_mechs.draw_flap = _draw_flap
 POPUP_PT_mechs.draw_warnings = _draw_warnings
 
 
+class POPUP_UL_openings(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_prop, index=0):
+        ic = {"RECT": "MESH_PLANE", "ARCH": "MESH_CAPSULE", "OVAL": "MESH_CIRCLE"}[item.shape]
+        layout.prop(item, "label", text="", emboss=False, icon=ic)
+
+
+class POPUP_PT_openings(_Base, bpy.types.Panel):
+    bl_label = "Openings and Holes"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def draw(self, context):
+        st = context.scene.popup
+        lay = self.layout
+        row = lay.row()
+        row.template_list("POPUP_UL_openings", "", st, "openings", st, "active_opening", rows=3)
+        col = row.column(align=True)
+        col.operator("popup.add_opening", text="", icon="ADD")
+        col.operator("popup.remove_opening", text="", icon="REMOVE")
+        if 0 <= st.active_opening < len(st.openings):
+            o = st.openings[st.active_opening]
+            col = lay.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+            col.prop(o, "on")
+            col.prop(o, "shape")
+            col.prop(o, "x")
+            col.prop(o, "y")
+            col.prop(o, "width")
+            col.prop(o, "height")
+            col.prop(o, "through")
+            if o.through == "NEXT" and (st.stage_master is None or o.on_uid != 0):
+                col.label(text="Next Stage works on a carousel stage's background",
+                          icon="ERROR")
+        box = lay.box()
+        box.label(text="Painted holes: paint with Erase Alpha, then", icon="BRUSH_DATA")
+        row = box.row(align=True)
+        row.operator("popup.trace_holes", icon="MOD_BOOLEAN")
+        row.operator("popup.trace_holes", text="", icon="X").clear = True
+        box = lay.box()
+        box.label(text="Sketched holes: closed strokes on a panel", icon="GREASEPENCIL")
+        row = box.row(align=True)
+        row.prop(st, "sketch_panel", text="")
+        op = row.operator("popup.sketch", text="Draw Holes", icon="MOD_BOOLEAN")
+        op.cut = True
+        box.operator("popup.build", text="Cut Sketched Holes", icon="FILE_REFRESH")
+
+
 class POPUP_PT_checks(_Base, bpy.types.Panel):
     bl_label = "Checks"
     bl_options = {"DEFAULT_CLOSED"}
@@ -304,7 +463,7 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
         lay = self.layout
         col = lay.column(align=True)
         col.label(text="Paint (Texture Paint / Paint System)")
-        if bpy.data.images.get("Pop-up Art") is None:
+        if bpy.data.images.get(N(context.scene, "Pop-up Art")) is None:
             col.operator("popup.add_art", icon="TEXTURE")
         row = col.row(align=True)
         row.operator("popup.paint", text="Paint Flat", icon="BRUSH_DATA").target = "LAYOUT"
@@ -332,7 +491,8 @@ class POPUP_PT_export(_Base, bpy.types.Panel):
         self.layout.operator("popup.export_svg", icon="EXPORT")
 
 
-classes = (POPUP_UL_mechs, POPUP_MT_add, POPUP_PT_card, POPUP_PT_mechs, POPUP_PT_checks,
+classes = (POPUP_UL_mechs, POPUP_UL_openings, POPUP_MT_add, POPUP_PT_card, POPUP_PT_mechs,
+           POPUP_PT_openings, POPUP_PT_checks,
            POPUP_PT_art, POPUP_PT_export)
 
 

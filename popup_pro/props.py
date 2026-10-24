@@ -33,6 +33,11 @@ KINDS = [
      "on a strip; pulled open by the tubes", "LINKED", 7),
     ("PYRAMID", "Pyramid", "Pyramid or tent standing on two parallel strips either side "
      "of the fold", "CONE", 8),
+    ("FRAME", "Frame", "Stage frame across a carousel stage, glued to both pages; pulls "
+     "flat when the stage is fully open", "IMAGE_PLANE", 9),
+    ("FLOOR", "Floor", "Stage floor along the bottom edges of the pages", "TRIA_DOWN_BAR", 10),
+    ("CEILING", "Ceiling", "Stage ceiling along the top edges of the pages", "TRIA_UP_BAR",
+     11),
 ]
 
 POINTS = [
@@ -103,7 +108,8 @@ def host_items(self, context):
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
-            if self.kind in ("FLAP", "TUBE", "TETHER", "PYRAMID") or m.uid in bad:
+            if self.kind in ("FLAP", "TUBE", "TETHER", "PYRAMID", "FRAME", "FLOOR", "CEILING") \
+                    or m.uid in bad:
                 continue
             if m.kind in ("BOX", "BOXCUT"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
@@ -318,6 +324,10 @@ class PopupMech(bpy.types.PropertyGroup):
                      back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
                      roof_height=self.roof_height, ridge=self.ridge,
                      roof_fold=self.roof_fold, eave=self.eave, rib=self.rib)
+        elif self.kind == "FRAME":
+            d.update(type="FRAME", x=self.x, height=self.height)
+        elif self.kind in ("FLOOR", "CEILING"):
+            d.update(type=self.kind, depth=self.depth)
         elif self.kind == "PYRAMID":
             d.update(type="PYRAMID", x=self.x, depth=self.depth, height=self.height,
                      ridge=self.ridge, front=self.front, back=self.back,
@@ -366,6 +376,81 @@ PAPERS = {
     "MAT12": ((304.8, 304.8), "Cutting mat 12 x 12 in"),
     "MAT24": ((609.6, 304.8), "Cutting mat 12 x 24 in"),
 }
+
+
+_on_items = []
+
+
+def on_items(self, context):
+    """What an opening can be cut in: the card (a stage's background) or a
+    mechanism's own piece."""
+    global _on_items
+    st = context.scene.popup if context and context.scene else None
+    items = [("0", "Background" if st and st.stage_master else "Card", "The card's pages",
+              "FILE_BLANK", 0)]
+    if st is not None:
+        for m in st.mechs:
+            if m.kind not in ("BOXCUT", "MOUTH", "FLOOR", "CEILING"):
+                items.append((str(m.uid), m.label, "", "OBJECT_DATA", m.uid))
+    _on_items = items
+    return _on_items
+
+
+def _opening_changed(self, context):
+    scene = context.scene
+    live.schedule(scene)
+    if self.through == "NEXT" or self.get("_was_next"):
+        from . import holes
+        for other in holes._neighbours(scene):
+            if other is not None and other != scene:
+                live.schedule(other)
+    self["_was_next"] = self.through == "NEXT"
+
+
+def _on_get(self):
+    return self.on_uid
+
+
+def _on_set(self, v):
+    self.on_uid = v
+    live.schedule(bpy.context.scene)
+
+
+class PopupOpening(bpy.types.PropertyGroup):
+    label: StringProperty(name="Name", default="Opening")
+    on_uid: IntProperty()
+    on: EnumProperty(name="Cut In", items=on_items, get=_on_get, set=_on_set,
+                     description="The piece the opening is cut in")
+    shape: EnumProperty(name="Shape", items=[
+        ("RECT", "Rectangle", "Window or plain doorway"),
+        ("ARCH", "Arch", "Round-topped doorway or window"),
+        ("OVAL", "Oval", "Round or oval window")], update=_opening_changed)
+    x: FloatProperty(name="Across", description="Centre, measured across the piece from "
+                     "its centre fold (mm; left is negative)", default=0.0,
+                     soft_min=-300.0, soft_max=300.0, update=_opening_changed)
+    y: FloatProperty(name="Bottom", description="Bottom edge, up from the piece's bottom "
+                     "(mm)", default=20.0, soft_min=0.0, soft_max=300.0,
+                     update=_opening_changed)
+    width: FloatProperty(name="Width", default=30.0, min=1.0, soft_max=300.0,
+                         update=_opening_changed)
+    height: FloatProperty(name="Height", default=40.0, min=1.0, soft_max=300.0,
+                          update=_opening_changed)
+    through: EnumProperty(name="Through", items=[
+        ("NONE", "This Piece", "Cut in this piece only"),
+        ("BEHIND", "Everything Behind", "Also cut in every frame behind it and the "
+         "background, lined up as seen from the front when the stage is fully open"),
+        ("NEXT", "Next Stage", "On a background page: also cut in the neighbouring "
+         "stage's page glued back to back with it (a doorway between stages)")],
+        update=_opening_changed)
+
+
+class PopupStageRef(bpy.types.PropertyGroup):
+    scene: PointerProperty(type=bpy.types.Scene)
+
+
+def _carousel_changed(self, context):
+    from . import carousel
+    carousel.schedule_sync(self.id_data)
 
 
 class PopupSettings(bpy.types.PropertyGroup):
@@ -456,9 +541,34 @@ class PopupSettings(bpy.types.PropertyGroup):
                               "renders (Solidify, behind the printed side)")
     anim_frames: IntProperty(name="Frames", description="Frames to open (and close)",
                              default=48, min=2)
+    # carousel ---------------------------------------------------------------
+    suffix: StringProperty(description="Added to this scene's data names (stages)")
+    stage_master: PointerProperty(type=bpy.types.Scene, name="Carousel",
+                                  description="The carousel this stage belongs to")
+    stage_index: IntProperty()
+    is_carousel: BoolProperty(description="This scene shows a carousel of stages")
+    stage_count: IntProperty(name="Stages", description="Stages round the carousel; each "
+                             "opens to 360 / Stages degrees", default=5, min=2, max=9,
+                             update=_carousel_changed)
+    join: EnumProperty(name="Joins", items=[
+        ("GLUED", "Glued", "Each stage is its own folded card; neighbouring pages are glued "
+         "back to back"),
+        ("SHARED", "Shared Page", "Neighbouring stages share one sheet, printed on both "
+         "sides")], update=_carousel_changed,
+        description="How each stage's page joins the next stage's")
+    stages: CollectionProperty(type=PopupStageRef)
+    openings: CollectionProperty(type=PopupOpening)
+    active_opening: IntProperty()
+    carousel_ctrl: PointerProperty(type=bpy.types.Object)
 
     def card_dict(self):
         from .core.model import CARD_PRESETS
+        master = self.stage_master
+        if master is not None and master != self.id_data:
+            d = master.popup.card_dict()
+            d.update(hold="SYM", tmax=360.0 / master.popup.stage_count,
+                     piece_sheet=PAPERS[self.paper][0])
+            return d
         if self.size == "CUSTOM":
             W, H = self.page_depth, self.spine_length
             sheet = (2 * W, H)
@@ -468,7 +578,7 @@ class PopupSettings(bpy.types.PropertyGroup):
                     piece_sheet=PAPERS[self.paper][0])
 
 
-classes = (PopupMech, PopupSettings)
+classes = (PopupMech, PopupOpening, PopupStageRef, PopupSettings)
 
 
 def register():

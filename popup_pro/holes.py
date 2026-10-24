@@ -1,0 +1,383 @@
+"""Holes in the paper: windows, doorways and perforations.
+
+Three sources, all turned into hole outlines in each piece's flat pattern
+(millimetres) and cut out of the mesh when the card is built, so they show
+in 3D and print as cut lines:
+
+* Openings: rectangles, arches and ovals placed with sliders. An opening can
+  go Through every layer behind it (frames and background, lined up as seen
+  from the front when the stage is fully open) or Through to the next stage
+  (the page glued back to back with this one, in a carousel).
+* Painted holes: paint transparency into the art (Texture Paint, Erase Alpha)
+  and press Cut Painted Holes: the see-through areas are traced into outlines
+  (kept until traced again).
+* Sketched holes: closed Grease Pencil strokes on a panel's "cut" layer.
+"""
+
+import json
+import math
+
+import bpy
+from mathutils import Vector, geometry
+
+from .core.geom import clip_halfplane, poly_area
+
+SEG = 24  # segments in a half circle
+
+
+# ------------------------------------------------------------- shapes
+def shape(kind, x, y, w, h):
+    """Outline (CCW) of an opening: x centre, y bottom, w wide, h tall."""
+    r = 0.5 * w
+    if kind == "OVAL":
+        return [(x + r * math.cos(2 * math.pi * i / (2 * SEG)),
+                 y + 0.5 * h + 0.5 * h * math.sin(2 * math.pi * i / (2 * SEG)))
+                for i in range(2 * SEG)]
+    if kind == "ARCH":
+        rr = min(r, h)
+        top = y + h - rr
+        pts = [(x - r, y), (x + r, y), (x + r, top)]
+        pts += [(x + r * math.cos(math.pi * i / SEG), top + rr * math.sin(math.pi * i / SEG))
+                for i in range(1, SEG)]
+        pts.append((x - r, top))
+        return pts
+    return [(x - r, y), (x + r, y), (x + r, y + h), (x - r, y + h)]
+
+
+# ------------------------------------------------------------- sources
+def _piece_of(model, uid):
+    """Pattern piece an opening is on: the card (0) or a mechanism's piece."""
+    if uid == 0:
+        return "Card"
+    for name in model.pieces:
+        tail = name.rstrip("0123456789")
+        if name != "Card" and name[len(tail):] == str(uid) and tail in (
+                "Frame", "Box", "VFold", "Tube", "Pyramid", "Roof", "Cube", "Tether", "Flap"):
+            return name
+    return None
+
+
+def _behind(model, piece, poly):
+    """An opening on a frame, carried straight back through every frame
+    behind it and the background, as lined up when the stage is fully open:
+    frames are flat chords there, so (x, y) is the same on each; on a page
+    the side offset x lies at x / sin(angle / 2) from the fold."""
+    out = []
+    uid = int(piece[len("Frame"):]) if piece.startswith("Frame") else None
+    if uid is None or uid not in model.frames:
+        return out
+    depth = model.frames[uid]["depth"]
+    for u, f in model.frames.items():
+        if f["depth"] < depth - 1e-6:
+            out.append((f"Frame{u}", list(poly)))
+    sn = math.sin(math.radians(0.5 * model.tmax))
+    if sn > 1e-3:
+        # split at the fold: each side lands on its own page
+        for sgn in (-1.0, 1.0):
+            side = clip_halfplane(list(poly), (sgn, 0.0), 0.0)
+            if len(side) >= 3 and abs(poly_area(side)) > 0.5:
+                out.append(("Card", [(x / sn, y) for x, y in side]))
+    return out
+
+
+def _openings(scene, model, st, own=True):
+    out = []
+    for o in st.openings:
+        piece = _piece_of(model, o.on_uid) if own else "Card"
+        if own and piece is None:
+            continue
+        poly = shape(o.shape, o.x, o.y, o.width, o.height)
+        if own:
+            out.append((piece, poly))
+            if o.through == "BEHIND":
+                out += _behind(model, piece, poly)
+        if o.through == "NEXT" and o.on_uid == 0:
+            out.append(("__next__" if o.x > 0 else "__prev__", poly))
+    return out
+
+
+def _neighbours(scene):
+    st = scene.popup
+    master = st.stage_master
+    if master is None:
+        return None, None
+    from . import carousel
+    sts = carousel.stages(master)
+    if scene not in sts:
+        return None, None
+    i = sts.index(scene)
+    n = len(sts)
+    return sts[(i - 1) % n], sts[(i + 1) % n]
+
+
+def painted(st):
+    try:
+        return json.loads(st.get("pop_painted", "{}"))
+    except ValueError:
+        return {}
+
+
+def sketched(scene, model, layout):
+    """Closed strokes on panels' cut layers, in their pieces' patterns."""
+    from . import art
+    from .naming import N
+    out = []
+    st = scene.popup
+    obj = bpy.data.objects.get(N(scene, art.SKETCH))
+    rig = st.rig
+    if obj is None or obj.type != "GREASEPENCIL" or rig is None:
+        return out
+    mmu = st.mm_per_unit
+    for layer in obj.data.layers:
+        if not layer.name.endswith(art.CUT_SUFFIX) or layer.parent != rig:
+            continue
+        bone = rig.data.bones.get(layer.parent_bone)
+        p = model.panels.get(layer.parent_bone)
+        if bone is None or p is None:
+            continue
+        M = bone.matrix_local @ layer.matrix_parent_inverse @ layer.matrix_local
+        Pi = layout["prints"][p.piece].inverted()
+        fr = layer.current_frame()
+        if fr is None or fr.drawing is None:
+            continue
+        for stroke in fr.drawing.strokes:
+            pts = [(Pi @ ((M @ Vector(q.position)) * mmu)).to_2d() for q in stroke.points]
+            if len(pts) >= 3 and abs(poly_area([tuple(q) for q in pts])) > 1.0:
+                out.append((p.piece, [tuple(q) for q in pts]))
+    return out
+
+
+def collect(scene, model, layout=None):
+    """{piece: [hole outline, ...]} in pattern millimetres."""
+    st = scene.popup
+    holes = {}
+
+    def put(piece, poly, keep_turn=False):
+        if piece in model.pieces and len(poly) >= 3:
+            if not keep_turn and poly_area(poly) < 0:
+                poly = poly[::-1]
+            holes.setdefault(piece, []).append(poly)
+
+    for piece, poly in _openings(scene, model, st):
+        if not piece.startswith("__"):
+            put(piece, poly)
+    # openings on the neighbouring stages' pages that go through to this one
+    prev, nxt = _neighbours(scene)
+    for other, want in ((prev, "__next__"), (nxt, "__prev__")):
+        if other is None or other == scene:
+            continue
+        for tag, poly in _openings(other, model, other.popup, own=False):
+            if tag == want:
+                put("Card", [(-x, y) for x, y in poly][::-1])
+    for piece, polys in painted(st).items():
+        for poly in polys:
+            put(piece, [tuple(q) for q in poly], keep_turn=True)
+    if layout is not None:
+        for piece, poly in sketched(scene, model, layout):
+            put(piece, poly)
+    return holes
+
+
+# ------------------------------------------------------------- cutting
+def _inside(pt, poly):
+    x, y = pt
+    c = False
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        if (y1 > y) != (y2 > y) and x < x1 + (y - y1) * (x2 - x1) / (y2 - y1):
+            c = not c
+    return c
+
+
+def _clip(hole, poly):
+    """Hole outline clipped to a convex CCW panel polygon."""
+    out = list(hole)
+    n = len(poly)
+    for i in range(n):
+        a, b = poly[i], poly[(i + 1) % n]
+        nn = (-(b[1] - a[1]), b[0] - a[0])
+        out = clip_halfplane(out, nn, nn[0] * a[0] + nn[1] * a[1])
+        if len(out) < 3:
+            return []
+    return out
+
+
+def cut(poly, holes):
+    """Triangles covering a convex panel polygon minus the holes, or None if
+    no hole touches it."""
+    hs = []
+    for h in holes:
+        sgn = 1 if poly_area(h) >= 0 else -1  # clockwise: an island left inside a hole
+        c = _clip(h if sgn > 0 else h[::-1], poly)
+        if len(c) >= 3 and abs(poly_area(c)) > 0.05:
+            hs.append((c, sgn))
+    if not hs:
+        return None
+    verts = [Vector(q) for q in poly]
+    faces = [list(range(len(poly)))]
+    for h, _ in hs:
+        k = len(verts)
+        verts += [Vector(q) for q in h]
+        faces.append(list(range(k, k + len(h))))
+    try:
+        vs, _, fs, *_ = geometry.delaunay_2d_cdt(verts, [], faces, 1, 1e-5)
+    except Exception:
+        return None
+    tris = []
+    for f in fs:
+        pts = [tuple(vs[i]) for i in f]
+        if abs(poly_area(pts)) < 1e-4:
+            continue  # sliver along an edge the hole runs along
+        c = (sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts))
+        if not _inside(c, poly):
+            continue
+        # holes overlap freely (union); traced islands put paper back
+        if sum(sg for h, sg in hs if _inside(c, h)) > 0:
+            continue
+        tris.append(pts)
+    return tris
+
+
+# ------------------------------------------------------------- painted holes
+def trace(mask, step):
+    """Outlines (lists of (col, row) grid corners, hole on the left) of the
+    True areas of a 2D boolean grid."""
+    rows, cols = len(mask), len(mask[0])
+    nxt = {}
+
+    def on(r, c):
+        return 0 <= r < rows and 0 <= c < cols and mask[r][c]
+
+    for r in range(rows):
+        row = mask[r]
+        for c in range(cols):
+            if not row[c]:
+                continue
+            # boundary edges of pixel (c, r), anticlockwise with the hole on
+            # the left (rows run upwards)
+            if not on(r - 1, c):
+                nxt.setdefault((c, r), []).append((c + 1, r))
+            if not on(r, c + 1):
+                nxt.setdefault((c + 1, r), []).append((c + 1, r + 1))
+            if not on(r + 1, c):
+                nxt.setdefault((c + 1, r + 1), []).append((c, r + 1))
+            if not on(r, c - 1):
+                nxt.setdefault((c, r + 1), []).append((c, r))
+    loops = []
+    while nxt:
+        start = next(iter(nxt))
+        loop = [start]
+        cur = start
+        while True:
+            outs = nxt.get(cur)
+            if not outs:
+                break
+            n2 = outs.pop()
+            if not outs:
+                del nxt[cur]
+            if n2 == start:
+                break
+            loop.append(n2)
+            cur = n2
+        if len(loop) >= 4:
+            loops.append(loop)
+    return loops
+
+
+def smooth(pts, passes=2):
+    """Take the pixel stairs off a traced outline (5-point running mean)."""
+    n = len(pts)
+    if n < 8:
+        return pts
+    for _ in range(passes):
+        pts = [(sum(pts[(i + j) % n][0] for j in range(-2, 3)) / 5.0,
+                sum(pts[(i + j) % n][1] for j in range(-2, 3)) / 5.0) for i in range(n)]
+    return pts
+
+
+def simplify(pts, tol):
+    """Ramer-Douglas-Peucker on a closed outline."""
+    if len(pts) < 4:
+        return pts
+
+    def rdp(seg):
+        if len(seg) < 3:
+            return seg
+        a, b = Vector(seg[0]), Vector(seg[-1])
+        d = b - a
+        L = d.length
+        best, bi = -1.0, 0
+        for i in range(1, len(seg) - 1):
+            p = Vector(seg[i])
+            dist = (p - a).length if L < 1e-9 else abs(d.x * (p.y - a.y) - d.y * (p.x - a.x)) / L
+            if dist > best:
+                best, bi = dist, i
+        if best <= tol:
+            return [seg[0], seg[-1]]
+        return rdp(seg[:bi + 1])[:-1] + rdp(seg[bi:])
+
+    far = max(range(len(pts)), key=lambda i: (Vector(pts[i]) - Vector(pts[0])).length)
+    out = rdp(pts[:far + 1])[:-1] + rdp(pts[far:] + [pts[0]])[:-1]
+    return out
+
+
+def trace_painted(scene, threshold=0.5, res_mm=0.5, tol_mm=0.15):
+    """Trace the see-through parts of the art into hole outlines per piece and
+    keep them on the scene (they are cut at every rebuild until traced again)."""
+    import tempfile
+    from . import art, export_svg, live
+    from .build import TILE_MM
+    from .naming import N
+    st = scene.popup
+    meta = live.meta(st.rig)
+    if meta is None:
+        raise RuntimeError("build the card first")
+    img = bpy.data.images.get(N(scene, art.ART_IMAGE))
+    if img is None:
+        raise RuntimeError("add art first")
+    tiles = export_svg._tile_pngs(img, tempfile.mkdtemp(prefix="popup_holes_"))
+    out = {}
+    for piece, info in meta["pieces"].items():
+        path = tiles.get(1001 + info["slot"])
+        if path is None:
+            continue
+        t = bpy.data.images.load(path)
+        try:
+            w, h = t.size
+            if info["is_card"]:
+                W, H = meta["W"], meta["H"]
+                x0, y0, sx, sy = -W, 0.0, 2 * W / w, H / h
+            else:
+                ax, ay = info["anchor"]
+                x0, y0 = ax - TILE_MM / 2, ay - TILE_MM / 2
+                sx, sy = TILE_MM / w, TILE_MM / h
+            k = max(1, int(round(res_mm / max(sx, sy))))
+            px = t.pixels[:]
+        finally:
+            bpy.data.images.remove(t)
+        rows, cols = h // k, w // k
+        mask = []
+        any_hole = False
+        for r in range(rows):
+            row = []
+            base = (r * k) * w
+            for c in range(cols):
+                a = px[4 * (base + c * k) + 3]
+                hole = a < threshold
+                any_hole |= hole
+                row.append(hole)
+            mask.append(row)
+        if not any_hole:
+            continue
+        polys = []
+        for loop in trace(mask, k):
+            pts = [(x0 + c * k * sx, y0 + r * k * sy) for c, r in loop]
+            pts = simplify(smooth(pts), tol_mm)
+            if len(pts) >= 3 and abs(poly_area(pts)) > 1.0:
+                polys.append([(round(x, 3), round(y, 3)) for x, y in pts])
+        if polys:
+            out[piece] = polys
+    st["pop_painted"] = json.dumps(out)
+    return sum(len(v) for v in out.values())

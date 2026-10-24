@@ -9,6 +9,10 @@ _items_cache = []
 
 
 def schedule(scene, delay=0.15):
+    if scene is not None and scene.popup.is_carousel:
+        from . import carousel  # size changed: every stage follows
+        carousel.schedule_sync(scene)
+        return
     if scene is None or not scene.popup.live or scene.popup.rig is None:
         return
     name = scene.name
@@ -22,8 +26,10 @@ def schedule(scene, delay=0.15):
         if sc is None:
             return None
         from . import build
+        from .carousel import in_scene
         try:
-            build.rebuild(sc)
+            with in_scene(sc):  # a neighbouring stage may not be the one on screen
+                build.rebuild(sc)
         except Exception as ex:  # keep the UI alive; report in the panel
             sc.popup.status = f"Rebuild failed: {ex}"
         return None

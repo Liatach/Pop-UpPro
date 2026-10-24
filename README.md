@@ -11,6 +11,12 @@ them.**
   cut-in mouths, glued box folds, cut-in box layers, 180° cubes with lids,
   pull-tab flaps, tubes (hexagons, boxes) tethered together on parallel
   strips, and pyramids, tents and roofs.
+* **Carousels**: 2 to 9 stages opening right round, each with a background,
+  floating frames, a staging frame, floors and ceilings; one Open control
+  for the lot, and each stage editable on its own.
+* **Windows, doorways and perforations**: placed openings that can line up
+  through every layer behind or into the next stage, painted see-through
+  areas, and holes sketched with Grease Pencil, all cut as real holes.
 * **Stack them**: boxes on boxes, steps up and forward, and inset (valley)
   boxes; V-folds and mouths sit on any box fold too.
 * **Movement test**: one Open slider (0–180°) drives a driver-only rig, with
@@ -181,6 +187,68 @@ spine:
 * A peaked roof turns the wrong way to be a spine, so it isn't offered as a
   host.
 
+### Carousels (stage sets, Birmingham 118)
+
+![A five-stage carousel at 360, 300, 200 and 100 degrees](docs/images/carousel.jpg)
+
+On an empty scene, **Make Carousel** turns the scene into a carousel of
+**Stages** (2 to 9, 5 by default). Each stage is a scene of its own and a
+normal Pop-Up Pro card, with its own mechanisms, art, sketches and export.
+Its pages are the background, and it opens to 360 / Stages degrees: 72 for
+five. The carousel scene shows every stage's folded card turned round one
+spine, and one **Carousel Open** control (0 to 360 degrees) opens them all.
+**Edit** goes to a stage; in a stage, **Carousel**, **Previous** and **Next**
+move around.
+
+* **Frames** span the stage from page to page, glued down each side at
+  **Depth** from the spine, with a centre crease that folds back as the
+  stage closes. Their width is worked out from the stage count, so every
+  frame pulls flat exactly when the stage is fully open. A new stage starts
+  with a staging frame at the front and one floating frame behind it; add
+  up to three floating frames from the Add menu.
+* **Floors** and **ceilings** are V-folds along the bottom and top edges of
+  the pages. They lie flat when the stage is open and fold into the stage
+  as it closes. Frames are cut back automatically to clear them. Floors and
+  ceilings need three stages or more: at 180 degrees they would have to lie
+  in the page planes the moment the stage starts to close.
+* **Joins**: *Glued* (default) makes each stage its own folded card. The
+  back of each stage's right page is glued to the back of the next stage's
+  left page. *Shared Page* prints each pair of neighbouring pages on one
+  leaf, double-sided.
+* **Export** (in the carousel panel) writes every stage's sheets, named by
+  stage, plus a carousel page with the joins and building order. With shared
+  pages, the leaf sheets replace each stage's card sheet.
+
+### Openings and holes
+
+![Stage 1: an arched staging frame, a perforated frame and a window through
+to the background](docs/images/stage_holes.jpg)
+
+The **Openings and Holes** panel cuts real holes in the paper. They show in
+3D and print as cut lines:
+
+* **Openings**: rectangles, arches and ovals, with **Across**, **Bottom**,
+  **Width** and **Height** sliders, cut in the card or any mechanism's piece.
+  Across is measured from the piece's centre fold. **Through** carries an
+  opening:
+  * *Everything Behind*: every frame behind it and the background, lined up
+    as seen from the front when the stage is fully open (on the background,
+    it is stretched to match the angled pages).
+  * *Next Stage*: on a background page, the neighbouring stage's page that
+    is glued back to back with it, so a doorway leads from one stage into
+    the next.
+* **Painted holes**: in Texture Paint, paint with the *Erase Alpha* blend
+  mode. The see-through areas show see-through on the model straight away;
+  **Cut Painted Holes** traces them into smooth cut outlines (run it again
+  after repainting, or ✕ to drop them). This is the way to perforate a
+  staging frame.
+* **Sketched holes**: **Draw Holes** opens a red *cut* Grease Pencil layer on
+  the chosen panel. Closed strokes on it are cut out at the next rebuild,
+  and they never print as art.
+
+Overlapping holes join together. Painted islands left inside a painted hole
+stay as paper.
+
 ### Flap and the Pull control
 
 The flap is glued down by a tab along its hinge. A strip is glued under the
@@ -329,12 +397,16 @@ python tests/test_v06.py       # tubes and tethers on parallel strips
 python tests/test_roofs.py     # pyramid, tent, hip, tube-cap and flat-roof kinematics
 python tests/test_v07.py       # roofs end to end, reverse sheets, assembly page
 python tests/test_v08.py       # basic box: rib, and mechanisms on the roof crease
+python tests/test_stage.py     # stage frames, floors and ceilings for 3 to 9 stages
+python tests/test_v10.py       # carousels, openings, painted and sketched holes, export
 ```
 
 ## Limits and roadmap
 
-* One card per scene. Mechanisms sit on the spine, on box folds or on a
-  basic box's roof, not yet on V-folds.
+* One card (or carousel) per scene. Mechanisms sit on the spine, on box
+  folds or on a basic box's roof, not yet on V-folds.
+* A stage set inside an ordinary card, as an angled pop-up (Birmingham 118
+  on a V-fold), is next for carousels.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,

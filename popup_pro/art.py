@@ -16,12 +16,15 @@ import bpy
 from mathutils import Matrix, Vector
 
 from . import live
+from .naming import N
 from .build import ART_UV, TILE_MM
 
 ART_IMAGE = "Pop-up Art"
 PRINT_IMAGE = "Pop-up Print"
 SKETCH = "Pop-up Sketch"
 INK = "Pop-up Ink"
+CUT_INK = "Pop-up Cut"
+CUT_SUFFIX = " cut"  # sketch layers ending so are cut out as holes
 
 
 # ---------------------------------------------------------------- textures
@@ -80,8 +83,8 @@ def _art_nodes(mat):
 
 def refresh_material(scene):
     """Hook the art image into the paper material if it exists."""
-    mat = bpy.data.materials.get("Pop-up Paper")
-    img = bpy.data.images.get(ART_IMAGE)
+    mat = bpy.data.materials.get(N(scene, "Pop-up Paper"))
+    img = bpy.data.images.get(N(scene, ART_IMAGE))
     if mat is None or img is None or not mat.use_nodes:
         return
     nt, tex = _art_nodes(mat)
@@ -108,13 +111,16 @@ def refresh_material(scene):
         nt.links.new(mix.outputs["Result"], bsdf.inputs["Base Color"])
     tex.image = img
     nt.nodes.active = tex
+    # painted transparency shows as see-through (Cut Painted Holes makes it real)
+    if bsdf.inputs.get("Alpha") is not None and not bsdf.inputs["Alpha"].is_linked:
+        nt.links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
 
 
 def add_art_texture(scene, dpi=150):
     meta = live.meta(scene.popup.rig)
     if meta is None:
         raise RuntimeError("build the card first")
-    img = make_tiled_image(ART_IMAGE, meta, dpi)
+    img = make_tiled_image(N(scene, ART_IMAGE), meta, dpi)
     refresh_material(scene)
     return img
 
@@ -134,10 +140,10 @@ def bake_art(scene, dpi=150):
     if meta is None:
         raise RuntimeError("build the card first")
     src = st.layout
-    img = bpy.data.images.get(PRINT_IMAGE)
+    img = bpy.data.images.get(N(scene, PRINT_IMAGE))
     if img is not None:
         bpy.data.images.remove(img)
-    img = make_tiled_image(PRINT_IMAGE, meta, dpi, color=(1, 1, 1, 1))
+    img = make_tiled_image(N(scene, PRINT_IMAGE), meta, dpi, color=(1, 1, 1, 1))
     margin = max(4, int(_m.ceil(st.bleed / 25.4 * dpi)) + 2)
 
     mesh = src.data.copy()
@@ -212,28 +218,47 @@ def ink_material():
 
 def ensure_sketch(scene):
     st = scene.popup
-    obj = bpy.data.objects.get(SKETCH)
+    obj = bpy.data.objects.get(N(scene, SKETCH))
     if obj is None or obj.type != "GREASEPENCIL":
-        gp = bpy.data.grease_pencils.new(SKETCH)
-        obj = bpy.data.objects.new(SKETCH, gp)
-        from .build import _collection
-        _collection(scene).objects.link(obj)
+        gp = bpy.data.grease_pencils.new(N(scene, SKETCH))
+        obj = bpy.data.objects.new(N(scene, SKETCH), gp)
+        from .build import folded_collection
+        folded_collection(scene).objects.link(obj)
     if not obj.data.materials:
         obj.data.materials.append(ink_material())
     return obj
 
 
-def sketch_layer(scene, panel):
+def cut_material():
+    mat = bpy.data.materials.get(CUT_INK)
+    if mat is None:
+        mat = bpy.data.materials.new(CUT_INK)
+        bpy.data.materials.create_gpencil_data(mat)
+        mat.grease_pencil.color = (0.9, 0.1, 0.1, 1.0)
+        mat.grease_pencil.show_stroke = True
+        mat.grease_pencil.show_fill = True
+        mat.grease_pencil.fill_color = (0.9, 0.1, 0.1, 0.25)
+    return mat
+
+
+def sketch_layer(scene, panel, cut=False):
     """Layer for one panel, parented to its bone (strokes are stored in the
-    bone's space so they move with the panel)."""
+    bone's space so they move with the panel). cut: the panel's hole layer,
+    whose closed strokes are cut out of the paper."""
     st = scene.popup
     obj = ensure_sketch(scene)
     gp = obj.data
-    layer = gp.layers.get(panel) if hasattr(gp.layers, "get") else None
+    name = panel + CUT_SUFFIX if cut else panel
+    if cut:
+        mat = cut_material()
+        if mat.name not in [m.name for m in gp.materials if m]:
+            gp.materials.append(mat)
+        obj.active_material_index = [m.name if m else "" for m in gp.materials].index(mat.name)
+    elif gp.materials:
+        obj.active_material_index = 0
+    layer = next((l for l in gp.layers if l.name == name), None)
     if layer is None:
-        layer = next((l for l in gp.layers if l.name == panel), None)
-    if layer is None:
-        layer = gp.layers.new(panel)
+        layer = gp.layers.new(name)
         layer.frames.new(scene.frame_start)
     layer.parent = st.rig
     layer.parent_bone = panel
@@ -269,7 +294,7 @@ def panel_view(scene, panel, offset_mm=0.3):
 def release_orphans(scene, keep=None):
     """Sketch layers whose panel was deleted keep their strokes where they
     are, unparented and hidden, instead of pointing at a missing bone."""
-    obj = bpy.data.objects.get(SKETCH)
+    obj = bpy.data.objects.get(N(scene, SKETCH))
     rig = scene.popup.rig
     if obj is None or obj.type != "GREASEPENCIL" or rig is None:
         return
