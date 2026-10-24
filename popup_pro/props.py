@@ -38,6 +38,8 @@ KINDS = [
     ("FLOOR", "Floor", "Stage floor along the bottom edges of the pages", "TRIA_DOWN_BAR", 10),
     ("CEILING", "Ceiling", "Stage ceiling along the top edges of the pages", "TRIA_UP_BAR",
      11),
+    ("STAGE", "Stage Set", "A stage standing in the card as a V-fold, with frames and a "
+     "ceiling inside it (Birmingham 118)", "IMAGE_BACKGROUND", 12),
 ]
 
 POINTS = [
@@ -108,8 +110,12 @@ def host_items(self, context):
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
-            if self.kind in ("FLAP", "TUBE", "TETHER", "PYRAMID", "FRAME", "FLOOR", "CEILING") \
-                    or m.uid in bad:
+            if self.kind in ("FLAP", "TUBE", "TETHER", "PYRAMID") or m.uid in bad:
+                continue
+            if self.kind in ("FRAME", "FLOOR", "CEILING"):
+                if m.kind == "STAGE":
+                    items.append((str(m.uid), m.label, f"Stand in {m.label}",
+                                  "IMAGE_BACKGROUND", m.uid))
                 continue
             if m.kind in ("BOX", "BOXCUT"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
@@ -130,6 +136,19 @@ def fit_to_host(m, st):
     half the host's panels, centred along it, so there's paper left round it
     to read as a step or an inset."""
     host = next((h for h in st.mechs if h.uid == m.host_uid), None)
+    if host is not None and host.kind == "STAGE":
+        was = st.live
+        st["live"] = False
+        try:
+            if m.kind == "FRAME":
+                n = sum(1 for x in st.mechs if x.kind == "FRAME" and x.host_uid == host.uid)
+                m.x = host.glue - 1.0 if n <= 1 else max(8.0, host.glue * (1 - 0.25 * (n - 1)))
+                m.y, m.height = 0.0, host.height
+            elif m.kind in ("FLOOR", "CEILING"):
+                m.depth = host.glue
+        finally:
+            st["live"] = was
+        return
     if host is None or host.kind not in ("BOX", "BOXCUT", "TUBE"):
         return
     if host.kind == "TUBE":  # the roof's crease: a half each side, as long as the tube
@@ -324,6 +343,9 @@ class PopupMech(bpy.types.PropertyGroup):
                      back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
                      roof_height=self.roof_height, ridge=self.ridge,
                      roof_fold=self.roof_fold, eave=self.eave, rib=self.rib)
+        elif self.kind == "STAGE":
+            d.update(type="STAGE", phi_l=self.phi_l, glue=self.glue, height=self.height,
+                     tab_side=self.tab_side)
         elif self.kind == "FRAME":
             d.update(type="FRAME", x=self.x, height=self.height)
         elif self.kind in ("FLOOR", "CEILING"):

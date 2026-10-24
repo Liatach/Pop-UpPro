@@ -57,12 +57,14 @@ DEFAULTS = {
     "PYRAMID": dict(y=80.0, x=25.0, depth=50.0, height=40.0, ridge=0.0, front=25.0,
                     back=25.0, tab=10.0),
     "FRAME": dict(y=0.0, tab=8.0),
+    "STAGE": dict(y=80.0, phi_l=60.0, glue=60.0, height=80.0, tab=10.0, tab_side="OUT"),
     "FLOOR": dict(tab=8.0),
     "CEILING": dict(tab=8.0),
 }
 NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth",
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
-         "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling"}
+         "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
+         "STAGE": "Stage set"}
 
 
 def _add(st, kind):
@@ -117,23 +119,53 @@ class POPUP_OT_add(bpy.types.Operator):
 
     def execute(self, context):
         st = context.scene.popup
-        if self.kind == "FRAME" and sum(1 for x in st.mechs if x.kind == "FRAME") >= 4:
-            self.report({"ERROR"}, "A stage has a staging frame and up to three frames")
-            return {"CANCELLED"}
-        if self.kind in ("FLOOR", "CEILING") and any(x.kind == self.kind for x in st.mechs):
-            self.report({"ERROR"}, f"This stage already has a {self.kind.lower()}")
-            return {"CANCELLED"}
+        if self.kind in ("FRAME", "FLOOR", "CEILING"):
+            if st.stage_master is None and not self.host:
+                stages = [x for x in st.mechs if x.kind == "STAGE"]
+                if not stages:
+                    self.report({"ERROR"}, "Add a Stage Set first (or make a carousel)")
+                    return {"CANCELLED"}
+                act = st.mechs[st.active] if st.active < len(st.mechs) else None
+                if act is not None and act.kind == "STAGE":
+                    self.host = act.uid
+                elif act is not None and act.host_uid and any(x.uid == act.host_uid
+                                                               for x in stages):
+                    self.host = act.host_uid
+                else:
+                    self.host = stages[-1].uid
+            same = [x for x in st.mechs if x.kind == self.kind and x.host_uid == self.host]
+            if self.kind == "FRAME" and len(same) >= 4:
+                self.report({"ERROR"}, "A stage has a staging frame and up to three frames")
+                return {"CANCELLED"}
+            if self.kind in ("FLOOR", "CEILING") and same:
+                self.report({"ERROR"}, f"This stage already has a {self.kind.lower()}")
+                return {"CANCELLED"}
         m = _add(st, self.kind)
+        uid = m.uid
         if self.host:
-            from .props import fit_to_host
-            was = st.live
-            st["live"] = False
-            m.host_uid = self.host
-            m["fold"] = {"A": 0, "B": 1, "C": 2}.get(self.fold, 0)
-            fit_to_host(m, st)
-            st["live"] = was
+            _put_on(st, uid, self.host, self.fold)
+        if self.kind == "STAGE":  # a staging frame at the front, one frame behind
+            for _ in range(2):
+                _put_on(st, _add(st, "FRAME").uid, uid, "A")
+            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
         _rebuild(self, context, force=st.rig is not None and not st.edited)
         return {"FINISHED"}
+
+
+def _put_on(st, uid, host, fold="A"):
+    """Stand a new mechanism on a host and size it to fit."""
+    from .props import fit_to_host
+    was = st.live
+    st["live"] = False
+    m = next(x for x in st.mechs if x.uid == uid)
+    m.host_uid = host
+    m["fold"] = {"A": 0, "B": 1, "C": 2}.get(fold, 0)
+    fit_to_host(m, st)
+    h = next((x for x in st.mechs if x.uid == host), None)
+    if m.kind == "FRAME" and h is not None and h.kind == "STAGE":
+        n = sum(1 for x in st.mechs if x.kind == "FRAME" and x.host_uid == host)
+        m.label = f"{h.label}: staging frame" if n == 1 else f"{h.label}: frame {n - 1}"
+    st["live"] = was
 
 
 class POPUP_OT_remove(bpy.types.Operator):

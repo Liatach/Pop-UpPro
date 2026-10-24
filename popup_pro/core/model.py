@@ -30,7 +30,7 @@ TAB_LIFT = 0.15  # mm a glued tab floats above the page (avoids z-fighting)
 SAMPLES = [0.5, 5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
 
 IN = 25.4
-NO_HOST = ("FLAP", "TUBE", "TETHER", "PYRAMID", "FRAME", "FLOOR", "CEILING")
+NO_HOST = ("FLAP", "TUBE", "TETHER", "PYRAMID")
 
 
 def _card(w, h, label, desc):
@@ -163,6 +163,9 @@ class Host:
         self.T1 = Matrix.Translation((x1, -y1, 0.0))
         self.T2 = Matrix.Translation((x2, -y2, 0.0))
         self.lift = (1.0, 1.0)
+        self.open_max = None  # a stage set's halves open only so far
+        self.size = None  # (half width, height) of a stage set's background
+        self.key = None
 
     @property
     def cut_ok(self):
@@ -315,6 +318,7 @@ class Model:
                        Hinge(Matrix.Identity(4), Matrix.Identity(4)), "Right page"))
         self.hosts[(0, "S")] = Host(self, "Page.L", 0.0, 0.0, "Page.R", 0.0, 0.0,
                                     "Card spine").finish()
+        self.hosts[(0, "S")].key = 0
 
         # parents (hosts) before children; drop cycles and missing hosts
         by_uid = {m["uid"]: m for m in self.mechs}
@@ -344,7 +348,13 @@ class Model:
                 parent = by_uid.get(h)
                 lid = parent is not None and parent["type"] == "TUBE" and \
                     parent.get("roof") == "FLAT" and parent.get("roof_fold") == "DIP"
-                if parent is None or (parent["type"] != "BOX" and not lid):
+                stage = parent is not None and parent["type"] == "STAGE"
+                if stage != (m["type"] in ("FRAME", "FLOOR", "CEILING")) and parent is not None \
+                        and (stage or m["type"] in ("FRAME", "FLOOR", "CEILING")):
+                    self.warn(f"{m['label']}: frames, floors and ceilings go on a stage set, "
+                              f"and only they do; skipped")
+                    ok = False
+                elif parent is None or (parent["type"] != "BOX" and not lid and not stage):
                     self.warn(f"{m['label']}: its host is missing (a box, or a tube with a "
                               f"dipped flat roof); skipped")
                     ok = False
@@ -366,6 +376,8 @@ class Model:
             fold = m.get("fold", "A")
             if h and by_uid[h]["type"] == "TUBE":
                 fold = "R"  # the roof's centre crease
+            if h and by_uid[h]["type"] == "STAGE":
+                fold = "S"  # the stage set's back crease
             host = self.hosts.get((h, fold) if h else (0, "S"))
             if host is None:
                 self.warn(f"{m['label']}: its host was skipped; skipped too")
@@ -386,6 +398,8 @@ class Model:
                 self._tether(m)
             elif m["type"] == "PYRAMID":
                 self._pyramid(m, host)
+            elif m["type"] == "STAGE":
+                self._stage(m, host)
             elif m["type"] == "FRAME":
                 self._frame(m, host)
             elif m["type"] in ("FLOOR", "CEILING"):
@@ -608,8 +622,11 @@ class Model:
 
         uLf = (-math.sin(phl), math.cos(phl))
         uRf = (math.sin(phr), math.cos(phr))
-        uLp = (-math.sin(all_), math.cos(all_))
-        uRp = (math.sin(alr), math.cos(alr))
+        # flip: the net drawn mirrored, so the printed side of each half
+        # faces the other half (a stage set's background, seen from inside)
+        fl = -1.0 if m.get("flip") else 1.0
+        uLp = (-fl * math.sin(all_), math.cos(all_))
+        uRp = (fl * math.sin(alr), math.cos(alr))
         self.joints[base] = dict(host=host, y=yP, uL=uLf, uR=uRf, aL=all_, aR=alr)
         if m.get("pref"):
             self.joints[base]["pref"] = m["pref"]
@@ -633,7 +650,7 @@ class Model:
             bis = Vector((0, 1, 0))
         inside = m.get("tab_side", "IN") == "IN"
         tabs = []
-        for side, uf, up, Fc, sigma in (("L", uLf, uLp, FcL, 1.0), ("R", uRf, uRp, FcR, -1.0)):
+        for side, uf, up, Fc, sigma in (("L", uLf, uLp, FcL, fl), ("R", uRf, uRp, FcR, -fl)):
             Xc = Vector((up[1], -up[0], 0))  # pattern X of the hinge frame
             s2 = -sigma * Xc  # tab side in the pattern (away from the half)
             q = Vector((uf[1], -uf[0], 0))
@@ -1201,13 +1218,15 @@ class Model:
         exactly when the stage is fully open (360/n degrees in a carousel):
         it is the frames, floors and ceilings that stop the stage there."""
         uid, lab = m["uid"], m["label"]
-        if not host.is_spine:
-            self.warn(f"{lab}: frames stand on the stage's own fold")
+        if not host.is_spine and host.open_max is None:
+            self.warn(f"{lab}: frames stand in a stage (a carousel stage or a stage set)")
             return
-        a = min(float(m["x"]), self.W)
+        om = host.open_max or self.tmax
+        Wd, Hd = host.size or (self.W, self.H)
+        a = min(float(m["x"]), Wd)
         y0 = max(0.0, float(m.get("y", 0.0)))
-        y1 = min(self.H, y0 + float(m.get("height", self.H)))
-        B = a * math.sin(math.radians(0.5 * self.tmax))
+        y1 = min(Hd, y0 + float(m.get("height", Hd)))
+        B = a * math.sin(math.radians(0.5 * om))
         if a < 5.0 or y1 - y0 < 5.0 or B < 3.0:
             self.warn(f"{lab}: too small; skipped")
             return
@@ -1233,7 +1252,9 @@ class Model:
         # Floors rise into the stage and ceilings drop into it as it closes:
         # cut the frame's bottom (top) back so it clears them all the way.
         polyL = [(-B, y0), (0, y0), (0, y1), (-B, y1)]
-        for fl in self.floors:
+        for fl, fkey in self.floors:
+            if fkey != host.key:
+                continue
             half = self.panels.get(f"VFold{fl}.HalfL")
             if half is None:
                 continue
@@ -1270,18 +1291,20 @@ class Model:
             q = math.sqrt(max(B * B - a * a * math.sin(hh) ** 2, 0.0))
             return math.atan2(-q, a * math.sin(hh)) - hh
 
-        for hh in (HL, HR):
-            hh.hinge.kind = "EXPR"
-            hh.hinge.sph = dict(var="t", fn=fn, expr=ex)
+        if host.is_spine:  # opening = the card's: closed form; on a stage set, tabulated
+            for hh in (HL, HR):
+                hh.hinge.kind = "EXPR"
+                hh.hinge.sph = dict(var="t", fn=fn, expr=ex)
         # side tabs fold back behind the frame and glue to the pages, clear of
         # the floor's and ceiling's tabs along the page edges
         w = min(float(m.get("tab", 8.0)), 0.5 * a)
         ys = [q[1] for q in polyL if abs(q[0] + B) < 1e-6] or [y0, y1]
         ya, yb = min(ys), max(ys)
-        if "bottom" in self.edge_tab:
-            ya = max(ya, self.edge_tab["bottom"] + 1.0)
-        if "top" in self.edge_tab:
-            yb = min(yb, self.H - self.edge_tab["top"] - 1.0)
+        et = self.edge_tab.get(host.key, {})
+        if "bottom" in et:
+            ya = max(ya, et["bottom"] + 1.0)
+        if "top" in et:
+            yb = min(yb, Hd - et["top"] - 1.0)
         c = min(0.3 * w, 0.2 * (yb - ya))
         for side, half, x, sgn, pg in (("L", HL, -B, -1.0, host.p1), ("R", HR, B, 1.0, host.p2)):
             if yb - ya < 4.0:
@@ -1291,7 +1314,7 @@ class Model:
                                   (sgn, 0.0), (-sgn, 0.0))
             self.add(Panel(f"{piece}.Tab{side}", piece, "tab", [poly], tasm, pg, None,
                            f"{lab}: side tab {side}"))
-        self.frames[uid] = dict(depth=a, width=2 * B, label=lab)
+        self.frames[uid] = dict(depth=a, width=2 * B, label=lab, host=host.key, open=om)
 
     def _floor(self, m, host):
         """Floor (or ceiling) of a stage: a V-fold whose glue lines run along
@@ -1300,22 +1323,63 @@ class Model:
         when the stage is fully open and folds up into the stage (down, for a
         ceiling) as it closes."""
         ceiling = m["type"] == "CEILING"
-        if self.tmax > 150.0:
+        om = host.open_max or self.tmax
+        Wd, Hd = host.size or (self.W, self.H)
+        if host.open_max is not None and not ceiling:
+            self.warn(f"{m['label']}: a stage set stands on the card, which is its floor; "
+                      f"skipped")
+            return
+        if not host.is_spine and host.open_max is None:
+            self.warn(f"{m['label']}: floors and ceilings go in a stage; skipped")
+            return
+        if om > 150.0:
             # flat at 180 it would have to lie in the page planes a moment
             # later: paper can't do that, so floors need three stages or more
             self.warn(f"{m['label']}: floors and ceilings need a stage angle under 150 "
                       f"degrees (three or more stages); skipped")
             return
-        depth = min(float(m.get("depth", self.W)), self.W)
-        al = 0.5 * self.tmax
+        depth = min(float(m.get("depth", Wd)), Wd)
+        al = 0.5 * om
         d = dict(m, type="VFOLD", phi_l=90.0, phi_r=90.0, alpha_l=al, alpha_r=al,
                  glue=depth, height=depth * math.cos(math.radians(al)), shape="TRI",
-                 y=self.H if ceiling else 0.0, tab_side="OUT" if ceiling else "IN",
+                 y=Hd if ceiling else 0.0, tab_side="OUT" if ceiling else "IN",
                  pref=(0.0, -1.0) if ceiling else (0.0, 1.0))
         self._vfold(d, host)
         if f"VFold{m['uid']}.HalfL" in self.panels:
-            self.floors.append(m["uid"])
-            self.edge_tab["top" if ceiling else "bottom"] = float(m.get("tab", 8.0))
+            if host.open_max is not None:
+                # on a stage set the host halves don't turn with the card's
+                # own angle, so the closed form doesn't apply: tabulate
+                for sd in "LR":
+                    self.panels[f"VFold{m['uid']}.Half{sd}"].hinge.kind = "TABLE"
+            self.floors.append((m["uid"], host.key))
+            self.edge_tab.setdefault(host.key, {})["top" if ceiling else "bottom"] = \
+                float(m.get("tab", 8.0))
+
+    def _stage(self, m, host):
+        """Stage set in a card (Birmingham 118 on a V-fold): the background is
+        a V-fold whose halves are square to its centre crease, glued along its
+        bottom edges at the Glue Angle either side of the fold. It opens to
+        twice the glue angle when the card is flat; frames and a ceiling stand
+        in it as in a carousel stage, sized to pull flat right then."""
+        phi = float(m.get("phi_l", 60.0))
+        if not 10.0 <= phi <= 85.0:
+            self.warn(f"{m['label']}: glue angle must be between 10 and 85 degrees")
+            phi = max(10.0, min(85.0, phi))
+        A, Hs = float(m["glue"]), float(m["height"])
+        low = Hs * math.sin(math.radians(phi))
+        if float(m["y"]) < low - 1e-6:
+            self.warn(f"{m['label']}: shut, its back crease lies {low:.0f} mm down the card "
+                      f"from where it stands; move it at least that far up")
+        d = dict(m, type="VFOLD", phi_l=phi, phi_r=phi, alpha_l=90.0, alpha_r=90.0,
+                 shape="QUAD", tab_side=m.get("tab_side", "OUT"), flip=True)
+        self._vfold(d, host)
+        base = f"VFold{m['uid']}"
+        if f"{base}.HalfL" not in self.panels:
+            return
+        # seen from inside the stage the card's right half is on the left
+        h = Host(self, f"{base}.HalfR", 0.0, 0.0, f"{base}.HalfL", 0.0, 0.0, m["label"]).finish()
+        h.open_max, h.size, h.key = 2.0 * phi, (A, Hs), m["uid"]
+        self.hosts[(m["uid"], "S")] = h
 
     def _hinge_on(self, parent, asm, c0, c1, t=None):
         """Hinge for a panel (pattern fold line c0 -> c1, placed by asm) on a

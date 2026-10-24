@@ -7,7 +7,7 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "MOUTH": "MOD_SIMPLEDEFORM", "CUBE": "CUBE", "FLAP": "MOD_CLOTH",
              "TUBE": "MESH_CYLINDER", "TETHER": "LINKED",
              "PYRAMID": "CONE", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
-             "CEILING": "TRIA_UP_BAR"}
+             "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND"}
 
 
 def draw_export(layout, st):
@@ -63,11 +63,21 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("PYRAMID", "Pyramid / Tent (parallel strips)")):
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
         st = context.scene.popup
+        if st.stage_master is None:
+            self.layout.operator("popup.add", text="Stage Set (V-fold)",
+                                 icon=KIND_ICON["STAGE"]).kind = "STAGE"
         if st.stage_master is not None:
             self.layout.separator()
             self.layout.label(text="Stage:")
             for k, name in (("FRAME", "Frame"), ("FLOOR", "Floor"), ("CEILING", "Ceiling")):
                 self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
+        elif st.mechs and st.active < len(st.mechs) and st.mechs[st.active].kind == "STAGE":
+            h = st.mechs[st.active]
+            self.layout.separator()
+            self.layout.label(text=f"In {h.label}:")
+            for k, name in (("FRAME", "Frame"), ("CEILING", "Ceiling")):
+                op = self.layout.operator("popup.add", text=name, icon=KIND_ICON[k])
+                op.kind, op.host = k, h.uid
         if st.mechs and st.active < len(st.mechs):
             h = st.mechs[st.active]
             if h.kind in ("BOX", "BOXCUT"):
@@ -257,10 +267,24 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     col.prop(m, "rib")
             self.draw_warnings(context, m)
             return
+        if m.kind == "STAGE":
+            col.prop(m, "y", text="Position")
+            col.prop(m, "phi_l", text="Glue Angle")
+            col.label(text=f"Opens to {2 * m.phi_l:.0f}° when the card is flat", icon="INFO")
+            col.prop(m, "glue", text="Half Width")
+            col.prop(m, "height")
+            col.prop(m, "tab")
+            col.prop(m, "tab_side")
+            self.draw_warnings(context, m)
+            return
         if m.kind == "FRAME":
             import math as _m
             master = st.stage_master
             tmax = 360.0 / master.popup.stage_count if master else 180.0
+            host = next((h for h in st.mechs if h.uid == m.host_uid), None)
+            if host is not None and host.kind == "STAGE":
+                tmax = 2 * host.phi_l
+                col.prop(m, "host", text="Stage")
             col.prop(m, "x", text="Depth")
             col.prop(m, "y", text="Bottom")
             col.prop(m, "height")
@@ -270,6 +294,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             self.draw_warnings(context, m)
             return
         if m.kind in ("FLOOR", "CEILING"):
+            if st.stage_master is None:
+                col.prop(m, "host", text="Stage")
             col.prop(m, "depth")
             col.prop(m, "tab")
             self.draw_warnings(context, m)

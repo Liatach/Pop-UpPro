@@ -13,7 +13,8 @@ them.**
   strips, and pyramids, tents and roofs.
 * **Carousels**: 2 to 9 stages opening right round, each with a background,
   floating frames, a staging frame, floors and ceilings; one Open control
-  for the lot, and each stage editable on its own.
+  for the lot, and each stage editable on its own. A single stage set can
+  also stand in an ordinary card.
 * **Windows, doorways and perforations**: placed openings that can line up
   through every layer behind or into the next stage, painted see-through
   areas, and holes sketched with Grease Pencil, all cut as real holes.
@@ -219,6 +220,24 @@ move around.
   stage, plus a carousel page with the joins and building order. With shared
   pages, the leaf sheets replace each stage's card sheet.
 
+### Stage set in a card (Birmingham 118 as a V-fold)
+
+![A stage set in a card at 180, 140, 100 and 50 degrees: arched staging
+frame, two frames and a ceiling](docs/images/stage_set.jpg)
+
+**Stage Set** (Add menu) stands one stage in an ordinary card. Its
+background is a V-fold whose halves are square to its back crease, glued
+along their bottom edges at the **Glue Angle** either side of the fold. It
+opens to twice the glue angle (120 degrees for 60) when the card is flat, and
+its printed side faces into the stage. A new stage set comes with a staging
+frame and one frame. With the stage set selected, the Add menu offers more
+frames (up to three behind the staging frame) and a ceiling; the card itself
+is its floor. Frames and the ceiling are sized to pull flat exactly when the
+card is flat. The stage faces the top edge of the card; shut, its back
+crease lies down the card from where it stands, and the checks say how far
+up to move it if that would run off the bottom. Openings on its frames can
+go *Through* to its background.
+
 ### Openings and holes
 
 ![Stage 1: an arched staging frame, a perforated frame and a window through
@@ -399,14 +418,13 @@ python tests/test_v07.py       # roofs end to end, reverse sheets, assembly page
 python tests/test_v08.py       # basic box: rib, and mechanisms on the roof crease
 python tests/test_stage.py     # stage frames, floors and ceilings for 3 to 9 stages
 python tests/test_v10.py       # carousels, openings, painted and sketched holes, export
+python tests/test_v11.py       # a stage set standing in an ordinary card
 ```
 
 ## Limits and roadmap
 
 * One card (or carousel) per scene. Mechanisms sit on the spine, on box
   folds or on a basic box's roof, not yet on V-folds.
-* A stage set inside an ordinary card, as an angled pop-up (Birmingham 118
-  on a V-fold), is next for carousels.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,

@@ -66,17 +66,19 @@ def _behind(model, piece, poly):
     uid = int(piece[len("Frame"):]) if piece.startswith("Frame") else None
     if uid is None or uid not in model.frames:
         return out
-    depth = model.frames[uid]["depth"]
+    me = model.frames[uid]
+    depth = me["depth"]
     for u, f in model.frames.items():
-        if f["depth"] < depth - 1e-6:
+        if f["host"] == me["host"] and f["depth"] < depth - 1e-6:
             out.append((f"Frame{u}", list(poly)))
-    sn = math.sin(math.radians(0.5 * model.tmax))
+    sn = math.sin(math.radians(0.5 * me["open"]))
+    back = "Card" if not me["host"] else f"VFold{me['host']}"
     if sn > 1e-3:
         # split at the fold: each side lands on its own page
         for sgn in (-1.0, 1.0):
             side = clip_halfplane(list(poly), (sgn, 0.0), 0.0)
             if len(side) >= 3 and abs(poly_area(side)) > 0.5:
-                out.append(("Card", [(x / sn, y) for x, y in side]))
+                out.append((back, [(x / sn, y) for x, y in side]))
     return out
 
 
