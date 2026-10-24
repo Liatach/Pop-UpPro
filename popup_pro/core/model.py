@@ -331,8 +331,11 @@ class Model:
                         ok = False
             if h:
                 parent = by_uid.get(h)
-                if parent is None or parent["type"] != "BOX":
-                    self.warn(f"{m['label']}: its host box is missing; skipped")
+                lid = parent is not None and parent["type"] == "TUBE" and \
+                    parent.get("roof") == "FLAT" and parent.get("roof_fold") == "DIP"
+                if parent is None or (parent["type"] != "BOX" and not lid):
+                    self.warn(f"{m['label']}: its host is missing (a box, or a tube with a "
+                              f"dipped flat roof); skipped")
                     ok = False
                 elif not visit(parent):
                     self.warn(f"{m['label']}: hosts form a loop; skipped")
@@ -348,7 +351,10 @@ class Model:
             visit(m)
         for m in order:
             h = m.get("host", 0) if m["type"] not in ("FLAP", "TUBE", "TETHER", "PYRAMID") else 0
-            host = self.hosts.get((h, m.get("fold", "A")) if h else (0, "S"))
+            fold = m.get("fold", "A")
+            if h and by_uid[h]["type"] == "TUBE":
+                fold = "R"  # the roof's centre crease
+            host = self.hosts.get((h, fold) if h else (0, "S"))
             if host is None:
                 self.warn(f"{m['label']}: its host was skipped; skipped too")
                 continue
@@ -958,10 +964,10 @@ class Model:
         elif roof == "FLAT":
             self._flat_roof(uid, f"{lab} roof", host, a, y0, D, wf, wb, sf, sb, hgt,
                             float(m.get("eave", 0.0)), m.get("roof_fold", "PEAK"), tb,
-                            P["FL_"], P["FR_"], u[3])
+                            P["FL_"], P["FR_"], u[3], float(m.get("rib", 0.0)))
 
     def _flat_roof(self, uid, lab, host, a, y0, D, wf, wb, sf, sb, hgt, eave, fold, tb,
-                   wl, wr, u3):
+                   wl, wr, u3, rib=0.0):
         """Flat roof on a tube: two halves creased down the middle above the
         fold, each hinged on a side wall's top edge by a tab folded in off the
         wall and glued underneath. Eave lets it overhang the walls all round.
@@ -1072,6 +1078,72 @@ class Model:
             self.add(Panel(f"Tube{uid}.Top{side}", f"Tube{uid}", "tab", [poly],
                            (lambda t, f=asm_h, A=A: f(t) @ A), half.name, None,
                            f"{lab}: roof tab {side}"))
+        if k < 0:
+            # A dipped roof's crease stays the wall height above the spine,
+            # straight up the mirror plane, and its halves stay parallel to
+            # the pages: a second spine for other mechanisms (Birmingham 67/68).
+            self.hosts[(uid, "R")] = Host(self, HL.name, 0.0, 0.0, HR.name, 0.0, 0.0,
+                                          lab).finish()
+            if rib > 0:
+                self._rib(uid, lab, host, y0, D, hgt, a, tb, w, rib, HL, HR)
+
+    def _glue_asm(self, target, src_asm, e0, e1, side_src, side_tgt, below=False,
+                  t=90.0):
+        """Placement for a tab hanging off edge e0-e1 of a panel (placed by
+        src_asm) that folds over and glues flat on target, on the side_tgt
+        side of that edge (target pattern), on its back if below."""
+        Rel = target.asm(t).inverted() @ src_asm(t)
+        q0, q1 = Rel @ v3(e0), Rel @ v3(e1)
+        q0.z = q1.z = 0.0
+        for q in (q0, q1):  # a doubled layer sits a hair off the fold: put it on it
+            if abs(q.x) < 0.5:
+                q.x = 0.0
+        Fp = frame(v3(e0), v3((e1[0] - e0[0], e1[1] - e0[1])), v3(side_src))
+        Fq = frame(q0, q1 - q0, v3(side_tgt))
+        A = Matrix.Translation((0, 0, -TAB_LIFT if below else TAB_LIFT)) @ Fq @ Fp.inverted()
+        return lambda t, f=target.asm, A=A: f(t) @ A
+
+    def _rib(self, uid, lab, host, y0, D, hgt, a, tb, wroof, rib, HL, HR):
+        """Centre rib: a doubled strip standing straight up the mirror plane
+        from the spine to the roof crease, holding the roof up. Each layer is
+        glued to one page at the bottom and under the other roof half at the
+        top."""
+        L = min(rib, D)
+        y1 = y0 + 0.5 * (D - L)
+        y2 = y1 + L
+        w = min(tb, a - tb - 2.0, a - wroof - 2.0)
+        if w < 3.0:
+            self.warn(f"{lab}: no room between the strips for the centre rib's tabs")
+            return
+        piece = f"Rib{uid}"
+        self.add_piece(Piece(piece, f"{lab} rib", 600 + uid, (y1 + L, 0.5 * hgt)))
+
+        def asm1(t):
+            S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+            return frame(S, Y, e)
+
+        W1 = self.add(Panel(f"{piece}.W1", piece, "panel", [[(y1, 0), (y2, 0), (y2, hgt),
+                                                             (y1, hgt)]], asm1, host.p1, None,
+                            f"{lab}: rib"))
+        W1.hinge = self._hinge_on(host.p1, asm1, (y1, 0.0), (y2, 0.0))
+        W1.hinge.kind = "LINEAR"
+        # second layer folded back round the end, glued behind the first
+        G = frame(Vector((2 * y2, 0.0, -2 * TAB_LIFT)), (-1, 0, 0), (0, 1, 0))
+        asm2 = (lambda t, G=G: asm1(t) @ G)
+        W2 = self.add(Panel(f"{piece}.W2", piece, "panel", [[(y2, 0), (y2 + L, 0),
+                                                             (y2 + L, hgt), (y2, hgt)]],
+                            asm2, W1.name, None, f"{lab}: rib back"))
+        c = min(0.3 * w, 0.2 * L)
+        pages = {"L": self.panels[host.p1], "R": self.panels[host.p2]}
+        for nm, u0, asm, v, out, tgt, side, below in (
+                ("AL", y1, asm1, 0.0, -1.0, pages["L"], (-1.0, 0.0), False),
+                ("CR", y1, asm1, hgt, 1.0, HR, (1.0, 0.0), True),
+                ("AR", y2, asm2, 0.0, -1.0, pages["R"], (1.0, 0.0), False),
+                ("CL", y2, asm2, hgt, 1.0, HL, (-1.0, 0.0), True)):
+            poly = [(u0, v), (u0 + L, v), (u0 + L - c, v + out * w), (u0 + c, v + out * w)]
+            tasm = self._glue_asm(tgt, asm, (u0, v), (u0 + L, v), (0.0, out), side, below)
+            self.add(Panel(f"{piece}.{nm}", piece, "tab", [poly], tasm, tgt.name, None,
+                           f"{lab}: rib tab"))
 
     def _pyramid(self, m, host):
         """Pyramid or tent standing straight on two parallel sticking strips

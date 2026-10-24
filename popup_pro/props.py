@@ -103,10 +103,14 @@ def host_items(self, context):
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
-            if m.kind in ("BOX", "BOXCUT") and m.uid not in bad and \
-                    self.kind not in ("FLAP", "TUBE", "TETHER", "PYRAMID"):
+            if self.kind in ("FLAP", "TUBE", "TETHER", "PYRAMID") or m.uid in bad:
+                continue
+            if m.kind in ("BOX", "BOXCUT"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
                               "MESH_CUBE", m.uid))
+            elif m.kind == "TUBE" and m.roof == "FLAT" and m.roof_fold == "DIP":
+                items.append((str(m.uid), f"{m.label} roof", f"Sit on the centre crease of "
+                              f"{m.label}'s roof", "MESH_CYLINDER", m.uid))
     _host_items = items
     return _host_items
 
@@ -120,10 +124,13 @@ def fit_to_host(m, st):
     half the host's panels, centred along it, so there's paper left round it
     to read as a step or an inset."""
     host = next((h for h in st.mechs if h.uid == m.host_uid), None)
-    if host is None or host.kind not in ("BOX", "BOXCUT"):
+    if host is None or host.kind not in ("BOX", "BOXCUT", "TUBE"):
         return
-    a, b, w = host.height, host.depth, host.width  # left page, right page, along spine
-    room = {"A": b, "B": a, "C": min(a, b)}[m.fold]
+    if host.kind == "TUBE":  # the roof's crease: a half each side, as long as the tube
+        room, w = host.x, host.depth
+    else:
+        a, b, w = host.height, host.depth, host.width  # left page, right page, along spine
+        room = {"A": b, "B": a, "C": min(a, b)}[m.fold]
     k = 0.5 * room
     was = st.live
     st["live"] = False
@@ -231,6 +238,9 @@ class PopupMech(bpy.types.PropertyGroup):
         ("PEAK", "Peak", "The centre crease rises as the card closes"),
         ("DIP", "Dip", "The centre crease sinks into the tube as the card closes (needs "
          "walls at least as tall as the strip distance)")], update=_changed)
+    rib: FloatProperty(name="Centre Rib", description="Length of the rib holding a dipped "
+                       "roof up from the spine (mm); 0 for none", default=20.0, min=0.0,
+                       soft_max=150.0, update=_changed)
     eave: FloatProperty(name="Overhang", description="How far a flat roof reaches past the "
                         "walls all round (mm)", default=0.0, min=0.0, soft_max=40.0,
                         update=_changed)
@@ -307,7 +317,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      front=self.front, back=self.back, front_style=self.front_style,
                      back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
                      roof_height=self.roof_height, ridge=self.ridge,
-                     roof_fold=self.roof_fold, eave=self.eave)
+                     roof_fold=self.roof_fold, eave=self.eave, rib=self.rib)
         elif self.kind == "PYRAMID":
             d.update(type="PYRAMID", x=self.x, depth=self.depth, height=self.height,
                      ridge=self.ridge, front=self.front, back=self.back,

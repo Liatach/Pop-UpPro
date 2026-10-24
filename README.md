@@ -160,6 +160,27 @@ the roof can **Overhang** the walls all round, like eaves.
   inside the walls, so nothing extra sticks out. This needs walls at least
   as tall as the strip distance, and ends that don't point in.
 
+### The basic box (Birmingham 67): a second spine
+
+![A box with a dipped roof and centre rib, with a V-fold and a step standing
+on its roof](docs/images/basic_box.jpg)
+
+A tube with a *Flat* roof set to *Dip* is Birmingham's basic box. The roof's
+centre crease stays the wall height above the spine, straight up the middle,
+and its halves stay parallel to the pages. So the roof works as a second card
+spine:
+
+* **Centre Rib** (mm along the fold, 0 for none) adds the central piece that
+  holds the roof up. It is a doubled strip standing on the spine; each layer
+  is glued to one page at the bottom and under the other roof half at the
+  top.
+* Choose the box's roof as the **Host** of a V-fold, box fold, box layer,
+  mouth or cube, and it stands on the roof crease and opens with the roof,
+  just as it would on the card. Box layers and mouths are cut into the roof
+  itself.
+* A peaked roof turns the wrong way to be a spine, so it isn't offered as a
+  host.
+
 ### Flap and the Pull control
 
 The flap is glued down by a tab along its hinge. A strip is glued under the
@@ -307,12 +328,13 @@ python tests/test_v05.py       # 180° cube, pull-tab flaps, stacking
 python tests/test_v06.py       # tubes and tethers on parallel strips
 python tests/test_roofs.py     # pyramid, tent, hip, tube-cap and flat-roof kinematics
 python tests/test_v07.py       # roofs end to end, reverse sheets, assembly page
+python tests/test_v08.py       # basic box: rib, and mechanisms on the roof crease
 ```
 
 ## Limits and roadmap
 
-* One card per scene. Mechanisms sit on the spine or on box folds, not yet on
-  V-folds.
+* One card per scene. Mechanisms sit on the spine, on box folds or on a
+  basic box's roof, not yet on V-folds.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,

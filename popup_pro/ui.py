@@ -162,6 +162,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             elif m.roof == "FLAT":
                 col.prop(m, "roof_fold")
                 col.prop(m, "eave")
+                if m.roof_fold == "DIP":
+                    col.prop(m, "rib")
             self.draw_warnings(context, m)
             return
         if m.kind == "PYRAMID":
@@ -195,7 +197,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             self.draw_warnings(context, m)
             return
         col.prop(m, "host")
-        if m.host_uid:
+        hm = next((h for h in st.mechs if h.uid == m.host_uid), None) if m.host_uid else None
+        if hm is not None and hm.kind in ("BOX", "BOXCUT"):
             col.prop(m, "fold")
         col.prop(m, "y", text={"MOUTH": "Slit Position"}.get(m.kind, "Position"))
         if m.kind == "CUBE":
