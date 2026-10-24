@@ -86,10 +86,20 @@ class POPUP_OT_add(bpy.types.Operator):
     bl_label = "Add Mechanism"
     bl_options = {"REGISTER", "UNDO"}
     kind: EnumProperty(items=[(k, NAMES[k], "") for k in NAMES])
+    host: IntProperty(default=0, description="Mechanism id of the host box (0 = spine)")
+    fold: StringProperty(default="A")
 
     def execute(self, context):
         st = context.scene.popup
-        _add(st, self.kind)
+        m = _add(st, self.kind)
+        if self.host:
+            from .props import fit_to_host
+            was = st.live
+            st["live"] = False
+            m.host_uid = self.host
+            m["fold"] = {"A": 0, "B": 1, "C": 2}.get(self.fold, 0)
+            fit_to_host(m, st)
+            st["live"] = was
         _rebuild(self, context, force=st.rig is not None and not st.edited)
         return {"FINISHED"}
 

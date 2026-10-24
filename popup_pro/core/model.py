@@ -271,6 +271,9 @@ class Model:
         for name, outs in keep.items():
             if got[name]:
                 self.panels[name].polys = [ccw(q) for q in outs]
+                if not outs and self.panels[name].kind != "page":
+                    self.warn(f"{lab}: uses up all of {self.panels[name].label}; make it "
+                              f"smaller than its host so there's paper left round it")
         return [q for qs in got.values() for q in qs]
 
     @staticmethod
@@ -784,9 +787,7 @@ class Model:
         """Pull-tab flap on a page. The flap is glued down along its hinge by a
         tab. A strip glued under the flap runs back through a slit in the page
         and under it to the card edge; pulling it shortens the part above
-        the page, which lifts the flap. 'Toward': the flap swings towards
-        the pull; 'Away': the strip doubles back under the flap, so the flap
-        swings away from the pull."""
+        the page, which lifts the flap; it swings over towards the pull."""
         uid, lab = m["uid"], m["label"]
         W, H = self.W, self.H
         left = m.get("side", "R") == "L"
@@ -804,8 +805,7 @@ class Model:
         gap = float(m.get("gap", 4.0))
         sl = tb + gap  # slit distance behind the hinge
         gl = min(10.0, Lf - g + 0.0, 0.5 * g) if Lf - g > 1 else 1.0
-        toward = m.get("pull", "TOWARD") == "TOWARD"
-        pdir = -U if toward else U
+        pdir = -U  # the flap swings over towards the pull
         H3 = Vector((hx, hy, 0.0))
         S3 = H3 - sl * U
 
@@ -1190,14 +1190,17 @@ class Model:
                     prints.setdefault(host.piece, []).append((lab, "tab", q, host))
             elif name in self.cut_panels:
                 for poly in p.polys:
-                    prints.setdefault(p.piece, []).append((lab, "cut", poly, None))
+                    prints.setdefault(p.piece, []).append((lab, "cut", poly, p))
         for piece, items in prints.items():
             for i, (la, ka, pa, ha) in enumerate(items):
                 if ka == "tab":
                     on = sum(self._overlap(pa, q) for q in ha.polys)
                     if on < abs(poly_area(pa)) - 1.0:
                         self.warn(f"{la}: a glue tab hangs off {ha.label.split(':')[0]}")
-                for lb, kb, pb, _ in items[i + 1:]:
+                for lb, kb, pb, hb in items[i + 1:]:
+                    if {ka, kb} == {"tab", "cut"} and (ha if ka == "tab" else hb) is \
+                            (hb if ka == "tab" else ha):
+                        continue  # a tab glued onto that very cut-in panel
                     if la != lb and self._overlap(pa, pb) > 1.0:
                         self.warn(f"{la} and {lb} overlap on the paper")
 

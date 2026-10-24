@@ -25,9 +25,10 @@ st.hold = "SYM"
 cube = _add(st, "CUBE")
 cube.y, cube.size, cube.height = 50, 40, 40
 f1 = _add(st, "FLAP")
-f1.side, f1.x, f1.y, f1.hinge, f1.pull = "R", 80, 180, "TOP", "TOWARD"
+f1.side, f1.x, f1.y, f1.hinge, f1.glue_at = "R", 80, 180, "TOP", 15
 f2 = _add(st, "FLAP")
-f2.side, f2.x, f2.y, f2.hinge, f2.pull = "L", 70, 40, "BOTTOM", "AWAY"
+f2.side, f2.x, f2.y, f2.hinge = "L", 70, 40, "BOTTOM"
+assert f2.glue_at == 5.0  # glued low by default
 assert bpy.ops.popup.build() == {"FINISHED"}
 assert not st.warnings, st.warnings
 rig, card = st.rig, st.card
@@ -80,12 +81,12 @@ assert fc, "pull keyframes missing"
 print("pull test keyframed")
 
 # warnings: strip across the spine, short pull tab
-f2.hinge, f2.pull = "RIGHT", "TOWARD"  # strip runs to the spine
+f2.hinge = "RIGHT"  # strip runs to the spine
 f1.pull_out = 8
 build.rebuild(sc, force=True)
 w = st.warnings
 assert "across the spine" in w and "longer Pull Tab" in w, w
-f2.hinge, f2.pull, f1.pull_out = "BOTTOM", "AWAY", 30
+f2.hinge, f1.pull_out = "BOTTOM", 30
 build.rebuild(sc, force=True)
 assert not st.warnings, st.warnings
 
@@ -97,5 +98,19 @@ d1 = open(files[0]).read()
 assert d1.count('stroke="#000000"') >= 8  # card outline + two slits (4 sides each)
 assert "Pull" in "".join(open(f).read() for f in files)
 print("export ok")
+# stacking through the Add menu: inset / on top / in front, auto-fitted
+st.mechs.clear()
+bpy.ops.popup.add(kind="BOXCUT")
+host = st.mechs[-1]
+host.width = 80
+for i, (kind, fold) in enumerate((("BOXCUT", "C"), ("BOXCUT", "A"), ("BOXCUT", "B"), ("BOX", "A"))):
+    bpy.ops.popup.add(kind=kind, host=host.uid, fold=fold)
+    k = st.mechs[-1]
+    assert k.width < host.width and k.height < host.height, (kind, fold)
+    k.width, k.y = 14, host.y + 3 + 20 * i  # side by side along the spine
+model = build.rebuild(sc, force=True)
+assert not st.warnings, st.warnings
+assert all(model.panels[f"Box{host.uid}.{p}"].polys for p in ("AC", "CB"))
+print("stacking: inset, on top, in front and glued on top all fit their host")
 addon.unregister()
 print("V05 OK")

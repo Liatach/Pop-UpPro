@@ -67,9 +67,49 @@ def _host_get(self):
     return self.host_uid
 
 
+def fit_to_host(m, st):
+    """Size a mechanism to sit inside the host-box fold it was just put on:
+    half the host's panels, centred along it, so there's paper left round it
+    to read as a step or an inset."""
+    host = next((h for h in st.mechs if h.uid == m.host_uid), None)
+    if host is None or host.kind not in ("BOX", "BOXCUT"):
+        return
+    a, b, w = host.height, host.depth, host.width  # left page, right page, along spine
+    room = {"A": b, "B": a, "C": min(a, b)}[m.fold]
+    k = 0.5 * room
+    was = st.live
+    st["live"] = False
+    try:
+        if m.kind in ("BOX", "BOXCUT"):
+            m.height = m.depth = k
+            m.width = 0.5 * w
+            m.y = host.y + 0.25 * w
+        elif m.kind == "VFOLD":
+            m.height = m.glue = 0.8 * k
+            m.y = host.y + 0.25 * w
+        elif m.kind == "MOUTH":
+            m.jaw = 0.6 * k
+            m.upper = m.lower = min(0.25 * w, 0.6 * k)
+            m.y = host.y + 0.5 * w
+        elif m.kind == "CUBE":
+            m.size = m.height = 0.6 * k
+            m.y = host.y + 0.25 * w
+    finally:
+        st["live"] = was
+
+
 def _host_set(self, value):
     self.host_uid = value
+    st = bpy.context.scene.popup
+    if value:
+        fit_to_host(self, st)
     live.schedule(bpy.context.scene)
+
+
+def _fold_changed(self, context):
+    if self.host_uid:
+        fit_to_host(self, context.scene.popup)
+    live.schedule(context.scene)
 
 
 class PopupMech(bpy.types.PropertyGroup):
@@ -82,7 +122,7 @@ class PopupMech(bpy.types.PropertyGroup):
     host_uid: IntProperty(default=0)
     host: EnumProperty(name="Host", description="Fold this mechanism sits on",
                        items=host_items, get=_host_get, set=_host_set)
-    fold: EnumProperty(name="Where", items=FOLDS, update=_changed,
+    fold: EnumProperty(name="Where", items=FOLDS, update=_fold_changed,
                        description="Which fold of the host box")
     # V-fold
     shape: EnumProperty(name="Shape", items=[
@@ -109,15 +149,11 @@ class PopupMech(bpy.types.PropertyGroup):
                           default=35.0, min=5.0, soft_max=200.0, update=_changed)
     angle: FloatProperty(name="Lift", description="How far the flap lifts at full pull "
                          "(degrees)", default=150.0, min=10.0, max=175.0, update=_changed)
-    pull: EnumProperty(name="Lifts", items=[
-        ("TOWARD", "Toward the Pull", "The flap swings over towards the side you pull"),
-        ("AWAY", "Away from the Pull", "The strip doubles back under the flap; the flap "
-         "swings away from the side you pull")], update=_changed)
     strip: FloatProperty(name="Strip Width", default=10.0, min=3.0, soft_max=40.0,
                          update=_changed)
     glue_at: FloatProperty(name="Glue Point", description="Where the strip is glued under "
                            "the flap, measured from the hinge (mm). Closer lifts further "
-                           "for less pull", default=15.0, min=3.0, soft_max=150.0,
+                           "for less pull", default=5.0, min=3.0, soft_max=150.0,
                            update=_changed)
     gap: FloatProperty(name="Slit Gap", description="Gap between the hinge tab and the slit "
                        "the strip comes up through (mm)", default=4.0, min=1.0, soft_max=30.0,
@@ -172,7 +208,7 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "FLAP":
             d.update(type="FLAP", side=self.side, x=self.x, hinge=self.hinge,
                      width=self.width, length=self.length, angle=self.angle,
-                     pull=self.pull, strip=self.strip, glue_at=self.glue_at, gap=self.gap,
+                     strip=self.strip, glue_at=self.glue_at, gap=self.gap,
                      pull_out=self.pull_out)
         elif self.kind == "MOUTH":
             d.update(type="MOUTH", jaw=self.jaw, upper=self.upper, lower=self.lower)

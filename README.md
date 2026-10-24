@@ -78,10 +78,10 @@ includes 12 x 12 and 12 x 24 in cutting mats.
 |---|---|---|
 | **V-fold** | A folded piece glued along two lines that meet on a fold | Position, Fold Length, Glue Length, Glue Angle (fold to glue line), Piece Angle (centre fold to glue edge), tab size and side, symmetric or separate left/right. **Shape: Panels or Beak** (two triangles meeting at a point) |
 | **Mouth** | A slit across a fold with two pairs of triangles cut into the paper; the jaws open as the card opens | Slit Position, Jaw Length (slit each side of the fold), Upper Jaw, Lower Jaw |
-| **Box fold** | A separate strip glued across a fold (parallel fold) | Position, Width, Height (up the left panel), Depth (across the right panel), tab size |
-| **Box layer** | The same parallel fold cut into the paper itself | Position, Width, Height, Depth |
-| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Front Corner (position), Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
-| **Flap** | A lift-the-flap worked by a pull tab, with its own **Pull** slider | Page, From Spine, Up the Page, Hinge edge, Width, Length, Hinge Tab, Lifts (Toward or Away from the Pull), Lift angle, Glue Point, Strip Width, Slit Gap, Pull Tab |
+| **Box fold** | A separate strip glued across a fold (parallel fold) | Position, Height (along the fold), Width Left, Width Right, tab size |
+| **Box layer** | The same parallel fold cut into the paper itself | Position, Height, Width Left, Width Right |
+| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
+| **Flap** | A lift-the-flap worked by a pull tab, with its own **Pull** slider | Page, From Spine, Up the Page, Hinge edge, Width, Length, Hinge Tab, Lift angle, Glue Point (5 mm from the hinge by default), Strip Width, Slit Gap, Pull Tab |
 
 ### Cube (180°)
 
@@ -97,11 +97,8 @@ A flat one-piece lid can't fold, so the lid is always two triangles.
 The flap is glued down by a tab along its hinge. A strip is glued under the
 flap at the **Glue Point**. It runs back through a slit in the page, behind
 the page, and out past the card edge as a pull tab. Pulling it lifts the
-flap:
-
-* **Toward the Pull**: the flap swings over towards the side you pull.
-* **Away from the Pull**: the strip doubles back under the flap, so the flap
-  swings the other way.
+flap, which swings over towards the side you pull. Gluing the strip close to
+the hinge lifts the flap furthest for the least pull.
 
 Each flap has a **Pull** slider (0–1) and **Keyframe Pull Test**, separate
 from the card's Open slider, so you can animate both. The checks warn when the
@@ -121,7 +118,12 @@ Every mechanism sits on a **Host**: the card spine, or any box. On a box,
   makes doorways, windows and recesses.
 
 Boxes stack as deep as you like, and V-folds and mouths can sit on a box
-fold too. Cut-in mechanisms (box layers, mouths) need both sides of the fold
+fold too. With a box selected, the **+** menu has *Inset Box Layer*, *Box
+Layer on Top*, *Box Layer in Front* and the glued equivalents, which add
+straight onto it. Whenever you pick a host and fold, the mechanism is
+resized to half the host's panels and centred on it, so there's paper left
+round it to read as a step or a recess. Each mechanism's warnings show under
+its settings. Cut-in mechanisms (box layers, mouths) need both sides of the fold
 to be one piece of paper: any fold of a box layer, or the inset fold of a
 glued box. Glued mechanisms can go anywhere.
 

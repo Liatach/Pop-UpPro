@@ -52,6 +52,21 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("BOXCUT", "Box Layer (cut in)"),
                         ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap")):
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
+        st = context.scene.popup
+        if st.mechs and st.active < len(st.mechs):
+            h = st.mechs[st.active]
+            if h.kind in ("BOX", "BOXCUT"):
+                self.layout.separator()
+                self.layout.label(text=f"On {h.label}:")
+                for kind, fold, text in (("BOXCUT", "C", "Inset Box Layer"),
+                                         ("BOXCUT", "A", "Box Layer on Top"),
+                                         ("BOXCUT", "B", "Box Layer in Front"),
+                                         ("BOX", "A", "Glued Box on Top"),
+                                         ("BOX", "B", "Glued Box in Front")):
+                    if kind == "BOXCUT" and h.kind == "BOX" and fold != "C":
+                        continue  # cut-ins need one piece of paper across the fold
+                    op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
+                    op.kind, op.host, op.fold = kind, h.uid, fold
 
 
 class _Base:
@@ -124,7 +139,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(m, "host")
         if m.host_uid:
             col.prop(m, "fold")
-        col.prop(m, "y", text={"MOUTH": "Slit Position", "CUBE": "Front Corner"}.get(m.kind, "Position"))
+        col.prop(m, "y", text={"MOUTH": "Slit Position"}.get(m.kind, "Position"))
         if m.kind == "CUBE":
             col.prop(m, "size")
             col.prop(m, "height")
@@ -149,11 +164,12 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "tab")
             col.prop(m, "tab_side")
         else:
-            col.prop(m, "width")
-            col.prop(m, "height", text="Height (left page)")
-            col.prop(m, "depth", text="Depth (right page)")
+            col.prop(m, "width", text="Height")
+            col.prop(m, "height", text="Width Left")
+            col.prop(m, "depth", text="Width Right")
             if m.kind == "BOX":
                 col.prop(m, "tab")
+        self.draw_warnings(context, m)
 
 
 def _draw_flap(self, context, col, m):
@@ -166,7 +182,6 @@ def _draw_flap(self, context, col, m):
     col.prop(m, "length")
     col.prop(m, "tab", text="Hinge Tab")
     col.separator()
-    col.prop(m, "pull")
     col.prop(m, "angle")
     col.prop(m, "glue_at")
     col.prop(m, "strip")
@@ -178,9 +193,21 @@ def _draw_flap(self, context, col, m):
         box = col.box()
         box.prop(rig, f'["{name}"]', text="Pull", slider=True)
         box.operator("popup.animate_pull", icon="PLAY").uid = m.uid
+    self.draw_warnings(context, m)
+
+
+def _draw_warnings(self, context, m):
+    ws = [w for w in context.scene.popup.warnings.splitlines()
+          if w.startswith(m.label + ":") or w.startswith(m.label + " and")]
+    if ws:
+        box = self.layout.box()
+        for w in ws:
+            box.label(text=w[len(m.label) + 1:].strip() if w.startswith(m.label + ":") else w,
+                      icon="ERROR")
 
 
 POPUP_PT_mechs.draw_flap = _draw_flap
+POPUP_PT_mechs.draw_warnings = _draw_warnings
 
 
 class POPUP_PT_checks(_Base, bpy.types.Panel):
