@@ -27,7 +27,7 @@ them.**
 ## Install
 
 1. Download `popup_pro-x.y.z.zip` from
-   [Releases](https://github.com/Liatach/popup-pro/releases), or build it
+   [Releases](https://github.com/Liatach/Pop-UpPro/releases), or build it
    with `scripts/build.sh`.
 2. In Blender 4.3 or later: **Edit → Preferences → Get Extensions → ⌄ →
    Install from Disk**.
