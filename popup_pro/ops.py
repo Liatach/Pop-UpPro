@@ -353,6 +353,8 @@ class POPUP_OT_paint(bpy.types.Operator):
         obj.select_set(True)
         context.view_layer.objects.active = obj
         bpy.ops.object.mode_set(mode="TEXTURE_PAINT")
+        from . import colours
+        colours.enter(sc)  # (also done on any switch into Texture Paint)
         ip = sc.tool_settings.image_paint
         ip.mode = "MATERIAL"
         if self.target == "LAYOUT":

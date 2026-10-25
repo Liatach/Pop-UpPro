@@ -683,6 +683,11 @@ class PopupSettings(bpy.types.PropertyGroup):
     export_sketch: BoolProperty(name="Sketches", default=True)
     export_guides: BoolProperty(name="Glue Guides", default=True)
     export_labels: BoolProperty(name="Labels", default=True)
+    true_colours: BoolProperty(name="True Colours While Painting", default=True,
+                               description="In Texture Paint, show the paper unlit with the "
+                               "Standard view transform, so the colours you see and pick up "
+                               "with the eyedropper are the ones in the art (and in print). "
+                               "Your view settings come back when you leave Texture Paint")
     auto_holes: BoolProperty(name="Cut Painted Areas", default=True,
                              description="Whatever is painted see-through (Erase Alpha) is "
                              "cut out of the paper: holes inside a piece, or a new edge where "

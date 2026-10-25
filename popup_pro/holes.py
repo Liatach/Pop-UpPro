@@ -702,6 +702,15 @@ def _mode_changed():
         was = _last_mode["mode"]
         _last_mode["mode"] = mode
         sc = ctx.scene
+        if sc is not None and mode != was:
+            from . import colours
+            try:
+                if mode == "PAINT_TEXTURE":
+                    colours.enter(sc)
+                elif was == "PAINT_TEXTURE":
+                    colours.leave(sc)
+            except Exception:
+                pass
         if was == "PAINT_TEXTURE" and mode != "PAINT_TEXTURE" and sc is not None \
                 and sc.popup.auto_holes and has_art(sc):
             name = sc.name

@@ -462,6 +462,14 @@ mesh, no rig). So:
 * **Paint Flat / Paint Folded** opens Texture Paint on the layout or on the
   folded card. The paint goes into **Pop-up Art**, a UDIM image with one
   tile per piece (tile 1001 is the card), and shows on both.
+* **True Colours While Painting** (on by default): in Texture Paint the paper
+  shows its art unlit (EEVEE and Material Preview; Solid views show flat
+  texture colours) and the view transform is set to Standard. What you see
+  is then exactly what is in the art and what prints, so colours picked off
+  the screen with the eyedropper match the ones you painted. Under the usual
+  AgX view and lighting, a re-sampled colour comes back duller and darker
+  each time. Your view transform and shading come back when you leave
+  Texture Paint.
 * **Paint System**: paint the Layout or Card object and choose the
   **PopupArt** UV map for its layers. Then **Bake Art for Print** flattens
   whatever the material shows into **Pop-up Print** for the export. The bake
@@ -571,6 +579,7 @@ python tests/test_v12.py       # pointed floors, mechanisms in floor and ceiling
 python tests/test_v13.py       # painted trims cut on export, openings in any piece
 python tests/test_v14.py       # extra creases and cuts: reverse points, steps, jaws, projections
 python tests/test_v15.py       # creases and cuts on boxes, stand-ups (also on V-folds)
+python tests/test_v16.py       # true colours while painting
 ```
 
 ## Limits and roadmap
