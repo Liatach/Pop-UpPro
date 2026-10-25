@@ -371,8 +371,13 @@ class Model:
                     self.warn(f"{m['label']}: frames, floors and ceilings go on a stage set, "
                               f"and only they do; skipped")
                     ok = False
-                elif parent is None or (parent["type"] not in ("BOX", "STANDUP") and not lid
-                                        and not stage
+                elif parent is not None and parent["type"] == "VFOLD" and \
+                        m["type"] not in ("STANDUP", "BOX"):
+                    self.warn(f"{m['label']}: only stand-ups and glued boxes stand on a "
+                              f"V-fold's halves; skipped")
+                    ok = False
+                elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD")
+                                        and not lid and not stage
                                         and not joint):
                     self.warn(f"{m['label']}: its host is missing (a box, or a tube with a "
                               f"dipped flat roof); skipped")
@@ -399,6 +404,8 @@ class Model:
                 fold = "S"  # the stage set's back crease
             if h and by_uid[h]["type"] in ("FLOOR", "CEILING"):
                 fold = "L" if m.get("side", "L") == "L" else "R"  # its join with a wall
+            if h and by_uid[h]["type"] == "VFOLD":
+                fold = m.get("vside", "FL")  # in front of / behind a half
             host = self.hosts.get((h, fold) if h else (0, "S"))
             if host is None:
                 self.warn(f"{m['label']}: its host was skipped; skipped too")
@@ -876,10 +883,47 @@ class Model:
             fold_build(self, piece, [f"{base}.HalfL", f"{base}.HalfR"], lab,
                        expand(m["lines"]), base)
 
+        self._vfold_hosts(uid, base, host, yP, g, Lc, (uLf, uRf), (uLp, uRp))
+
         tears = [s for s in self.samples if not self.crease(base, s)[3]]
         if tears:
             self.warn(f"{lab}: tears if opened past {min(tears):.0f} degrees (make the "
                       f"piece angle at least the glue angle)")
+
+    def _vfold_hosts(self, uid, base, host, yP, g, Lc, uf, up):
+        """Each half's glue line is a fold too: a stand-up (or a glued box)
+        can stand in front of a half (FL, FR: between it and the page outside
+        the V) or behind it (BL, BR: inside the V). The half is the
+        background, the page the floor; positions run out along the glue
+        line from the V point. These folds don't open with the card's own
+        angle, so what stands on them is tabulated."""
+        bis = Vector((uf[0][0] + uf[1][0], uf[0][1] + uf[1][1], 0.0))
+        if bis.length < 1e-6:
+            bis = Vector((0.0, 1.0, 0.0))
+        for side, k in (("L", 0), ("R", 1)):
+            half = f"{base}.Half{side}"
+            if half not in self.panels:
+                continue
+            u_f = Vector((uf[k][0], uf[k][1], 0.0))
+            u_p = Vector((up[k][0], up[k][1], 0.0))
+            # into the half, away from its glue edge (towards the centre fold)
+            into = Vector((u_p.y, -u_p.x, 0.0))
+            if into.dot(Vector((0.0, Lc, 0.0))) < 0:
+                into = -into
+            inside = Vector((u_f.y, -u_f.x, 0.0))  # on the page, into the V
+            if inside.dot(bis) < 0:
+                inside = -inside
+            page, Tp = (host.p1, host.T1) if side == "L" else (host.p2, host.T2)
+            T1 = frame(Vector((0.0, 0.0, 0.0)), -into, u_p)
+            for key, x2, txt in (("F" + side, -inside, "in front of"),
+                                 ("B" + side, inside, "behind")):
+                T2 = Tp @ frame(Vector((0.0, yP, 0.0)), x2, u_f)
+                h = Host(self, half, 0.0, 0.0, page, 0.0, 0.0,
+                         f"{self.panels[half].label} ({txt})", T1, T2).finish()
+                h.trig = False
+                h.size = (g, Lc)
+                h.key = (uid, key)  # its foot may sit on the V-fold's own tab
+                self.hosts[(uid, key)] = h
 
     # ------------------------------------------------------------------ cube
     def _cube(self, m, host):

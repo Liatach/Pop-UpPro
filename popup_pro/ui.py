@@ -83,6 +83,15 @@ class POPUP_MT_add(bpy.types.Menu):
                     op = self.layout.operator("popup.add", text=f"{name}, {wall}",
                                               icon=KIND_ICON[k])
                     op.kind, op.host, op.side = k, h.uid, side
+        elif st.mechs and st.active < len(st.mechs) and st.mechs[st.active].kind == "VFOLD":
+            h = st.mechs[st.active]
+            self.layout.separator()
+            self.layout.label(text=f"On {h.label}:")
+            for fold, where in (("FL", "in front, left"), ("FR", "in front, right"),
+                                ("BL", "behind, left"), ("BR", "behind, right")):
+                op = self.layout.operator("popup.add", text=f"Stand-up {where}",
+                                          icon=KIND_ICON["STANDUP"])
+                op.kind, op.host, op.fold = "STANDUP", h.uid, fold
         elif st.mechs and st.active < len(st.mechs) and st.mechs[st.active].kind == "STAGE":
             h = st.mechs[st.active]
             self.layout.separator()
@@ -351,10 +360,14 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         hm = next((h for h in st.mechs if h.uid == m.host_uid), None) if m.host_uid else None
         if hm is not None and hm.kind in ("BOX", "BOXCUT", "STANDUP"):
             col.prop(m, "fold")
+        if hm is not None and hm.kind == "VFOLD":
+            col.prop(m, "vside")
         joint = hm is not None and hm.kind in ("FLOOR", "CEILING")
         if joint:
             col.prop(m, "side", text="Wall")
-        col.prop(m, "y", text={"MOUTH": "Slit Position"}.get(m.kind, "Position")
+        on_v = hm is not None and hm.kind == "VFOLD"
+        col.prop(m, "y", text="Out Along Glue Line" if on_v else
+                 {"MOUTH": "Slit Position"}.get(m.kind, "Position")
                  if not joint else "Out from Fold")
         if m.kind == "CUBE":
             col.prop(m, "size")

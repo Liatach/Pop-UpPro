@@ -103,6 +103,25 @@ fam = m.panels["Stand1.CB"].asm(90)
 assert abs((fam.inverted() @ q).z) < 0.5
 print("stand-ups: pictures stay parallel to the background or floor, and stack")
 
+# ---- stand-ups in front of and behind a V-fold's halves
+V = dict(type="VFOLD", uid=1, label="V", y=60, phi_l=60, phi_r=60, alpha_l=80, alpha_r=80,
+         glue=60, height=70, tab=10, tab_side="IN")
+for side in ("FL", "BL", "FR", "BR"):
+    S = dict(type="STANDUP", stand="UPRIGHT", uid=2, label="S", y=15, width=20, height=25,
+             depth=15, img_w=30, img_h=40, tab=8, host=1, vside=side)
+    m = Model(CARD, [V, S])
+    m.check_fit()
+    assert not m.warnings, (side, m.warnings)
+    half = f"VFold1.Half{side[1]}"
+    for t in (20, 60, 90, 130, 170):
+        zh = m.panels[half].asm(t).to_3x3() @ Vector((0, 0, 1))
+        zp = m.panels["Stand2.CB"].asm(t).to_3x3() @ Vector((0, 0, 1))
+        assert abs(abs(zh.dot(zp)) - 1) < 1e-4, (side, t)
+    # bridge tab on the half, foot on the page (in front: outside the V)
+    q = m.panels["Stand2.TabA"].asm(90) @ Vector((-2, 10, 0))
+    assert abs((m.panels[half].asm(90).inverted() @ q).z) < 0.5, side
+print("stand-ups in front of and behind V-fold halves stay parallel to them")
+
 # ---- in Blender
 addon.register()
 sc = bpy.context.scene
@@ -116,8 +135,13 @@ for pre in ("BATTLEMENTS", "DOORWAY"):
     assert bpy.ops.popup.add_line(preset=pre) == {"FINISHED"}
 assert bpy.ops.popup.add(kind="STANDUP") == {"FINISHED"}
 su = st.mechs[-1]
-su.y = 120
+su.y, su.img_w = 108, 50
 assert bpy.ops.popup.add(kind="STANDUP", host=su.uid, fold="B") == {"FINISHED"}
+assert bpy.ops.popup.add(kind="VFOLD") == {"FINISHED"}
+vf = st.mechs[-1]
+vf.y, vf.glue, vf.height = 172, 30, 26
+assert bpy.ops.popup.add(kind="STANDUP", host=vf.uid, fold="FR") == {"FINISHED"}
+assert st.mechs[-1].vside == "FR" and st.mechs[-1].host_uid == vf.uid
 st.keep_open = False
 model = build.rebuild(sc, force=True)
 assert not st.warnings, st.warnings

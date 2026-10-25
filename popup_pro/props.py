@@ -119,7 +119,10 @@ def host_items(self, context):
                     items.append((str(m.uid), m.label, f"Stand in {m.label}",
                                   "IMAGE_BACKGROUND", m.uid))
                 continue
-            if m.kind in ("BOX", "BOXCUT", "STANDUP"):
+            if m.kind == "VFOLD" and self.kind in ("STANDUP", "BOX"):
+                items.append((str(m.uid), m.label, f"Stand in front of or behind a half "
+                              f"of {m.label}", "MOD_TRIANGULATE", m.uid))
+            elif m.kind in ("BOX", "BOXCUT", "STANDUP"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
                               "MESH_CUBE" if m.kind != "STANDUP" else "OUTLINER_OB_IMAGE",
                               m.uid))
@@ -159,6 +162,26 @@ def fit_to_host(m, st):
             elif m.kind == "CUBE":
                 m.size = m.height = 0.6 * k
                 m.y = 0.3 * host.depth
+        finally:
+            st["live"] = was
+        return
+    if host is not None and host.kind == "VFOLD":
+        # on a half's glue line: the half is the background, the page the floor
+        was = st.live
+        st["live"] = False
+        try:
+            g, L = host.glue, host.height
+            if m.kind == "STANDUP":
+                m.width = 0.3 * g
+                m.y = 0.35 * g
+                m.height = 0.35 * L
+                m.depth = 0.25 * g
+                m.img_w = 0.5 * g
+                m.img_h = 0.6 * L
+            elif m.kind == "BOX":
+                m.width = 0.4 * g
+                m.y = 0.3 * g
+                m.height = m.depth = 0.25 * min(g, L)
         finally:
             st["live"] = was
         return
@@ -404,6 +427,16 @@ class PopupMech(bpy.types.PropertyGroup):
                          default=50.0, min=2.0, soft_max=200.0, update=_changed)
     tab: FloatProperty(name="Tab", description="Glue tab size (mm)", default=12.0,
                        min=3.0, soft_max=30.0, update=_changed)
+    vside: EnumProperty(name="Where", description="Which half of the host V-fold, and "
+                        "which side of it", items=[
+                            ("FL", "In Front, Left", "Stands on the page in front of the "
+                             "left half, the half as its background"),
+                            ("BL", "Behind, Left", "Inside the V, against the back of the "
+                             "left half"),
+                            ("FR", "In Front, Right", "Stands on the page in front of the "
+                             "right half"),
+                            ("BR", "Behind, Right", "Inside the V, against the back of the "
+                             "right half")], update=_fold_changed)
     # stand-up
     stand: EnumProperty(name="Picture", items=[
         ("UPRIGHT", "Upright", "The picture stands parallel to the background, held by a "
@@ -422,7 +455,7 @@ class PopupMech(bpy.types.PropertyGroup):
 
     def to_dict(self):
         d = dict(uid=self.uid, label=self.label, y=self.y, tab=self.tab,
-                 host=self.host_uid, fold=self.fold, side=self.side)
+                 host=self.host_uid, fold=self.fold, side=self.side, vside=self.vside)
         if self.kind == "TUBE":
             d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
                      front=self.front, back=self.back, front_style=self.front_style,

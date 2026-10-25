@@ -24,7 +24,7 @@ them.**
   mirror; the new folds are solved and driven like any other.
 * **Parallelogram stand-ups** (Birmingham 38): pictures held off the
   background on a bridge, or flat on a leg, stacking in front of and on top
-  of each other.
+  of each other, and standing in front of or behind V-fold halves.
 * **Stack them**: boxes on boxes, steps up and forward, and inset (valley)
   boxes; V-folds and mouths sit on any box fold too.
 * **Movement test**: one Open slider (0–180°) drives a driver-only rig, with
@@ -360,6 +360,17 @@ uses the picture as the background (the dog), and *Stand-up on Top*, which
 sits on a flat picture against the background (the figure on the carpet).
 Boxes and V-folds can sit on a stand-up's folds too.
 
+![Two stand-ups in front of a V-fold, each held off one of its halves by a
+bridge](docs/images/vfold_standups.jpg)
+
+Stand-ups can also stand **on a V-fold**. With a V-fold selected, **Add** offers
+*Stand-up in front* or *behind*, on the left or right half. That half is the
+picture's background and the page is its floor, so the picture stays
+parallel to the half as the card opens. *In front* stands on the page outside
+the V, and *behind* stands inside the V. **Out Along Glue Line** sets where it
+sits along the half's glue line, measured from the V point. Glued boxes can
+stand there too.
+
 ### Holes and shaping (every mechanism)
 
 ![Stage 1: an arched staging frame, a perforated frame and a window through
@@ -559,13 +570,14 @@ python tests/test_v11.py       # a stage set standing in an ordinary card
 python tests/test_v12.py       # pointed floors, mechanisms in floor and ceiling corners
 python tests/test_v13.py       # painted trims cut on export, openings in any piece
 python tests/test_v14.py       # extra creases and cuts: reverse points, steps, jaws, projections
-python tests/test_v15.py       # creases and cuts on boxes, parallelogram stand-ups
+python tests/test_v15.py       # creases and cuts on boxes, stand-ups (also on V-folds)
 ```
 
 ## Limits and roadmap
 
 * One card (or carousel) per scene. Mechanisms sit on the spine, on box
-  folds or on a basic box's roof, not yet on V-folds.
+  folds, stand-ups or a basic box's roof. On V-folds only stand-ups and
+  glued boxes can stand (in front of or behind a half).
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
 * Extra creases and cuts work on V-folds, box folds and box layers; tubes,

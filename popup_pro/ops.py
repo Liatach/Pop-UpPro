@@ -165,7 +165,10 @@ def _put_on(st, uid, host, fold="A"):
     st["live"] = False
     m = next(x for x in st.mechs if x.uid == uid)
     m.host_uid = host
-    m["fold"] = {"A": 0, "B": 1, "C": 2}.get(fold, 0)
+    if fold in ("FL", "BL", "FR", "BR"):  # in front of / behind a V-fold half
+        m["vside"] = ("FL", "BL", "FR", "BR").index(fold)
+    else:
+        m["fold"] = {"A": 0, "B": 1, "C": 2}.get(fold, 0)
     fit_to_host(m, st)
     h = next((x for x in st.mechs if x.uid == host), None)
     if m.kind == "FRAME" and h is not None and h.kind == "STAGE":
