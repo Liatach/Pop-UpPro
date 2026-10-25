@@ -127,9 +127,10 @@ def host_items(self, context):
                     items.append((str(m.uid), m.label, f"Stand in {m.label}",
                                   "IMAGE_BACKGROUND", m.uid))
                 continue
-            if m.kind == "VFOLD" and self.kind in ("STANDUP", "BOX"):
-                items.append((str(m.uid), m.label, f"Stand in front of or behind a half "
-                              f"of {m.label}", "MOD_TRIANGULATE", m.uid))
+            if m.kind == "VFOLD" and self.kind in ("STANDUP", "BOX", "BOXCUT", "VFOLD",
+                                                   "MOUTH"):
+                items.append((str(m.uid), m.label, f"On {m.label}: its crease, or in "
+                              f"front of or behind a half", "MOD_TRIANGULATE", m.uid))
             elif m.kind in ("BOX", "BOXCUT", "STANDUP"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
                               "MESH_CUBE" if m.kind != "STANDUP" else "OUTLINER_OB_IMAGE",
@@ -179,6 +180,24 @@ def fit_to_host(m, st):
         st["live"] = False
         try:
             g, L = host.glue, host.height
+            if m.vside == "V":  # on the crease: the halves are its pages
+                k = 0.35 * min(g, L)
+                if m.kind in ("BOX", "BOXCUT"):
+                    m.height = m.depth = k
+                    m.width = 0.35 * L
+                    m.y = 0.3 * L
+                elif m.kind == "VFOLD":
+                    m.glue = m.height = k
+                    m.y = 0.3 * L
+                elif m.kind == "STANDUP":
+                    m.height, m.depth, m.width = 0.6 * k, 0.6 * k, 0.2 * L
+                    m.img_w, m.img_h = 0.4 * L, 1.2 * k
+                    m.y = 0.4 * L
+                elif m.kind == "MOUTH":
+                    m.jaw = 0.6 * k
+                    m.upper = m.lower = 0.15 * L
+                    m.y = 0.5 * L
+                return
             if m.kind == "STANDUP":
                 m.width = 0.3 * g
                 m.y = 0.35 * g
@@ -409,6 +428,17 @@ class PopupMech(bpy.types.PropertyGroup):
                          "below the slit (mm)", default=15.0, min=1.0, soft_max=150.0,
                          update=_changed)
     symmetric: BoolProperty(name="Symmetric", default=True, update=_sym)
+    fold_flat: BoolProperty(name="Fold Flat", default=True, update=_changed,
+                            description="Asymmetric V-fold: work out the piece angles from "
+                            "the glue angles and the Lean, so the piece always folds flat "
+                            "in the closed card (left piece angle = right glue angle + Lean, "
+                            "right piece angle = left glue angle + Lean; glue angles over 90 "
+                            "point it backwards and are measured from the other end of the "
+                            "spine). Off: set them yourself")
+    lean: FloatProperty(name="Lean", description="How much each piece angle is bigger than "
+                        "the opposite glue angle (degrees). The centre crease leans towards "
+                        "the side with the bigger glue angle; more Lean, steeper planes",
+                        default=20.0, min=1.0, max=90.0, update=_changed)
     phi_l: FloatProperty(name="Glue Angle L", description="Angle between the spine and "
                          "the left glue line (degrees)", default=60.0, min=5.0,
                          max=175.0, update=_sym)
@@ -444,7 +474,10 @@ class PopupMech(bpy.types.PropertyGroup):
                             ("FR", "In Front, Right", "Stands on the page in front of the "
                              "right half"),
                             ("BR", "Behind, Right", "Inside the V, against the back of the "
-                             "right half")], update=_fold_changed)
+                             "right half"),
+                            ("V", "On the Crease", "Across the V-fold's own centre crease, "
+                             "between its halves: the V-fold is its spine")],
+                        update=_fold_changed)
     # stand-up
     stand: EnumProperty(name="Picture", items=[
         ("UPRIGHT", "Upright", "The picture stands parallel to the background, held by a "
@@ -500,9 +533,16 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "MOUTH":
             d.update(type="MOUTH", jaw=self.jaw, upper=self.upper, lower=self.lower)
         elif self.kind == "VFOLD":
-            d.update(type="VFOLD", phi_l=self.phi_l, alpha_l=self.alpha_l,
-                     phi_r=self.phi_l if self.symmetric else self.phi_r,
-                     alpha_r=self.alpha_l if self.symmetric else self.alpha_r,
+            al, ar = self.alpha_l, self.alpha_r
+            if self.symmetric:
+                ar = al
+            elif self.fold_flat:
+                if self.phi_l + self.phi_r > 180.0:  # pointing backwards (Birmingham 31)
+                    al, ar = 180.0 - self.phi_r + self.lean, 180.0 - self.phi_l + self.lean
+                else:
+                    al, ar = self.phi_r + self.lean, self.phi_l + self.lean
+            d.update(type="VFOLD", phi_l=self.phi_l, alpha_l=al,
+                     phi_r=self.phi_l if self.symmetric else self.phi_r, alpha_r=ar,
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
                      shape=self.shape,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())

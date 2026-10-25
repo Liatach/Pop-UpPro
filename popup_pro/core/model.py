@@ -371,10 +371,13 @@ class Model:
                     self.warn(f"{m['label']}: frames, floors and ceilings go on a stage set, "
                               f"and only they do; skipped")
                     ok = False
-                elif parent is not None and parent["type"] == "VFOLD" and \
-                        m["type"] not in ("STANDUP", "BOX"):
-                    self.warn(f"{m['label']}: only stand-ups and glued boxes stand on a "
-                              f"V-fold's halves; skipped")
+                elif parent is not None and parent["type"] == "VFOLD" and (
+                        m["type"] not in ("STANDUP", "BOX", "VFOLD", "MOUTH") or
+                        (m.get("vside", "FL") != "V" and
+                         (m["type"] not in ("STANDUP", "BOX") or m.get("style") == "CUT"))):
+                    self.warn(f"{m['label']}: on a V-fold's crease go boxes, box layers, "
+                              f"V-folds, mouths and stand-ups; in front of or behind a half "
+                              f"only stand-ups and glued boxes; skipped")
                     ok = False
                 elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD")
                                         and not lid and not stage
@@ -446,6 +449,8 @@ class Model:
                     hg = self.panels[name].hinge
                     if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
                         hg.kind = "TABLE"
+                    if hg is not None:
+                        hg.host_bound = True  # rides a fold that may not open evenly
 
     # ------------------------------------------------------- page directions
     def dirs(self, t):
@@ -887,8 +892,9 @@ class Model:
 
         tears = [s for s in self.samples if not self.crease(base, s)[3]]
         if tears:
-            self.warn(f"{lab}: tears if opened past {min(tears):.0f} degrees (make the "
-                      f"piece angle at least the glue angle)")
+            self.warn(f"{lab}: tears if opened past {min(tears):.0f} degrees (pointing "
+                      f"forward, make each piece angle at least its glue angle; or turn on "
+                      f"Fold Flat)")
 
     def _vfold_hosts(self, uid, base, host, yP, g, Lc, uf, up):
         """Each half's glue line is a fold too: a stand-up (or a glued box)
@@ -897,6 +903,20 @@ class Model:
         background, the page the floor; positions run out along the glue
         line from the V point. These folds don't open with the card's own
         angle, so what stands on them is tabulated."""
+        # its own centre crease: a spine of its own, the halves its pages (in
+        # the piece's pattern the crease runs up x = 0, both halves alike)
+        hl, hr = f"{base}.HalfL", f"{base}.HalfR"
+        if hl in self.panels and hr in self.panels:
+            def cx(n):
+                pts = [q for poly in self.panels[n].polys for q in poly]
+                return sum(q[0] for q in pts) / max(1, len(pts))
+            p1, p2 = (hl, hr) if cx(hl) < cx(hr) else (hr, hl)
+            h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0,
+                     f"{self.panels[hl].label.split(':')[0]}: crease").finish()
+            h.trig = False
+            h.size = (g, Lc)
+            h.key = (uid, "V")
+            self.hosts[(uid, "V")] = h
         bis = Vector((uf[0][0] + uf[1][0], uf[0][1] + uf[1][1], 0.0))
         if bis.length < 1e-6:
             bis = Vector((0.0, 1.0, 0.0))
@@ -2387,10 +2407,19 @@ class Model:
             return (d + math.pi) % (2 * math.pi) - math.pi
 
         cache = {}
+        bad = []
 
         def true(t):
             if t not in cache:
-                cache[t] = self.true_psi(name, t)
+                try:
+                    cache[t] = self.true_psi(name, t)
+                except ValueError:
+                    # the host can't hold this pose (paper would tear there):
+                    # follow it as best we can and say so
+                    p = self.panels[name]
+                    M = h.Hp.inverted() @ self.rel(name, t) @ h.Fc
+                    cache[t] = angle_from_roty(M)
+                    bad.append(t)
             return cache[t]
 
         pts = list(self.TABLE_T)
@@ -2435,8 +2464,17 @@ class Model:
                 continue  # a floor pulling flat at full opening: square-root corner
             err = max(err, abs(wrap(fn(tm) - true(tm))))
         h.check = err
-        if err > 2e-3:
-            raise ValueError(f"{name}: tabulated hinge is off by {err:.2e} rad")
+        lab = self.panels[name].label.split(":")[0]
+        far = [t for t in bad if t >= 1.0]  # squashed shut: no matter
+        if far:
+            self.warn(f"{lab}: its fold can't follow the card from about {min(far):.0f} "
+                      f"to {max(far):.0f} degrees (the paper would tear)")
+        elif err > 2e-3 and not bad:
+            if self.panels[name].hinge.kind == "TABLE" and getattr(h, "host_bound", False):
+                self.warn(f"{lab}: moves unevenly (its host fold kinks); check it in "
+                          f"the movement test")
+            else:
+                raise ValueError(f"{name}: tabulated hinge is off by {err:.2e} rad")
 
     def _expr_hinge(self, name, h):
         """Hinges written as a formula: EXPR (in the open angle T, degrees),

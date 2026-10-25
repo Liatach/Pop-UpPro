@@ -64,6 +64,10 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("PYRAMID", "Pyramid / Tent (parallel strips)"),
                         ("STANDUP", "Stand-up (parallelogram)")):
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
+            if k == "VFOLD":
+                op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
+                                          icon=KIND_ICON[k])
+                op.kind, op.variant = "VFOLD", "ASYM"
         st = context.scene.popup
         if st.stage_master is None:
             self.layout.operator("popup.add", text="Stage Set (V-fold)",
@@ -87,6 +91,13 @@ class POPUP_MT_add(bpy.types.Menu):
             h = st.mechs[st.active]
             self.layout.separator()
             self.layout.label(text=f"On {h.label}:")
+            for kind, text in (("BOX", "Glued Box on the Crease"),
+                               ("BOXCUT", "Box Layer cut in the Crease"),
+                               ("VFOLD", "V-fold on the Crease"),
+                               ("MOUTH", "Mouth cut in the Crease"),
+                               ("STANDUP", "Stand-up on the Crease")):
+                op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
+                op.kind, op.host, op.fold = kind, h.uid, "V"
             for fold, where in (("FL", "in front, left"), ("FR", "in front, right"),
                                 ("BL", "behind, left"), ("BR", "behind, right")):
                 op = self.layout.operator("popup.add", text=f"Stand-up {where}",
@@ -386,7 +397,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         if joint:
             col.prop(m, "side", text="Wall")
         on_v = hm is not None and hm.kind == "VFOLD"
-        col.prop(m, "y", text="Out Along Glue Line" if on_v else
+        col.prop(m, "y", text=("Up the Crease" if m.vside == "V" else "Out Along Glue Line")
+                 if on_v else
                  {"MOUTH": "Slit Position"}.get(m.kind, "Position")
                  if not joint else "Out from Fold")
         if m.kind == "CUBE":
@@ -418,9 +430,16 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "phi_l", text="Glue Angle" if m.symmetric else "Glue Angle L")
             if not m.symmetric:
                 col.prop(m, "phi_r")
-            col.prop(m, "alpha_l", text="Piece Angle" if m.symmetric else "Piece Angle L")
-            if not m.symmetric:
-                col.prop(m, "alpha_r")
+                col.prop(m, "fold_flat")
+            if not m.symmetric and m.fold_flat:
+                col.prop(m, "lean")
+                d = m.to_dict()
+                col.label(text=f"Piece angles {d['alpha_l']:.0f}° L, {d['alpha_r']:.0f}° R; "
+                          f"leans {'right' if m.phi_r > m.phi_l else 'left'}", icon="INFO")
+            else:
+                col.prop(m, "alpha_l", text="Piece Angle" if m.symmetric else "Piece Angle L")
+                if not m.symmetric:
+                    col.prop(m, "alpha_r")
             col.prop(m, "tab")
             col.prop(m, "tab_side")
             _draw_lines(self.layout, context, m)

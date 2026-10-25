@@ -120,6 +120,7 @@ class POPUP_OT_add(bpy.types.Operator):
     host: IntProperty(default=0, description="Mechanism id of the host box (0 = spine)")
     fold: StringProperty(default="A")
     side: StringProperty(default="", description="Wall, for a corner of a floor or ceiling")
+    variant: StringProperty(default="", description="ASYM: an asymmetric V-fold")
 
     def execute(self, context):
         st = context.scene.popup
@@ -146,6 +147,13 @@ class POPUP_OT_add(bpy.types.Operator):
                 return {"CANCELLED"}
         m = _add(st, self.kind)
         uid = m.uid
+        if self.kind == "VFOLD" and self.variant == "ASYM":
+            was = st.live
+            st["live"] = False
+            m.symmetric = False
+            m.phi_l, m.phi_r, m.lean, m.fold_flat = 40.0, 75.0, 20.0, True
+            m.label = "Asymmetric " + m.label
+            st["live"] = was
         if self.host:
             if self.side:
                 next(x for x in st.mechs if x.uid == uid)["side"] = 1 if self.side == "L" else 0
@@ -165,8 +173,8 @@ def _put_on(st, uid, host, fold="A"):
     st["live"] = False
     m = next(x for x in st.mechs if x.uid == uid)
     m.host_uid = host
-    if fold in ("FL", "BL", "FR", "BR"):  # in front of / behind a V-fold half
-        m["vside"] = ("FL", "BL", "FR", "BR").index(fold)
+    if fold in ("FL", "BL", "FR", "BR", "V"):  # on a V-fold: a half, or its crease
+        m["vside"] = ("FL", "BL", "FR", "BR", "V").index(fold)
     else:
         m["fold"] = {"A": 0, "B": 1, "C": 2}.get(fold, 0)
     fit_to_host(m, st)

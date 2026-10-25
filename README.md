@@ -19,10 +19,9 @@ them.**
   through every layer behind or into the next stage, painted see-through
   areas, and holes sketched with Grease Pencil, all cut as real holes.
 * **Extra creases and cuts** on V-folds, box folds and box layers: reverse
-  points, steps, jaws and projections (Birmingham 5, 6, 9 and 10), and
-  battlements, spires and doorways (Birmingham 37). Draw on one side and
+  points, steps, jaws and projections, and battlements, spires and doorways. Draw on one side and
   mirror; the new folds are solved and driven like any other.
-* **Parallelogram stand-ups** (Birmingham 38): pictures held off the
+* **Parallelogram stand-ups**: pictures held off the
   background on a bridge, or flat on a leg, stacking in front of and on top
   of each other, and standing in front of or behind V-fold halves.
 * **Stack them**: boxes on boxes, steps up and forward, and inset (valley)
@@ -100,15 +99,16 @@ layout. This is viewport only and never rendered; the pointer button under
 
 | | What it is | Settings |
 |---|---|---|
-| **V-fold** | A folded piece glued along two lines that meet on a fold | Position, Fold Length, Glue Length, Glue Angle (fold to glue line), Piece Angle (centre fold to glue edge), tab size and side, symmetric or separate left/right. **Shape: Panels or Beak** (two triangles meeting at a point) |
+| **V-fold** | A folded piece glued along two lines that meet on a fold ([Tutorial 2](https://www.youtube.com/watch?v=Lm2RYojO-q8), [Tutorial 3](https://www.youtube.com/watch?v=MvbGJxH-1pg)) | Position, Fold Length, Glue Length, Glue Angle (fold to glue line), Piece Angle (centre fold to glue edge), tab size and side, symmetric or separate left/right. **Shape: Panels or Beak** (two triangles meeting at a point) |
+| **Asymmetric V-fold** | A V-fold with different glue angles each side, whose crease leans over; it carries what stands on it off the card's centre ([Tutorial 4](https://www.youtube.com/watch?v=N-mv6ePRNAc), [Tutorial 29](https://www.youtube.com/watch?v=1OqP1pXhDUQ)) | As the V-fold, plus Glue Angle R, Fold Flat and Lean |
 | **Mouth** | A slit across a fold with two pairs of triangles cut into the paper; the jaws open as the card opens | Slit Position, Jaw Length (slit each side of the fold), Upper Jaw, Lower Jaw |
-| **Box fold** | A separate strip glued across a fold (parallel fold) | Position, Height (along the fold), Width Left, Width Right, tab size |
-| **Box layer** | The same parallel fold cut into the paper itself | Position, Height, Width Left, Width Right |
-| **Stand-up** | A picture held off the background by a bridge, or flat on a leg (Birmingham 38) | Picture (Upright or Flat), Position, Bridge or Leg Width, Bridge Height, Out From Back, Picture Width and Height, tab size |
+| **Box fold** | A separate strip glued across a fold (parallel fold; [Tutorial 1](https://www.youtube.com/watch?v=RVZEsnzJTqM)) | Position, Height (along the fold), Width Left, Width Right, tab size |
+| **Box layer** | The same parallel fold cut into the paper itself ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc), [Tutorial 6](https://www.youtube.com/watch?v=9xRj1-OUX64)) | Position, Height, Width Left, Width Right |
+| **Stand-up** | A picture held off the background by a bridge, or flat on a leg ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc)) | Picture (Upright or Flat), Position, Bridge or Leg Width, Bridge Height, Out From Back, Picture Width and Height, tab size |
 | **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
-| **Tube** | Hexagon, box or recessed tube on two parallel sticking strips (Birmingham 51, 67, 68) | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
+| **Tube** | Hexagon, box or recessed tube on two parallel sticking strips ([Tutorial 72](https://www.youtube.com/watch?v=6FKi95a14N4)) | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
 | **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
-| **Pyramid** | Pyramid, hexagonal pyramid or tent on two parallel sticking strips (Birmingham 52) | Position, Strip Distance, Base Length, Height, Ridge, Front and Back Width, each Pointed Out or In, base tabs |
+| **Pyramid** | Pyramid, hexagonal pyramid or tent on two parallel sticking strips ([Tutorial 21](https://www.youtube.com/watch?v=jZDHbUhV6Ms)) | Position, Strip Distance, Base Length, Height, Ridge, Front and Back Width, each Pointed Out or In, base tabs |
 | **Flap** | A lift-the-flap worked by a pull tab, with its own **Pull** slider | Page, From Spine, Up the Page, Hinge edge, Width, Length, Hinge Tab, Lift angle, Glue Point (5 mm from the hinge by default), Strip Width, Slit Gap, Pull Tab |
 
 ### Cube (180°)
@@ -149,7 +149,9 @@ Their fold angles are solved when the card is built and stored in the rig as
 driver curves (sampled every degree, more finely where needed), so the rig
 still needs no scripts.
 
-### Pyramids, tents and roofs (Birmingham 52)
+### Pyramids, tents and roofs
+
+See The Pop-Up Channel's [Tutorial 21](https://www.youtube.com/watch?v=jZDHbUhV6Ms).
 
 ![A hexagonal tower with a pyramid cap, a house with a ridge roof and a
 pyramid, opening](docs/images/roofs.jpg)
@@ -184,12 +186,14 @@ the roof can **Overhang** the walls all round, like eaves.
   inside the walls, so nothing extra sticks out. This needs walls at least
   as tall as the strip distance, and ends that don't point in.
 
-### The basic box (Birmingham 67): a second spine
+### The basic box: a second spine
+
+The box in the [360° pop-up book](https://www.youtube.com/watch?v=HKvsssZ9W0E) video.
 
 ![A box with a dipped roof and centre rib, with a V-fold and a step standing
 on its roof](docs/images/basic_box.jpg)
 
-A tube with a *Flat* roof set to *Dip* is Birmingham's basic box. The roof's
+A tube with a *Flat* roof set to *Dip* is the basic box. The roof's
 centre crease stays the wall height above the spine, straight up the middle,
 and its halves stay parallel to the pages. So the roof works as a second card
 spine:
@@ -205,7 +209,9 @@ spine:
 * A peaked roof turns the wrong way to be a spine, so it isn't offered as a
   host.
 
-### Carousels (stage sets, Birmingham 118)
+### Carousels (stage sets)
+
+As in the [360° pop-up book](https://www.youtube.com/watch?v=HKvsssZ9W0E) video.
 
 ![A five-stage carousel at 360, 300, 200 and 100 degrees](docs/images/carousel.jpg)
 
@@ -255,7 +261,7 @@ move around.
   stage, plus a carousel page with the joins and building order. With shared
   pages, the leaf sheets replace each stage's card sheet.
 
-### Stage set in a card (Birmingham 118 as a V-fold)
+### Stage set in a card (a carousel stage as a V-fold)
 
 ![A stage set in a card at 180, 140, 100 and 50 degrees: arched staging
 frame, two frames and a ceiling](docs/images/stage_set.jpg)
@@ -273,7 +279,35 @@ crease lies down the card from where it stands, and the checks say how far
 up to move it if that would run off the bottom. Openings on its frames can
 go *Through* to its background.
 
-### Extra creases and cuts (Birmingham 5, 6, 9 and 10)
+### Asymmetric V-folds: carrying pop-ups off the centre
+
+![An asymmetric V-fold leaning right, with a box and a stand-up on its own
+crease](docs/images/asym_vfold.jpg)
+
+See [Tutorial 4](https://www.youtube.com/watch?v=N-mv6ePRNAc) and [Tutorial 29](https://www.youtube.com/watch?v=1OqP1pXhDUQ), and for raising pop-ups off-centre in general, [Tutorial 9](https://www.youtube.com/watch?v=AMbeFT8L7oI) and
+[Tutorial 30](https://www.youtube.com/watch?v=eCq12WLoRx4).
+
+**Add → V-fold (asymmetric)** gives a V-fold with a different glue angle on each
+side. Its centre crease leans towards the side with the bigger glue angle,
+and planes rise at unexpected angles. With **Fold Flat** on (the default), the
+piece angles are worked out so the piece always folds flat in the closed
+card: left piece angle = right glue angle + **Lean**, and right piece angle =
+left glue angle + Lean. The panel shows the angles it uses. More Lean makes
+steeper planes. Glue angles over 90° point the V-fold backwards (the same rule,
+measured from the other end of the spine). Turn Fold Flat off to set the
+piece angles yourself; the checks say if the paper would tear.
+
+The V-fold's own crease is a spine in its own right, so what stands on it is
+carried away from the card's centre. With a V-fold selected, **Add** offers a
+glued box, a box layer cut into the piece, another V-fold, a mouth or a
+stand-up **on the crease**. **Where** → *On the Crease* and **Up the Crease**
+place them. Its halves open like a little card as the card opens, and
+everything on them follows. Stand-ups and glued boxes can also stand in front
+of or behind either half (above).
+
+### Extra creases and cuts
+
+See [Tutorial 7](https://www.youtube.com/watch?v=IkJAnmS-2ZE) and [Tutorial 22](https://www.youtube.com/watch?v=Ze9shENIBf4).
 
 ![Presets on a V-fold: reverse point, step, jaw and projection](docs/images/creases.jpg)
 
@@ -319,7 +353,9 @@ How the regions move (the same on every piece):
   The checks also flag a crease with nothing to fold against (usually a
   mirror left off) and a line that doesn't reach an edge, cut or other line.
 
-### Creases and cuts on boxes (Birmingham 37)
+### Creases and cuts on boxes
+
+See [Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc), [Tutorial 6](https://www.youtube.com/watch?v=9xRj1-OUX64) and [Tutorial 7](https://www.youtube.com/watch?v=IkJAnmS-2ZE).
 
 ![A box layer with battlements, a doorway and a tower with a spire; stand-ups:
 a picture on a bridge with a small one in front, a flying carpet with a figure
@@ -328,9 +364,8 @@ on it](docs/images/castle_standups.jpg)
 Box folds and box layers have the same **Extra creases and cuts** box. Here
 **X** is measured from the box's front-top fold (negative over the top,
 positive down the front) and **Y** along the box from its end. **Mirror** flips
-a line end to end. "Score lines never cross cut lines; cut lines begin and end
-at score lines" (Birmingham, p. 37): a cut that leaves a fold and comes back
-to it makes a shape that stands with the panel across the fold.
+a line end to end. Score lines never cross cut lines, and cut lines begin and
+end at score lines: a cut that leaves a fold and comes back to it makes a shape that stands with the panel across the fold.
 
 * *Battlements*: notches along the front-top fold. The merlons stand up above
   the top with the front.
@@ -346,7 +381,9 @@ Curved or irregular outlines work too: draw the cut with **Draw Cuts** from
 one fold to another. On a box layer, **Draw Creases** and **Draw Cuts** work
 on the card itself, over the box.
 
-### Parallelogram stand-ups (Birmingham 38)
+### Parallelogram stand-ups
+
+See [Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc).
 
 A picture held off the background by a small bridge. Seen from the side it is
 a box fold (background, bridge, picture, floor), but the picture is its own
@@ -595,13 +632,36 @@ python tests/test_v13.py       # painted trims cut on export, openings in any pi
 python tests/test_v14.py       # extra creases and cuts: reverse points, steps, jaws, projections
 python tests/test_v15.py       # creases and cuts on boxes, stand-ups (also on V-folds)
 python tests/test_v16.py       # true colours, strokes follow pieces, highlight, movement test
+python tests/test_v17.py       # asymmetric V-folds, mechanisms on a V-fold's crease
 ```
+
+## Tutorials
+
+The mechanisms follow The Pop-Up Channel's video tutorials:
+
+* [Pop-Up Tutorial 1 - Box-fold](https://www.youtube.com/watch?v=RVZEsnzJTqM)
+* [Pop-Up Tutorial 2 - V-folds Part 1: right-angle and acute-angle V-folds](https://www.youtube.com/watch?v=Lm2RYojO-q8)
+* [Pop-Up Tutorial 3 - V-folds Part 2: pointed and obtuse-angle V-folds](https://www.youtube.com/watch?v=MvbGJxH-1pg)
+* [Pop-Up Tutorial 4 - V-folds Part 3: asymmetric V-fold](https://www.youtube.com/watch?v=N-mv6ePRNAc)
+* [Pop-Up Tutorial 5 - Parallel-folds Part 1: parallelogram](https://www.youtube.com/watch?v=BvF15GfYwVc)
+* [Pop-Up Tutorial 6 - Parallel-folds Part 2: symmetric and asymmetric](https://www.youtube.com/watch?v=9xRj1-OUX64)
+* [Pop-Up Tutorial 7 - Adding extra creases to basic pop-up shapes, Part 1](https://www.youtube.com/watch?v=IkJAnmS-2ZE)
+* [Pop-Up Tutorial 9 - Raising pop-ups off-centre: the strap](https://www.youtube.com/watch?v=AMbeFT8L7oI)
+* [Pop-Up Tutorial 21 - Pyramids](https://www.youtube.com/watch?v=jZDHbUhV6Ms)
+* [Pop-Up Tutorial 22 - Adding extra creases, Part 2: counter-folds](https://www.youtube.com/watch?v=Ze9shENIBf4)
+* [Pop-Up Tutorial 29 - Asymmetric V-fold, Part 2](https://www.youtube.com/watch?v=1OqP1pXhDUQ)
+* [Pop-Up Tutorial 30 - V-fold action: building a tower](https://www.youtube.com/watch?v=eCq12WLoRx4)
+* [Pop-Up Tutorial 72 - Box, type 2](https://www.youtube.com/watch?v=6FKi95a14N4)
+* [360° pop-up book](https://www.youtube.com/watch?v=HKvsssZ9W0E) (the basic box and carousels; also [on Reddit](https://www.reddit.com/r/popupbooks/comments/1xcfeks/how_to_make_360_popup_book/))
+
+Duncan Birmingham's book *Pop-Up! A Manual of Paper Mechanisms* covers them
+too, along with the mouth and jaws.
 
 ## Limits and roadmap
 
 * One card (or carousel) per scene. Mechanisms sit on the spine, on box
-  folds, stand-ups or a basic box's roof. On V-folds only stand-ups and
-  glued boxes can stand (in front of or behind a half).
+  folds, stand-ups, a basic box's roof or a V-fold's crease; in front of or
+  behind a V-fold half only stand-ups and glued boxes.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
 * Extra creases and cuts work on V-folds, box folds and box layers; tubes,
@@ -609,7 +669,7 @@ python tests/test_v16.py       # true colours, strokes follow pieces, highlight,
   erasing its art). Asymmetric creases need their own matching crease on the
   other side (drawn with Mirror off).
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
-  V-folds on V-folds, arch V-folds, moving arms.
+  arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe
   route for printing.
 
