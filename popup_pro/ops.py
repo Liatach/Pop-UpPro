@@ -222,14 +222,46 @@ class POPUP_OT_set_open(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def _clear_keys(idb, data_path):
+    """Remove an animated property's keys (layered actions in Blender 4.4+,
+    plain fcurves before)."""
+    ad = idb.animation_data
+    if ad is None or ad.action is None:
+        return
+    fcs = getattr(ad.action, "fcurves", None)
+    if fcs is None:
+        try:
+            from bpy_extras import anim_utils
+            cb = anim_utils.action_get_channelbag_for_slot(ad.action, ad.action_slot)
+        except (ImportError, AttributeError):
+            cb = None
+        fcs = cb.fcurves if cb is not None else None
+    if fcs is None:
+        return
+    for fc in [f for f in fcs if f.data_path == data_path]:
+        fcs.remove(fc)
+
+
+def _frames(sc, seconds):
+    fps = sc.render.fps / (sc.render.fps_base or 1.0)
+    return max(1, int(round(seconds * fps)))
+
+
+def anim_timing(sc, cycle=True):
+    """Frames to open, hold and close, from the movement test settings."""
+    st = sc.popup
+    return (_frames(sc, st.anim_open), _frames(sc, st.anim_hold) if st.anim_hold > 0 else 0,
+            _frames(sc, st.anim_close))
+
+
 class POPUP_OT_animate(bpy.types.Operator):
-    """Keyframe the card opening flat and closing again from the start frame
-    (a movement test)"""
+    """Keyframe a movement test from the start frame: open to the Open To
+    angle, hold, and close, taking the times set below (replaces the last test)"""
     bl_idname = "popup.animate"
     bl_label = "Keyframe Movement Test"
     bl_options = {"REGISTER", "UNDO"}
-    mode: EnumProperty(items=[("OPEN", "Open", "Closed to flat"),
-                              ("CYCLE", "Open and Close", "Closed, flat, closed")],
+    mode: EnumProperty(items=[("OPEN", "Open", "Closed to open"),
+                              ("CYCLE", "Open and Close", "Closed, open, closed")],
                        default="CYCLE")
 
     @classmethod
@@ -240,28 +272,29 @@ class POPUP_OT_animate(bpy.types.Operator):
     def execute(self, context):
         sc = context.scene
         st = sc.popup
-        rig, prop, full = st.rig, '["pop_open"]', 180.0
+        rig, prop, top = st.rig, '["pop_open"]', min(st.anim_to, 180.0)
         if st.is_carousel or st.stage_master is not None:
             from . import carousel  # the carousel's Open drives every stage
             master = st.stage_master or sc
-            rig, prop, full = carousel.ctrl(master), f'["{carousel.OPEN}"]', 360.0
+            rig, prop = carousel.ctrl(master), f'["{carousel.OPEN}"]'
             sc = master
-        n = sc.popup.anim_frames
+            top = sc.popup.anim_to_carousel
+        n_open, n_hold, n_close = anim_timing(sc)
         f0 = sc.frame_start
-        ad = rig.animation_data
-        if ad and ad.action:
-            for fc in list(getattr(ad.action, "fcurves", [])):
-                if fc.data_path == prop:
-                    ad.action.fcurves.remove(fc)
-        keys = [(f0, 0.0), (f0 + n, full)]
+        _clear_keys(rig, prop)
+        keys = [(f0, 0.0), (f0 + n_open, top)]
         if self.mode == "CYCLE":
-            hold = max(1, n // 4)
-            keys += [(f0 + n + hold, full), (f0 + 2 * n + hold, 0.0)]
+            f = f0 + n_open
+            if n_hold:
+                f += n_hold
+                keys.append((f, top))
+            keys.append((f + n_close, 0.0))
         for f, v in keys:
             rig[prop[2:-2]] = v
             rig.keyframe_insert(prop, frame=f)
         sc.frame_end = keys[-1][0]
         sc.frame_set(f0)
+        self.report({"INFO"}, f"Movement test: frames {f0} to {keys[-1][0]}, open to {top:g}°")
         return {"FINISHED"}
 
 
@@ -285,13 +318,17 @@ class POPUP_OT_animate_pull(bpy.types.Operator):
         if name not in rig:
             self.report({"ERROR"}, "Rebuild the card first")
             return {"CANCELLED"}
-        n = sc.popup.anim_frames
+        n_open, n_hold, n_close = anim_timing(sc)
         f0 = sc.frame_current
-        for f, v in ((f0, 0.0), (f0 + n // 2, 1.0), (f0 + n // 2 + max(1, n // 4), 1.0),
-                     (f0 + n + max(1, n // 4), 0.0)):
+        _clear_keys(rig, f'["{name}"]')
+        keys = [(f0, 0.0), (f0 + n_open, 1.0)]
+        if n_hold:
+            keys.append((f0 + n_open + n_hold, 1.0))
+        keys.append((keys[-1][0] + n_close, 0.0))
+        for f, v in keys:
             rig[name] = v
             rig.keyframe_insert(f'["{name}"]', frame=f)
-        sc.frame_end = max(sc.frame_end, f0 + n + max(1, n // 4))
+        sc.frame_end = max(sc.frame_end, keys[-1][0])
         sc.frame_set(f0)
         return {"FINISHED"}
 

@@ -62,8 +62,13 @@ mechanisms, art and sketches.
 2. **Build Card**. The first build adds a V-fold and a box fold to play with.
 3. **Mechanisms**: add, remove and tune them. With **Live Rebuild** on (the
    clock icon) the card updates as you drag values.
-4. **Open**: slider and 0/45/90/135/180° buttons; **Keyframe Movement Test**
-   animates closed → flat → closed.
+4. **Open**: slider and 0/45/90/135/180° buttons. The movement test keyframes
+   the card opening and closing from the scene's start frame. **Open To**
+   sets how far it opens (degrees; a carousel up to 360). **Opening**,
+   **Hold Open** and **Closing** set how long each part takes, in seconds;
+   the panel shows the frames that makes at the scene's frame rate. **Open**
+   keys just the opening; **Open and Close** keys the whole cycle and sets
+   the scene's end frame. Each press replaces the previous test.
 5. **Checks** lists problems found by sweeping the open angle: paper that
    would tear, panels poking through a page, pieces sticking out of the
    closed card, pieces too big for the sheet.
@@ -427,7 +432,9 @@ flap, which swings over towards the side you pull. Gluing the strip close to
 the hinge lifts the flap furthest for the least pull.
 
 Each flap has a **Pull** slider (0–1) and **Keyframe Pull Test**, separate
-from the card's Open slider, so you can animate both. The checks warn when the
+from the card's Open slider, so you can animate both. The pull test starts at
+the current frame and uses the movement test's Opening, Hold Open and Closing
+times for pulling out, holding and pushing back in. The checks warn when the
 strip would run across the spine, or the pull tab is too short for the travel.
 The strip runs behind the page, so glue a backing card behind it, leaving the
 edge open where the tab comes out.
@@ -587,7 +594,7 @@ python tests/test_v12.py       # pointed floors, mechanisms in floor and ceiling
 python tests/test_v13.py       # painted trims cut on export, openings in any piece
 python tests/test_v14.py       # extra creases and cuts: reverse points, steps, jaws, projections
 python tests/test_v15.py       # creases and cuts on boxes, stand-ups (also on V-folds)
-python tests/test_v16.py       # true colours, strokes follow their pieces, highlight
+python tests/test_v16.py       # true colours, strokes follow pieces, highlight, movement test
 ```
 
 ## Limits and roadmap

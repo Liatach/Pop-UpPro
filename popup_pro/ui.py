@@ -119,6 +119,28 @@ class POPUP_MT_add(bpy.types.Menu):
                     op.kind, op.host, op.fold = kind, h.uid, fold
 
 
+def draw_anim(box, sc, st, to):
+    """Movement test settings: how far, and how long each way."""
+    from .ops import anim_timing
+    sub = box.box()
+    col = sub.column(align=True)
+    col.use_property_split = True
+    col.use_property_decorate = False
+    col.prop(st, to)
+    col.prop(st, "anim_open")
+    col.prop(st, "anim_hold")
+    col.prop(st, "anim_close")
+    try:
+        n_open, n_hold, n_close = anim_timing(sc)
+        sub.label(text=f"{n_open} + {n_hold} + {n_close} frames at "
+                  f"{sc.render.fps / (sc.render.fps_base or 1.0):g} fps", icon="TIME")
+    except Exception:
+        pass
+    row = sub.row(align=True)
+    row.operator("popup.animate", text="Open", icon="PLAY").mode = "OPEN"
+    row.operator("popup.animate", text="Open and Close", icon="FILE_REFRESH").mode = "CYCLE"
+
+
 class _Base:
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -158,9 +180,7 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
             row = box.row(align=True)
             for a in (0, 45, 90, 135, 180):
                 row.operator("popup.set_open", text=f"{a}°").angle = a
-            row = box.row(align=True)
-            row.operator("popup.animate", icon="PLAY").mode = "CYCLE"
-            row.prop(st, "anim_frames", text="")
+            draw_anim(box, context.scene, st, "anim_to")
             col = box.column()
             col.use_property_split = True
             col.use_property_decorate = False
@@ -184,9 +204,7 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
         row = box.row(align=True)
         for a in (0, 90, 180, 270, 360):
             row.operator("popup.set_open", text=f"{a}°").angle = a
-        row = box.row(align=True)
-        row.operator("popup.animate", icon="PLAY").mode = "CYCLE"
-        row.prop(master.popup, "anim_frames", text="")
+        draw_anim(box, master, master.popup, "anim_to_carousel")
         return box
 
     def draw_carousel(self, context, st):

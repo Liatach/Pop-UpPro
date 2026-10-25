@@ -724,8 +724,20 @@ class PopupSettings(bpy.types.PropertyGroup):
     solid_paper: BoolProperty(name="Solid Paper", default=False, update=_changed,
                               description="Give the paper real thickness in the viewport and "
                               "renders (Solidify, behind the printed side)")
-    anim_frames: IntProperty(name="Frames", description="Frames to open (and close)",
+    anim_frames: IntProperty(name="Frames", description="(old) Frames to open",
                              default=48, min=2)
+    anim_to: FloatProperty(name="Open To", description="How far the movement test opens "
+                           "the card (degrees)", default=180.0, min=1.0, max=180.0)
+    anim_to_carousel: FloatProperty(name="Open To", description="How far the movement test "
+                                    "opens the carousel (degrees)", default=360.0, min=1.0,
+                                    max=360.0)
+    anim_open: FloatProperty(name="Opening", description="Seconds to open", default=2.0,
+                             min=0.05, soft_max=20.0, unit="TIME_ABSOLUTE")
+    anim_hold: FloatProperty(name="Hold Open", description="Seconds it stays open before "
+                             "closing", default=1.0, min=0.0, soft_max=20.0,
+                             unit="TIME_ABSOLUTE")
+    anim_close: FloatProperty(name="Closing", description="Seconds to close", default=2.0,
+                              min=0.05, soft_max=20.0, unit="TIME_ABSOLUTE")
     # carousel ---------------------------------------------------------------
     suffix: StringProperty(description="Added to this scene's data names (stages)")
     stage_master: PointerProperty(type=bpy.types.Scene, name="Carousel",

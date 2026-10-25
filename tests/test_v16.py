@@ -101,5 +101,31 @@ for n in ("VFold1.HalfL", "Box12.AC", "Stand5.TabC", "Tube3.TopL", "Page.L"):
 assert highlight._uid_of("Box12.AC") == 12 and highlight._uid_of("Page.L") is None
 print("highlight finds", len(tris) // 3, "triangles")
 
+# ---- movement test: open limit and durations, replacing the last test
+from bpy_extras import anim_utils  # noqa: E402
+
+
+def keys():
+    ad = st.rig.animation_data
+    cb = anim_utils.action_get_channelbag_for_slot(ad.action, ad.action_slot)
+    fc = cb.fcurves.find('["pop_open"]')
+    return [tuple(round(v, 3) for v in k.co) for k in fc.keyframe_points]
+
+
+sc.render.fps, sc.render.fps_base = 24, 1.0
+sc.frame_start = 1
+st.anim_to, st.anim_open, st.anim_hold, st.anim_close = 120.0, 1.0, 0.5, 1.5
+assert bpy.ops.popup.animate(mode="CYCLE") == {"FINISHED"}
+assert keys() == [(1, 0), (25, 120), (37, 120), (73, 0)], keys()
+assert sc.frame_end == 73
+st.anim_to, st.anim_open, st.anim_hold, st.anim_close = 90.0, 3.0, 0.0, 2.0
+assert bpy.ops.popup.animate(mode="CYCLE") == {"FINISHED"}
+assert keys() == [(1, 0), (73, 90), (121, 0)], keys()  # old keys gone
+assert bpy.ops.popup.animate(mode="OPEN") == {"FINISHED"}
+assert keys() == [(1, 0), (73, 90)], keys()
+sc.frame_set(37)
+assert abs(st.rig["pop_open"] - 45.0) < 1.0, st.rig["pop_open"]
+print("movement test: open limit, durations, re-keyed cleanly")
+
 addon.unregister()
 print("V16 OK")
