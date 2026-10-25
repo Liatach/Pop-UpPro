@@ -457,7 +457,7 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
                     lx, ly = min(xs) + 3, max(ys) - 2
                 else:
                     lx, ly = min(xs), max(ys) + 3.2
-                note = (" (glue markers for the back: see reverse sheet)"
+                note = (" (back: reverse sheet)"
                         if include_reverse and include_guides and back_guides.get(piece) else "")
                 L["labels"].append(f'<text x="{lx:.2f}" y="{ly:.2f}" font-size="2.8" '
                                    f'font-family="sans-serif" fill="#8a8a8a">'

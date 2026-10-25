@@ -40,6 +40,8 @@ KINDS = [
      11),
     ("STAGE", "Stage Set", "A stage standing in the card as a V-fold, with frames and a "
      "ceiling inside it (Birmingham 118)", "IMAGE_BACKGROUND", 12),
+    ("STANDUP", "Stand-up", "A picture held up off the background by a small bridge, or "
+     "flat on a leg (parallelogram stand-up, Birmingham 38)", "OUTLINER_OB_IMAGE", 13),
 ]
 
 POINTS = [
@@ -117,9 +119,10 @@ def host_items(self, context):
                     items.append((str(m.uid), m.label, f"Stand in {m.label}",
                                   "IMAGE_BACKGROUND", m.uid))
                 continue
-            if m.kind in ("BOX", "BOXCUT"):
+            if m.kind in ("BOX", "BOXCUT", "STANDUP"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
-                              "MESH_CUBE", m.uid))
+                              "MESH_CUBE" if m.kind != "STANDUP" else "OUTLINER_OB_IMAGE",
+                              m.uid))
             elif m.kind in ("FLOOR", "CEILING"):
                 items.append((str(m.uid), m.label, f"Sit in the corner where {m.label} "
                               f"meets a wall", "TRIA_DOWN_BAR" if m.kind == "FLOOR"
@@ -172,7 +175,7 @@ def fit_to_host(m, st):
         finally:
             st["live"] = was
         return
-    if host is None or host.kind not in ("BOX", "BOXCUT", "TUBE"):
+    if host is None or host.kind not in ("BOX", "BOXCUT", "TUBE", "STANDUP"):
         return
     if host.kind == "TUBE":  # the roof's crease: a half each side, as long as the tube
         room, w = host.x, host.depth
@@ -183,20 +186,31 @@ def fit_to_host(m, st):
     was = st.live
     st["live"] = False
     try:
+        if host.kind == "STANDUP":
+            w = host.img_w  # the picture is what there is room on
+            hy = host.y + 0.5 * host.width - 0.5 * w
+        else:
+            hy = host.y
         if m.kind in ("BOX", "BOXCUT"):
             m.height = m.depth = k
             m.width = 0.5 * w
-            m.y = host.y + 0.25 * w
+            m.y = hy + 0.25 * w
+        elif m.kind == "STANDUP":
+            m.height = m.depth = k
+            m.width = 0.25 * w
+            m.img_w = 0.5 * w
+            m.img_h = 1.6 * k
+            m.y = hy + 0.5 * w - 0.5 * m.width
         elif m.kind == "VFOLD":
             m.height = m.glue = 0.8 * k
-            m.y = host.y + 0.25 * w
+            m.y = hy + 0.25 * w
         elif m.kind == "MOUTH":
             m.jaw = 0.6 * k
             m.upper = m.lower = min(0.25 * w, 0.6 * k)
-            m.y = host.y + 0.5 * w
+            m.y = hy + 0.5 * w
         elif m.kind == "CUBE":
             m.size = m.height = 0.6 * k
-            m.y = host.y + 0.25 * w
+            m.y = hy + 0.25 * w
     finally:
         st["live"] = was
 
@@ -390,6 +404,19 @@ class PopupMech(bpy.types.PropertyGroup):
                          default=50.0, min=2.0, soft_max=200.0, update=_changed)
     tab: FloatProperty(name="Tab", description="Glue tab size (mm)", default=12.0,
                        min=3.0, soft_max=30.0, update=_changed)
+    # stand-up
+    stand: EnumProperty(name="Picture", items=[
+        ("UPRIGHT", "Upright", "The picture stands parallel to the background, held by a "
+         "bridge from the background to its back"),
+        ("FLAT", "Flat", "The picture lies parallel to the floor (a flying carpet), glued to "
+         "the background and held up by a leg")], update=_changed)
+    img_w: FloatProperty(name="Picture Width", description="Width of the picture along "
+                         "the fold (mm), centred on its bridge or leg", default=80.0,
+                         min=2.0, soft_max=250.0, update=_changed)
+    img_h: FloatProperty(name="Picture Height", description="Upright: height of the "
+                         "picture from the floor. Flat: how far it reaches out from the "
+                         "background (mm)", default=90.0, min=2.0, soft_max=250.0,
+                         update=_changed)
     lines: CollectionProperty(type=PopupLine)
     active_line: IntProperty(name="Line")
 
@@ -402,6 +429,9 @@ class PopupMech(bpy.types.PropertyGroup):
                      back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
                      roof_height=self.roof_height, ridge=self.ridge,
                      roof_fold=self.roof_fold, eave=self.eave, rib=self.rib)
+        elif self.kind == "STANDUP":
+            d.update(type="STANDUP", stand=self.stand, width=self.width, height=self.height,
+                     depth=self.depth, img_w=self.img_w, img_h=self.img_h)
         elif self.kind == "STAGE":
             d.update(type="STAGE", phi_l=self.phi_l, glue=self.glue, height=self.height,
                      tab_side=self.tab_side)
@@ -438,7 +468,9 @@ class PopupMech(bpy.types.PropertyGroup):
                             for ln in self.lines])
         else:
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
-                     width=self.width, height=self.height, depth=self.depth)
+                     width=self.width, height=self.height, depth=self.depth,
+                     lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
+                            for ln in self.lines])
         return d
 
 

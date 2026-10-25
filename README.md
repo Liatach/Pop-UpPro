@@ -18,9 +18,13 @@ them.**
 * **Windows, doorways and perforations**: placed openings that can line up
   through every layer behind or into the next stage, painted see-through
   areas, and holes sketched with Grease Pencil, all cut as real holes.
-* **Extra creases and cuts** on V-fold pieces: reverse points, steps,
-  jaws and projections (Birmingham 5, 6, 9 and 10), drawn on one half and
-  mirrored, with the new folds solved and driven like any other.
+* **Extra creases and cuts** on V-folds, box folds and box layers: reverse
+  points, steps, jaws and projections (Birmingham 5, 6, 9 and 10), and
+  battlements, spires and doorways (Birmingham 37). Draw on one side and
+  mirror; the new folds are solved and driven like any other.
+* **Parallelogram stand-ups** (Birmingham 38): pictures held off the
+  background on a bridge, or flat on a leg, stacking in front of and on top
+  of each other.
 * **Stack them**: boxes on boxes, steps up and forward, and inset (valley)
   boxes; V-folds and mouths sit on any box fold too.
 * **Movement test**: one Open slider (0–180°) drives a driver-only rig, with
@@ -91,6 +95,7 @@ includes 12 x 12 and 12 x 24 in cutting mats.
 | **Mouth** | A slit across a fold with two pairs of triangles cut into the paper; the jaws open as the card opens | Slit Position, Jaw Length (slit each side of the fold), Upper Jaw, Lower Jaw |
 | **Box fold** | A separate strip glued across a fold (parallel fold) | Position, Height (along the fold), Width Left, Width Right, tab size |
 | **Box layer** | The same parallel fold cut into the paper itself | Position, Height, Width Left, Width Right |
+| **Stand-up** | A picture held off the background by a bridge, or flat on a leg (Birmingham 38) | Picture (Upright or Flat), Position, Bridge or Leg Width, Bridge Height, Out From Back, Picture Width and Height, tab size |
 | **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
 | **Tube** | Hexagon, box or recessed tube on two parallel sticking strips (Birmingham 51, 67, 68) | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
 | **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
@@ -290,18 +295,70 @@ Creases are straightened end to end, and cuts keep their shape (arrows,
 horses, trees). Then press **Add Drawn Lines**. Line ends within 1.5 mm of
 the centre fold, an edge or another line snap onto it.
 
-How the regions move:
+How the regions move (the same on every piece):
 
-* A region cut off by creases turns about its crease. Its part of the centre
-  fold must still meet the matching region on the other half, so the two
-  turn together. This is solved for every open angle and driven in the rig
-  like the other folds.
-* A region joined only across the centre fold rides flat with the other half
-  (a projection).
+* A region cut off by creases turns about its crease. Its part of the fold it
+  shares with its neighbour must still meet that neighbour, so the two turn
+  together. This is solved for every open angle and driven in the rig like
+  the other folds.
+* A region joined only across a fold rides flat with the piece on the other
+  side (a projection, a battlement). If it touches more than one fold, it
+  stays with the card, and the other folds are cut.
+* A shape cut right out (a closed cut) is a hole.
 * The print shows the new creases (mountain or valley) and cuts. The usual
   checks apply: a jaw too big for the card is flagged as poking through.
   The checks also flag a crease with nothing to fold against (usually a
   mirror left off) and a line that doesn't reach an edge, cut or other line.
+
+### Creases and cuts on boxes (Birmingham 37)
+
+![A box layer with battlements, a doorway and a tower with a spire; stand-ups:
+a picture on a bridge with a small one in front, a flying carpet with a figure
+on it](docs/images/castle_standups.jpg)
+
+Box folds and box layers have the same **Extra creases and cuts** box. Here
+**X** is measured from the box's front-top fold (negative over the top,
+positive down the front) and **Y** along the box from its end. **Mirror** flips
+a line end to end. "Score lines never cross cut lines; cut lines begin and end
+at score lines" (Birmingham, p. 37): a cut that leaves a fold and comes back
+to it makes a shape that stands with the panel across the fold.
+
+* *Battlements*: notches along the front-top fold. The merlons stand up above
+  the top with the front.
+* *Pointed Tower*: a tall pointed shape cut into the top from that fold; it
+  stands up like a spire. Put it on a box layer stacked on top for the castle
+  keep.
+* *Doorway*: an arch cut up from the front's bottom fold. On a box layer the
+  door stays flat on the floor; on a glued box it is cut away.
+* *Inset Step*: two creases and two cuts across the front-top fold. That part
+  folds in.
+
+Curved or irregular outlines work too: draw the cut with **Draw Cuts** from
+one fold to another. On a box layer, **Draw Creases** and **Draw Cuts** work
+on the card itself, over the box.
+
+### Parallelogram stand-ups (Birmingham 38)
+
+A picture held off the background by a small bridge. Seen from the side it is
+a box fold (background, bridge, picture, floor), but the picture is its own
+piece, as wide and tall as you like, and the bridge is a separate strip glued
+to its back. **Picture** sets which way it faces:
+
+* *Upright*: the picture stands parallel to the background on a foot tab glued
+  to the floor. **Bridge Height** is where the bridge meets the background and
+  the back of the picture (the book's A). **Out From Back** is the bridge's
+  length (B).
+* *Flat*: the picture lies parallel to the floor (the flying carpet), glued to
+  the background along its back edge and held up by a leg. **Height Above
+  Floor** is E and **Leg Out From Back** is F.
+
+**Picture Width** and **Picture Height** (or **Depth**) size the picture, centred
+on its bridge or leg. Shape its outline by erasing the art in Texture Paint
+(Holes and Shaping), the way the family and the dog are cut out in the book.
+Stand-ups stack: with one selected, **Add** offers *Stand-up in Front*, which
+uses the picture as the background (the dog), and *Stand-up on Top*, which
+sits on a flat picture against the background (the figure on the carpet).
+Boxes and V-folds can sit on a stand-up's folds too.
 
 ### Holes and shaping (every mechanism)
 
@@ -467,10 +524,12 @@ on, and what its tabs glue to.
   mouth are V joints: the crease is the unit vector making the piece's
   fixed angles with both glue lines, on the branch that reaches into the
   host's gap.
-* Extra creases and cuts split a V-fold's halves into regions
-  (`core/folds.py`, a constrained triangulation). Regions that turn on a
-  crease are solved together so their centre-fold edges meet, continued
-  degree by degree from a reference pose, and driven by tabulated curves.
+* Extra creases and cuts split a mechanism's panels (and, for a box layer,
+  the card round it) into regions (`core/folds.py`, a constrained
+  triangulation). Where two panels meet, the edge counts as a fold if they
+  stay together as the card opens, and as a slit if not. Regions that turn on a crease are
+  solved together so their shared fold edges meet. The solution is continued
+  degree by degree from a reference pose and driven by tabulated curves.
 * Cut-in mechanisms carve their outline out of the host paper (convex
   pieces), so you can stack them.
 * Each hinge's angle is written as a Blender driver on the bone's
@@ -500,6 +559,7 @@ python tests/test_v11.py       # a stage set standing in an ordinary card
 python tests/test_v12.py       # pointed floors, mechanisms in floor and ceiling corners
 python tests/test_v13.py       # painted trims cut on export, openings in any piece
 python tests/test_v14.py       # extra creases and cuts: reverse points, steps, jaws, projections
+python tests/test_v15.py       # creases and cuts on boxes, parallelogram stand-ups
 ```
 
 ## Limits and roadmap
@@ -508,9 +568,10 @@ python tests/test_v14.py       # extra creases and cuts: reverse points, steps, 
   folds or on a basic box's roof, not yet on V-folds.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
-* Extra creases and cuts work on V-fold pieces; the card itself, boxes and
-  tubes don't take them yet. Asymmetric creases need their own matching
-  crease on the other half (drawn with Mirror off).
+* Extra creases and cuts work on V-folds, box folds and box layers; tubes,
+  roofs and stand-up pictures don't take them yet (shape a picture by
+  erasing its art). Asymmetric creases need their own matching crease on the
+  other side (drawn with Mirror off).
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   V-folds on V-folds, arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe

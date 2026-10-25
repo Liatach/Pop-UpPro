@@ -21,7 +21,7 @@ import math
 import numpy as np
 from mathutils import Vector, geometry
 
-from .geom import hinge_frame_2d, rot_y
+from .geom import ccw, hinge_frame_2d, rot_y
 
 SNAP = 1.5  # mm: line ends this close to another line or edge are moved onto it
 TRIVIAL = 0.02  # rad: a solution this close to "everything flat" is the unfolded one
@@ -96,28 +96,33 @@ def _merge_convex(tris, P):
 
 
 # ------------------------------------------------------------- lines
-def expand(lines):
-    """Lines (dicts kind/pts/mirror) -> [(kind, [(x, y), ...])] with mirrors."""
+def expand(lines, to_pattern=None, mirror=None):
+    """Lines (dicts kind/pts/mirror, in the mechanism's own coordinates) ->
+    [(kind, [(x, y), ...])] in the piece pattern, mirrors added.
+    mirror(p) reflects a point; to_pattern(p) maps it onto the pattern."""
+    mirror = mirror or (lambda p: (-p[0], p[1]))
+    to_pattern = to_pattern or (lambda p: p)
     out = []
     for ln in lines or []:
         pts = [(float(x), float(y)) for x, y in ln.get("pts", [])]
         if len(pts) < 2:
             continue
         kind = ln.get("kind", "CREASE")
-        out.append((kind, pts))
-        if ln.get("mirror", True) and max(abs(x) for x, _ in pts) > 1e-3:
-            out.append((kind, [(-x, y) for x, y in pts]))
+        out.append((kind, [to_pattern(q) for q in pts]))
+        if ln.get("mirror", True):
+            mp = [mirror(q) for q in pts]
+            if max(math.hypot(a[0] - b[0], a[1] - b[1]) for a, b in zip(pts, mp)) > 1e-3:
+                out.append((kind, [to_pattern(q) for q in mp]))
     return out
 
 
-def snap(lines, outline, centre):
-    """Move line ends within SNAP of the centre fold, the outline or another
-    line onto it, so lines that should meet do."""
+def snap(lines, polys):
+    """Move line ends within SNAP of an edge or another line onto it, so
+    lines that should meet do."""
     segs = []  # (owner, a, b)
-    for k, poly in enumerate(outline):
+    for poly in polys:
         for i in range(len(poly)):
-            segs.append((-1 - k, poly[i], poly[(i + 1) % len(poly)]))
-    segs.append((-99, centre[0], centre[1]))
+            segs.append((-1, poly[i], poly[(i + 1) % len(poly)]))
     for li, (_, pts) in enumerate(lines):
         for i in range(len(pts) - 1):
             segs.append((li, pts[i], pts[i + 1]))
@@ -126,17 +131,21 @@ def snap(lines, outline, centre):
         pts = list(pts)
         for end in (0, -1):
             p = pts[end]
-            if abs(p[0]) < SNAP and centre[0][1] - SNAP <= p[1] <= centre[1][1] + SNAP:
-                pts[end] = (0.0, min(max(p[1], centre[0][1]), centre[1][1]))
-                continue
             best = None
             for owner, a, b in segs:
                 if owner == li:
                     continue
                 q, d = _near_on_seg(p, a, b)
-                if d < SNAP and (best is None or d < best[1]):
+                if d < SNAP and (best is None or d < best[1] - 1e-9):
                     best = (q, d)
             if best is not None:
+                # prefer a corner close by (where a fold meets an edge)
+                for owner, a, b in segs:
+                    if owner == li:
+                        continue
+                    for c in (a, b):
+                        if math.hypot(c[0] - p[0], c[1] - p[1]) < 0.5:
+                            best = (c, 0.0)
                 pts[end] = best[0]
         out.append((kind, pts))
     return out
@@ -147,61 +156,55 @@ class Region:
     def __init__(self, idx):
         self.idx = idx
         self.tris = []
-        self.side = None  # "L" / "R"
-        self.links = {}  # other region idx -> [(type, p, q)]  type CREASE / CENTRE
+        self.panel = None  # the panel it was cut from
+        self.links = {}  # other region idx -> [(type, p, q)]  type CREASE / FOLD
         self.polys = []
-        self.panel = None
-        self.used = set()  # line indices that border it
+        self.area = 0.0
 
 
-def regions(outline, centre, lines, side_of):
-    """Split the outline (list of CCW polygons) along the centre fold and the
-    lines. Returns (regions, unused line indices)."""
-    verts, edges, kinds = [], [], []
+def regions(model, names, lines):
+    """Split the panels (names) along the lines. Neighbouring regions are
+    linked by a CREASE (a line on one panel) or a FOLD (where two panels
+    meet and stay together). Returns (regions, unused lines, triangles...)."""
+    verts, edges, faces, face_panel = [], [], [], []
 
     def vid(p):
-        verts.append(Vector(p))
+        verts.append(Vector((p[0], p[1])))
         return len(verts) - 1
 
-    for poly in outline:
-        ids = [vid(p) for p in poly]
-        for i in range(len(ids)):
-            edges.append((ids[i], ids[(i + 1) % len(ids)]))
-            kinds.append(("OUT", -1))
-    a, b = vid(centre[0]), vid(centre[1])
-    edges.append((a, b))
-    kinds.append(("CENTRE", -1))
+    for n in names:
+        for poly in model.panels[n].polys:
+            faces.append([vid(p) for p in poly])
+            face_panel.append(n)
+    ekinds = []
     for li, (kind, pts) in enumerate(lines):
         ids = [vid(p) for p in pts]
         for i in range(len(ids) - 1):
             edges.append((ids[i], ids[i + 1]))
-            kinds.append((kind, li))
-    faces = []
-    for poly in outline:
-        k0 = sum(len(p) for p in outline[:outline.index(poly)])
-        faces.append(list(range(k0, k0 + len(poly))))
+            ekinds.append((kind, li))
     vo, eo, fo, ov, oe, of_ = geometry.delaunay_2d_cdt(verts, edges, faces, 1, 1e-4)
     P = [(v.x, v.y) for v in vo]
     ekind = {}
     for e, origs in zip(eo, oe):
-        key = (min(e), max(e))
-        ks = set()
-        for o in origs:
-            ks.add(kinds[o] if o < len(kinds) else ("OUT", -1))
-        ekind[key] = ks
-    tris = [f for f in fo if len(f) == 3]
+        ekind[(min(e), max(e))] = {ekinds[o] for o in origs if o < len(ekinds)}
+    tris, tpanel = [], []
+    for f, origs in zip(fo, of_):
+        if len(f) != 3 or not origs:
+            continue
+        tris.append(f)
+        tpanel.append(face_panel[origs[0]])
     by_edge = {}
     for ti, f in enumerate(tris):
         for i in range(3):
             key = (min(f[i], f[(i + 1) % 3]), max(f[i], f[(i + 1) % 3]))
             by_edge.setdefault(key, []).append(ti)
-    # flood fill across unconstrained edges
     reg = [-1] * len(tris)
     out = []
     for t0 in range(len(tris)):
         if reg[t0] >= 0:
             continue
         r = Region(len(out))
+        r.panel = tpanel[t0]
         out.append(r)
         stack = [t0]
         reg[t0] = r.idx
@@ -214,44 +217,47 @@ def regions(outline, centre, lines, side_of):
                 if ekind.get(key):
                     continue
                 for tj in by_edge[key]:
-                    if reg[tj] < 0:
+                    if reg[tj] < 0 and tpanel[tj] == r.panel:
                         reg[tj] = r.idx
                         stack.append(tj)
+    # which pairs of panels meet in a fold (they stay together when folded)
+    T = (model.t_ref, model.t_ref * 4.0 / 9.0)
+    M = {(n, t): model.panels[n].asm(t) for n in names for t in T}
     used = set()
     for key, ts in by_edge.items():
         ks = ekind.get(key) or set()
-        lis = {li for _, li in ks if li >= 0}
+        lis = {li for _, li in ks}
         if len(ts) != 2:
-            for t in ts:
-                out[reg[t]].used |= lis
             continue
         ra, rb = out[reg[ts[0]]], out[reg[ts[1]]]
         if ra is rb:
-            continue  # a line ending in open paper: does nothing here
-        used |= lis
-        ra.used |= lis
-        rb.used |= lis
-        types = {k for k, _ in ks}
-        if "CUT" in types or ("OUT" in types and "CENTRE" not in types):
-            continue  # the halves' outlines meet along the centre fold
-        typ = "CENTRE" if "CENTRE" in types else "CREASE"
+            continue
         p, q = P[key[0]], P[key[1]]
+        types = {k for k, _ in ks}
+        if lis:
+            used |= lis
+        if "CUT" in types:
+            continue
+        if ra.panel == rb.panel:
+            typ = "CREASE"
+        else:
+            together = all((M[(ra.panel, t)] @ Vector((x, y, 0.0)) -
+                            M[(rb.panel, t)] @ Vector((x, y, 0.0))).length < 0.05
+                           for t in T for x, y in (p, q))
+            if not together:
+                continue  # a slit between two panels
+            typ = "FOLD"
         ra.links.setdefault(rb.idx, []).append((typ, p, q))
         rb.links.setdefault(ra.idx, []).append((typ, q, p))
     for r in out:
         tri_pts = []
         for ti in r.tris:
-            f = tris[ti]
-            pts = [P[i] for i in f]
-            if _cross(pts[0], pts[1], pts[2]) < 0:
+            f = list(tris[ti])
+            if _cross(P[f[0]], P[f[1]], P[f[2]]) < 0:
                 f = f[::-1]
-            tri_pts.append(list(f))
+            tri_pts.append(f)
         r.polys = [[P[i] for i in poly] for poly in _merge_convex(tri_pts, P)]
-        big = max((poly for poly in r.polys), key=lambda q: abs(_area(q)))
-        c = (sum(x for x, _ in big) / len(big), sum(y for _, y in big) / len(big))
-        r.side = side_of(c)
         r.area = sum(_area(q) for q in r.polys)
-        r.where = c
     unused = set(range(len(lines))) - used
     return out, unused, reg, tris, P
 
@@ -366,7 +372,10 @@ class Group:
         f = r @ r
         for _ in range(iters):
             A = J.T @ J + lam * np.eye(self.n)
-            step = np.linalg.solve(A, -J.T @ r)
+            try:
+                step = np.linalg.solve(A, -J.T @ r)
+            except np.linalg.LinAlgError:
+                step = np.linalg.lstsq(A, -J.T @ r, rcond=None)[0]
             th2 = th + step
             r2, J2 = self._resid(th2, Ms, tgt, True)
             f2 = r2 @ r2
@@ -419,56 +428,69 @@ class Group:
         return th
 
 
-def build(model, base, piece, lab, outline, halves, lines, glue):
-    """Split a V-fold's halves along its extra lines and hang the regions.
+def _depth(model, name):
+    d = 0
+    while model.panels[name].parent is not None and d < 99:
+        name = model.panels[name].parent
+        d += 1
+    return d
 
-    outline: {"L": poly, "R": poly} pattern polygons of the halves (CCW);
-    halves: {"L": panel name, "R": panel name}; glue: {"L": (a, b), ...}
-    glue edges of each half (pattern)."""
+
+def _roots(model, regs, reg, tris, P, names):
+    """The region of each panel that keeps its place: the biggest one
+    touching the fold it hangs from (or the biggest, for the pages)."""
+    out = {}
+    for n in names:
+        mine = [r for r in regs if r.panel == n]
+        if not mine:
+            continue
+        p = model.panels[n]
+        touch = set()
+        if p.parent is not None and p.hinge is not None:
+            Fc = p.hinge.Fc
+            o = Fc.to_translation().to_2d()
+            yv = Fc.to_3x3().col[1].to_2d().normalized()
+            xv = Vector((yv.y, -yv.x))
+            for k in range(-400, 401):
+                for side in (0.05, -0.05):
+                    q = o + yv * (0.5 * k) + xv * side
+                    if any(_inside(tuple(q), poly) for poly in p.polys):
+                        i = find_region(tuple(q), reg, tris, P)
+                        if i is not None and regs[i].panel == n:
+                            touch.add(i)
+        cand = [regs[i] for i in touch] or mine
+        out[n] = max(cand, key=lambda r: abs(r.area)).idx
+    return out
+
+
+def build(model, piece, names, lab, lines, base=None):
+    """Split a mechanism's panels (names, all on one piece) along its extra
+    lines (pattern coordinates) and hang the regions."""
     from .model import Hinge, Panel
+    base = base or piece
     lines = [(k, pts) for k, pts in lines if len(pts) >= 2]
-    if not lines:
+    names = [n for n in names if n in model.panels and model.panels[n].polys]
+    if not lines or not names:
         return
-    polysL, polysR = outline["L"], outline["R"]
-    ys = [q[1] for q in polysL + polysR if abs(q[0]) < 1e-6]
-    centre = ((0.0, min(ys)), (0.0, max(ys)))
-    lines = snap(lines, [polysL, polysR], centre)
-
-    def side_of(c):
-        return "L" if _inside(c, polysL) else "R"
-
-    regs, unused, reg, tris, P = regions([polysL, polysR], centre, lines, side_of)
+    lines = snap(lines, [poly for n in names for poly in model.panels[n].polys])
+    regs, unused, reg, tris, P = regions(model, names, lines)
     if unused:
         model.warn(f"{lab}: {len(unused)} extra line(s) don't reach an edge, a cut or "
                    f"another line, so they do nothing (draw them right across)")
-    roots = {"L": set(), "R": set()}
-    for s, (a, b) in glue.items():
-        for f in (0.1, 0.3, 0.5, 0.7, 0.9):
-            pt = (a[0] + f * (b[0] - a[0]), a[1] + f * (b[1] - a[1]) + 0.05)
-            k = find_region(pt, reg, tris, P)
-            if k is not None and regs[k].side == s:
-                roots[s].add(k)
-    for s in "LR":
-        if not roots[s]:
-            model.warn(f"{lab}: a cut runs right along the {'left' if s == 'L' else 'right'} "
-                       f"glue edge; extra lines skipped")
-            return
-    panel = {}
-    for s in "LR":
-        for k in roots[s]:
-            panel[k] = halves[s]
-    merged = {halves["L"]: [], halves["R"]: []}
-    for s in "LR":
-        for k in roots[s]:
-            merged[halves[s]] += regs[k].polys
+    roots = _roots(model, regs, reg, tris, P, names)
+    panel = {}  # region idx -> panel name it moves with
+    merged = {n: [] for n in names}
+    for n, k in roots.items():
+        panel[k] = n
+        merged[n] += regs[k].polys
     new_panels = []
 
     def crease_parents(r):
         return [(o, segs) for o, segs in r.links.items()
                 if o in panel and all(t == "CREASE" for t, _, _ in segs)]
 
-    def centre_nb(r):
-        return [o for o, segs in r.links.items() if any(t == "CENTRE" for t, _, _ in segs)]
+    def fold_nb(r):
+        return [o for o, segs in r.links.items() if any(t == "FOLD" for t, _, _ in segs)]
 
     def has_crease(r):
         return any(t == "CREASE" for segs in r.links.values() for t, _, _ in segs)
@@ -483,25 +505,26 @@ def build(model, base, piece, lab, outline, halves, lines, glue):
         return [r for r in regs if r.idx not in panel]
 
     force = False
-    count = 0
+    count = sum(1 for n in model.panels if n.startswith(f"{base}.Fold"))
     while True:
-        todo = pending()
-        if not todo:
+        if not pending():
             break
         progress = False
-        # projections: hang only across the centre fold, so stay flat with it
-        for r in todo:
-            if r.idx in panel or has_crease(r):
+        # cut free of their own panel and joined only across folds: they stay
+        # flat with a neighbour (a projection, a battlement, a doorway); the
+        # paper on the far side of the other folds is cut
+        for r in pending():
+            if has_crease(r):
                 continue
-            ys_ = [o for o in centre_nb(r) if o in panel]
-            if ys_:
-                flat(r, panel[ys_[0]])
+            nb = [o for o in fold_nb(r) if o in panel]
+            if nb:
+                o = min(nb, key=lambda o: _depth(model, panel[o]))
+                flat(r, panel[o])
                 progress = True
         for r in pending():
             if r.idx in panel:
                 continue
-            cps = crease_parents(r)
-            if not cps:
+            if not crease_parents(r):
                 continue
             # the group of regions that must turn together
             grp, stack, ready = [], [r.idx], True
@@ -509,7 +532,7 @@ def build(model, base, piece, lab, outline, halves, lines, glue):
             while stack:
                 k = stack.pop()
                 grp.append(k)
-                for o in centre_nb(regs[k]):
+                for o in fold_nb(regs[k]):
                     if o in panel or o in seen:
                         continue
                     if crease_parents(regs[o]):
@@ -528,7 +551,7 @@ def build(model, base, piece, lab, outline, halves, lines, glue):
                 straight = all(abs(_cross(p, q, a_)) / L < 0.05 and abs(_cross(p, q, b_)) / L < 0.05
                                for o2, segs2 in crease_parents(regs[k]) for _, a_, b_ in segs2)
                 if not straight:
-                    flat(regs[k], panel[o], f"{lab}: a region held by creases that don't line up "
+                    flat(regs[k], panel[o], f"{lab}: a part held by creases that don't line up "
                          f"can't fold; left flat")
                     continue
                 H = hinge_frame_2d(p, d)
@@ -541,7 +564,7 @@ def build(model, base, piece, lab, outline, halves, lines, glue):
             for k in idx_of:
                 for o, segs in regs[k].links.items():
                     for t_, p, q in segs:
-                        if t_ != "CENTRE":
+                        if t_ != "FOLD":
                             continue
                         j = idx_of.get(o, panel.get(o))
                         if j is None:
@@ -551,21 +574,22 @@ def build(model, base, piece, lab, outline, halves, lines, glue):
             if not cons:
                 for _, _, _, k, o in members:
                     flat(regs[k], panel[o], f"{lab}: a crease with nothing pulling it "
-                         f"(it doesn't reach the centre fold) is left flat")
+                         f"(the part it cuts off doesn't reach a fold) is left flat")
                 progress = True
                 continue
             G = Group(model, [mb[:3] for mb in members], cons, model.TABLE_T, model.t_ref)
             if not G.ok:
                 for _, _, _, k, o in members:
                     flat(regs[k], panel[o])
-                model.warn(f"{lab}: creases with no fold to make on their own (needs a "
-                           f"matching crease across the centre fold: try Mirror); left flat")
+                model.warn(f"{lab}: creases with no fold to make on their own (they need a "
+                           f"matching crease across the fold: try Mirror); left flat")
                 progress = True
                 continue
             bad = sorted(t for t, res in G.res.items() if res > 0.05)
             if bad:
                 model.warn(f"{lab}: the extra folds can't follow the card around "
                            f"{bad[0]:.0f} degrees (the paper would tear)")
+            made = []
             for gi, (par, H, Hi, k, o) in enumerate(members):
                 count += 1
                 name = f"{base}.Fold{count}"
@@ -575,10 +599,13 @@ def build(model, base, piece, lab, outline, halves, lines, glue):
                     return pa(t) @ H @ rot_y(float(G.theta(t)[gi])) @ Hi
 
                 panel[k] = name
-                new_panels.append((name, regs[k], par, H, asm))
-            for name, rg, par, H, asm in new_panels[len(new_panels) - len(members):]:
+                made.append((name, regs[k], par, H, asm, count))
+            for name, rg, par, H, asm, c in made:
                 model.add(Panel(name, piece, "panel", rg.polys, asm, par,
-                                Hinge(H, H, "TABLE"), f"{lab}: fold {name.rsplit('Fold', 1)[1]}"))
+                                Hinge(H, H, "TABLE"), f"{lab}: fold {c}"))
+                if par in model.cut_panels:
+                    model.cut_panels.add(name)
+                new_panels.append(name)
             progress = True
             force = False
         if not progress:
@@ -587,6 +614,8 @@ def build(model, base, piece, lab, outline, halves, lines, glue):
             force = True
     loose = pending()
     if loose:
-        model.warn(f"{lab}: {len(loose)} part(s) cut loose by the extra lines are left out")
+        model.warn(f"{lab}: {len(loose)} part(s) cut right out by the extra lines are "
+                   f"left out (holes)")
     for name, polys in merged.items():
-        model.panels[name].polys = [p for p in polys]
+        model.panels[name].polys = [ccw(p) for p in polys]
+    return new_panels

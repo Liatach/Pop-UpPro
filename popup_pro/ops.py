@@ -61,11 +61,13 @@ DEFAULTS = {
     "STAGE": dict(y=80.0, phi_l=60.0, glue=60.0, height=80.0, tab=10.0, tab_side="OUT"),
     "FLOOR": dict(tab=8.0),
     "CEILING": dict(tab=8.0),
+    "STANDUP": dict(y=60.0, width=30.0, height=45.0, depth=30.0, img_w=80.0, img_h=90.0,
+                    tab=10.0),
 }
 NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth",
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
          "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
-         "STAGE": "Stage set"}
+         "STAGE": "Stage set", "STANDUP": "Stand-up"}
 
 
 def _add(st, kind):
@@ -82,7 +84,7 @@ def _add(st, kind):
     H = st.card_dict()["H"]
     for k, v in DEFAULTS[kind].items():
         setattr(m, k, v)
-    m.y = min(m.y, max(0.0, H - (m.width if kind in ("BOX", "BOXCUT") else 0.0) - 10))
+    m.y = min(m.y, max(0.0, H - (m.width if kind in ("BOX", "BOXCUT", "STANDUP") else 0.0) - 10))
     W = st.card_dict()["W"]
     if kind == "FRAME":  # first frame stands at the front of the stage, the rest behind
         n = sum(1 for x in st.mechs if x.kind == "FRAME")
@@ -712,43 +714,100 @@ LINE_PRESETS = [
     ("PROJECTION", "Projection", "A cut starting and ending on the centre fold, on one "
      "half only: the shape juts out flat past the fold (Birmingham 6)"),
 ]
+BOX_PRESETS = [
+    ("NONE", "Line", "A plain line to set by numbers"),
+    ("BATTLEMENTS", "Battlements", "Notches cut along the front's top fold: the "
+     "merlons stand up above the top (Birmingham 37, the castle)"),
+    ("TOWER", "Pointed Tower", "A pointed shape cut into the top from the front's top "
+     "fold: it stands up above the box like a spire"),
+    ("DOORWAY", "Doorway", "An arch cut up from the front's bottom fold: the door stays "
+     "flat on the floor, leaving an opening"),
+    ("INSET", "Inset Step", "Two creases and two cuts across the front-top fold: that "
+     "part folds in (a step back)"),
+]
 
 
-def _vfold_active(context):
+def _lined_active(context):
     st = context.scene.popup
-    if 0 <= st.active < len(st.mechs) and st.mechs[st.active].kind == "VFOLD":
+    if 0 <= st.active < len(st.mechs) and st.mechs[st.active].kind in ("VFOLD", "BOX",
+                                                                         "BOXCUT"):
         return st.mechs[st.active]
     return None
 
 
+_vfold_active = _lined_active
+
+
+def _preset_items(self, context):
+    m = _lined_active(context) if context else None
+    return BOX_PRESETS if m is not None and m.kind != "VFOLD" else LINE_PRESETS
+
+
+def _arch(x0, yc, r, hgt, seg=8):
+    """Arch outline from the fold at x0, rising toward -x (box front)."""
+    top = x0 - max(hgt - r, 0.0)
+    pts = [(x0, yc - r), (top, yc - r)]
+    pts += [(top - r * math.sin(math.pi * i / seg), yc - r * math.cos(math.pi * i / seg))
+            for i in range(1, seg)]
+    return pts + [(top, yc + r), (x0, yc + r)]
+
+
 class POPUP_OT_add_line(bpy.types.Operator):
-    """Add an extra crease or cut to the V-fold (on its left half; Mirror copies
-    it onto the right)"""
+    """Add an extra crease or cut (a V-fold: on its left half; a box: measured
+    from its front-top fold). Mirror copies it onto the other side"""
     bl_idname = "popup.add_line"
     bl_label = "Add Crease or Cut"
     bl_options = {"REGISTER", "UNDO"}
-    preset: EnumProperty(name="Shape", items=LINE_PRESETS)
+    preset: EnumProperty(name="Shape", items=_preset_items)
 
     @classmethod
     def poll(cls, context):
-        return _vfold_active(context) is not None
+        return _lined_active(context) is not None
 
     def execute(self, context):
-        m = _vfold_active(context)
-        w = m.glue * math.sin(math.radians(m.alpha_l))
-        h = m.height
-        t15 = math.tan(math.radians(15))
-        P = {
-            "NONE": [("CREASE", True, [(0.0, 0.6 * h), (-0.5 * w, 0.4 * h)])],
-            "REVERSE": [("CREASE", True, [(0.0, 0.8 * h), (-0.35 * w, 0.45 * h)]),
-                        ("CUT", True, [(0.0, 0.45 * h), (-0.35 * w, 0.45 * h)])],
-            "STEP": [("CREASE", True, [(-0.3 * w, 1.5 * h), (-0.3 * w, 0.55 * h)]),
-                     ("CUT", True, [(0.0, 0.55 * h), (-0.3 * w, 0.55 * h)])],
-            "TOP": [("CREASE", True, [(0.0, 0.5 * h), (-0.45 * w, 1.5 * h)])],
-            "JAW": [("CREASE", True, [(0.0, 0.5 * h), (-1.3 * w, 0.5 * h + 1.3 * w * t15)])],
-            "PROJECTION": [("CUT", False, [(0.0, 0.55 * h), (-0.25 * w, 0.6 * h),
-                                           (-0.25 * w, 0.85 * h), (0.0, 0.9 * h)])],
-        }[self.preset]
+        m = _lined_active(context)
+        if m.kind == "VFOLD":
+            w = m.glue * math.sin(math.radians(m.alpha_l))
+            h = m.height
+            t15 = math.tan(math.radians(15))
+            P = {
+                "NONE": [("CREASE", True, [(0.0, 0.6 * h), (-0.5 * w, 0.4 * h)])],
+                "REVERSE": [("CREASE", True, [(0.0, 0.8 * h), (-0.35 * w, 0.45 * h)]),
+                            ("CUT", True, [(0.0, 0.45 * h), (-0.35 * w, 0.45 * h)])],
+                "STEP": [("CREASE", True, [(-0.3 * w, 1.5 * h), (-0.3 * w, 0.55 * h)]),
+                         ("CUT", True, [(0.0, 0.55 * h), (-0.3 * w, 0.55 * h)])],
+                "TOP": [("CREASE", True, [(0.0, 0.5 * h), (-0.45 * w, 1.5 * h)])],
+                "JAW": [("CREASE", True, [(0.0, 0.5 * h),
+                                          (-1.3 * w, 0.5 * h + 1.3 * w * t15)])],
+                "PROJECTION": [("CUT", False, [(0.0, 0.55 * h), (-0.25 * w, 0.6 * h),
+                                               (-0.25 * w, 0.85 * h), (0.0, 0.9 * h)])],
+            }.get(self.preset)
+        else:
+            a, b, w = m.height, m.depth, m.width  # front, top, along
+            P = None
+            if self.preset == "NONE":
+                P = [("CUT", True, [(0.0, 0.3 * w), (-0.3 * b, 0.3 * w)])]
+            elif self.preset == "BATTLEMENTS":
+                n = max(2, int(round(w / 14.0)))
+                gap = w / (2 * n + 1)
+                hh = min(0.3 * b, 8.0)
+                P = [("CUT", False, [(0.0, gap * (2 * i + 1)), (-hh, gap * (2 * i + 1)),
+                                     (-hh, gap * (2 * i + 2)), (0.0, gap * (2 * i + 2))])
+                     for i in range(n)]
+            elif self.preset == "TOWER":
+                r, hh = 0.15 * w, 0.8 * b
+                P = [("CUT", False, [(0.0, 0.5 * w - r), (-0.6 * hh, 0.5 * w - r),
+                                     (-hh, 0.5 * w), (-0.6 * hh, 0.5 * w + r),
+                                     (0.0, 0.5 * w + r)])]
+            elif self.preset == "DOORWAY":
+                P = [("CUT", False, _arch(a, 0.5 * w, min(0.15 * w, 0.3 * a), 0.6 * a))]
+            elif self.preset == "INSET":
+                e = 0.3 * min(a, b)
+                P = [("CREASE", False, [(-e, 0.3 * w), (-e, 0.7 * w)]),
+                     ("CREASE", False, [(e, 0.3 * w), (e, 0.7 * w)]),
+                     ("CUT", True, [(-e, 0.3 * w), (e, 0.3 * w)])]
+            if P is None:
+                return {"CANCELLED"}
         for kind, mirror, pts in P:
             ln = m.lines.add()
             ln.kind, ln.mirror = kind, mirror

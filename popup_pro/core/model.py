@@ -231,6 +231,9 @@ class Model:
         self.stack_ok = set()  # mechanism label pairs whose tabs may overlap
         self.floors = []  # floor / ceiling uids built so far (frames clear them)
         self.edge_tab = {}  # floor ("bottom") / ceiling ("top") tab widths
+        # mechanism uid -> (piece, pattern -> its line coordinates, bounds) for
+        # drawn creases and cuts
+        self.line_frames = {}
         # A carousel stage only ever opens to 360/n degrees; everything is
         # sampled and checked up to there.
         self.tmax = min(180.0, float(card.get("tmax", 180.0)))
@@ -368,7 +371,8 @@ class Model:
                     self.warn(f"{m['label']}: frames, floors and ceilings go on a stage set, "
                               f"and only they do; skipped")
                     ok = False
-                elif parent is None or (parent["type"] != "BOX" and not lid and not stage
+                elif parent is None or (parent["type"] not in ("BOX", "STANDUP") and not lid
+                                        and not stage
                                         and not joint):
                     self.warn(f"{m['label']}: its host is missing (a box, or a tube with a "
                               f"dipped flat roof); skipped")
@@ -406,6 +410,8 @@ class Model:
                 self._mouth(m, host)
             elif m["type"] == "BOX":
                 self._box(m, host)
+            elif m["type"] == "STANDUP":
+                self._standup(m, host)
             elif m["type"] == "CUBE":
                 self._cube(m, host)
             elif m["type"] == "FLAP":
@@ -542,6 +548,25 @@ class Model:
             TA = Matrix.Translation((0.0, -y0, 0.0))
             TC = Matrix.Translation((b, -y0, 0.0))
             TB = Matrix.Translation((a + b, -y0, 0.0))
+        if m.get("style") == "CUT":
+            Tv_ = host.T1.inverted()
+            self.line_frames[uid] = (piece, lambda q: (
+                (Tv_ @ Vector((q[0], q[1], 0.0)))[0] - (b - a),
+                (Tv_ @ Vector((q[0], q[1], 0.0)))[1] - y0), (-b, a, 0.0, w))
+        else:
+            self.line_frames[uid] = (piece, lambda q: (q[0] - b, q[1]), (-b, a, 0.0, w))
+        if m.get("lines") and f"{base}.AC" in self.panels and f"{base}.CB" in self.panels:
+            # extra creases and cuts: X across from the front-top fold (C),
+            # negative over the top, positive down the front; Y along the box
+            from .folds import build as fold_build, expand
+            if m.get("style") == "CUT":
+                names = [host.p1, f"{base}.AC", f"{base}.CB", host.p2]
+                to_pat = (lambda p: host.v1(b - a + p[0], y0 + p[1]))
+            else:
+                names = [f"{base}.AC", f"{base}.CB"]
+                to_pat = (lambda p: (b + p[0], p[1]))
+            fold_build(self, piece, names, lab,
+                       expand(m["lines"], to_pat, lambda p: (p[0], w - p[1])), base)
         if role:
             for n in (f"{base}.AC", f"{base}.CB"):
                 if n in self.panels:
@@ -550,6 +575,130 @@ class Model:
         for key, p1, T1, p2, T2, txt in (
                 ("A", host.p1, host.T1 @ Matrix.Translation((-a, 0.0, 0.0)), AC, TA, "on top"),
                 ("C", AC, TC, CB, TC, "inset"),
+                ("B", CB, TB, host.p2, host.T2 @ Matrix.Translation((b, 0.0, 0.0)), "in front")):
+            h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0, f"{lab}: {txt}", T1, T2).finish()
+            h.trig = host.trig
+            self.hosts[(uid, key)] = h
+
+    # ---------------------------------------------------- parallelogram stand-up
+    def _standup(self, m, host):
+        """Birmingham 38. A picture held parallel to the background by a small
+        bridge (Upright), or parallel to the floor on a small leg (Flat, the
+        flying carpet). Seen from the side it is a box fold: background a,
+        bridge (or picture) b, picture (or leg) a, floor b; but the picture
+        is its own piece, as wide and tall as you like, and the bridge or leg
+        is a separate strip glued to its back."""
+        uid = m["uid"]
+        a, b = float(m["height"]), float(m["depth"])
+        y0, w = float(m["y"]), float(m["width"])
+        Wi, Hi = float(m.get("img_w", w)), float(m.get("img_h", a))
+        t_ = float(m.get("tab", 10.0))
+        lab = m["label"]
+        flat = m.get("stand") == "FLAT"
+        if Wi < w:
+            self.warn(f"{lab}: picture narrower than its {'leg' if flat else 'bridge'}; "
+                      f"widened to {w:.0f} mm")
+            Wi = w
+        need = b if flat else a
+        if Hi < need:
+            self.warn(f"{lab}: picture shorter than the {'leg reach' if flat else 'bridge height'}"
+                      f"; lengthened to {need:.0f} mm")
+            Hi = need
+        if host.is_spine and a + b > self.W + 1e-6:
+            self.warn(f"{lab}: height + depth ({a + b:.0f} mm) is deeper than the page, so it "
+                      f"sticks out when closed")
+        vc = 0.5 * w
+        lift1, lift2 = host.lift
+        base = f"Stand{uid}"
+        AC, CB = f"{base}.AC", f"{base}.CB"
+        img = self.add_piece(Piece(base, lab, 1 + uid, (0.0, 0.5 * Hi)))
+        img.upright = True
+        strip = f"Bridge{uid}"
+        self.add_piece(Piece(strip, f"{lab} {'leg' if flat else 'bridge'}", 700 + uid,
+                             (0.5 * (a + b), vc)))
+
+        def asm_tabA(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            return frame(S + a * l + y0 * Y + lift1 * TAB_LIFT * nl, l, Y)
+
+        def asm_ac(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            return frame(S + a * l + y0 * Y, r, Y)
+
+        def asm_cb(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            return frame(S + (a + b) * l + b * r + y0 * Y, -l, Y)
+
+        def asm_tabB(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            return frame(S + (a + 2 * b) * r + y0 * Y + lift2 * TAB_LIFT * nr, -r, Y)
+
+        under = Matrix.Translation((0.0, 0.0, -TAB_LIFT))
+        hw = 0.5 * Wi
+        if not flat:
+            # picture pattern: x along the fold, y up from the floor
+            M = Matrix(((0, -1, 0, a + b), (1, 0, 0, vc), (0, 0, 1, 0), (0, 0, 0, 1)))
+            tf = min(t_, b)
+            ch = min(0.3 * tf, 0.25 * Wi)
+            self.add(Panel(CB, base, "panel", [[(-hw, 0), (hw, 0), (hw, Hi), (-hw, Hi)]],
+                           lambda t: asm_cb(t) @ M, host.p2,
+                           Hinge(host.T2 @ hinge_frame_2d((b, y0 + vc), (0, 1)),
+                                 hinge_frame_2d((0, 0), (1, 0))), f"{lab}: picture"))
+            self.add(Panel(f"{base}.Foot", base, "tab",
+                           [[(-hw + ch, -tf), (hw - ch, -tf), (hw, 0), (-hw, 0)]],
+                           lambda t: asm_tabB(t) @ M, host.p2, None, f"{lab}: foot"))
+            ta = min(t_, a - 1.0, b)
+            tc = min(t_, a)
+            cha, chc = min(0.3 * ta, 0.25 * w), min(0.3 * tc, 0.25 * w)
+            self.add(Panel(f"{base}.TabA", strip, "tab",
+                           [[(-ta, cha), (0, 0), (0, w), (-ta, w - cha)]], asm_tabA,
+                           host.p1, None, f"{lab}: bridge tab on the background"))
+            self.add(Panel(AC, strip, "panel", [[(0, 0), (b, 0), (b, w), (0, w)]], asm_ac,
+                           host.p1, Hinge(host.T1 @ hinge_frame_2d((-a, y0), (0, 1)),
+                                          hinge_frame_2d((0, 0), (0, 1))), f"{lab}: bridge"))
+            self.add(Panel(f"{base}.TabC", strip, "tab",
+                           [[(b, 0), (b + tc, chc), (b + tc, w - chc), (b, w)]],
+                           lambda t: asm_cb(t) @ under, CB, None,
+                           f"{lab}: bridge tab on the picture"))
+            Mi = M.inverted()
+            TA = Matrix.Translation((0.0, -y0, 0.0))
+            TC1, TC2 = Matrix.Translation((b, -y0, 0.0)), Mi @ Matrix.Translation((b, -y0, 0.0))
+            TB = Mi @ Matrix.Translation((a + b, -y0, 0.0))
+        else:
+            # picture pattern: x along the fold, y out from the background
+            M = Matrix(((0, 1, 0, 0), (-1, 0, 0, vc), (0, 0, 1, 0), (0, 0, 0, 1)))
+            tf = min(t_, a)
+            ch = min(0.3 * tf, 0.25 * Wi)
+            self.add(Panel(f"{base}.TabA", base, "tab",
+                           [[(-hw, 0), (-hw + ch, -tf), (hw - ch, -tf), (hw, 0)][::-1]],
+                           lambda t: asm_tabA(t) @ M, host.p1, None,
+                           f"{lab}: tab on the background"))
+            self.add(Panel(AC, base, "panel", [[(-hw, 0), (hw, 0), (hw, Hi), (-hw, Hi)]],
+                           lambda t: asm_ac(t) @ M, host.p1,
+                           Hinge(host.T1 @ hinge_frame_2d((-a, y0 + vc), (0, 1)),
+                                 hinge_frame_2d((0, 0), (-1, 0))), f"{lab}: picture"))
+            tc = min(t_, b)
+            tb = min(t_, b)
+            chc, chb = min(0.3 * tc, 0.25 * w), min(0.3 * tb, 0.25 * w)
+            self.add(Panel(CB, strip, "panel", [[(b, 0), (a + b, 0), (a + b, w), (b, w)]],
+                           asm_cb, host.p2,
+                           Hinge(host.T2 @ hinge_frame_2d((b, y0), (0, 1)),
+                                 hinge_frame_2d((a + b, 0), (0, 1))), f"{lab}: leg"))
+            self.add(Panel(f"{base}.TabC", strip, "tab",
+                           [[(b - tc, chc), (b, 0), (b, w), (b - tc, w - chc)]],
+                           lambda t: asm_ac(t) @ under, AC, None, f"{lab}: leg tab under "
+                           f"the picture"))
+            self.add(Panel(f"{base}.Foot", strip, "tab",
+                           [[(a + b, 0), (a + b + tb, chb), (a + b + tb, w - chb), (a + b, w)]],
+                           asm_tabB, host.p2, None, f"{lab}: leg foot"))
+            Mi = M.inverted()
+            TA = Mi @ Matrix.Translation((0.0, -y0, 0.0))
+            TC1 = Mi @ Matrix.Translation((b, -y0, 0.0))
+            TC2 = Matrix.Translation((b, -y0, 0.0))
+            TB = Matrix.Translation((a + b, -y0, 0.0))
+        for key, p1, T1, p2, T2, txt in (
+                ("A", host.p1, host.T1 @ Matrix.Translation((-a, 0.0, 0.0)), AC, TA, "on top"),
+                ("C", AC, TC1, CB, TC2, "inset"),
                 ("B", CB, TB, host.p2, host.T2 @ Matrix.Translation((b, 0.0, 0.0)), "in front")):
             h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0, f"{lab}: {txt}", T1, T2).finish()
             h.trig = host.trig
@@ -721,11 +870,11 @@ class Model:
                            (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
                            f"{lab}: tab {side}"))
 
+        self.line_frames[uid] = (piece, lambda q: q, None)
         if m.get("lines"):
             from .folds import build as fold_build, expand
-            fold_build(self, base, piece, lab, {"L": ccw(halfL), "R": ccw(halfR)},
-                       {"L": f"{base}.HalfL", "R": f"{base}.HalfR"}, expand(m["lines"]),
-                       {"L": ((0.0, 0.0), GL), "R": ((0.0, 0.0), GR)})
+            fold_build(self, piece, [f"{base}.HalfL", f"{base}.HalfR"], lab,
+                       expand(m["lines"]), base)
 
         tears = [s for s in self.samples if not self.crease(base, s)[3]]
         if tears:

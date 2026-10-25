@@ -53,7 +53,8 @@ def _piece_of(model, uid):
     for name in model.pieces:
         tail = name.rstrip("0123456789")
         if name != "Card" and name[len(tail):] == str(uid) and tail in (
-                "Frame", "Box", "VFold", "Tube", "Pyramid", "Roof", "Cube", "Tether", "Flap"):
+                "Frame", "Box", "VFold", "Tube", "Pyramid", "Roof", "Cube", "Tether", "Flap",
+                "Stand", "Bridge"):
             return name
     return None
 
@@ -269,14 +270,14 @@ def _open_rdp(seg, tol):
 
 def take_lines(scene, model, layout, mirror=True):
     """Turn strokes drawn on the crease / slit layers into extra lines on the
-    V-folds they lie on, and clear them. Returns (taken, missed)."""
+    V-folds and boxes they lie on, and clear them. Returns (taken, missed)."""
     st = scene.popup
     obj, _ = hole_sketch(scene, create=False)
     if obj is None or st.layout is None:
         return 0, 0
     mmu = st.mm_per_unit
     L = st.layout.matrix_world.inverted() @ obj.matrix_world
-    by_piece = {f"VFold{m.uid}": m for m in st.mechs if m.kind == "VFOLD"}
+    mechs = {m.uid: m for m in st.mechs if m.kind in ("VFOLD", "BOX", "BOXCUT")}
     got = miss = 0
     for kind, (lname, _, _) in LINE_LAYERS.items():
         layer = next((l for l in obj.data.layers if l.name == lname), None)
@@ -290,7 +291,19 @@ def take_lines(scene, model, layout, mirror=True):
             if len(pts) < 2:
                 continue
             piece, poly = _to_piece(model, layout, pts)
-            m = by_piece.get(piece)
+            m = None
+            for uid, (pc, to_user, bounds) in model.line_frames.items():
+                if pc != piece or uid not in mechs:
+                    continue
+                user = [to_user(q) for q in poly]
+                if bounds is not None:
+                    cx = sum(q[0] for q in user) / len(user)
+                    cy = sum(q[1] for q in user) / len(user)
+                    x0, x1, y0, y1 = bounds
+                    if not (x0 - 5 <= cx <= x1 + 5 and y0 - 5 <= cy <= y1 + 5):
+                        continue
+                m, poly = mechs[uid], user
+                break
             if m is None:
                 miss += 1
                 continue
