@@ -431,16 +431,20 @@ _on_items = []
 
 
 def on_items(self, context):
-    """What an opening can be cut in: the card (a stage's background) or a
-    mechanism's own piece."""
+    """Every piece of paper the opening can be cut in: the card (a stage's
+    background) or any mechanism's piece, roofs, ribs and strips included."""
     global _on_items
     st = context.scene.popup if context and context.scene else None
-    items = [("0", "Background" if st and st.stage_master else "Card", "The card's pages",
-              "FILE_BLANK", 0)]
-    if st is not None:
-        for m in st.mechs:
-            if m.kind not in ("BOXCUT", "MOUTH", "FLOOR", "CEILING"):
-                items.append((str(m.uid), m.label, "", "OBJECT_DATA", m.uid))
+    meta = live.meta(st.rig) if st is not None else None
+    items = []
+    if meta:
+        for name, info in sorted(meta["pieces"].items(), key=lambda kv: kv[1]["slot"]):
+            label = ("Background" if st.stage_master else "Card") if info["is_card"] \
+                else info["label"]
+            items.append((name, label, "", "FILE_BLANK" if info["is_card"] else "OBJECT_DATA",
+                          int(info["slot"])))
+    if not items:
+        items = [("Card", "Card", "", "FILE_BLANK", 0)]
     _on_items = items
     return _on_items
 
@@ -457,17 +461,28 @@ def _opening_changed(self, context):
 
 
 def _on_get(self):
-    return self.on_uid
+    st = bpy.context.scene.popup
+    meta = live.meta(st.rig)
+    if meta and self.on_piece in meta["pieces"]:
+        return int(meta["pieces"][self.on_piece]["slot"])
+    return 0 if not self.on_uid else 1 + self.on_uid
 
 
 def _on_set(self, v):
-    self.on_uid = v
+    st = bpy.context.scene.popup
+    meta = live.meta(st.rig)
+    if meta:
+        for name, info in meta["pieces"].items():
+            if int(info["slot"]) == v:
+                self.on_piece = name
+                break
     live.schedule(bpy.context.scene)
 
 
 class PopupOpening(bpy.types.PropertyGroup):
     label: StringProperty(name="Name", default="Opening")
-    on_uid: IntProperty()
+    on_uid: IntProperty()  # older files: the mechanism (0 = card)
+    on_piece: StringProperty(description="The piece the opening is cut in")
     on: EnumProperty(name="Cut In", items=on_items, get=_on_get, set=_on_set,
                      description="The piece the opening is cut in")
     shape: EnumProperty(name="Shape", items=[
@@ -569,6 +584,11 @@ class PopupSettings(bpy.types.PropertyGroup):
     export_sketch: BoolProperty(name="Sketches", default=True)
     export_guides: BoolProperty(name="Glue Guides", default=True)
     export_labels: BoolProperty(name="Labels", default=True)
+    auto_holes: BoolProperty(name="Cut Painted Areas", default=True,
+                             description="Whatever is painted see-through (Erase Alpha) is "
+                             "cut out of the paper: holes inside a piece, or a new edge where "
+                             "you erase up to its outline. Done on leaving Texture Paint and "
+                             "before every export")
     export_reverse: BoolProperty(name="Reverse Sides", default=True,
                                  description="For pieces with tabs glued to their back, a "
                                  "mirrored sheet of glue markers to print on the other side")

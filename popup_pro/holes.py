@@ -58,6 +58,12 @@ def _piece_of(model, uid):
     return None
 
 
+def _target(model, o):
+    if o.on_piece:
+        return o.on_piece if o.on_piece in model.pieces else None
+    return _piece_of(model, o.on_uid)
+
+
 def _behind(model, piece, poly):
     """An opening on a frame, carried straight back through every frame
     behind it and the background, as lined up when the stage is fully open:
@@ -86,7 +92,7 @@ def _behind(model, piece, poly):
 def _openings(scene, model, st, own=True):
     out = []
     for o in st.openings:
-        piece = _piece_of(model, o.on_uid) if own else "Card"
+        piece = _target(model, o) if own else "Card"
         if own and piece is None:
             continue
         poly = shape(o.shape, o.x, o.y, o.width, o.height)
@@ -94,7 +100,7 @@ def _openings(scene, model, st, own=True):
             out.append((piece, poly))
             if o.through == "BEHIND":
                 out += _behind(model, piece, poly)
-        if o.through == "NEXT" and o.on_uid == 0:
+        if o.through == "NEXT" and _target(model, o) == "Card":
             out.append(("__next__" if o.x > 0 else "__prev__", poly))
     return out
 
@@ -316,6 +322,49 @@ def collect(scene, model, layout=None):
     return holes
 
 
+# ------------------------------------------------------------- checks
+def check_joins(model, holes):
+    """Warn when holes cut all the way along a fold, so a panel (or a glue
+    tab) comes away from its neighbour."""
+    for piece, hs in holes.items():
+        pc = model.pieces.get(piece)
+        if pc is None or not hs:
+            continue
+        signed = [(h, 1 if poly_area(h) >= 0 else -1) for h in hs]
+
+        def cut_at(q):
+            return sum(sg for h, sg in signed if _inside(q, h)) > 0
+
+        segs = [(n, poly[i], poly[(i + 1) % len(poly)]) for n in pc.panels
+                for poly in model.panels[n].polys for i in range(len(poly))]
+        done = set()
+        for i, (n1, a1, b1) in enumerate(segs):
+            for n2, a2, b2 in segs[i + 1:]:
+                if n1 == n2 or (n1, n2) in done:
+                    continue
+                d = (b1[0] - a1[0], b1[1] - a1[1])
+                L = math.hypot(*d)
+                if L < 1e-6:
+                    continue
+                u = (d[0] / L, d[1] / L)
+                off = lambda q: abs((q[0] - a1[0]) * u[1] - (q[1] - a1[1]) * u[0])
+                if off(a2) > 1e-3 or off(b2) > 1e-3:
+                    continue
+                t0, t1 = sorted(((a2[0] - a1[0]) * u[0] + (a2[1] - a1[1]) * u[1],
+                                 (b2[0] - a1[0]) * u[0] + (b2[1] - a1[1]) * u[1]))
+                lo, hi = max(0.0, t0), min(L, t1)
+                if hi - lo < 0.5:
+                    continue
+                done.add((n1, n2))
+                pts = [(a1[0] + u[0] * (lo + (hi - lo) * (k + 0.5) / 24),
+                        a1[1] + u[1] * (lo + (hi - lo) * (k + 0.5) / 24)) for k in range(24)]
+                if all(cut_at(q) for q in pts):
+                    la = model.panels[n1].label
+                    lb = model.panels[n2].label.split(": ")[-1]
+                    model.warn(f"{la}: a hole cuts it free of its {lb} (the fold between "
+                               f"them is cut right through)")
+
+
 # ------------------------------------------------------------- cutting
 def _inside(pt, poly):
     x, y = pt
@@ -379,30 +428,26 @@ def cut(poly, holes):
 
 
 # ------------------------------------------------------------- painted holes
-def trace(mask, step):
+def trace(mask, step=1):
     """Outlines (lists of (col, row) grid corners, hole on the left) of the
-    True areas of a 2D boolean grid."""
-    rows, cols = len(mask), len(mask[0])
+    True areas of a 2D boolean grid (numpy array or nested lists)."""
+    try:
+        import numpy as np
+        cells = {(int(r), int(c)) for r, c in np.argwhere(np.asarray(mask))}
+    except ImportError:
+        cells = {(r, c) for r, row in enumerate(mask) for c, v in enumerate(row) if v}
     nxt = {}
-
-    def on(r, c):
-        return 0 <= r < rows and 0 <= c < cols and mask[r][c]
-
-    for r in range(rows):
-        row = mask[r]
-        for c in range(cols):
-            if not row[c]:
-                continue
-            # boundary edges of pixel (c, r), anticlockwise with the hole on
-            # the left (rows run upwards)
-            if not on(r - 1, c):
-                nxt.setdefault((c, r), []).append((c + 1, r))
-            if not on(r, c + 1):
-                nxt.setdefault((c + 1, r), []).append((c + 1, r + 1))
-            if not on(r + 1, c):
-                nxt.setdefault((c + 1, r + 1), []).append((c, r + 1))
-            if not on(r, c - 1):
-                nxt.setdefault((c, r + 1), []).append((c, r))
+    for r, c in cells:
+        # boundary edges of pixel (c, r), anticlockwise with the hole on the
+        # left (rows run upwards)
+        if (r - 1, c) not in cells:
+            nxt.setdefault((c, r), []).append((c + 1, r))
+        if (r, c + 1) not in cells:
+            nxt.setdefault((c + 1, r), []).append((c + 1, r + 1))
+        if (r + 1, c) not in cells:
+            nxt.setdefault((c + 1, r + 1), []).append((c, r + 1))
+        if (r, c - 1) not in cells:
+            nxt.setdefault((c, r + 1), []).append((c, r))
     loops = []
     while nxt:
         start = next(iter(nxt))
@@ -463,7 +508,8 @@ def simplify(pts, tol):
 
 def trace_painted(scene, threshold=0.5, res_mm=0.5, tol_mm=0.15):
     """Trace the see-through parts of the art into hole outlines per piece and
-    keep them on the scene (they are cut at every rebuild until traced again)."""
+    keep them on the scene (they are cut at every rebuild until traced again).
+    Erasing up to a piece's edge trims its outline the same way."""
     import tempfile
     from . import art, export_svg, live
     from .build import TILE_MM
@@ -492,21 +538,19 @@ def trace_painted(scene, threshold=0.5, res_mm=0.5, tol_mm=0.15):
                 x0, y0 = ax - TILE_MM / 2, ay - TILE_MM / 2
                 sx, sy = TILE_MM / w, TILE_MM / h
             k = max(1, int(round(res_mm / max(sx, sy))))
-            px = t.pixels[:]
+            try:
+                import numpy as np
+                px = np.empty(w * h * 4, dtype=np.float32)
+                t.pixels.foreach_get(px)
+                mask = px[3::4].reshape(h, w)[::k, ::k] < threshold
+                any_hole = bool(mask.any())
+            except ImportError:
+                px = t.pixels[:]
+                mask = [[px[4 * ((r * k) * w + c * k) + 3] < threshold
+                         for c in range(w // k)] for r in range(h // k)]
+                any_hole = any(any(row) for row in mask)
         finally:
             bpy.data.images.remove(t)
-        rows, cols = h // k, w // k
-        mask = []
-        any_hole = False
-        for r in range(rows):
-            row = []
-            base = (r * k) * w
-            for c in range(cols):
-                a = px[4 * (base + c * k) + 3]
-                hole = a < threshold
-                any_hole |= hole
-                row.append(hole)
-            mask.append(row)
         if not any_hole:
             continue
         polys = []
@@ -519,3 +563,65 @@ def trace_painted(scene, threshold=0.5, res_mm=0.5, tol_mm=0.15):
             out[piece] = polys
     st["pop_painted"] = json.dumps(out)
     return sum(len(v) for v in out.values())
+
+
+# ------------------------------------------------- automatic painted cuts
+def has_art(scene):
+    from . import art
+    from .naming import N
+    return scene.popup.rig is not None and bpy.data.images.get(N(scene, art.ART_IMAGE)) is not None
+
+
+def cut_painted(scene):
+    """Trace the painted see-through areas and rebuild, if there is art."""
+    from . import build
+    if not has_art(scene):
+        return 0
+    before = scene.popup.get("pop_painted", "{}")
+    n = trace_painted(scene)
+    if scene.popup.get("pop_painted", "{}") != before:
+        build.rebuild(scene, force=True)
+    return n
+
+
+_last_mode = {"mode": None}
+
+
+def _mode_changed():
+    """Leaving Texture Paint: cut what was painted see-through, so the paper
+    takes the shape the paint shows (Cut Painted Areas setting)."""
+    try:
+        ctx = bpy.context
+        mode = ctx.mode
+        was = _last_mode["mode"]
+        _last_mode["mode"] = mode
+        sc = ctx.scene
+        if was == "PAINT_TEXTURE" and mode != "PAINT_TEXTURE" and sc is not None \
+                and sc.popup.auto_holes and has_art(sc):
+            name = sc.name
+
+            def run():
+                scene = bpy.data.scenes.get(name)
+                if scene is not None:
+                    try:
+                        cut_painted(scene)
+                    except Exception as ex:  # keep painting usable; say why
+                        scene.popup.status = f"Cutting painted areas failed: {ex}"
+                return None
+            bpy.app.timers.register(run, first_interval=0.05)
+    except Exception:
+        pass
+
+
+_owner = object()
+
+
+@bpy.app.handlers.persistent
+def subscribe(*_args):
+    bpy.msgbus.clear_by_owner(_owner)
+    bpy.msgbus.subscribe_rna(key=(bpy.types.Object, "mode"), owner=_owner, args=(),
+                             notify=_mode_changed)
+
+
+def unsubscribe():
+    bpy.msgbus.clear_by_owner(_owner)

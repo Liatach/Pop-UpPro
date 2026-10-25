@@ -256,17 +256,18 @@ crease lies down the card from where it stands, and the checks say how far
 up to move it if that would run off the bottom. Openings on its frames can
 go *Through* to its background.
 
-### Openings and holes
+### Holes and shaping (every mechanism)
 
 ![Stage 1: an arched staging frame, a perforated frame and a window through
 to the background](docs/images/stage_holes.jpg)
 
-The **Openings and Holes** panel cuts real holes in the paper. They show in
-3D and print as cut lines:
+The **Holes and Shaping** panel works the same on every piece: the card, any
+mechanism, roofs, ribs, frames, floors. Holes are cut into the paper itself,
+so they show in 3D and print as cut lines:
 
 * **Openings**: rectangles, arches and ovals, with **Across**, **Bottom**,
-  **Width** and **Height** sliders, cut in the card or any mechanism's piece.
-  Across is measured from the piece's centre fold. **Through** carries an
+  **Width** and **Height** sliders, cut in any piece (**Cut In** lists them
+  all). Across is measured from the piece's centre fold. **Through** carries an
   opening:
   * *Everything Behind*: every frame behind it and the background, lined up
     as seen from the front when the stage is fully open (on the background,
@@ -274,11 +275,14 @@ The **Openings and Holes** panel cuts real holes in the paper. They show in
   * *Next Stage*: on a background page, the neighbouring stage's page that
     is glued back to back with it, so a doorway leads from one stage into
     the next.
-* **Painted holes**: in Texture Paint, paint with the *Erase Alpha* blend
-  mode. The see-through areas show see-through on the model straight away;
-  **Cut Painted Holes** traces them into smooth cut outlines (run it again
-  after repainting, or ✕ to drop them). This is the way to perforate a
-  staging frame.
+* **Painted**: in Texture Paint, paint with the *Erase Alpha* blend mode.
+  Erase inside a piece for a hole, or up to its edge to change its outline
+  (round a V-fold's corner, cut a jagged skyline). The see-through areas
+  show see-through on the model straight away, and with **Cut Painted
+  Areas** on (the default) they are traced into smooth cut lines when you
+  leave Texture Paint and again before every export, so what you see is
+  what prints. **Cut Now** does it by hand; ✕ drops them. This is also the
+  way to perforate a staging frame.
 * **Drawn holes**: **Draw Holes** turns the view to look straight down on the
   flat layout and starts a red Grease Pencil layer over it. Draw closed
   outlines on any piece, across a fold if you like. They are cut at the next
@@ -287,7 +291,9 @@ The **Openings and Holes** panel cuts real holes in the paper. They show in
   back as strokes. Holes sketched on panels in v0.10 are folded in by Keep.
 
 Overlapping holes join together. Painted islands left inside a painted hole
-stay as paper.
+stay as paper. The checks warn if a hole cuts all the way along a fold, for
+example erasing across the line where a V-fold half meets its glue tab,
+since that piece would come away.
 
 ### Flap and the Pull control
 
@@ -441,6 +447,7 @@ python tests/test_stage.py     # stage frames, floors and ceilings for 3 to 9 st
 python tests/test_v10.py       # carousels, openings, painted and sketched holes, export
 python tests/test_v11.py       # a stage set standing in an ordinary card
 python tests/test_v12.py       # pointed floors, mechanisms in floor and ceiling corners
+python tests/test_v13.py       # painted trims cut on export, openings in any piece
 ```
 
 ## Limits and roadmap

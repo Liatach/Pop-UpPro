@@ -2,16 +2,24 @@
 V-folds, box folds and cut-in box layers on a folded card, a driver rig
 that animates the open angle, art that stays on the paper, and print SVGs."""
 
-from . import ops, props, ui
+import bpy
+
+from . import holes, ops, props, ui
 
 
 def register():
     props.register()
     ops.register()
     ui.register()
+    holes.subscribe()
+    if holes.subscribe not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(holes.subscribe)
 
 
 def unregister():
+    holes.unsubscribe()
+    if holes.subscribe in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(holes.subscribe)
     ui.unregister()
     ops.unregister()
     props.unregister()

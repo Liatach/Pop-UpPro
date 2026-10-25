@@ -452,9 +452,11 @@ class POPUP_OT_export_svg(bpy.types.Operator, ExportHelper):
         draw_export(self.layout, context.scene.popup)
 
     def execute(self, context):
-        from . import export_svg
+        from . import export_svg, holes
         st = context.scene.popup
         try:
+            if st.auto_holes and not st.edited:
+                holes.cut_painted(context.scene)  # print the shape the paint shows
             files = export_svg.export(context.scene, self.filepath,
                                       **export_svg.settings_from(st))
         except Exception as ex:
@@ -566,6 +568,11 @@ class POPUP_OT_export_carousel(bpy.types.Operator, ExportHelper):
         sc = context.scene
         master = sc.popup.stage_master or sc
         try:
+            from . import holes
+            for stage in carousel.stages(master):
+                if stage.popup.auto_holes and not stage.popup.edited:
+                    with carousel.in_scene(stage):
+                        holes.cut_painted(stage)
             files = carousel.export(master, self.filepath,
                                     **export_svg.settings_from(master.popup))
         except RuntimeError as ex:
@@ -586,11 +593,15 @@ class POPUP_OT_add_opening(bpy.types.Operator):
         o = st.openings.add()
         o.label = f"Opening {len(st.openings)}"
         # on the selected mechanism if it can take one, else the card
-        if st.mechs and st.active < len(st.mechs):
+        o.on_piece = "Card"
+        meta = live.meta(st.rig)
+        if st.mechs and st.active < len(st.mechs) and meta:
             m = st.mechs[st.active]
-            if m.kind not in ("BOXCUT", "MOUTH", "FLOOR", "CEILING"):
-                o.on_uid = m.uid
-        if o.on_uid == 0:
+            # the selected mechanism's own piece, if it has one
+            for name, info in meta["pieces"].items():
+                if not info["is_card"] and int(info["slot"]) == 1 + m.uid:
+                    o.on_piece = name
+        if o.on_piece == "Card":
             o.x = 0.5 * st.card_dict()["W"]
         st.active_opening = len(st.openings) - 1
         live.schedule(context.scene)

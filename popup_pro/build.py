@@ -441,7 +441,9 @@ def rebuild(scene, force=False):
         st.warnings = "\n".join(model.warnings)
         return model
     from . import holes as _holes
-    groups = build_mesh(mesh, model, layout, s, _holes.collect(scene, model, layout))
+    cuts = _holes.collect(scene, model, layout)
+    _holes.check_joins(model, cuts)
+    groups = build_mesh(mesh, model, layout, s, cuts)
     ensure_material(mesh, scene)
     for obj in (card,):
         obj.vertex_groups.clear()

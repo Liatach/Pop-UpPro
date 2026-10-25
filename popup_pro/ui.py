@@ -437,8 +437,7 @@ class POPUP_UL_openings(bpy.types.UIList):
 
 
 class POPUP_PT_openings(_Base, bpy.types.Panel):
-    bl_label = "Openings and Holes"
-    bl_options = {"DEFAULT_CLOSED"}
+    bl_label = "Holes and Shaping"
 
     @classmethod
     def poll(cls, context):
@@ -464,13 +463,15 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
             col.prop(o, "width")
             col.prop(o, "height")
             col.prop(o, "through")
-            if o.through == "NEXT" and (st.stage_master is None or o.on_uid != 0):
+            if o.through == "NEXT" and (st.stage_master is None or
+                                        (o.on_piece or ("Card" if not o.on_uid else "")) != "Card"):
                 col.label(text="Next Stage works on a carousel stage's background",
                           icon="ERROR")
         box = lay.box()
-        box.label(text="Painted holes: paint with Erase Alpha, then", icon="BRUSH_DATA")
+        box.label(text="Painted: erase alpha to cut holes or trim edges", icon="BRUSH_DATA")
+        box.prop(st, "auto_holes")
         row = box.row(align=True)
-        row.operator("popup.trace_holes", icon="MOD_BOOLEAN")
+        row.operator("popup.trace_holes", text="Cut Now", icon="MOD_BOOLEAN")
         row.operator("popup.trace_holes", text="", icon="X").clear = True
         box = lay.box()
         box.label(text="Drawn holes: closed strokes on the flat layout", icon="GREASEPENCIL")
