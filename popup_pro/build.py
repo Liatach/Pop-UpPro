@@ -384,7 +384,7 @@ def build_rig(scene, rig, model, layout, s, t0=0.0):
         if p.hinge is not None:
             K = rest.inverted() @ pp @ p.hinge.Hp
         else:
-            rel = model.rel(name, 90.0)
+            rel = model.rel(name, model.t_ref)
             K = rest.inverted() @ pp @ rel @ panel_frame(p)
         K = scaled(K, s)
         e = K.to_euler("YZX")

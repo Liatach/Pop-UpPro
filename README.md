@@ -211,7 +211,18 @@ move around.
   the pages. They lie flat when the stage is open and fold into the stage
   as it closes. Frames are cut back automatically to clear them. Floors and
   ceilings need three stages or more: at 180 degrees they would have to lie
-  in the page planes the moment the stage starts to close.
+  in the page planes the moment the stage starts to close. **Point** runs a
+  floor's or ceiling's centre on past the front of the stage, as a pointed
+  apron: shut, the centre crease lies on the page at half the stage angle,
+  so it can go a long way (about 170 mm on an A5 three-stage carousel, 60 mm
+  on five) before it would stick out. It is shortened, with a warning, if it
+  would. Floors print with their art side up into the stage.
+* **Corners**: where a floor or ceiling meets a wall is a fold too. Pick
+  the floor or ceiling as the **Host** of a glued box fold, V-fold or cube
+  and choose the **Wall** (left or right). Or select the floor and use the
+  Add menu's corner entries. Box folds label their widths *Up Wall* and
+  *Along Floor*. Their tabs may lie over the floor's own tab along the wall,
+  glue on glue.
 * **Joins**: *Glued* (default) makes each stage its own folded card. The
   back of each stage's right page is glued to the back of the next stage's
   left page. *Shared Page* prints each pair of neighbouring pages on one
@@ -429,6 +440,7 @@ python tests/test_v08.py       # basic box: rib, and mechanisms on the roof crea
 python tests/test_stage.py     # stage frames, floors and ceilings for 3 to 9 stages
 python tests/test_v10.py       # carousels, openings, painted and sketched holes, export
 python tests/test_v11.py       # a stage set standing in an ordinary card
+python tests/test_v12.py       # pointed floors, mechanisms in floor and ceiling corners
 ```
 
 ## Limits and roadmap

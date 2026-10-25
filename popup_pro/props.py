@@ -120,6 +120,10 @@ def host_items(self, context):
             if m.kind in ("BOX", "BOXCUT"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
                               "MESH_CUBE", m.uid))
+            elif m.kind in ("FLOOR", "CEILING"):
+                items.append((str(m.uid), m.label, f"Sit in the corner where {m.label} "
+                              f"meets a wall", "TRIA_DOWN_BAR" if m.kind == "FLOOR"
+                              else "TRIA_UP_BAR", m.uid))
             elif m.kind == "TUBE" and m.roof == "FLAT" and m.roof_fold == "DIP":
                 items.append((str(m.uid), f"{m.label} roof", f"Sit on the centre crease of "
                               f"{m.label}'s roof", "MESH_CYLINDER", m.uid))
@@ -136,6 +140,25 @@ def fit_to_host(m, st):
     half the host's panels, centred along it, so there's paper left round it
     to read as a step or an inset."""
     host = next((h for h in st.mechs if h.uid == m.host_uid), None)
+    if host is not None and host.kind in ("FLOOR", "CEILING"):
+        # in the corner: clear of the floor's own tab along the wall
+        k = max(host.tab + 12.0 + 3.0, 0.15 * host.depth)
+        was = st.live
+        st["live"] = False
+        try:
+            if m.kind in ("BOX", "BOXCUT"):
+                m.height = m.depth = k
+                m.width = 0.25 * host.depth
+                m.y = 0.3 * host.depth
+            elif m.kind == "VFOLD":
+                m.height = m.glue = 0.8 * k
+                m.y = 0.4 * host.depth
+            elif m.kind == "CUBE":
+                m.size = m.height = 0.6 * k
+                m.y = 0.3 * host.depth
+        finally:
+            st["live"] = was
+        return
     if host is not None and host.kind == "STAGE":
         was = st.live
         st["live"] = False
@@ -266,6 +289,10 @@ class PopupMech(bpy.types.PropertyGroup):
     rib: FloatProperty(name="Centre Rib", description="Length of the rib holding a dipped "
                        "roof up from the spine (mm); 0 for none", default=20.0, min=0.0,
                        soft_max=150.0, update=_changed)
+    lead: FloatProperty(name="Point", description="How far a floor's or ceiling's centre "
+                        "runs on past the front of the stage (mm). It is shortened if it "
+                        "would stick out when shut", default=0.0, min=0.0, soft_max=200.0,
+                        update=_changed)
     eave: FloatProperty(name="Overhang", description="How far a flat roof reaches past the "
                         "walls all round (mm)", default=0.0, min=0.0, soft_max=40.0,
                         update=_changed)
@@ -336,7 +363,7 @@ class PopupMech(bpy.types.PropertyGroup):
 
     def to_dict(self):
         d = dict(uid=self.uid, label=self.label, y=self.y, tab=self.tab,
-                 host=self.host_uid, fold=self.fold)
+                 host=self.host_uid, fold=self.fold, side=self.side)
         if self.kind == "TUBE":
             d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
                      front=self.front, back=self.back, front_style=self.front_style,
@@ -349,7 +376,7 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "FRAME":
             d.update(type="FRAME", x=self.x, height=self.height)
         elif self.kind in ("FLOOR", "CEILING"):
-            d.update(type=self.kind, depth=self.depth)
+            d.update(type=self.kind, depth=self.depth, lead=self.lead)
         elif self.kind == "PYRAMID":
             d.update(type="PYRAMID", x=self.x, depth=self.depth, height=self.height,
                      ridge=self.ridge, front=self.front, back=self.back,

@@ -243,8 +243,9 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
         p = model.panels[name]
         return p.asm(t) @ prints[p.piece].inverted()
 
-    D90 = {n: D(n, 90.0) for n in names}
-    D40 = {n: D(n, 40.0) for n in names}
+    tr = model.t_ref  # 90 for a card, half the stage angle in a carousel
+    D90 = {n: D(n, tr) for n in names}
+    D40 = {n: D(n, tr * 4.0 / 9.0) for n in names}
 
     co = [Vector((v.co.x * mmu, v.co.y * mmu)) for v in mesh.vertices]
     faces_by_piece = {}
@@ -298,7 +299,7 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
                 olo, ohi = _interval_other(s, o, lo, hi)
                 if fold:
                     mid = s.a.lerp(s.b, 0.5 * (lo + hi)).to_3d()
-                    Ms, Mo = D(ns, 60.0), D(no, 60.0)
+                    Ms, Mo = D(ns, tr * 2.0 / 3.0), D(no, tr * 2.0 / 3.0)
                     n = (Ms.to_3x3() @ Vector((0, 0, 1))).normalized()
                     v = Mo @ centroid(o.face).to_3d() - Ms @ mid
                     kind = "valley" if n.dot(v) > 0 else "mountain"
@@ -368,7 +369,7 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
         if p["kind"] != "tab":
             continue
         host = model.panels[model.panels[p["name"]].parent]
-        rel = host.asm(90.0).inverted() @ D90[p["name"]]
+        rel = host.asm(tr).inverted() @ D90[p["name"]]
         Mp = prints[host.piece] @ rel
         for piece_faces in faces_by_piece.get(p["piece"], []):
             if piece_faces[0] == pi:

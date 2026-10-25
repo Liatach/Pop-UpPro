@@ -71,6 +71,16 @@ class POPUP_MT_add(bpy.types.Menu):
             self.layout.label(text="Stage:")
             for k, name in (("FRAME", "Frame"), ("FLOOR", "Floor"), ("CEILING", "Ceiling")):
                 self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
+        if st.mechs and st.active < len(st.mechs) and \
+                st.mechs[st.active].kind in ("FLOOR", "CEILING"):
+            h = st.mechs[st.active]
+            self.layout.separator()
+            self.layout.label(text=f"In the corners of {h.label}:")
+            for k, name in (("BOX", "Glued Box"), ("VFOLD", "V-fold"), ("CUBE", "Cube")):
+                for side, wall in (("L", "left wall"), ("R", "right wall")):
+                    op = self.layout.operator("popup.add", text=f"{name}, {wall}",
+                                              icon=KIND_ICON[k])
+                    op.kind, op.host, op.side = k, h.uid, side
         elif st.mechs and st.active < len(st.mechs) and st.mechs[st.active].kind == "STAGE":
             h = st.mechs[st.active]
             self.layout.separator()
@@ -297,6 +307,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             if st.stage_master is None:
                 col.prop(m, "host", text="Stage")
             col.prop(m, "depth")
+            col.prop(m, "lead")
             col.prop(m, "tab")
             self.draw_warnings(context, m)
             return
@@ -334,7 +345,11 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         hm = next((h for h in st.mechs if h.uid == m.host_uid), None) if m.host_uid else None
         if hm is not None and hm.kind in ("BOX", "BOXCUT"):
             col.prop(m, "fold")
-        col.prop(m, "y", text={"MOUTH": "Slit Position"}.get(m.kind, "Position"))
+        joint = hm is not None and hm.kind in ("FLOOR", "CEILING")
+        if joint:
+            col.prop(m, "side", text="Wall")
+        col.prop(m, "y", text={"MOUTH": "Slit Position"}.get(m.kind, "Position")
+                 if not joint else "Out from Fold")
         if m.kind == "CUBE":
             col.prop(m, "size")
             col.prop(m, "height")
@@ -360,8 +375,18 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "tab_side")
         else:
             col.prop(m, "width", text="Height")
-            col.prop(m, "height", text="Width Left")
-            col.prop(m, "depth", text="Width Right")
+            if joint:
+                # which side of the joint each width lies on
+                flat = "Along Floor" if hm.kind == "FLOOR" else "Along Ceiling"
+                wall_first = (hm.kind == "FLOOR") == (m.side == "R")
+                left, right = ("Up Wall", flat) if wall_first else (flat, "Up Wall")
+                if hm.kind == "CEILING":
+                    left = left.replace("Up Wall", "Down Wall")
+                    right = right.replace("Up Wall", "Down Wall")
+            else:
+                left, right = "Width Left", "Width Right"
+            col.prop(m, "height", text=left)
+            col.prop(m, "depth", text=right)
             if m.kind == "BOX":
                 col.prop(m, "tab")
         self.draw_warnings(context, m)

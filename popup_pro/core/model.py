@@ -155,14 +155,17 @@ class Host:
     y = card height, left page at x < 0) onto the two panels, so every
     mechanism can be written as if it sat on the card spine."""
 
-    def __init__(self, model, p1, x1, y1, p2, x2, y2, label):
+    def __init__(self, model, p1, x1, y1, p2, x2, y2, label, T1=None, T2=None):
         self.m = model
         self.p1, self.x1, self.y1 = p1, x1, y1
         self.p2, self.x2, self.y2 = p2, x2, y2
         self.label = label
-        self.T1 = Matrix.Translation((x1, -y1, 0.0))
-        self.T2 = Matrix.Translation((x2, -y2, 0.0))
+        # virtual (spine-style) pattern -> each panel's own pattern; any rigid
+        # placement, so a fold needn't run along the panels' pattern Y
+        self.T1 = T1 if T1 is not None else Matrix.Translation((x1, -y1, 0.0))
+        self.T2 = T2 if T2 is not None else Matrix.Translation((x2, -y2, 0.0))
         self.lift = (1.0, 1.0)
+        self.trig = True  # panels turn with the card's own angle (closed forms apply)
         self.open_max = None  # a stage set's halves open only so far
         self.size = None  # (half width, height) of a stage set's background
         self.key = None
@@ -170,12 +173,20 @@ class Host:
     @property
     def cut_ok(self):
         P = self.m.panels
-        return (P[self.p1].piece == P[self.p2].piece and abs(self.x1 - self.x2) < 1e-6
-                and abs(self.y1 - self.y2) < 1e-6)
+        return (P[self.p1].piece == P[self.p2].piece and
+                all(abs(self.T1[i][j] - self.T2[i][j]) < 1e-6 for i in range(3) for j in range(4)))
+
+    def v1(self, x, y):
+        """Virtual point -> p1's pattern."""
+        return (self.T1 @ Vector((x, y, 0.0))).to_2d()[:]
+
+    def d1(self, x, y):
+        """Virtual direction -> p1's pattern."""
+        return (self.T1.to_3x3() @ Vector((x, y, 0.0))).to_2d()[:]
 
     @property
     def is_spine(self):
-        return self.p1 == "Page.L" and self.p2 == "Page.R" and self.x1 == 0.0
+        return self.p1 == "Page.L" and self.p2 == "Page.R" and self.T1 == Matrix.Identity(4)
 
     def L(self, t):
         return self.m.panels[self.p1].asm(t) @ self.T1
@@ -191,7 +202,7 @@ class Host:
 
     def finish(self):
         """Which way glued tabs lift off each panel (towards the mechanism)."""
-        S, l, r, Y, nl, nr = self.dirs(90.0)
+        S, l, r, Y, nl, nr = self.dirs(self.m.t_ref)
         self.lift = (1.0 if nl.dot(r) >= 0 else -1.0, 1.0 if nr.dot(l) >= 0 else -1.0)
         return self
 
@@ -217,6 +228,7 @@ class Model:
         self.tubes = {}  # tube uid -> plan geometry for tethers
         self.tethers = {}
         self.frames = {}  # stage frame uid -> info
+        self.stack_ok = set()  # mechanism label pairs whose tabs may overlap
         self.floors = []  # floor / ceiling uids built so far (frames clear them)
         self.edge_tab = {}  # floor ("bottom") / ceiling ("top") tab widths
         # A carousel stage only ever opens to 360/n degrees; everything is
@@ -224,6 +236,7 @@ class Model:
         self.tmax = min(180.0, float(card.get("tmax", 180.0)))
         self.samples = sorted({s for s in SAMPLES if s < self.tmax - 1e-6} |
                               {self.tmax, round(0.5 * self.tmax, 3)})
+        self.t_ref = min(90.0, 0.5 * self.tmax)  # a typical open angle for setting things up
         self.TABLE_T = [T_MIN] + [float(d) for d in range(1, int(math.ceil(self.tmax)))] + \
             [self.tmax]
         self._build()
@@ -349,12 +362,14 @@ class Model:
                 lid = parent is not None and parent["type"] == "TUBE" and \
                     parent.get("roof") == "FLAT" and parent.get("roof_fold") == "DIP"
                 stage = parent is not None and parent["type"] == "STAGE"
-                if stage != (m["type"] in ("FRAME", "FLOOR", "CEILING")) and parent is not None \
-                        and (stage or m["type"] in ("FRAME", "FLOOR", "CEILING")):
+                joint = parent is not None and parent["type"] in ("FLOOR", "CEILING")
+                ffc = m["type"] in ("FRAME", "FLOOR", "CEILING")
+                if parent is not None and (stage != ffc or (joint and ffc)):
                     self.warn(f"{m['label']}: frames, floors and ceilings go on a stage set, "
                               f"and only they do; skipped")
                     ok = False
-                elif parent is None or (parent["type"] != "BOX" and not lid and not stage):
+                elif parent is None or (parent["type"] != "BOX" and not lid and not stage
+                                        and not joint):
                     self.warn(f"{m['label']}: its host is missing (a box, or a tube with a "
                               f"dipped flat roof); skipped")
                     ok = False
@@ -378,10 +393,13 @@ class Model:
                 fold = "R"  # the roof's centre crease
             if h and by_uid[h]["type"] == "STAGE":
                 fold = "S"  # the stage set's back crease
+            if h and by_uid[h]["type"] in ("FLOOR", "CEILING"):
+                fold = "L" if m.get("side", "L") == "L" else "R"  # its join with a wall
             host = self.hosts.get((h, fold) if h else (0, "S"))
             if host is None:
                 self.warn(f"{m['label']}: its host was skipped; skipped too")
                 continue
+            n0 = len(self.order)
             if m["type"] == "VFOLD":
                 self._vfold(m, host)
             elif m["type"] == "MOUTH":
@@ -404,6 +422,17 @@ class Model:
                 self._frame(m, host)
             elif m["type"] in ("FLOOR", "CEILING"):
                 self._floor(m, host)
+            if isinstance(host.key, tuple):
+                # standing in a floor's corner its tabs may lie over the
+                # floor's own tab along the wall: glue on glue is fine
+                self.stack_ok.add(frozenset((by_uid[h]["label"], m["label"])))
+            if not host.trig:
+                # the host's panels don't turn with the card's own angle, so
+                # no closed form applies: every new fold is tabulated
+                for name in self.order[n0:]:
+                    hg = self.panels[name].hinge
+                    if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
+                        hg.kind = "TABLE"
 
     # ------------------------------------------------------- page directions
     def dirs(self, t):
@@ -438,15 +467,14 @@ class Model:
                           f"piece of paper (use a glued box here); skipped")
                 return
             piece = self.panels[host.p1].piece
-            x1, yo = host.x1, host.y1
-            Y0 = y0 - yo
-            rect = [(x1 - a, Y0), (x1 + b, Y0), (x1 + b, Y0 + w), (x1 - a, Y0 + w)]
+            rect = [host.v1(-a, y0), host.v1(b, y0), host.v1(b, y0 + w), host.v1(-a, y0 + w)]
             cells = self.carve(piece, rect, {host.p1, host.p2}, lab)
             if cells is None:
                 return
-            xc = x1 + b - a
-            cb_cells, ac_cells = self.split_cells(cells, (1.0, 0.0), xc)
-            Tv = Matrix.Translation((-x1, yo, 0.0))  # pattern -> virtual
+            nx = host.d1(1.0, 0.0)
+            pc = host.v1(b - a, y0)
+            cb_cells, ac_cells = self.split_cells(cells, nx, nx[0] * pc[0] + nx[1] * pc[1])
+            Tv = host.T1.inverted()  # pattern -> virtual
 
             def asm_ac(t):
                 S, l, r, Y, nl, nr = host.dirs(t)
@@ -456,8 +484,8 @@ class Model:
                 S, l, r, Y, nl, nr = host.dirs(t)
                 return frame(S + b * r + b * l, -l, Y) @ Tv
 
-            hA = hinge_frame_2d((x1 - a, Y0), (0, 1))
-            hC = hinge_frame_2d((xc, Y0), (0, 1))
+            hA = host.T1 @ hinge_frame_2d((-a, y0), (0, 1))
+            hC = host.T1 @ hinge_frame_2d((b - a, y0), (0, 1))
             ac = self.add(Panel(f"{base}.AC", piece, "panel", ac_cells, asm_ac, host.p1,
                                 Hinge(hA, hA), f"{lab}: top"))
             cb = self.add(Panel(f"{base}.CB", piece, "panel", cb_cells, asm_cb,
@@ -467,7 +495,9 @@ class Model:
                 self.warn(f"{lab}: height or depth is too small to fold")
                 return
             self.cut_panels |= {ac.name, cb.name}
-            xs = dict(A=x1 - a, C=xc, B=x1 + b, y=yo)
+            TA = host.T1 @ Matrix.Translation((-a, 0.0, 0.0))
+            TC = host.T1 @ Matrix.Translation((b - a, 0.0, 0.0))
+            TB = host.T1 @ Matrix.Translation((b, 0.0, 0.0))
         else:
             # Glued strip: tabA | AC (b) | CB (a) | tabB along u, width w along v
             t_ = min(float(m.get("tab", 12.0)), a, b)
@@ -500,7 +530,7 @@ class Model:
             self.add(Panel(f"{base}.TabA", piece, "tab", [poly_tabA], asm_tabA,
                            host.p1, None, f"{lab}: tab A"))
             ac = self.add(Panel(f"{base}.AC", piece, "panel", [poly_ac], asm_ac, host.p1,
-                                Hinge(hinge_frame_2d((host.x1 - a, y0 - host.y1), (0, 1)),
+                                Hinge(host.T1 @ hinge_frame_2d((-a, y0), (0, 1)),
                                       hinge_frame_2d((0, 0), (0, 1))),
                                 f"{lab}: top"))
             self.add(Panel(f"{base}.CB", piece, "panel", [poly_cb], asm_cb, ac.name,
@@ -509,18 +539,21 @@ class Model:
                            f"{lab}: front"))
             self.add(Panel(f"{base}.TabB", piece, "tab", [poly_tabB], asm_tabB,
                            host.p2, None, f"{lab}: tab B"))
-            xs = dict(A=0.0, C=b, B=a + b, y=y0)
+            TA = Matrix.Translation((0.0, -y0, 0.0))
+            TC = Matrix.Translation((b, -y0, 0.0))
+            TB = Matrix.Translation((a + b, -y0, 0.0))
         if role:
             for n in (f"{base}.AC", f"{base}.CB"):
                 if n in self.panels:
                     self.panels[n].label = self.panels[n].label.replace(": ", " (inset): ")
-        AC, CB, yo = f"{base}.AC", f"{base}.CB", xs["y"]
-        self.hosts[(uid, "A")] = Host(self, host.p1, host.x1 - a, host.y1, AC, xs["A"], yo,
-                                      f"{lab}: on top").finish()
-        self.hosts[(uid, "C")] = Host(self, AC, xs["C"], yo, CB, xs["C"], yo,
-                                      f"{lab}: inset").finish()
-        self.hosts[(uid, "B")] = Host(self, CB, xs["B"], yo, host.p2, host.x2 + b, host.y2,
-                                      f"{lab}: in front").finish()
+        AC, CB = f"{base}.AC", f"{base}.CB"
+        for key, p1, T1, p2, T2, txt in (
+                ("A", host.p1, host.T1 @ Matrix.Translation((-a, 0.0, 0.0)), AC, TA, "on top"),
+                ("C", AC, TC, CB, TC, "inset"),
+                ("B", CB, TB, host.p2, host.T2 @ Matrix.Translation((b, 0.0, 0.0)), "in front")):
+            h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0, f"{lab}: {txt}", T1, T2).finish()
+            h.trig = host.trig
+            self.hosts[(uid, key)] = h
 
     # ---------------------------------------------------------------- V-fold
     def _crease_parts(self, J, t):
@@ -561,7 +594,7 @@ class Model:
             sgn = max((1.0, -1.0), key=lambda s: (base + s * k * n).normalized().dot(want))
             self._branch[key] = sgn
         if sgn is None:
-            base, k, n, nl, nr, *_ = self._crease_parts(J, 90.0)
+            base, k, n, nl, nr, *_ = self._crease_parts(J, self.t_ref)
             sgn = max((1.0, -1.0), key=lambda s: (base + s * k * n).normalized().dot(nl + nr))
             self._branch[key] = sgn
         base, k, n, nl, nr, uL, uR, ok, P3 = self._crease_parts(J, t)
@@ -584,9 +617,8 @@ class Model:
         sg = 1.0 if xp[0] * cpat[0] + xp[1] * cpat[1] > 0 else -1.0
         Fc = hinge_frame_2d(Ppat, gpiece)
         Fci = Fc.inverted()
-        parent, px, py, g_page = ((host.p1, host.x1, host.y1, J["uL"]) if L
-                                  else (host.p2, host.x2, host.y2, J["uR"]))
-        Hp = hinge_frame_2d((px, J["y"] - py), g_page)
+        parent, Tp, g_page = ((host.p1, host.T1, J["uL"]) if L else (host.p2, host.T2, J["uR"]))
+        Hp = Tp @ hinge_frame_2d((0.0, J["y"]), g_page)
 
         def asm(t):
             c, uL, uR, ok, P3 = self.crease(key, t)
@@ -942,12 +974,12 @@ class Model:
         # side walls hinge on the strips
         P["FL_"] = self.add(Panel(f"{piece}.FL_", piece, "panel", [walls["FL_"]["poly"]],
                                   walls["FL_"]["asm"], host.p1,
-                                  Hinge(hinge_frame_2d((host.x1 - a, y0 + D - host.y1), (0, -1)),
+                                  Hinge(host.T1 @ hinge_frame_2d((-a, y0 + D), (0, -1)),
                                         hinge_frame_2d((0, 0), (1, 0))),
                                   f"{lab}: left side"))
         P["FR_"] = self.add(Panel(f"{piece}.FR_", piece, "panel", [walls["FR_"]["poly"]],
                                   walls["FR_"]["asm"], host.p2,
-                                  Hinge(hinge_frame_2d((host.x2 + a, y0 - host.y2), (0, 1)),
+                                  Hinge(host.T2 @ hinge_frame_2d((a, y0), (0, 1)),
                                         hinge_frame_2d((u[3], 0), (1, 0))),
                                   f"{lab}: right side"))
         for nm, parent, hu, lb in (("GFL", "FL_", u[1], "front left"),
@@ -1340,20 +1372,55 @@ class Model:
             return
         depth = min(float(m.get("depth", Wd)), Wd)
         al = 0.5 * om
+        ca, sa = math.cos(math.radians(al)), math.sin(math.radians(al))
+        # Its centre crease can run on past the front of the stage (a pointed
+        # apron): shut, the crease lies on the page at half the stage angle
+        # to the edge it's glued along, so it may reach Wd / cos and Hd / sin.
+        lead = max(0.0, float(m.get("lead", 0.0)))
+        Lc = depth * ca + lead
+        Lmax = min(Wd / ca, Hd / sa) - 0.5
+        if Lc > Lmax + 1e-6:
+            self.warn(f"{m['label']}: its point can reach {Lmax - depth * ca:.0f} mm past the "
+                      f"front at most before it sticks out when shut; shortened")
+            Lc = Lmax
         d = dict(m, type="VFOLD", phi_l=90.0, phi_r=90.0, alpha_l=al, alpha_r=al,
-                 glue=depth, height=depth * math.cos(math.radians(al)), shape="TRI",
+                 glue=depth, height=Lc, shape="TRI",
                  y=Hd if ceiling else 0.0, tab_side="OUT" if ceiling else "IN",
-                 pref=(0.0, -1.0) if ceiling else (0.0, 1.0))
+                 pref=(0.0, -1.0) if ceiling else (0.0, 1.0),
+                 flip=not ceiling)  # printed side into the stage
         self._vfold(d, host)
-        if f"VFold{m['uid']}.HalfL" in self.panels:
-            if host.open_max is not None:
-                # on a stage set the host halves don't turn with the card's
-                # own angle, so the closed form doesn't apply: tabulate
-                for sd in "LR":
-                    self.panels[f"VFold{m['uid']}.Half{sd}"].hinge.kind = "TABLE"
+        base = f"VFold{m['uid']}"
+        if f"{base}.HalfL" in self.panels:
             self.floors.append((m["uid"], host.key))
             self.edge_tab.setdefault(host.key, {})["top" if ceiling else "bottom"] = \
                 float(m.get("tab", 8.0))
+            self._joint_hosts(m, host, base)
+
+    def _joint_hosts(self, m, host, base):
+        """Where a floor or ceiling meets each wall is a fold too: hosts for
+        box folds, V-folds and the rest standing in that corner (Side picks
+        the left or right wall). Position runs out from the stage's fold."""
+        for side, page, half in (("L", host.p1, f"{base}.HalfL"),
+                                 ("R", host.p2, f"{base}.HalfR")):
+            hp = self.panels[half].hinge
+            Hp, Fc = hp.Hp, hp.Fc  # the glue line in the wall's and the half's patterns
+            # which side of the glue line each lies on (its own X)
+            def side_of(panel, F):
+                Fi = F.inverted()
+                xs = [(Fi @ Vector((q[0], q[1], 0))).x for poly in self.panels[panel].polys
+                      for q in poly]
+                return 1.0 if sum(xs) > 0 else -1.0
+            sw, sh = side_of(page, Hp), side_of(half, Fc)
+            if sw == sh:
+                continue  # printed faces don't face into the corner
+            T1, p1, T2, p2 = (Hp, page, Fc, half) if sw < 0 else (Fc, half, Hp, page)
+            h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0, f"{m['label']}: {side} wall",
+                     T1, T2).finish()
+            if h.lift != (1.0, 1.0):
+                continue
+            h.trig = False
+            h.key = (m["uid"], side)
+            self.hosts[(m["uid"], side)] = h
 
     def _stage(self, m, host):
         """Stage set in a card (Birmingham 118 on a V-fold): the background is
@@ -1380,6 +1447,7 @@ class Model:
         # seen from inside the stage the card's right half is on the left
         h = Host(self, f"{base}.HalfR", 0.0, 0.0, f"{base}.HalfL", 0.0, 0.0, m["label"]).finish()
         h.open_max, h.size, h.key = 2.0 * phi, (A, Hs), m["uid"]
+        h.trig = False
         self.hosts[(m["uid"], "S")] = h
 
     def _hinge_on(self, parent, asm, c0, c1, t=None):
@@ -1628,7 +1696,8 @@ class Model:
                 # the wall's own pattern: u along it from back to front (left)
                 # or front to back (right), v up; the tab hangs down inside
                 wall = self.panels[par]
-                Rel = wall.asm(90.0).inverted() @ (asm_L if side == "L" else asm_R)(90.0)
+                tr = self.t_ref
+                Rel = wall.asm(tr).inverted() @ (asm_L if side == "L" else asm_R)(tr)
                 p0, p1 = Rel @ v3((poly_x, y0)), Rel @ v3((poly_x, y0 + D))
                 ew = (p1 - p0).normalized()
                 Fs = frame(p0, ew, (0.0, -1.0, 0.0))  # down the wall
@@ -1847,12 +1916,11 @@ class Model:
 
             fasm = self._wall_asm(host, a, "B", "E", Ltot, foot_pts)
             sgnx = -1.0 if to == "LEFT" else 1.0
-            pg, px, py, Tp = ((host.p1, host.x1, host.y1, host.T1) if to == "LEFT"
-                              else (host.p2, host.x2, host.y2, host.T2))
+            pg, Tp = (host.p1, host.T1) if to == "LEFT" else (host.p2, host.T2)
             foot = self.add(Panel(f"{piece}.Foot", piece, "panel",
                                   [[(Ltot, 0), (Ltot + kf, 0), (Ltot + kf, hgt), (Ltot, hgt)]],
                                   fasm, pg,
-                                  Hinge(hinge_frame_2d((px + sgnx * a, yb - py), (0, fdir)),
+                                  Hinge(Tp @ hinge_frame_2d((sgnx * a, yb), (0, fdir)),
                                         hinge_frame_2d((Ltot, 0), (1, 0))),
                                   f"{lab}: foot"))
             # re-parent the last wall onto the foot: the chain is page -> foot -> walls
@@ -2058,19 +2126,18 @@ class Model:
                       f"paper; skipped")
             return
         piece = self.panels[host.p1].piece
-        x1, yo = host.x1, host.y1
-        Y0 = y0 - yo
-        left = self.carve(piece, [(x1, Y0 - b), (x1, Y0 + a), (x1 - Lj, Y0)],
-                          {host.p1}, lab)
+        v = host.v1
+        left = self.carve(piece, [v(0, y0 - b), v(0, y0 + a), v(-Lj, y0)], {host.p1}, lab)
         if left is None:
             return
-        right = self.carve(piece, [(x1, Y0 - b), (x1 + Lj, Y0), (x1, Y0 + a)],
-                           {host.p2}, lab)
+        right = self.carve(piece, [v(0, y0 - b), v(Lj, y0), v(0, y0 + a)], {host.p2}, lab)
         if right is None:
             self.warn(f"{lab}: the right half does not fit; the cut is incomplete")
             return
-        ul, ll = self.split_cells(left, (0.0, 1.0), Y0)
-        ur, lr = self.split_cells(right, (0.0, 1.0), Y0)
+        ny = host.d1(0.0, 1.0)
+        p0 = v(0.0, y0)
+        ul, ll = self.split_cells(left, ny, ny[0] * p0[0] + ny[1] * p0[1])
+        ur, lr = self.split_cells(right, ny, ny[0] * p0[0] + ny[1] * p0[1])
         base = f"Mouth{uid}"
         for jaw, yP, gL, gR, cp, cl, cr, name in (
             ("U", y0 + a, unit2(-Lj, -a), unit2(Lj, -a), (0, -1), ul, ur, "upper jaw"),
@@ -2079,9 +2146,10 @@ class Model:
             key = f"{base}.{jaw}"
             alpha = math.acos(max(-1.0, min(1.0, gL[0] * cp[0] + gL[1] * cp[1])))
             self.joints[key] = dict(host=host, y=yP, uL=gL, uR=gR, aL=alpha, aR=alpha)
-            P = (x1, yP - yo)
-            self._half(f"{key}L", piece, cl, P, gL, cp, "L", key, f"{lab}: {name} left")
-            self._half(f"{key}R", piece, cr, P, gR, cp, "R", key, f"{lab}: {name} right")
+            P = v(0.0, yP)
+            d = host.d1
+            self._half(f"{key}L", piece, cl, P, d(*gL), d(*cp), "L", key, f"{lab}: {name} left")
+            self._half(f"{key}R", piece, cr, P, d(*gR), d(*cp), "R", key, f"{lab}: {name} right")
             self.cut_panels |= {f"{key}L", f"{key}R"}
 
     # ---------------------------------------------------------------- hinges
@@ -2164,6 +2232,8 @@ class Model:
         err = 0.0
         for i in range(len(T) - 1):
             tm = 0.5 * (T[i] + T[i + 1])
+            if self.tmax < 180.0 and tm > self.tmax - 0.5:
+                continue  # a floor pulling flat at full opening: square-root corner
             err = max(err, abs(wrap(fn(tm) - true(tm))))
         h.check = err
         if err > 2e-3:
@@ -2361,7 +2431,7 @@ class Model:
             lab = p.label.split(":")[0].replace(" (inset)", "")
             if p.kind == "tab":
                 host = self.panels[p.parent]
-                M = host.asm(90.0).inverted() @ p.asm(90.0)
+                M = host.asm(self.t_ref).inverted() @ p.asm(self.t_ref)
                 for poly in p.polys:
                     q = [(M @ v3(c)).to_2d()[:] for c in poly]
                     # which face of the host it is glued to (printed or back)
@@ -2382,7 +2452,8 @@ class Model:
                         continue  # a tab glued onto that very cut-in panel
                     if ka == kb == "tab" and fa != fb:
                         continue  # glued to opposite faces of the paper
-                    if la != lb and self._overlap(pa, pb) > 1.0:
+                    if la != lb and frozenset((la, lb)) not in self.stack_ok and \
+                            self._overlap(pa, pb) > 1.0:
                         self.warn(f"{la} and {lb} overlap on the paper")
 
     def check_fit(self):

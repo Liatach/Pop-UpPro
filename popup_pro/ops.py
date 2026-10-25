@@ -116,6 +116,7 @@ class POPUP_OT_add(bpy.types.Operator):
     kind: EnumProperty(items=[(k, NAMES[k], "") for k in NAMES])
     host: IntProperty(default=0, description="Mechanism id of the host box (0 = spine)")
     fold: StringProperty(default="A")
+    side: StringProperty(default="", description="Wall, for a corner of a floor or ceiling")
 
     def execute(self, context):
         st = context.scene.popup
@@ -143,6 +144,8 @@ class POPUP_OT_add(bpy.types.Operator):
         m = _add(st, self.kind)
         uid = m.uid
         if self.host:
+            if self.side:
+                next(x for x in st.mechs if x.uid == uid)["side"] = 1 if self.side == "L" else 0
             _put_on(st, uid, self.host, self.fold)
         if self.kind == "STAGE":  # a staging frame at the front, one frame behind
             for _ in range(2):
