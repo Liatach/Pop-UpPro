@@ -421,6 +421,8 @@ def write_meta(rig, model, layout, s):
                 for k, p in model.pieces.items() if p.panels},
         sheets=[dict(size=list(sh.size), origin=list(sh.origin)) for sh in layout["sheets"]],
         flaps={str(k): v for k, v in model.flaps.items()},
+        prints={k: [v for row in layout["prints"][k] for v in row]
+                for k, p in model.pieces.items() if p.panels},
     )
     rig["pop_meta"] = json.dumps(meta)
 
@@ -441,6 +443,7 @@ def rebuild(scene, force=False):
         st.warnings = "\n".join(model.warnings)
         return model
     from . import holes as _holes
+    _holes.follow_layout(scene, model, layout)  # strokes stay on their pieces
     cuts = _holes.collect(scene, model, layout)
     _holes.check_joins(model, cuts)
     groups = build_mesh(mesh, model, layout, s, cuts)

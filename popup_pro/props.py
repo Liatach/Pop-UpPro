@@ -10,6 +10,14 @@ def _changed(self, context):
     live.schedule(context.scene)
 
 
+def _redraw(self, context):
+    wm = getattr(context, "window_manager", None) if context else None
+    for win in (wm.windows if wm else []):
+        for area in win.screen.areas:
+            if area.type == "VIEW_3D":
+                area.tag_redraw()
+
+
 def _sym(self, context):
     if self.symmetric:
         self["phi_r"] = self.phi_l
@@ -634,7 +642,11 @@ class PopupSettings(bpy.types.PropertyGroup):
                                "Blender unit (10 = 1 unit is 1 cm)", default=10.0,
                                min=0.01, soft_max=1000.0, update=_changed)
     mechs: CollectionProperty(type=PopupMech)
-    active: IntProperty(name="Mechanism")
+    active: IntProperty(name="Mechanism", update=_redraw)
+    highlight: BoolProperty(name="Highlight Selected", default=True, update=_redraw,
+                            description="Tint the panels of the mechanism selected in the "
+                            "list, on the folded card and the layout (viewport only, never "
+                            "rendered; off while painting)")
     live: BoolProperty(name="Live Rebuild", description="Rebuild the card as you change "
                        "settings", default=True)
     rig: PointerProperty(type=bpy.types.Object, name="Rig")

@@ -89,6 +89,10 @@ includes 12 x 12 and 12 x 24 in cutting mats.
 
 ### Mechanisms (all lengths in mm)
 
+The mechanism selected in the list is tinted orange on the folded card and the
+layout. This is viewport only and never rendered; the pointer button under
+**+** and **−** turns it off.
+
 | | What it is | Settings |
 |---|---|---|
 | **V-fold** | A folded piece glued along two lines that meet on a fold | Position, Fold Length, Glue Length, Glue Angle (fold to glue line), Piece Angle (centre fold to glue edge), tab size and side, symmetric or separate left/right. **Shape: Panels or Beak** (two triangles meeting at a point) |
@@ -405,6 +409,10 @@ so they show in 3D and print as cut lines:
   strokes, so they stay put if the layout is rearranged; **Edit** puts them
   back as strokes. Holes sketched on panels in v0.10 are folded in by Keep.
 
+Drawn strokes not yet kept (holes, and creases and cuts waiting for Add Drawn
+Lines) move with the piece they were drawn on when the layout is packed
+again, so they never jump to a neighbouring piece.
+
 Overlapping holes join together. Painted islands left inside a painted hole
 stay as paper. The checks warn if a hole cuts all the way along a fold, for
 example erasing across the line where a V-fold half meets its glue tab,
@@ -579,7 +587,7 @@ python tests/test_v12.py       # pointed floors, mechanisms in floor and ceiling
 python tests/test_v13.py       # painted trims cut on export, openings in any piece
 python tests/test_v14.py       # extra creases and cuts: reverse points, steps, jaws, projections
 python tests/test_v15.py       # creases and cuts on boxes, stand-ups (also on V-folds)
-python tests/test_v16.py       # true colours while painting
+python tests/test_v16.py       # true colours, strokes follow their pieces, highlight
 ```
 
 ## Limits and roadmap

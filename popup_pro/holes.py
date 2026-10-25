@@ -175,18 +175,21 @@ def hole_sketch(scene, create=True):
         obj = bpy.data.objects.new(name, gp)
     if obj is None:
         return None, None
+    gp = obj.data
+    layer = next((l for l in gp.layers if l.name == "cut"), None)
+    if not create:
+        # just looking (rebuilds): never change which layer the pen draws on,
+        # or strokes meant as creases or cuts would land on the holes layer
+        return obj, layer
     coll = build._collection(scene)
     if obj.name not in coll.objects:
         coll.objects.link(obj)
-    gp = obj.data
     mat = art.cut_material()
     if mat.name not in [m.name for m in gp.materials if m]:
         gp.materials.append(mat)
-    layer = next((l for l in gp.layers if l.name == "cut"), None)
     if layer is None:
         layer = gp.layers.new("cut")
         layer.frames.new(scene.frame_start)
-    gp.layers.active = layer
     return obj, layer
 
 
@@ -325,6 +328,66 @@ def take_lines(scene, model, layout, mirror=True):
         if len(fr.drawing.strokes):
             fr.drawing.remove_strokes()
     return got, miss
+
+
+def follow_layout(scene, model, layout):
+    """Strokes drawn over the layout (holes not yet kept, creases and cuts not
+    yet added) belong to the piece they were drawn on. When the layout is
+    packed again (a piece added, removed or resized) the pieces move; move
+    the strokes with them, so they don't land on another piece."""
+    from mathutils import Matrix
+    st = scene.popup
+    obj, _ = hole_sketch(scene, create=False)
+    if obj is None or st.layout is None or st.rig is None:
+        return 0
+    try:
+        old = json.loads(st.rig.get("pop_meta", "{}")).get("prints")
+    except ValueError:
+        old = None
+    if not old:
+        return 0
+    olds = {k: Matrix([v[0:4], v[4:8], v[8:12], v[12:16]]) for k, v in old.items()}
+    moves = {}
+    for k, M in olds.items():
+        N_ = layout["prints"].get(k)
+        if N_ is None:
+            continue
+        D = N_ @ M.inverted()
+        if any(abs(D[i][j] - (1.0 if i == j else 0.0)) > 1e-6 for i in range(4) for j in range(4)):
+            moves[k] = (M.inverted(), D)
+    if not moves:
+        return 0
+    mmu = st.mm_per_unit
+    L = st.layout.matrix_world.inverted() @ obj.matrix_world
+    Li = L.inverted()
+    n = 0
+    for layer in obj.data.layers:
+        if layer.name not in ("cut", "crease", "slit"):
+            continue
+        fr = layer.current_frame()
+        if fr is None or fr.drawing is None:
+            continue
+        for stroke in fr.drawing.strokes:
+            pts = [(L @ Vector(q.position)) * mmu for q in stroke.points]
+            if not pts:
+                continue
+            c = sum(pts, Vector()) / len(pts)
+            piece = None
+            for k in olds:
+                if k not in model.pieces:
+                    continue
+                q = (olds[k].inverted() @ c).to_2d()
+                if any(_inside(tuple(q), poly) for pn in model.pieces[k].panels
+                       for poly in model.panels[pn].polys):
+                    piece = k
+                    break
+            if piece is None or piece not in moves:
+                continue
+            D = moves[piece][1]
+            for q, w in zip(stroke.points, pts):
+                q.position = Li @ ((D @ w) / mmu)
+            n += 1
+    return n
 
 
 def drawn(scene, model, layout):

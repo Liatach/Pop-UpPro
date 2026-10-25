@@ -260,6 +260,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col = row.column(align=True)
         col.menu("POPUP_MT_add", text="", icon="ADD")
         col.operator("popup.remove", text="", icon="REMOVE")
+        col.separator()
+        col.prop(st, "highlight", text="", icon="RESTRICT_SELECT_OFF")
         if not st.mechs or st.active >= len(st.mechs):
             return
         m = st.mechs[st.active]
