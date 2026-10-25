@@ -18,6 +18,9 @@ them.**
 * **Windows, doorways and perforations**: placed openings that can line up
   through every layer behind or into the next stage, painted see-through
   areas, and holes sketched with Grease Pencil, all cut as real holes.
+* **Extra creases and cuts** on V-fold pieces: reverse points, steps,
+  jaws and projections (Birmingham 5, 6, 9 and 10), drawn on one half and
+  mirrored, with the new folds solved and driven like any other.
 * **Stack them**: boxes on boxes, steps up and forward, and inset (valley)
   boxes; V-folds and mouths sit on any box fold too.
 * **Movement test**: one Open slider (0–180°) drives a driver-only rig, with
@@ -256,6 +259,50 @@ crease lies down the card from where it stands, and the checks say how far
 up to move it if that would run off the bottom. Openings on its frames can
 go *Through* to its background.
 
+### Extra creases and cuts (Birmingham 5, 6, 9 and 10)
+
+![Presets on a V-fold: reverse point, step, jaw and projection](docs/images/creases.jpg)
+
+A V-fold's piece can carry extra fold lines and cuts, set in the V-fold's
+**Extra creases and cuts** box. Lines are measured on the piece itself:
+**X** across from the centre fold (the left half is negative), **Y** up the
+centre fold from the V point, in mm. Mark the left half and keep **Mirror**
+on to copy each line onto the right half; turn it off for one-sided cuts.
+
+**+** offers a line to set by numbers, or a book shape scaled to the piece:
+
+* *Reverse Point* (5, angles A): two creases and a cut; a point folds forward
+  out of the V.
+* *Step* (5, lengths B): creases parallel to the centre fold and a cut; the
+  top steps back.
+* *Folded Top* (5, angles C): creases from the centre fold up to the top edge;
+  the top folds over.
+* *Jaw* (9 and 10): creases from a point on the centre fold out to the sides.
+  The centre fold turns from mountain to valley there and the top planes
+  swing as the card opens. Two V-folds facing each other make the chomping
+  mouth.
+* *Projection* (6): a cut that starts and ends on the centre fold, on one
+  half only. The fold isn't scored between the ends, so the shape stays
+  flat with the other half and juts out past the fold.
+
+To draw your own, use **Draw Creases** or **Draw Cuts** on the flat layout.
+Creases are straightened end to end, and cuts keep their shape (arrows,
+horses, trees). Then press **Add Drawn Lines**. Line ends within 1.5 mm of
+the centre fold, an edge or another line snap onto it.
+
+How the regions move:
+
+* A region cut off by creases turns about its crease. Its part of the centre
+  fold must still meet the matching region on the other half, so the two
+  turn together. This is solved for every open angle and driven in the rig
+  like the other folds.
+* A region joined only across the centre fold rides flat with the other half
+  (a projection).
+* The print shows the new creases (mountain or valley) and cuts. The usual
+  checks apply: a jaw too big for the card is flagged as poking through.
+  The checks also flag a crease with nothing to fold against (usually a
+  mirror left off) and a line that doesn't reach an edge, cut or other line.
+
 ### Holes and shaping (every mechanism)
 
 ![Stage 1: an arched staging frame, a perforated frame and a window through
@@ -420,6 +467,10 @@ on, and what its tabs glue to.
   mouth are V joints: the crease is the unit vector making the piece's
   fixed angles with both glue lines, on the branch that reaches into the
   host's gap.
+* Extra creases and cuts split a V-fold's halves into regions
+  (`core/folds.py`, a constrained triangulation). Regions that turn on a
+  crease are solved together so their centre-fold edges meet, continued
+  degree by degree from a reference pose, and driven by tabulated curves.
 * Cut-in mechanisms carve their outline out of the host paper (convex
   pieces), so you can stack them.
 * Each hinge's angle is written as a Blender driver on the bone's
@@ -448,6 +499,7 @@ python tests/test_v10.py       # carousels, openings, painted and sketched holes
 python tests/test_v11.py       # a stage set standing in an ordinary card
 python tests/test_v12.py       # pointed floors, mechanisms in floor and ceiling corners
 python tests/test_v13.py       # painted trims cut on export, openings in any piece
+python tests/test_v14.py       # extra creases and cuts: reverse points, steps, jaws, projections
 ```
 
 ## Limits and roadmap
@@ -456,6 +508,9 @@ python tests/test_v13.py       # painted trims cut on export, openings in any pi
   folds or on a basic box's roof, not yet on V-folds.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
+* Extra creases and cuts work on V-fold pieces; the card itself, boxes and
+  tubes don't take them yet. Asymmetric creases need their own matching
+  crease on the other half (drawn with Mirror off).
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   V-folds on V-folds, arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe

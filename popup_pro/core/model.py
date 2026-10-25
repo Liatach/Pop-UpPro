@@ -721,6 +721,12 @@ class Model:
                            (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
                            f"{lab}: tab {side}"))
 
+        if m.get("lines"):
+            from .folds import build as fold_build, expand
+            fold_build(self, base, piece, lab, {"L": ccw(halfL), "R": ccw(halfR)},
+                       {"L": f"{base}.HalfL", "R": f"{base}.HalfR"}, expand(m["lines"]),
+                       {"L": ((0.0, 0.0), GL), "R": ((0.0, 0.0), GR)})
+
         tears = [s for s in self.samples if not self.crease(base, s)[3]]
         if tears:
             self.warn(f"{lab}: tears if opened past {min(tears):.0f} degrees (make the "

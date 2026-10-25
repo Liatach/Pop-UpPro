@@ -1,3 +1,4 @@
+import json
 import math
 
 import bpy
@@ -698,6 +699,154 @@ class POPUP_OT_keep_holes(bpy.types.Operator):
         return {"FINISHED"}
 
 
+LINE_PRESETS = [
+    ("NONE", "Line", "A plain line to set by numbers"),
+    ("REVERSE", "Reverse Point", "Two creases and a cut: a point folding forward out of "
+     "the V (Birmingham 5, angles A)"),
+    ("STEP", "Step", "Creases parallel to the centre fold and a cut: a stepped top "
+     "(Birmingham 5, lengths B)"),
+    ("TOP", "Folded Top", "Two creases from the centre fold to the top edge: the top "
+     "folds back (Birmingham 5, angles C)"),
+    ("JAW", "Jaw", "Creases from the centre fold out to the sides, the centre fold "
+     "turning from mountain to valley: a chomping jaw (Birmingham 9 and 10)"),
+    ("PROJECTION", "Projection", "A cut starting and ending on the centre fold, on one "
+     "half only: the shape juts out flat past the fold (Birmingham 6)"),
+]
+
+
+def _vfold_active(context):
+    st = context.scene.popup
+    if 0 <= st.active < len(st.mechs) and st.mechs[st.active].kind == "VFOLD":
+        return st.mechs[st.active]
+    return None
+
+
+class POPUP_OT_add_line(bpy.types.Operator):
+    """Add an extra crease or cut to the V-fold (on its left half; Mirror copies
+    it onto the right)"""
+    bl_idname = "popup.add_line"
+    bl_label = "Add Crease or Cut"
+    bl_options = {"REGISTER", "UNDO"}
+    preset: EnumProperty(name="Shape", items=LINE_PRESETS)
+
+    @classmethod
+    def poll(cls, context):
+        return _vfold_active(context) is not None
+
+    def execute(self, context):
+        m = _vfold_active(context)
+        w = m.glue * math.sin(math.radians(m.alpha_l))
+        h = m.height
+        t15 = math.tan(math.radians(15))
+        P = {
+            "NONE": [("CREASE", True, [(0.0, 0.6 * h), (-0.5 * w, 0.4 * h)])],
+            "REVERSE": [("CREASE", True, [(0.0, 0.8 * h), (-0.35 * w, 0.45 * h)]),
+                        ("CUT", True, [(0.0, 0.45 * h), (-0.35 * w, 0.45 * h)])],
+            "STEP": [("CREASE", True, [(-0.3 * w, 1.5 * h), (-0.3 * w, 0.55 * h)]),
+                     ("CUT", True, [(0.0, 0.55 * h), (-0.3 * w, 0.55 * h)])],
+            "TOP": [("CREASE", True, [(0.0, 0.5 * h), (-0.45 * w, 1.5 * h)])],
+            "JAW": [("CREASE", True, [(0.0, 0.5 * h), (-1.3 * w, 0.5 * h + 1.3 * w * t15)])],
+            "PROJECTION": [("CUT", False, [(0.0, 0.55 * h), (-0.25 * w, 0.6 * h),
+                                           (-0.25 * w, 0.85 * h), (0.0, 0.9 * h)])],
+        }[self.preset]
+        for kind, mirror, pts in P:
+            ln = m.lines.add()
+            ln.kind, ln.mirror = kind, mirror
+            (ln.x0, ln.y0), (ln.x1, ln.y1) = pts[0], pts[-1]
+            if len(pts) > 2:
+                ln.path = json.dumps([(round(x, 3), round(y, 3)) for x, y in pts])
+        m.active_line = len(m.lines) - 1
+        live.schedule(context.scene)
+        return {"FINISHED"}
+
+
+class POPUP_OT_remove_line(bpy.types.Operator):
+    """Remove the selected extra crease or cut"""
+    bl_idname = "popup.remove_line"
+    bl_label = "Remove Line"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        m = _vfold_active(context)
+        return m is not None and 0 <= m.active_line < len(m.lines)
+
+    def execute(self, context):
+        m = _vfold_active(context)
+        m.lines.remove(m.active_line)
+        m.active_line = max(0, min(m.active_line, len(m.lines) - 1))
+        live.schedule(context.scene)
+        return {"FINISHED"}
+
+
+class POPUP_OT_draw_lines(bpy.types.Operator):
+    """Draw extra creases (straightened end to end) or cuts with Grease Pencil
+    on the V-fold pieces in the flat layout, then press Add Drawn Lines"""
+    bl_idname = "popup.draw_lines"
+    bl_label = "Draw Lines"
+    bl_options = {"REGISTER", "UNDO"}
+    kind: EnumProperty(items=[("CREASE", "Creases", ""), ("CUT", "Cuts", "")])
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.layout is not None
+
+    def execute(self, context):
+        from . import holes
+        sc = context.scene
+        st = sc.popup
+        if context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        obj, layer = holes.line_layer(sc, self.kind)
+        st.layout.hide_set(False)
+        for o in context.selected_objects:
+            o.select_set(False)
+        obj.hide_set(False)
+        obj.select_set(True)
+        context.view_layer.objects.active = obj
+        ts = sc.tool_settings
+        ts.gpencil_stroke_placement_view3d = "SURFACE"
+        ts.gpencil_surface_offset = 0.2 / st.mm_per_unit
+        try:
+            bpy.ops.object.mode_set(mode="PAINT_GREASE_PENCIL")
+        except (RuntimeError, TypeError):
+            pass
+        area, rv3d = _view3d(context)
+        if rv3d is not None:
+            bb = [st.layout.matrix_world @ Vector(c) for c in st.layout.bound_box]
+            rv3d.view_rotation = Quaternion((1, 0, 0, 0))
+            rv3d.view_location = sum(bb, Vector()) / 8.0
+            rv3d.view_perspective = "ORTHO"
+        return {"FINISHED"}
+
+
+class POPUP_OT_take_lines(bpy.types.Operator):
+    """Turn the drawn creases and cuts into extra lines on the V-folds they were
+    drawn on (Mirror as set below) and clear the strokes"""
+    bl_idname = "popup.take_lines"
+    bl_label = "Add Drawn Lines"
+    bl_options = {"REGISTER", "UNDO"}
+    mirror: BoolProperty(name="Mirror", default=True)
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def execute(self, context):
+        from . import holes
+        sc = context.scene
+        if context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        model, layout = build.make_model(sc)
+        got, miss = holes.take_lines(sc, model, layout, self.mirror)
+        build.rebuild(sc, force=True)
+        msg = f"{got} line(s) added"
+        if miss:
+            msg += f"; {miss} not on a V-fold piece, dropped"
+        self.report({"INFO"} if not miss else {"WARNING"}, msg)
+        return {"FINISHED"}
+
+
 class POPUP_OT_trace_holes(bpy.types.Operator):
     """Cut out everything painted see-through in the art (paint with Erase
     Alpha in Texture Paint). Run again after repainting"""
@@ -727,7 +876,8 @@ class POPUP_OT_trace_holes(bpy.types.Operator):
         return {"FINISHED"}
 
 
-classes = (POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
+classes = (POPUP_OT_add_line, POPUP_OT_remove_line, POPUP_OT_draw_lines,
+           POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
            POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_set_open,

@@ -373,6 +373,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "alpha_r")
             col.prop(m, "tab")
             col.prop(m, "tab_side")
+            _draw_lines(self.layout, context, m)
         else:
             col.prop(m, "width", text="Height")
             if joint:
@@ -390,6 +391,45 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             if m.kind == "BOX":
                 col.prop(m, "tab")
         self.draw_warnings(context, m)
+
+
+class POPUP_UL_lines(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_prop, index=0):
+        ic = "MOD_LINEART" if item.kind == "CREASE" else "SCULPTMODE_HLT"
+        row = layout.row(align=True)
+        kind = "Crease" if item.kind == "CREASE" else "Cut"
+        what = f"drawn {kind.lower()}" if item.path else \
+            f"{kind} ({item.x0:.0f}, {item.y0:.0f}) to ({item.x1:.0f}, {item.y1:.0f})"
+        row.label(text=what, icon=ic)
+        row.prop(item, "mirror", text="", icon="MOD_MIRROR", emboss=False)
+
+
+def _draw_lines(lay, context, m):
+    box = lay.box()
+    box.label(text="Extra creases and cuts", icon="MOD_LINEART")
+    row = box.row()
+    row.template_list("POPUP_UL_lines", "", m, "lines", m, "active_line", rows=2)
+    col = row.column(align=True)
+    col.operator_menu_enum("popup.add_line", "preset", text="", icon="ADD")
+    col.operator("popup.remove_line", text="", icon="REMOVE")
+    if 0 <= m.active_line < len(m.lines):
+        ln = m.lines[m.active_line]
+        c = box.column(align=True)
+        c.use_property_split = True
+        c.use_property_decorate = False
+        c.prop(ln, "kind")
+        c.prop(ln, "mirror")
+        if ln.path:
+            c.label(text="Drawn line: redraw it to change its shape")
+        else:
+            c.prop(ln, "x0")
+            c.prop(ln, "y0")
+            c.prop(ln, "x1")
+            c.prop(ln, "y1")
+    row = box.row(align=True)
+    row.operator("popup.draw_lines", text="Draw Creases", icon="GREASEPENCIL").kind = "CREASE"
+    row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"
+    box.operator("popup.take_lines", icon="CHECKMARK")
 
 
 def _draw_flap(self, context, col, m):
@@ -543,7 +583,8 @@ class POPUP_PT_export(_Base, bpy.types.Panel):
         self.layout.operator("popup.export_svg", icon="EXPORT")
 
 
-classes = (POPUP_UL_mechs, POPUP_UL_openings, POPUP_MT_add, POPUP_PT_card, POPUP_PT_mechs,
+classes = (POPUP_UL_lines, POPUP_UL_mechs, POPUP_UL_openings, POPUP_MT_add, POPUP_PT_card,
+           POPUP_PT_mechs,
            POPUP_PT_openings, POPUP_PT_checks,
            POPUP_PT_art, POPUP_PT_export)
 

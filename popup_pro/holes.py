@@ -221,6 +221,99 @@ def _to_piece(model, layout, pts):
     return None, None
 
 
+LINE_LAYERS = {"CREASE": ("crease", "Pop-up Crease Ink", (0.1, 0.35, 0.9, 1.0)),
+               "CUT": ("slit", "Pop-up Slit Ink", (0.05, 0.05, 0.05, 1.0))}
+
+
+def line_layer(scene, kind):
+    """The layer extra creases (or cuts) are drawn on, over the layout."""
+    obj, _ = hole_sketch(scene)
+    gp = obj.data
+    lname, mname, col = LINE_LAYERS[kind]
+    mat = bpy.data.materials.get(mname)
+    if mat is None:
+        mat = bpy.data.materials.new(mname)
+        bpy.data.materials.create_gpencil_data(mat)
+        mat.grease_pencil.color = col
+        mat.grease_pencil.show_stroke = True
+        mat.grease_pencil.show_fill = False
+    names = [m.name for m in gp.materials if m]
+    if mat.name not in names:
+        gp.materials.append(mat)
+        names.append(mat.name)
+    layer = next((l for l in gp.layers if l.name == lname), None)
+    if layer is None:
+        layer = gp.layers.new(lname)
+        layer.frames.new(scene.frame_start)
+    gp.layers.active = layer
+    obj.active_material_index = names.index(mat.name)
+    return obj, layer
+
+
+def _open_rdp(seg, tol):
+    if len(seg) < 3:
+        return seg
+    a, b = Vector(seg[0]), Vector(seg[-1])
+    d = b - a
+    L = d.length
+    best, bi = -1.0, 0
+    for i in range(1, len(seg) - 1):
+        p = Vector(seg[i])
+        dist = (p - a).length if L < 1e-9 else abs(d.x * (p.y - a.y) - d.y * (p.x - a.x)) / L
+        if dist > best:
+            best, bi = dist, i
+    if best <= tol:
+        return [seg[0], seg[-1]]
+    return _open_rdp(seg[:bi + 1], tol)[:-1] + _open_rdp(seg[bi:], tol)
+
+
+def take_lines(scene, model, layout, mirror=True):
+    """Turn strokes drawn on the crease / slit layers into extra lines on the
+    V-folds they lie on, and clear them. Returns (taken, missed)."""
+    st = scene.popup
+    obj, _ = hole_sketch(scene, create=False)
+    if obj is None or st.layout is None:
+        return 0, 0
+    mmu = st.mm_per_unit
+    L = st.layout.matrix_world.inverted() @ obj.matrix_world
+    by_piece = {f"VFold{m.uid}": m for m in st.mechs if m.kind == "VFOLD"}
+    got = miss = 0
+    for kind, (lname, _, _) in LINE_LAYERS.items():
+        layer = next((l for l in obj.data.layers if l.name == lname), None)
+        if layer is None:
+            continue
+        fr = layer.current_frame()
+        if fr is None or fr.drawing is None:
+            continue
+        for stroke in fr.drawing.strokes:
+            pts = [((L @ Vector(q.position)) * mmu).to_2d()[:] for q in stroke.points]
+            if len(pts) < 2:
+                continue
+            piece, poly = _to_piece(model, layout, pts)
+            m = by_piece.get(piece)
+            if m is None:
+                miss += 1
+                continue
+            if kind == "CREASE":
+                poly = [poly[0], poly[-1]]
+            else:
+                poly = _open_rdp([tuple(q) for q in poly], 0.3)
+            if math.hypot(poly[-1][0] - poly[0][0], poly[-1][1] - poly[0][1]) < 1.0 \
+                    and len(poly) < 3:
+                continue
+            ln = m.lines.add()
+            ln.kind = kind
+            ln.mirror = mirror
+            (ln.x0, ln.y0), (ln.x1, ln.y1) = poly[0], poly[-1]
+            if len(poly) > 2:
+                ln.path = json.dumps([(round(x, 3), round(y, 3)) for x, y in poly])
+            m.active_line = len(m.lines) - 1
+            got += 1
+        if len(fr.drawing.strokes):
+            fr.drawing.remove_strokes()
+    return got, miss
+
+
 def drawn(scene, model, layout):
     out = []
     for pts in _drawn(scene):

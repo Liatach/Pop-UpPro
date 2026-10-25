@@ -215,6 +215,36 @@ def _fold_changed(self, context):
     live.schedule(context.scene)
 
 
+class PopupLine(bpy.types.PropertyGroup):
+    """An extra crease or cut on a V-fold piece, in the piece's own pattern:
+    x across (the centre fold at 0, the left half negative), y up the centre
+    fold from the V point (mm)."""
+    kind: EnumProperty(name="Kind", items=[
+        ("CREASE", "Crease", "Extra fold line"),
+        ("CUT", "Cut", "Slit through the paper")], update=_changed)
+    mirror: BoolProperty(name="Mirror", description="Copy the line onto the other half "
+                         "(mirrored across the centre fold)", default=True, update=_changed)
+    x0: FloatProperty(name="Start X", description="Across from the centre fold (mm, "
+                      "left half negative)", default=0.0, soft_min=-150.0, soft_max=150.0,
+                      update=_changed)
+    y0: FloatProperty(name="Start Y", description="Up the centre fold from the V point (mm)",
+                      default=30.0, soft_min=-50.0, soft_max=200.0, update=_changed)
+    x1: FloatProperty(name="End X", default=-20.0, soft_min=-150.0, soft_max=150.0,
+                      update=_changed)
+    y1: FloatProperty(name="End Y", default=20.0, soft_min=-50.0, soft_max=200.0,
+                      update=_changed)
+    path: StringProperty(description="Drawn line: its points as JSON (overrides the ends)")
+
+    def points(self):
+        if self.path:
+            import json
+            try:
+                return [tuple(q) for q in json.loads(self.path)]
+            except ValueError:
+                pass
+        return [(self.x0, self.y0), (self.x1, self.y1)]
+
+
 class PopupMech(bpy.types.PropertyGroup):
     uid: IntProperty()
     kind: EnumProperty(items=KINDS, update=_changed)
@@ -360,6 +390,8 @@ class PopupMech(bpy.types.PropertyGroup):
                          default=50.0, min=2.0, soft_max=200.0, update=_changed)
     tab: FloatProperty(name="Tab", description="Glue tab size (mm)", default=12.0,
                        min=3.0, soft_max=30.0, update=_changed)
+    lines: CollectionProperty(type=PopupLine)
+    active_line: IntProperty(name="Line")
 
     def to_dict(self):
         d = dict(uid=self.uid, label=self.label, y=self.y, tab=self.tab,
@@ -401,7 +433,9 @@ class PopupMech(bpy.types.PropertyGroup):
                      phi_r=self.phi_l if self.symmetric else self.phi_r,
                      alpha_r=self.alpha_l if self.symmetric else self.alpha_r,
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
-                     shape=self.shape)
+                     shape=self.shape,
+                     lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
+                            for ln in self.lines])
         else:
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
                      width=self.width, height=self.height, depth=self.depth)
@@ -647,7 +681,7 @@ class PopupSettings(bpy.types.PropertyGroup):
                     piece_sheet=PAPERS[self.paper][0])
 
 
-classes = (PopupMech, PopupOpening, PopupStageRef, PopupSettings)
+classes = (PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupSettings)
 
 
 def register():
