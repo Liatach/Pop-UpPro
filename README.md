@@ -61,17 +61,35 @@ mechanisms, art and sketches.
 2. **Build Card**. The first build adds a V-fold and a box fold to play with.
 3. **Mechanisms**: add, remove and tune them. With **Live Rebuild** on (the
    clock icon) the card updates as you drag values.
-4. **Open**: slider and 0/45/90/135/180° buttons. The movement test keyframes
+4. **Set Up Scene** (runs by itself the first time you build a card or make a
+   carousel in a file; press it again any time): settings chosen to make
+   folds easy to read and to stay light on modest graphics cards.
+   * Material Preview lit by Blender's dawn HDRI (*sunrise.exr*).
+   * A gentle **Sun** (0.6, from above left): each panel takes its own
+     shade and shadows fall inside the stage, which tells a valley fold
+     from a mountain fold at a glance (no more inside-out illusion).
+   * **Fold Lines**: the Wireframe overlay showing only edges where panels
+     meet at an angle.
+   * Light ambient occlusion in the creases, kept sharp: EEVEE's screen-space
+     AO ("fast GI", AO only) at half resolution, nothing ray traced (the
+     paper is matt, so it never needs to be) and no blur filter. A
+     one-eighth resolution, as in many files, is what makes it look smeared.
+   * The Standard view transform (true colours), on the carousel and every
+     stage.
+   * **Paper Texture** (off by default): a fine grain as a bump, so colours
+     and prints are untouched. It is one node group, *Pop-up Paper Texture*:
+     put your own paper texture inside it and every card uses it.
+5. **Open**: slider and 0/45/90/135/180° buttons. The movement test keyframes
    the card opening and closing from the scene's start frame. **Open To**
    sets how far it opens (degrees; a carousel up to 360). **Opening**,
    **Hold Open** and **Closing** set how long each part takes, in seconds;
    the panel shows the frames that makes at the scene's frame rate. **Open**
    keys just the opening; **Open and Close** keys the whole cycle and sets
    the scene's end frame. Each press replaces the previous test.
-5. **Checks** lists problems found by sweeping the open angle: paper that
+6. **Checks** lists problems found by sweeping the open angle: paper that
    would tear, panels poking through a page, pieces sticking out of the
    closed card, pieces too big for the sheet.
-6. **Export SVG Sheets** writes one SVG per sheet.
+7. **Export SVG Sheets** writes one SVG per sheet.
 
 ### Closing and paper thickness
 
@@ -716,6 +734,9 @@ python tests/test_v16.py       # true colours, strokes follow pieces, highlight,
 python tests/test_v17.py       # asymmetric V-folds, mechanisms on a V-fold's crease
 python tests/test_v18.py       # card creases (ceiling, floor), V-folds on floor creases, crossing creases
 python tests/test_v19.py       # peaked roofs over a gable-cut background
+python tests/test_v21.py       # ceiling and floor by numbers; impossible lines fail fast
+python tests/test_v22.py       # roof lengths, valley floor, V-fold cut-away
+python tests/test_v24.py       # Set Up Scene
 ```
 
 ## Tutorials
@@ -755,9 +776,6 @@ too, along with the mouth and jaws.
 * A debug view: look straight into a stage (or card) part open, flattened
   like a plan, with every layer drawn see-through, to check how
   mechanisms overlap in complex builds.
-* Scene setup: a Set Up Scene button, run the first time a card is built,
-  for the render engine, Material Preview lighting and colour management
-  that suit pop-up work (the right settings still being worked out).
 * A consolidation and elegance pass over the interface, before more
   mechanisms:
   * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away

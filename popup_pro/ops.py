@@ -43,7 +43,21 @@ class POPUP_OT_build(bpy.types.Operator):
         if first:
             st.card.select_set(True)
             context.view_layer.objects.active = st.rig
+            _first_setup(context)
         return {"FINISHED"}
+
+
+def _first_setup(context):
+    """The first card (or carousel) in a file sets the scene up for pop-up
+    work once; Set Up Scene does it again on demand."""
+    from . import scene_setup
+    sc = context.scene
+    master = sc.popup.stage_master or sc
+    if not master.get("pop_setup_done"):
+        try:
+            scene_setup.setup(context)
+        except (RuntimeError, TypeError, AttributeError, KeyError):
+            pass
 
 
 DEFAULTS = {
@@ -580,6 +594,7 @@ class POPUP_OT_make_carousel(bpy.types.Operator):
         from . import carousel
         carousel.make(context.scene, self.count)
         context.scene.frame_set(context.scene.frame_current)
+        _first_setup(context)
         return {"FINISHED"}
 
 

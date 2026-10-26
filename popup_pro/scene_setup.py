@@ -1,0 +1,240 @@
+"""Set Up Scene: viewport and EEVEE settings that suit pop-up work.
+
+Light, sharp and easy to read: Material Preview lit by Blender's dawn HDRI
+(sunrise.exr), a sun lamp for crisp shadows inside the stage, faint fold
+lines where panels meet at an angle, and EEVEE's cheap screen-space
+ambient occlusion in the creases (no full ray tracing, no blur filters).
+Shadows and creases are what tell a valley from a mountain fold at a
+glance, which wards off the inside-out (Necker cube) illusion."""
+import math
+
+import bpy
+
+HDRI = "sunrise.exr"
+SUN = "Pop-up Sun"
+GRAIN = "Pop-up Paper Texture"
+
+
+def popup_scenes(scene):
+    """The scene, and with a carousel all its stages (or a stage's carousel)."""
+    from . import carousel
+    st = scene.popup
+    master = st.stage_master or scene
+    out = [master]
+    if master.popup.is_carousel:
+        out += carousel.stages(master)
+    if scene not in out:
+        out.append(scene)
+    return out
+
+
+def eevee(scene):
+    scene.render.engine = "BLENDER_EEVEE"
+    e = scene.eevee
+    e.taa_samples = 16  # converges to a sharp image when the view stops
+    e.use_taa_reprojection = True
+    # screen-space AO in the creases; nothing traced (paper is matt, so every
+    # surface takes the fast path) and no bilateral blur
+    e.use_raytracing = True
+    e.ray_tracing_method = "PROBE"
+    r = e.ray_tracing_options
+    r.trace_max_roughness = 0.0
+    r.resolution_scale = "2"
+    r.use_denoise = True
+    r.denoise_spatial = True
+    r.denoise_temporal = True
+    r.denoise_bilateral = False
+    e.use_fast_gi = True
+    e.fast_gi_method = "AMBIENT_OCCLUSION_ONLY"
+    e.fast_gi_resolution = "2"  # 1/2 resolution: crisp (1/8 looks smeared)
+    e.fast_gi_step_count = 4
+    e.fast_gi_ray_count = 2
+    e.fast_gi_quality = 0.25
+    mm = 1.0 / _mm_per_unit(scene)
+    e.fast_gi_distance = 25.0 * mm  # creases and corners, not the whole stage
+    e.fast_gi_thickness_near = 2.0 * mm
+    e.fast_gi_bias = 0.05
+    # shadows: one sun, modest maps
+    e.use_shadows = True
+    e.shadow_ray_count = 1
+    e.shadow_step_count = 4
+    e.shadow_pool_size = "256"
+    e.use_shadow_jitter_viewport = False
+    scene.view_settings.view_transform = "Standard"
+    scene.view_settings.look = "None"
+
+
+def _mm_per_unit(scene):
+    from . import live
+    meta = live.meta(scene.popup.rig) if scene.popup.rig is not None else None
+    if meta and meta.get("mm_per_unit"):
+        return float(meta["mm_per_unit"])
+    return 10.0  # the add-on builds in centimetres
+
+
+def sun(scenes, strength=0.6):
+    ob = bpy.data.objects.get(SUN)
+    if ob is None or ob.type != "LIGHT":
+        light = bpy.data.lights.new(SUN, "SUN")
+        ob = bpy.data.objects.new(SUN, light)
+    L = ob.data
+    L.energy = strength
+    L.angle = math.radians(3.0)  # a little softness, still crisp
+    L.use_shadow = True
+    # from above, in front and to the left of the card, as from a window
+    ob.rotation_euler = (math.radians(50.0), math.radians(-20.0), math.radians(-35.0))
+    for sc in scenes:
+        if sc.collection.objects.get(ob.name) is None:
+            sc.collection.objects.link(ob)
+    return ob
+
+
+def paper_texture(scenes, on=True, strength=0.12):
+    """A fine procedural grain on the paper (a bump only, so the colours you
+    paint and print are untouched). It lives in one node group: edit the
+    group to use your own paper texture in every card."""
+    grp = bpy.data.node_groups.get(GRAIN)
+    if grp is None:
+        grp = _grain_group()
+    from .naming import N
+    for sc in scenes:
+        mat = bpy.data.materials.get(N(sc, "Pop-up Paper"))
+        if mat is None or not mat.use_nodes:
+            continue
+        nt = mat.node_tree
+        bsdf = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+        if bsdf is None:
+            continue
+        node = nt.nodes.get(GRAIN)
+        if node is None:
+            node = nt.nodes.new("ShaderNodeGroup")
+            node.name = node.label = GRAIN
+            node.node_tree = grp
+            node.location = bsdf.location + type(bsdf.location)((-250.0, -420.0))
+        node.inputs["Strength"].default_value = strength
+        normal = bsdf.inputs["Normal"]
+        for ln in list(normal.links):
+            nt.links.remove(ln)
+        if on:
+            nt.links.new(node.outputs["Normal"], normal)
+
+
+def _grain_group():
+    grp = bpy.data.node_groups.new(GRAIN, "ShaderNodeTree")
+    grp.interface.new_socket("Strength", in_out="INPUT", socket_type="NodeSocketFloat")
+    grp.interface.new_socket("Normal", in_out="OUTPUT", socket_type="NodeSocketVector")
+    n = grp.nodes
+    gi, go = n.new("NodeGroupInput"), n.new("NodeGroupOutput")
+    tc = n.new("ShaderNodeTexCoord")
+    noise = n.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 40.0  # fibres about a quarter mm
+    noise.inputs["Detail"].default_value = 6.0
+    noise.inputs["Roughness"].default_value = 0.6
+    bump = n.new("ShaderNodeBump")
+    bump.inputs["Distance"].default_value = 0.002
+    for i, node in enumerate((gi, tc, noise, bump, go)):
+        node.location = (i * 220.0 - 440.0, 0.0)
+    grp.links.new(tc.outputs["Object"], noise.inputs["Vector"])
+    grp.links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    grp.links.new(gi.outputs["Strength"], bump.inputs["Strength"])
+    grp.links.new(bump.outputs["Normal"], go.inputs["Normal"])
+    return grp
+
+
+def viewports(context, all_workspaces=False, fold_lines=True):
+    """Material Preview with the dawn HDRI and the sun; fold lines overlay."""
+    screens = []
+    win = context.window
+    if all_workspaces:
+        screens = [ws.screens[0] for ws in bpy.data.workspaces if ws.screens]
+    elif win is not None:
+        screens = [win.screen]
+    n = 0
+    for scr in screens:
+        for area in scr.areas:
+            if area.type != "VIEW_3D":
+                continue
+            sp = area.spaces.active
+            sh = sp.shading
+            sh.type = "MATERIAL"
+            try:
+                sh.studio_light = HDRI
+            except TypeError:
+                pass
+            sh.use_scene_lights = True
+            sh.use_scene_world = False
+            sh.studiolight_intensity = 1.0
+            sh.studiolight_rotate_z = 0.0
+            ov = sp.overlay
+            ov.show_wireframes = fold_lines
+            ov.wireframe_threshold = 0.05  # only edges where panels meet at an angle
+            ov.wireframe_opacity = 0.35
+            n += 1
+    return n
+
+
+def setup(context, sun_on=True, grain=False, fold_lines=True, all_workspaces=False,
+          sun_strength=0.6):
+    scenes = popup_scenes(context.scene)
+    for sc in scenes:
+        eevee(sc)
+    if sun_on:
+        sun(scenes, sun_strength)
+    else:
+        ob = bpy.data.objects.get(SUN)
+        if ob is not None:
+            for sc in scenes:
+                if sc.collection.objects.get(ob.name) is not None:
+                    sc.collection.objects.unlink(ob)
+    paper_texture(scenes, on=grain)
+    views = viewports(context, all_workspaces, fold_lines)
+    for sc in scenes:
+        sc["pop_setup_done"] = True
+    return scenes, views
+
+
+class POPUP_OT_setup_scene(bpy.types.Operator):
+    """Viewport and EEVEE settings that suit pop-up work: Material Preview lit
+    by the dawn HDRI, a sun for crisp shadows, fold lines, and light ambient
+    occlusion in the creases. Light enough for modest graphics cards"""
+    bl_idname = "popup.setup_scene"
+    bl_label = "Set Up Scene"
+    bl_options = {"REGISTER", "UNDO"}
+
+    sun: bpy.props.BoolProperty(name="Sun (shadows)", default=True,
+                                description="A sun lamp from above left: shadows inside the "
+                                "stage show at once which way each fold goes")
+    sun_strength: bpy.props.FloatProperty(name="Sun Strength", default=0.6, min=0.0,
+                                          soft_max=3.0,
+                                          description="Gentle: enough for shadows and a "
+                                          "different shade on each panel, without burning "
+                                          "the lit side to white")
+    fold_lines: bpy.props.BoolProperty(name="Fold Lines", default=True,
+                                       description="Faint lines where panels meet at an angle "
+                                       "(the Wireframe overlay, folds only)")
+    grain: bpy.props.BoolProperty(name="Paper Texture", default=False,
+                                  description="A fine paper grain (a bump only; colours and "
+                                  "prints untouched). Edit the 'Pop-up Paper Texture' node "
+                                  "group to use your own")
+    all_workspaces: bpy.props.BoolProperty(name="All Workspaces", default=False,
+                                           description="Set every workspace's 3D views, not "
+                                           "just this one")
+
+    def execute(self, context):
+        scenes, views = setup(context, self.sun, self.grain, self.fold_lines,
+                              self.all_workspaces, self.sun_strength)
+        self.report({"INFO"}, f"Set up {len(scenes)} scene(s), {views} view(s)")
+        return {"FINISHED"}
+
+
+classes = (POPUP_OT_setup_scene,)
+
+
+def register():
+    for c in classes:
+        bpy.utils.register_class(c)
+
+
+def unregister():
+    for c in reversed(classes):
+        bpy.utils.unregister_class(c)
