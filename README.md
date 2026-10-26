@@ -270,27 +270,30 @@ move around.
 fully open, part open and from above](docs/images/roof.jpg)
 
 * **The background as a roof, ceiling or floor**: in **Holes and Shaping**,
-  **Card creases and cuts → +** offers:
-  * *Peaked Roof*: the top of the background is cut apart at the spine and
-    joined again by a **Join Tab**, a wedge along each side of the cut,
-    glued back to back as a fin above the ridge. It folds in over the stage
-    as a peaked roof whose ridge runs level into the stage at full opening.
-    The creases' **Angle** sets the pitch (100°, just past level, by
-    default). The Join Tab's **Angle** tilts the ridge: smaller lifts its
-    front, larger drops it. Level is about 99° minus half the stage angle:
-    63° for five stages, 39.5° for three. The three lines start at the
-    same point on the spine; move it (**Start Y**) to make the roof deeper
-    or shallower.
-  * *Hanging Ceiling*: two creases rising from the spine to the top edge.
-    The top of the background folds in and hangs down at the centre. Cut
+  **The background folds in** sets it with a few numbers:
+  * **Ceiling → Peaked Roof**: the top of the background is cut apart at the
+    spine and joined again by a **Join Tab**, a wedge along each side of the
+    cut, glued back to back as a fin above the ridge. It folds in over the
+    stage as a peaked roof. **Drop at Spine** is how far below the top edge
+    the roof starts; **Crease Slope** sets the pitch of the eaves (-10°,
+    just below level, to start); the join tab is worked out so the ridge
+    runs level into the stage at full opening, and **Ridge Tilt** tips it
+    up or down from there.
+  * **Ceiling → Hanging**: two creases rising from the spine to the top
+    edge. The top of the background folds in and hangs down in a V. Cut
     from one piece of card, a fold into the stage can only hang like this
     (or flip out behind the stage), which is why the peaked roof needs the
     cut and the tab.
-  * *Floor*: the same at the bottom edge.
+  * **Floor**: two creases falling from the spine to the bottom edge, with
+    **Rise at Spine** and **Crease Slope**.
+  * **Your own creases and cuts** (folded away underneath) is the free
+    version: lines by their ends or **By Angle** (start, angle from straight
+    up the spine, length), drawn or typed. Lines that ask for a shape the
+    paper can't fold to (a cut that doesn't run along the spine, say) are
+    left flat with a warning rather than solved.
 
-  Each line can be set **By Angle** (start, angle from straight up the
-  spine, length) instead of by its two ends. Mechanisms glued where the
-  background folds away are flagged (their tabs hang off the page).
+  Mechanisms glued where the background folds away are flagged (their tabs
+  hang off the page).
 
 ![A three-stage carousel stage: the background's top folded in as a peaked
 roof (its fin just shows above the ridge), and a floor with a V-fold standing on

@@ -326,6 +326,7 @@ class Group:
         self.cache = {}
         self.res = {}
         self.ok = True
+        self.torn = False
         self.n = len(members)
         self.Hn = [_np(H) for _, H, _ in members]
         self.Hin = [_np(Hi) for _, _, Hi in members]
@@ -348,8 +349,19 @@ class Group:
                 self.grid[t] = x
                 self.res[t] = r
                 prev = x
+                if r > 0.5:
+                    # the paper can't follow: no point solving the rest
+                    self.torn = True
+                    break
+            if self.torn:
+                break
+        if self.torn:
+            T = sorted(self.grid)
         self.T = T
         self.cache.update(self.grid)
+        # the paper can't follow (the lines ask for a shape it can't make)
+        self.torn = self.torn or max(self.res.values(), default=0.0) > 0.5
+        self.budget = 400  # polishing solves between grid points
 
     # pieces evaluated once per open angle
     def _fixed(self, t):
@@ -429,16 +441,19 @@ class Group:
         if self.n == 1:
             seeds = [[v] for v in vals]
         elif self.n == 2:
-            seeds = [[a, b] for a in vals for b in vals]
+            seeds = [[a, sg * a] for a in vals for sg in (1.0, -1.0)]
+            seeds += [[a, b] for a in vals for b in vals if abs(abs(a) - abs(b)) > 1e-9]
         else:
             import itertools
             signs = list(itertools.product((1.0, -1.0), repeat=min(self.n, 6)))
             seeds = [[v * sg[k % len(sg)] for k in range(self.n)] for v in vals[::2] + [
                 math.radians(90), math.radians(-90)] for sg in signs]
         found = []
-        for s in seeds:
+        for k, s in enumerate(seeds):
             if self.n > 2 and len(found) >= 2:
                 break
+            if self.n == 2 and found and k >= 2 * len(vals):
+                break  # the mirror-image seeds found it
             th, res = self._newton(t, s, Ms, tgt, iters=40)
             if res > 1e-3:
                 continue
@@ -457,8 +472,23 @@ class Group:
     def theta(self, t):
         th = self.cache.get(t)
         if th is None:
-            near = min(self.T, key=lambda s: abs(s - t))
-            th, _ = self._newton(t, self.grid[near])
+            import bisect
+            T = self.T
+            i = max(1, min(len(T) - 1, bisect.bisect_left(T, t)))
+            t0, t1 = T[i - 1], T[i]
+            f = 0.0 if t1 <= t0 else min(1.0, max(0.0, (t - t0) / (t1 - t0)))
+            guess = (1 - f) * self.grid[t0] + f * self.grid[t1]
+            th = guess
+            if not self.torn and f not in (0.0, 1.0):
+                Ms, tgt = self._fixed(t)
+                r0 = self._res_only(guess, Ms, tgt)
+                if r0 @ r0 > 1e-10 and self.budget > 0:
+                    # between grid points the guess is close: polish it a
+                    # little, a bounded number of times (keeps sliders live)
+                    self.budget -= 1
+                    x, r = self._newton(t, guess, Ms, tgt, iters=6)
+                    if r < 0.05:
+                        th = x
             if len(self.cache) > 4096:
                 self.cache = dict(self.grid)
             self.cache[t] = th
@@ -669,6 +699,15 @@ def build(model, piece, names, lab, lines, base=None):
                     flat(regs[k], par if isinstance(par, str) else panel[par[1]])
                 model.warn(f"{lab}: creases with no fold to make (they need a matching "
                            f"crease across the fold: try Mirror; or they lock each other); "
+                           f"left flat")
+                progress = True
+                continue
+            if G.torn:
+                for k in order:
+                    par = parent_of[k][0]
+                    flat(regs[k], par if isinstance(par, str) else panel[par[1]])
+                model.warn(f"{lab}: these creases and cuts make a shape the paper can't "
+                           f"fold to (check the cut runs along the fold, and Mirror); "
                            f"left flat")
                 progress = True
                 continue

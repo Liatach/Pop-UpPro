@@ -1,3 +1,5 @@
+import math
+
 import bpy
 from bpy.props import (BoolProperty, CollectionProperty, EnumProperty,
                        FloatProperty, FloatVectorProperty, IntProperty, PointerProperty,
@@ -699,6 +701,12 @@ def _carousel_changed(self, context):
     carousel.schedule_sync(self.id_data)
 
 
+def _ceiling_style(self, context):
+    # each style's natural starting slope
+    self.ceiling_slope = {"HANG": 30.0, "PEAK": -10.0}.get(self.ceiling, self.ceiling_slope)
+    _changed(self, context)
+
+
 class PopupSettings(bpy.types.PropertyGroup):
     size: EnumProperty(name="Card", items=SIZES, default="A5", update=_changed)
     page_depth: FloatProperty(name="Page Width", description="Spine to page edge (mm)",
@@ -775,6 +783,37 @@ class PopupSettings(bpy.types.PropertyGroup):
                                "Standard view transform, so the colours you see and pick up "
                                "with the eyedropper are the ones in the art (and in print). "
                                "Your view settings come back when you leave Texture Paint")
+    # the background itself folding in: set by a few numbers ---------------
+    ceiling: EnumProperty(
+        name="Ceiling", update=_ceiling_style, items=[
+            ("NONE", "None", "The background stays flat"),
+            ("HANG", "Hanging", "Two creases rising from the spine to the top edge: the "
+             "top of the background folds in over the stage and hangs down in a V"),
+            ("PEAK", "Peaked Roof", "The top is cut apart at the spine and joined again by "
+             "a glue tab: it folds in over the stage as a peaked roof")])
+    ceiling_drop: FloatProperty(name="Drop at Spine", default=40.0, min=2.0, soft_max=150.0,
+                                precision=1, update=_changed,
+                                description="How far below the top edge the creases meet "
+                                "the spine, in mm")
+    ceiling_slope: FloatProperty(name="Crease Slope", default=30.0, min=-40.0, max=80.0,
+                                 precision=1, update=_changed,
+                                 description="Degrees the creases climb (+) or fall (-) going "
+                                 "out from the spine. A peaked roof's eaves want about -10")
+    ceiling_tilt: FloatProperty(name="Ridge Tilt", default=0.0, min=-40.0, max=40.0,
+                                precision=1, update=_changed,
+                                description="0: the join tab is set so the roof's ridge runs "
+                                "level into the stage when it is fully open. Turn it by this "
+                                "many degrees to tip the ridge away from level")
+    floor: BoolProperty(name="Floor", default=False, update=_changed,
+                        description="Two creases falling from the spine to the bottom edge: "
+                        "the bottom of the background folds in as a floor")
+    floor_rise: FloatProperty(name="Rise at Spine", default=50.0, min=2.0, soft_max=150.0,
+                              precision=1, update=_changed,
+                              description="How far above the bottom edge the creases meet "
+                              "the spine, in mm")
+    floor_slope: FloatProperty(name="Crease Slope", default=30.0, min=5.0, max=80.0,
+                               precision=1, update=_changed,
+                               description="Degrees the creases fall going out from the spine")
     card_lines: CollectionProperty(type=PopupLine,
                                    description="Extra creases and cuts in the card itself")
     active_card_line: IntProperty(name="Card Line")
@@ -844,15 +883,51 @@ class PopupSettings(bpy.types.PropertyGroup):
         if master is not None and master != self.id_data:
             d = master.popup.card_dict()
             d.update(hold="SYM", tmax=360.0 / master.popup.stage_count,
-                     piece_sheet=PAPERS[self.paper][0], lines=lines)
+                     piece_sheet=PAPERS[self.paper][0])
+            d["lines"] = self.shape_lines(d["W"], d["H"], d["tmax"]) + lines
             return d
         if self.size == "CUSTOM":
             W, H = self.page_depth, self.spine_length
             sheet = (2 * W, H)
         else:
             W, H, sheet, _, _ = CARD_PRESETS[self.size]
+        tmax = 180.0
         return dict(W=W, H=H, hold=self.hold, sheet=sheet,
-                    piece_sheet=PAPERS[self.paper][0], lines=lines)
+                    piece_sheet=PAPERS[self.paper][0],
+                    lines=self.shape_lines(W, H, tmax) + lines)
+
+    def shape_lines(self, W, H, tmax):
+        """The creases (and cut) the Ceiling and Floor settings make."""
+        return card_shape_lines(W, H, tmax, self.ceiling, self.ceiling_drop,
+                                self.ceiling_slope, self.ceiling_tilt,
+                                self.floor, self.floor_rise, self.floor_slope)
+
+
+def card_shape_lines(W, H, tmax, ceiling="NONE", drop=40.0, slope=30.0, tilt=0.0, floor=False, rise=50.0, fslope=30.0):
+    L = 2.0 * max(W, H) + 20.0
+
+    def ray(kind, y0, ang, mirror=True):
+        # ang: degrees from straight up the spine, turning out over the left page
+        a = math.radians(ang)
+        return dict(kind=kind, mirror=mirror,
+                    pts=[(0.0, y0), (-L * math.sin(a), y0 + L * math.cos(a))])
+
+    out = []
+    if ceiling != "NONE":
+        y0 = max(1.0, min(H - 1.0, H - drop))
+        ang = 90.0 - slope
+        out.append(ray("CREASE", y0, ang))
+        if ceiling == "PEAK":
+            # where the ridge runs level at the stage's full opening (fitted to
+            # the solved shape: within a degree or two over the useful range)
+            psi = ang - 1.0 - 0.5 * min(tmax, 180.0) - 0.15 * max(0.0, ang - 100.0)
+            psi = max(3.0, min(ang - 3.0, psi + tilt))
+            out.append(ray("JOIN", y0, psi))
+            out.append(dict(kind="CUT", mirror=False, pts=[(0.0, y0), (0.0, H + 5.0)]))
+    if floor:
+        y0 = max(1.0, min(H - 1.0, rise))
+        out.append(ray("CREASE", y0, 90.0 + fslope))
+    return out
 
 
 classes = (PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupSettings)

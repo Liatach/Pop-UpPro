@@ -617,23 +617,41 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
                 col.label(text="Next Stage works on a carousel stage's background",
                           icon="ERROR")
         box = lay.box()
-        box.label(text="Card creases and cuts (the background itself)", icon="MOD_LINEART")
-        row = box.row()
-        row.template_list("POPUP_UL_lines", "card", st, "card_lines", st, "active_card_line",
-                          rows=2)
-        col = row.column(align=True)
-        col.operator_menu_enum("popup.add_card_line", "preset", text="", icon="ADD")
-        col.operator("popup.remove_card_line", text="", icon="REMOVE")
-        if 0 <= st.active_card_line < len(st.card_lines):
-            ln = st.card_lines[st.active_card_line]
-            c = box.column(align=True)
-            c.use_property_split = True
-            c.use_property_decorate = False
-            _line_fields(c, ln)
-        row = box.row(align=True)
-        row.operator("popup.draw_lines", text="Draw Creases", icon="GREASEPENCIL").kind = "CREASE"
-        row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"
-        box.operator("popup.take_lines", icon="CHECKMARK")
+        box.label(text="The background folds in", icon="MOD_LINEART")
+        c = box.column()
+        c.use_property_split = True
+        c.use_property_decorate = False
+        c.prop(st, "ceiling")
+        if st.ceiling != "NONE":
+            c.prop(st, "ceiling_drop")
+            c.prop(st, "ceiling_slope")
+            if st.ceiling == "PEAK":
+                c.prop(st, "ceiling_tilt")
+        c.separator()
+        c.prop(st, "floor")
+        if st.floor:
+            c.prop(st, "floor_rise")
+            c.prop(st, "floor_slope")
+        head, body = box.panel("popup_card_lines", default_closed=True)
+        head.label(text="Your own creases and cuts (%d)" % len(st.card_lines))
+        if body is not None:
+            row = body.row()
+            row.template_list("POPUP_UL_lines", "card", st, "card_lines", st,
+                              "active_card_line", rows=2)
+            col = row.column(align=True)
+            col.operator_menu_enum("popup.add_card_line", "preset", text="", icon="ADD")
+            col.operator("popup.remove_card_line", text="", icon="REMOVE")
+            if 0 <= st.active_card_line < len(st.card_lines):
+                ln = st.card_lines[st.active_card_line]
+                c = body.column(align=True)
+                c.use_property_split = True
+                c.use_property_decorate = False
+                _line_fields(c, ln)
+            row = body.row(align=True)
+            row.operator("popup.draw_lines", text="Draw Creases",
+                         icon="GREASEPENCIL").kind = "CREASE"
+            row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"
+            body.operator("popup.take_lines", icon="CHECKMARK")
         box = lay.box()
         box.label(text="Painted: erase alpha to cut holes or trim edges", icon="BRUSH_DATA")
         box.prop(st, "auto_holes")

@@ -2529,6 +2529,11 @@ class Model:
             return cache[t]
 
         pts = list(self.TABLE_T)
+        # extra folds and things on uneven hosts: refine less finely, and stop
+        # (with a warning) rather than chase a kink forever
+        loose = getattr(h, "corner_ok", False) or getattr(h, "host_bound", False)
+        floor = 1.0 / 64 if loose else 1.0 / 512
+        budget = 3000 if loose else 10 ** 9
         out = [pts[0]]
         for i in range(len(pts) - 1):
             stack = [(pts[i], pts[i + 1])]
@@ -2538,7 +2543,7 @@ class Model:
                 tm = 0.5 * (t0 + t1)
                 v0, v1, vm = true(t0), true(t1), true(tm)
                 lin = v0 + 0.5 * wrap(v1 - v0)
-                if abs(wrap(vm - lin)) > tol and t1 - t0 > 1.0 / 512:
+                if abs(wrap(vm - lin)) > tol and t1 - t0 > floor and len(cache) < budget:
                     stack.append((tm, t1))
                     stack.append((t0, tm))
                 else:
