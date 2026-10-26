@@ -175,6 +175,7 @@ def _put_on(st, uid, host, fold="A"):
     m.host_uid = host
     if fold in ("FL", "BL", "FR", "BR", "V"):  # on a V-fold: a half, or its crease
         m["vside"] = ("FL", "BL", "FR", "BR", "V").index(fold)
+        m["on_crease"] = fold == "V"  # (a floor's or ceiling's crease)
     else:
         m["fold"] = {"A": 0, "B": 1, "C": 2}.get(fold, 0)
     fit_to_host(m, st)
@@ -888,6 +889,68 @@ class POPUP_OT_remove_line(bpy.types.Operator):
         return {"FINISHED"}
 
 
+CARD_PRESETS_LINES = [
+    ("CEILING", "Ceiling", "Two creases rising from the spine to the top edge: the top of "
+     "the background folds in over the stage as a ceiling"),
+    ("FLOOR", "Floor", "Two creases falling from the spine to the bottom edge: the bottom "
+     "of the background folds in as a floor"),
+    ("NONE", "Line", "A plain crease to set by numbers"),
+]
+
+
+class POPUP_OT_add_card_line(bpy.types.Operator):
+    """Add an extra crease or cut to the card itself (the background): x across
+    the card from the spine (left page negative), y up from the bottom edge"""
+    bl_idname = "popup.add_card_line"
+    bl_label = "Add Crease or Cut to the Card"
+    bl_options = {"REGISTER", "UNDO"}
+    preset: EnumProperty(name="Shape", items=CARD_PRESETS_LINES)
+
+    def execute(self, context):
+        st = context.scene.popup
+        card = st.card_dict()
+        W, H = card["W"], card["H"]
+        tmax = float(card.get("tmax", 180.0))
+        # folded in from the spine, it lies closest to level at the stage's
+        # full opening with these angles
+        phi = math.radians(60.0 if tmax >= 100.0 else 50.0)
+        sx, cy = math.sin(phi), math.cos(phi)
+        L = 2.0 * max(W, H)
+        if self.preset == "CEILING":
+            y0 = 0.75 * H
+            pts = [(0.0, y0), (-L * sx, y0 + L * cy)]
+        elif self.preset == "FLOOR":
+            y0 = 0.25 * H
+            pts = [(0.0, y0), (-L * sx, y0 - L * cy)]
+        else:
+            pts = [(0.0, 0.5 * H), (-0.5 * W, 0.5 * H)]
+        ln = st.card_lines.add()
+        ln.kind, ln.mirror = "CREASE", True
+        (ln.x0, ln.y0), (ln.x1, ln.y1) = pts
+        st.active_card_line = len(st.card_lines) - 1
+        live.schedule(context.scene)
+        return {"FINISHED"}
+
+
+class POPUP_OT_remove_card_line(bpy.types.Operator):
+    """Remove the selected crease or cut from the card"""
+    bl_idname = "popup.remove_card_line"
+    bl_label = "Remove Card Line"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        st = context.scene.popup
+        return 0 <= st.active_card_line < len(st.card_lines)
+
+    def execute(self, context):
+        st = context.scene.popup
+        st.card_lines.remove(st.active_card_line)
+        st.active_card_line = max(0, min(st.active_card_line, len(st.card_lines) - 1))
+        live.schedule(context.scene)
+        return {"FINISHED"}
+
+
 class POPUP_OT_draw_lines(bpy.types.Operator):
     """Draw extra creases (straightened end to end) or cuts with Grease Pencil
     on the V-fold pieces in the flat layout, then press Add Drawn Lines"""
@@ -985,7 +1048,8 @@ class POPUP_OT_trace_holes(bpy.types.Operator):
         return {"FINISHED"}
 
 
-classes = (POPUP_OT_add_line, POPUP_OT_remove_line, POPUP_OT_draw_lines,
+classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
+           POPUP_OT_remove_line, POPUP_OT_draw_lines,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,

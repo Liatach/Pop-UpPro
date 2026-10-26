@@ -367,7 +367,12 @@ class Model:
                 stage = parent is not None and parent["type"] == "STAGE"
                 joint = parent is not None and parent["type"] in ("FLOOR", "CEILING")
                 ffc = m["type"] in ("FRAME", "FLOOR", "CEILING")
-                if parent is not None and (stage != ffc or (joint and ffc)):
+                if joint and m.get("vside") == "V" and m["type"] != "VFOLD":
+                    self.warn(f"{m['label']}: only V-folds stand on a floor's or ceiling's "
+                              f"crease (it is a mountain fold from the stage side); use its "
+                              f"corners for boxes and cubes; skipped")
+                    ok = False
+                elif parent is not None and (stage != ffc or (joint and ffc)):
                     self.warn(f"{m['label']}: frames, floors and ceilings go on a stage set, "
                               f"and only they do; skipped")
                     ok = False
@@ -407,6 +412,8 @@ class Model:
                 fold = "S"  # the stage set's back crease
             if h and by_uid[h]["type"] in ("FLOOR", "CEILING"):
                 fold = "L" if m.get("side", "L") == "L" else "R"  # its join with a wall
+                if m.get("vside") == "V":
+                    fold = "V"  # on its centre crease, from the stage side
             if h and by_uid[h]["type"] == "VFOLD":
                 fold = m.get("vside", "FL")  # in front of / behind a half
             host = self.hosts.get((h, fold) if h else (0, "S"))
@@ -451,6 +458,18 @@ class Model:
                         hg.kind = "TABLE"
                     if hg is not None:
                         hg.host_bound = True  # rides a fold that may not open evenly
+        self._card_lines()
+
+    def _card_lines(self):
+        """Extra creases and cuts in the card itself (the background): a
+        ceiling or floor folded out of the pages, cut-out shapes. Pattern x
+        across the card (left page negative), y up the spine."""
+        self.line_frames[0] = ("Card", lambda q: q, None)
+        lines = self.card.get("lines")
+        if not lines:
+            return
+        from .folds import build as fold_build, expand
+        fold_build(self, "Card", ["Page.L", "Page.R"], "Card", expand(lines), "Card")
 
     # ------------------------------------------------------- page directions
     def dirs(self, t):
@@ -1609,6 +1628,9 @@ class Model:
                  flip=not ceiling)  # printed side into the stage
         self._vfold(d, host)
         base = f"VFold{m['uid']}"
+        # its own crease (the V-fold host made by _vfold) from the stage side
+        # is the far side of a mountain fold: V-folds stand there (they fold
+        # flat over the crease as the stage shuts), boxes can't
         if f"{base}.HalfL" in self.panels:
             self.floors.append((m["uid"], host.key))
             self.edge_tab.setdefault(host.key, {})["top" if ceiling else "bottom"] = \
@@ -2462,6 +2484,8 @@ class Model:
             tm = 0.5 * (T[i] + T[i + 1])
             if self.tmax < 180.0 and tm > self.tmax - 0.5:
                 continue  # a floor pulling flat at full opening: square-root corner
+            if getattr(h, "corner_ok", False) and (tm > self.tmax - 1.5 or tm < 1.5):
+                continue  # extra folds pulling flat as the card opens flat or shuts
             err = max(err, abs(wrap(fn(tm) - true(tm))))
         h.check = err
         lab = self.panels[name].label.split(":")[0]

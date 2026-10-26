@@ -478,6 +478,10 @@ class PopupMech(bpy.types.PropertyGroup):
                             ("V", "On the Crease", "Across the V-fold's own centre crease, "
                              "between its halves: the V-fold is its spine")],
                         update=_fold_changed)
+    on_crease: BoolProperty(name="On the Crease", default=False, update=_changed,
+                            description="Stand on the floor's (ceiling's) centre crease "
+                            "instead of in a corner. Only V-folds can: from the stage side "
+                            "the crease is a mountain fold")
     # stand-up
     stand: EnumProperty(name="Picture", items=[
         ("UPRIGHT", "Upright", "The picture stands parallel to the background, held by a "
@@ -496,7 +500,8 @@ class PopupMech(bpy.types.PropertyGroup):
 
     def to_dict(self):
         d = dict(uid=self.uid, label=self.label, y=self.y, tab=self.tab,
-                 host=self.host_uid, fold=self.fold, side=self.side, vside=self.vside)
+                 host=self.host_uid, fold=self.fold, side=self.side,
+                 vside="V" if self.on_crease else self.vside)
         if self.kind == "TUBE":
             d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
                      front=self.front, back=self.back, front_style=self.front_style,
@@ -636,11 +641,11 @@ class PopupOpening(bpy.types.PropertyGroup):
         ("RECT", "Rectangle", "Window or plain doorway"),
         ("ARCH", "Arch", "Round-topped doorway or window"),
         ("OVAL", "Oval", "Round or oval window")], update=_opening_changed)
-    x: FloatProperty(name="Across", description="Centre, measured across the piece from "
-                     "its centre fold (mm; left is negative)", default=0.0,
+    x: FloatProperty(name="X (Across Page)", description="Where its centre is, across the "
+                     "page from the centre fold (mm; the left page is negative)", default=0.0,
                      soft_min=-300.0, soft_max=300.0, update=_opening_changed)
-    y: FloatProperty(name="Bottom", description="Bottom edge, up from the piece's bottom "
-                     "(mm)", default=20.0, soft_min=0.0, soft_max=300.0,
+    y: FloatProperty(name="Y (Up Page)", description="Where its bottom edge is, up the "
+                     "page from the bottom edge (mm)", default=20.0, soft_min=0.0, soft_max=300.0,
                      update=_opening_changed)
     width: FloatProperty(name="Width", default=30.0, min=1.0, soft_max=300.0,
                          update=_opening_changed)
@@ -740,6 +745,9 @@ class PopupSettings(bpy.types.PropertyGroup):
                                "Standard view transform, so the colours you see and pick up "
                                "with the eyedropper are the ones in the art (and in print). "
                                "Your view settings come back when you leave Texture Paint")
+    card_lines: CollectionProperty(type=PopupLine,
+                                   description="Extra creases and cuts in the card itself")
+    active_card_line: IntProperty(name="Card Line")
     auto_holes: BoolProperty(name="Cut Painted Areas", default=True,
                              description="Whatever is painted see-through (Erase Alpha) is "
                              "cut out of the paper: holes inside a piece, or a new edge where "
@@ -801,10 +809,12 @@ class PopupSettings(bpy.types.PropertyGroup):
     def card_dict(self):
         from .core.model import CARD_PRESETS
         master = self.stage_master
+        lines = [dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
+                 for ln in self.card_lines]
         if master is not None and master != self.id_data:
             d = master.popup.card_dict()
             d.update(hold="SYM", tmax=360.0 / master.popup.stage_count,
-                     piece_sheet=PAPERS[self.paper][0])
+                     piece_sheet=PAPERS[self.paper][0], lines=lines)
             return d
         if self.size == "CUSTOM":
             W, H = self.page_depth, self.spine_length
@@ -812,7 +822,7 @@ class PopupSettings(bpy.types.PropertyGroup):
         else:
             W, H, sheet, _, _ = CARD_PRESETS[self.size]
         return dict(W=W, H=H, hold=self.hold, sheet=sheet,
-                    piece_sheet=PAPERS[self.paper][0])
+                    piece_sheet=PAPERS[self.paper][0], lines=lines)
 
 
 classes = (PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupSettings)

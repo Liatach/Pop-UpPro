@@ -138,15 +138,28 @@ def snap(lines, polys):
                 q, d = _near_on_seg(p, a, b)
                 if d < SNAP and (best is None or d < best[1] - 1e-9):
                     best = (q, d)
+            # a corner of the paper close by (the V point, where a fold meets
+            # an edge) wins over the nearest point along a line
+            corner = None
+            for owner, a, b in segs:
+                if owner != -1:
+                    continue
+                for c in (a, b):
+                    d = math.hypot(c[0] - p[0], c[1] - p[1])
+                    if d < SNAP and (corner is None or d < corner[1]):
+                        corner = (c, d)
+            if corner is not None:
+                best = corner
             if best is not None:
-                # prefer a corner close by (where a fold meets an edge)
-                for owner, a, b in segs:
-                    if owner == li:
-                        continue
-                    for c in (a, b):
-                        if math.hypot(c[0] - p[0], c[1] - p[1]) < 0.5:
-                            best = (c, 0.0)
-                pts[end] = best[0]
+                # run on a hair past what it meets, so the crossing is cut
+                # cleanly (a line ending exactly on an edge can slip through)
+                q = best[0]
+                o = pts[1] if end == 0 else pts[-2]
+                dx, dy = q[0] - o[0], q[1] - o[1]
+                L = math.hypot(dx, dy)
+                if L > 1e-9:
+                    q = (q[0] + 0.02 * dx / L, q[1] + 0.02 * dy / L)
+                pts[end] = q
         out.append((kind, pts))
     return out
 
@@ -191,6 +204,8 @@ def regions(model, names, lines):
     for f, origs in zip(fo, of_):
         if len(f) != 3 or not origs:
             continue
+        if abs(_cross(P[f[0]], P[f[1]], P[f[2]])) < 1e-9:
+            continue  # a sliver with no area would join regions across a line
         tris.append(f)
         tpanel.append(face_panel[origs[0]])
     by_edge = {}
@@ -256,7 +271,8 @@ def regions(model, names, lines):
             if _cross(P[f[0]], P[f[1]], P[f[2]]) < 0:
                 f = f[::-1]
             tri_pts.append(f)
-        r.polys = [[P[i] for i in poly] for poly in _merge_convex(tri_pts, P)]
+        r.polys = [q for q in ([P[i] for i in poly] for poly in _merge_convex(tri_pts, P))
+                   if len(q) >= 3 and abs(_area(q)) > 1e-6]
         r.area = sum(_area(q) for q in r.polys)
     unused = set(range(len(lines))) - used
     return out, unused, reg, tris, P
@@ -287,28 +303,26 @@ def _np(M):
 
 
 class Group:
-    """Regions hinged on creases whose centre-fold edges must meet: their
-    fold angles, solved for each open angle (continued from a reference
-    pose so the paper stays on one branch)."""
+    """Regions hinged on creases whose shared edges must meet: their fold
+    angles, solved together for each open angle (continued from a reference
+    pose so the paper stays on one branch). A member hangs from a placed
+    panel or from an earlier member (a chain of creases); every other edge it
+    shares is a constraint."""
 
     def __init__(self, model, members, cons, tgrid, t_ref):
-        # members: [(parent panel name, H (mathutils frame), Hi)]
-        # cons: [(i, j, p)]  j: member index, or a panel name (placed)
+        # members: [(parent, H (mathutils frame), Hi)]  parent: placed panel
+        # name, or the index of an earlier member
+        # cons: [(i, j, p)]  j: member index, or a placed panel name
         self.m = model
         self.members = members
         self.cons = cons
         self.cache = {}
         self.res = {}
         self.ok = True
-        self.loc = {}
-        for k, (i, j, p) in enumerate(cons):
-            Hi = members[i][2]
-            self.loc[(k, "a")] = np.array((Hi @ Vector((p[0], p[1], 0.0)))[:], dtype=np.float64)
-            if isinstance(j, int):
-                Hj = members[j][2]
-                self.loc[(k, "b")] = np.array((Hj @ Vector((p[0], p[1], 0.0)))[:],
-                                              dtype=np.float64)
         self.n = len(members)
+        self.Hn = [_np(H) for _, H, _ in members]
+        self.Hin = [_np(Hi) for _, _, Hi in members]
+        self.pts = [np.array((p[0], p[1], 0.0, 1.0)) for _, _, p in cons]
         th = self._seed(t_ref)
         if th is None:
             self.ok = False
@@ -330,38 +344,44 @@ class Group:
 
     # pieces evaluated once per open angle
     def _fixed(self, t):
-        Ms = [_np(self.m.panels[par].asm(t) @ H) for par, H, _ in self.members]
+        base = [_np(self.m.panels[par].asm(t)) if isinstance(par, str) else None
+                for par, _, _ in self.members]
         tgt = {}
         for k, (i, j, p) in enumerate(self.cons):
             if not isinstance(j, int):
                 w = self.m.panels[j].asm(t) @ Vector((p[0], p[1], 0.0))
                 tgt[k] = np.array(w[:], dtype=np.float64)
-        return Ms, tgt
+        return base, tgt
+
+    def _worlds(self, th, base):
+        W = []
+        for i, (par, _, _) in enumerate(self.members):
+            c, s = math.cos(th[i]), math.sin(th[i])
+            R = np.array(((c, 0, s, 0), (0, 1, 0, 0), (-s, 0, c, 0), (0, 0, 0, 1.0)))
+            P = base[i] if base[i] is not None else W[par]
+            W.append(P @ self.Hn[i] @ R @ self.Hin[i])
+        return W
+
+    def _res_only(self, th, base, tgt):
+        W = self._worlds(th, base)
+        out = []
+        for k, (i, j, p) in enumerate(self.cons):
+            wa = W[i] @ self.pts[k]
+            wb = W[j] @ self.pts[k] if isinstance(j, int) else tgt[k]
+            out.append(wa[:3] - wb[:3])
+        return np.concatenate(out)
 
     def _resid(self, th, Ms, tgt, jac=False):
-        r, J = [], []
-        for k, (i, j, p) in enumerate(self.cons):
-            a = self.loc[(k, "a")]
-            c, s = math.cos(th[i]), math.sin(th[i])
-            la = np.array((a[0] * c, a[1], -a[0] * s, 1.0))
-            wa = Ms[i] @ la
-            da = Ms[i][:3, :3] @ np.array((-a[0] * s, 0.0, -a[0] * c))
-            if isinstance(j, int):
-                b = self.loc[(k, "b")]
-                c2, s2 = math.cos(th[j]), math.sin(th[j])
-                wb = Ms[j] @ np.array((b[0] * c2, b[1], -b[0] * s2, 1.0))
-                db = Ms[j][:3, :3] @ np.array((-b[0] * s2, 0.0, -b[0] * c2))
-            else:
-                wb, db = tgt[k], None
-            r.append(wa[:3] - wb[:3])
-            if jac:
-                row = np.zeros((3, self.n))
-                row[:, i] += da
-                if db is not None:
-                    row[:, j] -= db
-                J.append(row)
-        r = np.concatenate(r)
-        return (r, np.vstack(J)) if jac else r
+        r = self._res_only(th, Ms, tgt)
+        if not jac:
+            return r
+        J = np.zeros((len(r), self.n))
+        eps = 1e-6
+        for i in range(self.n):
+            d = np.array(th, dtype=np.float64)
+            d[i] += eps
+            J[:, i] = (self._res_only(d, Ms, tgt) - r) / eps
+        return r, J
 
     def _newton(self, t, th0, Ms=None, tgt=None, iters=30):
         if Ms is None:
@@ -398,8 +418,10 @@ class Group:
         elif self.n == 2:
             seeds = [[a, b] for a in vals for b in vals]
         else:
-            seeds = [[v] * self.n for v in vals] + \
-                [[v * (-1) ** k for k in range(self.n)] for v in vals]
+            import itertools
+            signs = list(itertools.product((1.0, -1.0), repeat=min(self.n, 6)))
+            seeds = [[v * sg[k % len(sg)] for k in range(self.n)] for v in vals[::2] + [
+                math.radians(90), math.radians(-90)] for sg in signs]
         found = []
         for s in seeds:
             th, res = self._newton(t, s, Ms, tgt, iters=40)
@@ -522,88 +544,106 @@ def build(model, piece, names, lab, lines, base=None):
                 flat(r, panel[o])
                 progress = True
         for r in pending():
-            if r.idx in panel:
+            if r.idx in panel or not crease_parents(r):
                 continue
-            if not crease_parents(r):
-                continue
-            # the group of regions that must turn together
-            grp, stack, ready = [], [r.idx], True
-            seen = {r.idx}
+            # every unplaced region joined to it by creases or folds turns
+            # with it: solved together
+            grp, seen, stack = [], {r.idx}, [r.idx]
             while stack:
                 k = stack.pop()
                 grp.append(k)
-                for o in fold_nb(regs[k]):
-                    if o in panel or o in seen:
-                        continue
-                    if crease_parents(regs[o]):
+                for o in regs[k].links:
+                    if o not in panel and o not in seen:
                         seen.add(o)
                         stack.append(o)
-                    else:
-                        ready = False
-            if not ready and not force:
+            # hang each on a crease: from placed paper first, then from those
+            # already hung (a chain)
+            parent_of, order = {}, []
+            changed = True
+            while changed:
+                changed = False
+                for k in grp:
+                    if k in parent_of:
+                        continue
+                    best = None
+                    for o, segs in regs[k].links.items():
+                        cs = [sg for sg in segs if sg[0] == "CREASE"]
+                        if not cs:
+                            continue
+                        if o in panel:
+                            best = (panel[o], cs[0])
+                            break
+                        if o in parent_of and best is None:
+                            best = (("m", o), cs[0])
+                    if best is not None:
+                        parent_of[k] = best
+                        order.append(k)
+                        changed = True
+            if not order:
                 continue
-            members, idx_of = [], {}
-            for k in grp:
-                o, segs = crease_parents(regs[k])[0]
-                _, p, q = segs[0]
-                d = (q[0] - p[0], q[1] - p[1])
-                L = math.hypot(*d)
-                straight = all(abs(_cross(p, q, a_)) / L < 0.05 and abs(_cross(p, q, b_)) / L < 0.05
-                               for o2, segs2 in crease_parents(regs[k]) for _, a_, b_ in segs2)
-                if not straight:
-                    flat(regs[k], panel[o], f"{lab}: a part held by creases that don't line up "
-                         f"can't fold; left flat")
-                    continue
-                H = hinge_frame_2d(p, d)
-                idx_of[k] = len(members)
-                members.append((panel[o], H, H.inverted(), k, o))
-            if not members:
-                progress = True
-                continue
-            cons = []
-            for k in idx_of:
+            idx_of = {k: i for i, k in enumerate(order)}
+            members = []
+            for k in order:
+                par, (_, p, q) = parent_of[k]
+                H = hinge_frame_2d(p, (q[0] - p[0], q[1] - p[1]))
+                members.append((par if isinstance(par, str) else idx_of[par[1]], H,
+                                H.inverted()))
+            # every other edge they share must stay together
+            cons, done = [], set()
+            for k in order:
+                i = idx_of[k]
+                hseg = parent_of[k][1]
                 for o, segs in regs[k].links.items():
-                    for t_, p, q in segs:
-                        if t_ != "FOLD":
+                    j = idx_of.get(o, panel.get(o))
+                    if j is None:
+                        continue
+                    for sg in segs:
+                        if sg is hseg:
                             continue
-                        j = idx_of.get(o, panel.get(o))
-                        if j is None:
+                        key = (frozenset((k, o)), frozenset((sg[1], sg[2])))
+                        if key in done:
                             continue
-                        for pt in (p, q):
-                            cons.append((idx_of[k], j, pt))
+                        done.add(key)
+                        for pt in (sg[1], sg[2]):
+                            cons.append((i, j, pt))
             if not cons:
-                for _, _, _, k, o in members:
-                    flat(regs[k], panel[o], f"{lab}: a crease with nothing pulling it "
-                         f"(the part it cuts off doesn't reach a fold) is left flat")
+                for k in order:
+                    par = parent_of[k][0]
+                    flat(regs[k], par if isinstance(par, str) else panel[par[1]],
+                         f"{lab}: a crease with nothing pulling it (the part it cuts off "
+                         f"doesn't reach a fold) is left flat")
                 progress = True
                 continue
-            G = Group(model, [mb[:3] for mb in members], cons, model.TABLE_T, model.t_ref)
+            G = Group(model, members, cons, model.TABLE_T, model.t_ref)
             if not G.ok:
-                for _, _, _, k, o in members:
-                    flat(regs[k], panel[o])
-                model.warn(f"{lab}: creases with no fold to make on their own (they need a "
-                           f"matching crease across the fold: try Mirror); left flat")
+                for k in order:
+                    par = parent_of[k][0]
+                    flat(regs[k], par if isinstance(par, str) else panel[par[1]])
+                model.warn(f"{lab}: creases with no fold to make (they need a matching "
+                           f"crease across the fold: try Mirror; or they lock each other); "
+                           f"left flat")
                 progress = True
                 continue
             bad = sorted(t for t, res in G.res.items() if res > 0.05)
             if bad:
                 model.warn(f"{lab}: the extra folds can't follow the card around "
                            f"{bad[0]:.0f} degrees (the paper would tear)")
-            made = []
-            for gi, (par, H, Hi, k, o) in enumerate(members):
+            for gi, k in enumerate(order):
+                par = parent_of[k][0]
+                pname = par if isinstance(par, str) else panel[par[1]]
                 count += 1
                 name = f"{base}.Fold{count}"
-                parent_asm = model.panels[par].asm
+                H, Hi = members[gi][1], members[gi][2]
 
-                def asm(t, pa=parent_asm, H=H, Hi=Hi, G=G, gi=gi):
+                def asm(t, pa=model.panels[pname].asm, H=H, Hi=Hi, G=G, gi=gi):
                     return pa(t) @ H @ rot_y(float(G.theta(t)[gi])) @ Hi
 
                 panel[k] = name
-                made.append((name, regs[k], par, H, asm, count))
-            for name, rg, par, H, asm, c in made:
-                model.add(Panel(name, piece, "panel", rg.polys, asm, par,
-                                Hinge(H, H, "TABLE"), f"{lab}: fold {c}"))
-                if par in model.cut_panels:
+                hg = Hinge(H, H, "TABLE")
+                hg.corner_ok = True
+                model.add(Panel(name, piece, "panel", regs[k].polys, asm, pname, hg,
+                                f"{lab}: fold {count}"))
+                if pname in model.cut_panels:
                     model.cut_panels.add(name)
                 new_panels.append(name)
             progress = True
@@ -617,5 +657,6 @@ def build(model, piece, names, lab, lines, base=None):
         model.warn(f"{lab}: {len(loose)} part(s) cut right out by the extra lines are "
                    f"left out (holes)")
     for name, polys in merged.items():
-        model.panels[name].polys = [ccw(p) for p in polys]
+        model.panels[name].polys = [ccw(p) for p in polys
+                                    if len(p) >= 3 and abs(_area(p)) > 1e-6]
     return new_panels

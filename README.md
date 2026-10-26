@@ -246,6 +246,24 @@ move around.
   Add menu's corner entries. Box folds label their widths *Up Wall* and
   *Along Floor*. Their tabs may lie over the floor's own tab along the wall,
   glue on glue.
+* **On a floor's or ceiling's crease**: from inside the stage that crease is
+  a mountain fold. It opens from fully folded to flat as the stage opens, so
+  boxes and cubes can't stand there, but V-folds can. A V-fold there folds
+  flat over the crease as the stage shuts and rises as the floor flattens.
+  Select the floor and use **Add → V-fold on its crease**, or tick **On the
+  Crease** on a V-fold whose host is the floor. On a ceiling it hangs down
+  into the stage.
+* **The background as a ceiling or floor**: in **Holes and Shaping**,
+  **Card creases and cuts → + → Ceiling** adds two creases rising from the
+  spine to the top edge (Mirror on). The top of the background then folds in
+  over the stage as a gable-shaped ceiling, cut from the card itself, with no
+  separate piece or glue. **Floor** does the same at the bottom. Their angle is
+  set to lie closest to level when the stage is fully open; move the line
+  ends to change the depth and slope. Mechanisms glued where the background
+  folds away are flagged (their tabs hang off the page).
+
+![A three-stage carousel stage: the background's top folded in as a ceiling,
+and a floor with a V-fold standing on its crease](docs/images/card_ceiling.jpg)
 * **Joins**: *Glued* (default) makes each stage its own folded card. The
   back of each stage's right page is glued to the back of the next stage's
   left page. *Shared Page* prints each pair of neighbouring pages on one
@@ -302,7 +320,9 @@ carried away from the card's centre. With a V-fold selected, **Add** offers a
 glued box, a box layer cut into the piece, another V-fold, a mouth or a
 stand-up **on the crease**. **Where** → *On the Crease* and **Up the Crease**
 place them. Its halves open like a little card as the card opens, and
-everything on them follows. Stand-ups and glued boxes can also stand in front
+everything on them follows. Boxes, box layers, mouths and stand-ups sit in the
+angle between the halves. A V-fold sits on the other side of the crease, the
+printed face, so V-folds stack outwards into a tower. Stand-ups and glued boxes can also stand in front
 of or behind either half (above).
 
 ### Extra creases and cuts
@@ -348,6 +368,10 @@ How the regions move (the same on every piece):
   side (a projection, a battlement). If it touches more than one fold, it
   stays with the card, and the other folds are cut.
 * A shape cut right out (a closed cut) is a hole.
+* Creases that cross, or parts hanging from other folded parts, are solved
+  together. Every crease and fold edge they share has to stay closed.
+* Line ends within 1.5 mm of a corner (the V point, where a fold meets an
+  edge) snap onto it.
 * The print shows the new creases (mountain or valley) and cuts. The usual
   checks apply: a jaw too big for the card is flagged as poking through.
   The checks also flag a crease with nothing to fold against (usually a
@@ -426,9 +450,10 @@ The **Holes and Shaping** panel works the same on every piece: the card, any
 mechanism, roofs, ribs, frames, floors. Holes are cut into the paper itself,
 so they show in 3D and print as cut lines:
 
-* **Openings**: rectangles, arches and ovals, with **Across**, **Bottom**,
+* **Openings**: rectangles, arches and ovals, with **X (Across Page)**, **Y (Up Page)**,
   **Width** and **Height** sliders, cut in any piece (**Cut In** lists them
-  all). Across is measured from the piece's centre fold. **Through** carries an
+  all). X is measured from the piece's centre fold, Y up from its bottom.
+  **Through** carries an
   opening:
   * *Everything Behind*: every frame behind it and the background, lined up
     as seen from the front when the stage is fully open (on the background,
@@ -633,6 +658,7 @@ python tests/test_v14.py       # extra creases and cuts: reverse points, steps, 
 python tests/test_v15.py       # creases and cuts on boxes, stand-ups (also on V-folds)
 python tests/test_v16.py       # true colours, strokes follow pieces, highlight, movement test
 python tests/test_v17.py       # asymmetric V-folds, mechanisms on a V-fold's crease
+python tests/test_v18.py       # card creases (ceiling, floor), V-folds on floor creases, crossing creases
 ```
 
 ## Tutorials
@@ -664,10 +690,14 @@ too, along with the mouth and jaws.
   behind a V-fold half only stand-ups and glued boxes.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
-* Extra creases and cuts work on V-folds, box folds and box layers; tubes,
+* Extra creases and cuts work on the card itself, V-folds, box folds and box
+  layers; tubes,
   roofs and stand-up pictures don't take them yet (shape a picture by
   erasing its art). Asymmetric creases need their own matching crease on the
   other side (drawn with Mirror off).
+* A debug view: look straight into a stage (or card) part open, flattened
+  like a plan, with every layer drawn see-through, to check how
+  mechanisms overlap in complex builds.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe

@@ -87,6 +87,9 @@ class POPUP_MT_add(bpy.types.Menu):
                     op = self.layout.operator("popup.add", text=f"{name}, {wall}",
                                               icon=KIND_ICON[k])
                     op.kind, op.host, op.side = k, h.uid, side
+            op = self.layout.operator("popup.add", text="V-fold on its crease",
+                                      icon=KIND_ICON["VFOLD"])
+            op.kind, op.host, op.fold = "VFOLD", h.uid, "V"
         elif st.mechs and st.active < len(st.mechs) and st.mechs[st.active].kind == "VFOLD":
             h = st.mechs[st.active]
             self.layout.separator()
@@ -394,7 +397,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         if hm is not None and hm.kind == "VFOLD":
             col.prop(m, "vside")
         joint = hm is not None and hm.kind in ("FLOOR", "CEILING")
-        if joint:
+        if joint and m.kind == "VFOLD":
+            col.prop(m, "on_crease")
+        if joint and not (m.kind == "VFOLD" and m.on_crease):
             col.prop(m, "side", text="Wall")
         on_v = hm is not None and hm.kind == "VFOLD"
         col.prop(m, "y", text=("Up the Crease" if m.vside == "V" else "Out Along Glue Line")
@@ -583,6 +588,32 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
                                         (o.on_piece or ("Card" if not o.on_uid else "")) != "Card"):
                 col.label(text="Next Stage works on a carousel stage's background",
                           icon="ERROR")
+        box = lay.box()
+        box.label(text="Card creases and cuts (the background itself)", icon="MOD_LINEART")
+        row = box.row()
+        row.template_list("POPUP_UL_lines", "card", st, "card_lines", st, "active_card_line",
+                          rows=2)
+        col = row.column(align=True)
+        col.operator_menu_enum("popup.add_card_line", "preset", text="", icon="ADD")
+        col.operator("popup.remove_card_line", text="", icon="REMOVE")
+        if 0 <= st.active_card_line < len(st.card_lines):
+            ln = st.card_lines[st.active_card_line]
+            c = box.column(align=True)
+            c.use_property_split = True
+            c.use_property_decorate = False
+            c.prop(ln, "kind")
+            c.prop(ln, "mirror")
+            if ln.path:
+                c.label(text="Drawn line: redraw it to change its shape")
+            else:
+                c.prop(ln, "x0")
+                c.prop(ln, "y0")
+                c.prop(ln, "x1")
+                c.prop(ln, "y1")
+        row = box.row(align=True)
+        row.operator("popup.draw_lines", text="Draw Creases", icon="GREASEPENCIL").kind = "CREASE"
+        row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"
+        box.operator("popup.take_lines", icon="CHECKMARK")
         box = lay.box()
         box.label(text="Painted: erase alpha to cut holes or trim edges", icon="BRUSH_DATA")
         box.prop(st, "auto_holes")

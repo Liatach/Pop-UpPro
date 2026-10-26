@@ -295,8 +295,9 @@ def take_lines(scene, model, layout, mirror=True):
                 continue
             piece, poly = _to_piece(model, layout, pts)
             m = None
-            for uid, (pc, to_user, bounds) in model.line_frames.items():
-                if pc != piece or uid not in mechs:
+            for uid, (pc, to_user, bounds) in sorted(model.line_frames.items(),
+                                                     key=lambda kv: -kv[0]):
+                if pc != piece or (uid not in mechs and uid != 0):
                     continue
                 user = [to_user(q) for q in poly]
                 if bounds is not None:
@@ -305,9 +306,12 @@ def take_lines(scene, model, layout, mirror=True):
                     x0, x1, y0, y1 = bounds
                     if not (x0 - 5 <= cx <= x1 + 5 and y0 - 5 <= cy <= y1 + 5):
                         continue
-                m, poly = mechs[uid], user
+                m, poly = (mechs[uid] if uid else None), user
+                card_line = uid == 0
                 break
-            if m is None:
+            else:
+                card_line = False
+            if m is None and not card_line:
                 miss += 1
                 continue
             if kind == "CREASE":
@@ -317,13 +321,17 @@ def take_lines(scene, model, layout, mirror=True):
             if math.hypot(poly[-1][0] - poly[0][0], poly[-1][1] - poly[0][1]) < 1.0 \
                     and len(poly) < 3:
                 continue
-            ln = m.lines.add()
+            coll = st.card_lines if card_line else m.lines
+            ln = coll.add()
             ln.kind = kind
             ln.mirror = mirror
             (ln.x0, ln.y0), (ln.x1, ln.y1) = poly[0], poly[-1]
             if len(poly) > 2:
                 ln.path = json.dumps([(round(x, 3), round(y, 3)) for x, y in poly])
-            m.active_line = len(m.lines) - 1
+            if card_line:
+                st.active_card_line = len(coll) - 1
+            else:
+                m.active_line = len(coll) - 1
             got += 1
         if len(fr.drawing.strokes):
             fr.drawing.remove_strokes()
