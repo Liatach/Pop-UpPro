@@ -327,6 +327,7 @@ class Group:
         self.res = {}
         self.ok = True
         self.torn = False
+        self.torn_at = None
         self.n = len(members)
         self.Hn = [_np(H) for _, H, _ in members]
         self.Hin = [_np(Hi) for _, _, Hi in members]
@@ -352,6 +353,7 @@ class Group:
                 if r > 0.5:
                     # the paper can't follow: no point solving the rest
                     self.torn = True
+                    self.torn_at = t
                     break
             if self.torn:
                 break
@@ -706,9 +708,14 @@ def build(model, piece, names, lab, lines, base=None):
                 for k in order:
                     par = parent_of[k][0]
                     flat(regs[k], par if isinstance(par, str) else panel[par[1]])
-                model.warn(f"{lab}: these creases and cuts make a shape the paper can't "
-                           f"fold to (check the cut runs along the fold, and Mirror); "
-                           f"left flat")
+                if G.torn_at is not None and G.torn_at > model.t_ref:
+                    model.warn(f"{lab}: these creases and cuts would tear opened past about "
+                               f"{G.torn_at:.0f} degrees (a join tab angled too far, or a "
+                               f"ridge tipped past level); left flat")
+                else:
+                    model.warn(f"{lab}: these creases and cuts make a shape the paper "
+                               f"can't fold to (check the cut runs along the fold, and "
+                               f"Mirror); left flat")
                 progress = True
                 continue
             bad = sorted(t for t, res in G.res.items() if res > 0.05)

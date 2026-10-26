@@ -49,6 +49,33 @@ assert not m.warnings, m.warnings
 assert len([n for n in m.order if n.startswith("Card.Fold")]) == 4
 print("hanging ceiling and floor")
 
+# ---- a floor is its ceiling upside down
+for style in ("HANG", "PEAK"):
+    c = card_shape_lines(W, H, 120.0, style, 40.0, -10.0, 8.0)
+    f = card_shape_lines(W, H, 120.0, floor=style, rise=40.0, fslope=-10.0, dip=8.0)
+    assert len(c) == len(f)
+    for a, b in zip(c, f):
+        assert a["kind"] == b["kind"] and all(
+            abs(p[0] - q[0]) < 1e-9 and abs(p[1] - (H - q[1])) < 1e-9
+            for p, q in zip(a["pts"], b["pts"]))
+    m = Model(dict(STAGE, lines=f), [])
+    assert not m.warnings, (style, m.warnings)
+print("floor mirrors ceiling")
+
+# ---- a V-fold roof with the background above its glue lines cut away
+V = dict(type="VFOLD", uid=7, label="roof", y=145, phi_l=100, phi_r=100, alpha_l=70,
+         alpha_r=70, glue=150, height=70, tab=6, tab_side="IN", shape="TRI", host=0,
+         cut_above=True)
+m = Model(STAGE, [V])
+m.check_fit()
+assert not m.warnings, m.warnings
+for n in ("Page.L", "Page.R"):
+    top = max(q[1] for poly in m.panels[n].polys for q in poly)
+    assert abs(top - 145.0) < 1e-6, (n, top)
+m = Model(STAGE, [dict(V, phi_l=60, phi_r=60)])
+assert any("not cut" in w for w in m.warnings), m.warnings
+print("V-fold cuts the background away above it")
+
 # ---- a cut that doesn't follow the fold: quick, and never hangs
 y0 = 168.0
 base = card_shape_lines(W, H, 120.0, "PEAK", H - y0, -10.0)[:2]
@@ -70,12 +97,15 @@ assert abs(st.ceiling_slope + 10.0) < 1e-6  # each style starts at its natural s
 assert [ln["kind"] for ln in st.card_dict()["lines"]] == ["CREASE", "JOIN", "CUT"]
 st.ceiling = "HANG"
 assert abs(st.ceiling_slope - 30.0) < 1e-6
-st.floor = True
+st.floor = "PEAK"
+assert abs(st.floor_slope + 10.0) < 1e-6
+assert len(st.card_dict()["lines"]) == 4
+st.floor = "HANG"
 assert len(st.card_dict()["lines"]) == 2
 assert bpy.ops.popup.build() == {"FINISHED"}
 model = build.make_model(sc)[0]
 assert len([n for n in model.order if n.startswith("Card.Fold")]) == 4, model.warnings
-st.ceiling, st.floor = "NONE", False
+st.ceiling, st.floor = "NONE", "NONE"
 assert not st.card_dict()["lines"]
 addon.unregister()
 print("V21 OK")

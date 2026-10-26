@@ -501,6 +501,12 @@ class PopupMech(bpy.types.PropertyGroup):
                             ("V", "On the Crease", "Across the V-fold's own centre crease, "
                              "between its halves: the V-fold is its spine")],
                         update=_fold_changed)
+    cut_above: BoolProperty(name="Cut Away Background Above", default=False,
+                            update=_changed,
+                            description="A V-fold on the card's spine whose glue lines fall "
+                            "away from it (Glue Angle over 90) as a roof or ceiling: cut the "
+                            "background away above its glue lines, so only the V-fold shows "
+                            "above them")
     level: BoolProperty(name="Level Ridge", default=True, update=_changed,
                         description="Work out the roof's piece angle so its ridge runs "
                         "level when the card (or stage) is fully open. Off: set the Piece "
@@ -581,7 +587,7 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="VFOLD", phi_l=self.phi_l, alpha_l=al,
                      phi_r=self.phi_l if self.symmetric else self.phi_r, alpha_r=ar,
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
-                     shape=self.shape,
+                     shape=self.shape, cut_above=self.cut_above,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         else:
@@ -707,6 +713,11 @@ def _ceiling_style(self, context):
     _changed(self, context)
 
 
+def _floor_style(self, context):
+    self.floor_slope = {"HANG": 30.0, "PEAK": -10.0}.get(self.floor, self.floor_slope)
+    _changed(self, context)
+
+
 class PopupSettings(bpy.types.PropertyGroup):
     size: EnumProperty(name="Card", items=SIZES, default="A5", update=_changed)
     page_depth: FloatProperty(name="Page Width", description="Spine to page edge (mm)",
@@ -799,21 +810,31 @@ class PopupSettings(bpy.types.PropertyGroup):
                                  precision=1, update=_changed,
                                  description="Degrees the creases climb (+) or fall (-) going "
                                  "out from the spine. A peaked roof's eaves want about -10")
-    ceiling_tilt: FloatProperty(name="Ridge Tilt", default=0.0, min=-40.0, max=40.0,
+    ceiling_lift: FloatProperty(name="Ridge Lift", default=0.0, min=0.0, max=40.0,
                                 precision=1, update=_changed,
                                 description="0: the join tab is set so the roof's ridge runs "
-                                "level into the stage when it is fully open. Turn it by this "
-                                "many degrees to tip the ridge away from level")
-    floor: BoolProperty(name="Floor", default=False, update=_changed,
-                        description="Two creases falling from the spine to the bottom edge: "
-                        "the bottom of the background folds in as a floor")
-    floor_rise: FloatProperty(name="Rise at Spine", default=50.0, min=2.0, soft_max=150.0,
+                                "level into the stage when it is fully open. More lifts the "
+                                "ridge's front (tipping it down past level would tear)")
+    floor: EnumProperty(
+        name="Floor", update=_floor_style, items=[
+            ("NONE", "None", "The background stays flat"),
+            ("HANG", "V Floor", "Two creases falling from the spine to the bottom edge: the "
+             "bottom of the background folds in as a floor, rising to a V at the centre"),
+            ("PEAK", "Valley Floor", "The Peaked Roof upside down: the bottom is cut apart "
+             "at the spine and joined again by a glue tab, so the floor dips to a valley")])
+    floor_rise: FloatProperty(name="Rise at Spine", default=40.0, min=2.0, soft_max=150.0,
                               precision=1, update=_changed,
                               description="How far above the bottom edge the creases meet "
                               "the spine, in mm")
-    floor_slope: FloatProperty(name="Crease Slope", default=30.0, min=5.0, max=80.0,
+    floor_slope: FloatProperty(name="Crease Slope", default=30.0, min=-40.0, max=80.0,
                                precision=1, update=_changed,
-                               description="Degrees the creases fall going out from the spine")
+                               description="Degrees the creases fall (+) or climb (-) going "
+                               "out from the spine. A valley floor's edges want about -10")
+    floor_dip: FloatProperty(name="Valley Dip", default=0.0, min=0.0, max=40.0,
+                             precision=1, update=_changed,
+                             description="0: the join tab is set so the floor's valley runs "
+                             "level into the stage when it is fully open. More dips the "
+                             "valley's front (tipping it up past level would tear)")
     card_lines: CollectionProperty(type=PopupLine,
                                    description="Extra creases and cuts in the card itself")
     active_card_line: IntProperty(name="Card Line")
@@ -899,35 +920,46 @@ class PopupSettings(bpy.types.PropertyGroup):
     def shape_lines(self, W, H, tmax):
         """The creases (and cut) the Ceiling and Floor settings make."""
         return card_shape_lines(W, H, tmax, self.ceiling, self.ceiling_drop,
-                                self.ceiling_slope, self.ceiling_tilt,
-                                self.floor, self.floor_rise, self.floor_slope)
+                                self.ceiling_slope, self.ceiling_lift,
+                                self.floor, self.floor_rise, self.floor_slope, self.floor_dip)
 
 
-def card_shape_lines(W, H, tmax, ceiling="NONE", drop=40.0, slope=30.0, tilt=0.0, floor=False, rise=50.0, fslope=30.0):
+def card_shape_lines(W, H, tmax, ceiling="NONE", drop=40.0, slope=30.0, lift=0.0,
+                     floor="NONE", rise=40.0, fslope=30.0, dip=0.0):
+    """The lines the Ceiling and Floor settings make. A floor is its ceiling
+    turned upside down (the card folds the same either way up)."""
+    if floor is True:
+        floor = "HANG"
+    elif floor is False:
+        floor = "NONE"
     L = 2.0 * max(W, H) + 20.0
 
-    def ray(kind, y0, ang, mirror=True):
-        # ang: degrees from straight up the spine, turning out over the left page
-        a = math.radians(ang)
-        return dict(kind=kind, mirror=mirror,
-                    pts=[(0.0, y0), (-L * math.sin(a), y0 + L * math.cos(a))])
+    def shape(style, d, sl, tl, flip):
+        if style == "NONE":
+            return []
+        y0 = max(1.0, min(H - 1.0, H - d))
+        ang = 90.0 - sl  # from straight up the spine, out over the left page
 
-    out = []
-    if ceiling != "NONE":
-        y0 = max(1.0, min(H - 1.0, H - drop))
-        ang = 90.0 - slope
-        out.append(ray("CREASE", y0, ang))
-        if ceiling == "PEAK":
-            # where the ridge runs level at the stage's full opening (fitted to
-            # the solved shape: within a degree or two over the useful range)
+        def ray(kind, a):
+            a = math.radians(a)
+            return [(0.0, y0), (-L * math.sin(a), y0 + L * math.cos(a))]
+
+        out = [("CREASE", True, ray("CREASE", ang))]
+        if style == "PEAK":
+            # the join tab that runs the ridge level at the stage's full
+            # opening (fitted to the solved shape: within a degree or two)
             psi = ang - 1.0 - 0.5 * min(tmax, 180.0) - 0.15 * max(0.0, ang - 100.0)
-            psi = max(3.0, min(ang - 3.0, psi + tilt))
-            out.append(ray("JOIN", y0, psi))
-            out.append(dict(kind="CUT", mirror=False, pts=[(0.0, y0), (0.0, H + 5.0)]))
-    if floor:
-        y0 = max(1.0, min(H - 1.0, rise))
-        out.append(ray("CREASE", y0, 90.0 + fslope))
-    return out
+            psi = max(3.0, min(ang - 3.0, psi - max(0.0, tl)))
+            out.append(("JOIN", True, ray("JOIN", psi)))
+            out.append(("CUT", False, [(0.0, y0), (0.0, H + 5.0)]))
+        res = []
+        for kind, mir, pts in out:
+            if flip:
+                pts = [(x, H - y) for x, y in pts]
+            res.append(dict(kind=kind, mirror=mir, pts=pts))
+        return res
+
+    return shape(ceiling, drop, slope, lift, False) + shape(floor, rise, fslope, dip, True)
 
 
 classes = (PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupSettings)

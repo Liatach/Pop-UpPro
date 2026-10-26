@@ -254,6 +254,12 @@ move around.
   Select the floor and use **Add → V-fold on its crease**, or tick **On the
   Crease** on a V-fold whose host is the floor. On a ceiling it hangs down
   into the stage.
+* **A V-fold roof with the walls above cut off**: on a V-fold on the
+  card's spine whose glue lines fall away from it (Glue Angle over 90),
+  tick **Cut Away Background Above**. The background above its glue lines
+  is cut off, so the V-fold stands over the stage as a roof or ceiling with
+  nothing behind it. Your V-fold keeps all its own numbers; the Roof below
+  does the same with the piece angle worked out for a level ridge.
 * **Roof**: **Add → Roof (peaked, cuts a gable)** cuts the background to a gable
   along two eaves lines falling from the spine (**Roof Slope**, 120° by
   default). It glues a V-fold along them whose crease rises to a ridge. With
@@ -277,15 +283,17 @@ fully open, part open and from above](docs/images/roof.jpg)
     stage as a peaked roof. **Drop at Spine** is how far below the top edge
     the roof starts; **Crease Slope** sets the pitch of the eaves (-10°,
     just below level, to start); the join tab is worked out so the ridge
-    runs level into the stage at full opening, and **Ridge Tilt** tips it
-    up or down from there.
+    runs level into the stage at full opening, and **Ridge Lift** raises its
+    front from there (tipping it down past level would tear the paper).
   * **Ceiling → Hanging**: two creases rising from the spine to the top
     edge. The top of the background folds in and hangs down in a V. Cut
     from one piece of card, a fold into the stage can only hang like this
     (or flip out behind the stage), which is why the peaked roof needs the
     cut and the tab.
-  * **Floor**: two creases falling from the spine to the bottom edge, with
-    **Rise at Spine** and **Crease Slope**.
+  * **Floor** is the ceiling upside down, with the same choices: a **V
+    Floor** (rising to a V at the centre) or a **Valley Floor** (the peaked
+    roof upside down), with **Rise at Spine**, **Crease Slope** and
+    **Valley Dip**.
   * **Your own creases and cuts** (folded away underneath) is the free
     version: lines by their ends or **By Angle** (start, angle from straight
     up the spine, length), drawn or typed. Lines that ask for a shape the
@@ -736,6 +744,23 @@ too, along with the mouth and jaws.
 * Scene setup: a Set Up Scene button, run the first time a card is built,
   for the render engine, Material Preview lighting and colour management
   that suit pop-up work (the right settings still being worked out).
+* A consolidation and elegance pass over the interface, before more
+  mechanisms:
+  * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
+    Background Above and Level Ridge; floors, ceilings and the background
+    folding in sit together as one "Stage" section.
+  * The mechanism panel in three tiers: where it sits (host, side,
+    position), its shape (the few numbers that matter), then folded-away
+    extras (tabs, creases and cuts, asymmetric settings).
+  * Holes and Shaping split into collapsible sub-panels (openings,
+    the background, painted holes, drawn holes), each closed when empty.
+  * The Add menu grouped by where things go (on the spine, on a V-fold, on
+    a floor or ceiling, in a stage), offering only what fits the selected
+    host.
+  * One naming scheme for angles and lengths across mechanisms (Glue
+    Angle, Piece Angle, Slope; Length, Depth, Height), with the same order
+    of fields everywhere.
+  * Warnings gathered into one list; clicking one selects the mechanism.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe

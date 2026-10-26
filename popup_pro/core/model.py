@@ -422,6 +422,8 @@ class Model:
                 continue
             n0 = len(self.order)
             if m["type"] == "VFOLD":
+                if m.get("cut_above"):
+                    self._cut_above(m, host)
                 self._vfold(m, host)
             elif m["type"] == "MOUTH":
                 self._mouth(m, host)
@@ -1664,6 +1666,36 @@ class Model:
             h.trig = False
             h.key = (m["uid"], side)
             self.hosts[(m["uid"], side)] = h
+
+    def _cut_above(self, m, host):
+        """A V-fold roof or ceiling on the spine: cut the background away
+        above its glue lines (each side at its own glue angle)."""
+        lab = m["label"]
+        if not host.is_spine:
+            self.warn(f"{lab}: Cut Away Background Above works on the card's spine; "
+                      f"not cut")
+            return
+        W, H = self.W, self.H
+        yP = float(m.get("y", 0.0))
+        if not 0.0 < yP < H - 1e-6:
+            return
+        for sx, key in ((-1.0, "phi_l"), (1.0, "phi_r")):
+            phi = float(m.get(key, m.get("phi_l", 60.0)))
+            if phi <= 90.5:
+                self.warn(f"{lab}: its glue lines rise from the spine, so the cut would "
+                          f"take the V-fold's own ground; not cut (set the Glue Angle "
+                          f"over 90)")
+                return
+        for sx, key in ((-1.0, "phi_l"), (1.0, "phi_r")):
+            phi = float(m.get(key, m.get("phi_l")))
+            sp, cp = math.sin(math.radians(phi)), math.cos(math.radians(phi))
+            yE = yP + W * cp / sp
+            region = [(0.0, yP), (0.0, H), (sx * W, H), (sx * W, yE)]
+            if yE < 0.0:
+                xb = -yP * sp / cp
+                region = [(0.0, yP), (0.0, H), (sx * W, H), (sx * W, 0.0), (sx * xb, 0.0)]
+            self.carve("Card", region, {"Page.L", "Page.R"},
+                       f"{lab} cut-away {'left' if sx < 0 else 'right'}")
 
     def _roof_stage(self, m, host):
         """A peaked roof over a stage (or a card): the background is cut to a

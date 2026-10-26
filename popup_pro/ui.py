@@ -462,6 +462,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     col.prop(m, "alpha_r")
             col.prop(m, "tab")
             col.prop(m, "tab_side")
+            if not m.host_uid:
+                col.prop(m, "cut_above")
             _draw_lines(self.layout, context, m)
         else:
             col.prop(m, "width", text="Height")
@@ -626,12 +628,14 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
             c.prop(st, "ceiling_drop")
             c.prop(st, "ceiling_slope")
             if st.ceiling == "PEAK":
-                c.prop(st, "ceiling_tilt")
+                c.prop(st, "ceiling_lift")
         c.separator()
         c.prop(st, "floor")
-        if st.floor:
+        if st.floor != "NONE":
             c.prop(st, "floor_rise")
             c.prop(st, "floor_slope")
+            if st.floor == "PEAK":
+                c.prop(st, "floor_dip")
         head, body = box.panel("popup_card_lines", default_closed=True)
         head.label(text="Your own creases and cuts (%d)" % len(st.card_lines))
         if body is not None:
