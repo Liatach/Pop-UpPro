@@ -421,6 +421,7 @@ def write_meta(rig, model, layout, s):
                 for k, p in model.pieces.items() if p.panels},
         sheets=[dict(size=list(sh.size), origin=list(sh.origin)) for sh in layout["sheets"]],
         flaps={str(k): v for k, v in model.flaps.items()},
+        roofs={str(k): v for k, v in getattr(model, "roofs", {}).items()},
         prints={k: [v for row in layout["prints"][k] for v in row]
                 for k, p in model.pieces.items() if p.panels},
     )

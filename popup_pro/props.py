@@ -507,6 +507,11 @@ class PopupMech(bpy.types.PropertyGroup):
                             "away from it (Glue Angle over 90) as a roof or ceiling: cut the "
                             "background away above its glue lines, so only the V-fold shows "
                             "above them")
+    valley: BoolProperty(name="Upside Down (Valley Floor)", default=False,
+                         update=_changed,
+                         description="The roof turned upside down: the background is cut "
+                         "away below two lines rising from the spine and a V-fold floor is "
+                         "glued along them, dipping to a valley")
     level: BoolProperty(name="Level Ridge", default=True, update=_changed,
                         description="Work out the roof's piece angle so its ridge runs "
                         "level when the card (or stage) is fully open. Off: set the Piece "
@@ -544,6 +549,7 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "ROOF":
             d.update(type="ROOF", phi_l=self.phi_l, alpha_l=self.alpha_l, glue=self.glue,
                      height=self.height, level=self.level, tab_side=self.tab_side,
+                     valley=self.valley,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         elif self.kind == "STANDUP":

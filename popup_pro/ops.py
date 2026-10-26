@@ -63,7 +63,7 @@ DEFAULTS = {
     "CEILING": dict(tab=8.0),
     "STANDUP": dict(y=60.0, width=30.0, height=45.0, depth=30.0, img_w=80.0, img_h=90.0,
                     tab=10.0),
-    "ROOF": dict(phi_l=120.0, alpha_l=60.0, glue=400.0, height=400.0, tab=10.0,
+    "ROOF": dict(phi_l=100.0, alpha_l=70.0, glue=150.0, height=60.0, tab=8.0,
                  tab_side="IN"),
 }
 NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth",
@@ -98,7 +98,9 @@ def _add(st, kind):
     if kind == "CUBE":
         m.y = min(m.y, max(0.0, H - m.size * 1.42 - 5))
     if kind == "ROOF":
-        m.y = round(0.85 * H, 1)
+        m.y = round(0.7 * H, 1)
+        # the eaves to the card's side edge
+        m.glue = round(W / math.sin(math.radians(m.phi_l)) - 0.5, 1)
     if kind == "FLAP":
         m.y = min(m.y, max(m.tab + m.length, H - 15))
     if kind == "TETHER":
@@ -124,7 +126,8 @@ class POPUP_OT_add(bpy.types.Operator):
     host: IntProperty(default=0, description="Mechanism id of the host box (0 = spine)")
     fold: StringProperty(default="A")
     side: StringProperty(default="", description="Wall, for a corner of a floor or ceiling")
-    variant: StringProperty(default="", description="ASYM: an asymmetric V-fold")
+    variant: StringProperty(default="", description="ASYM: an asymmetric V-fold; "
+                           "VALLEY: a roof upside down")
 
     def execute(self, context):
         st = context.scene.popup
@@ -157,6 +160,13 @@ class POPUP_OT_add(bpy.types.Operator):
             m.symmetric = False
             m.phi_l, m.phi_r, m.lean, m.fold_flat = 40.0, 75.0, 20.0, True
             m.label = "Asymmetric " + m.label
+            st["live"] = was
+        if self.kind == "ROOF" and self.variant == "VALLEY":
+            was = st.live
+            st["live"] = False
+            m.valley = True
+            m.y = round(0.3 * st.card_dict()["H"], 1)
+            m.label = m.label.replace("Roof", "Valley floor")
             st["live"] = was
         if self.host:
             if self.side:

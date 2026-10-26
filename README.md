@@ -260,17 +260,31 @@ move around.
   is cut off, so the V-fold stands over the stage as a roof or ceiling with
   nothing behind it. Your V-fold keeps all its own numbers; the Roof below
   does the same with the piece angle worked out for a level ridge.
-* **Roof**: **Add → Roof (peaked, cuts a gable)** cuts the background to a gable
-  along two eaves lines falling from the spine (**Roof Slope**, 120° by
-  default). It glues a V-fold along them whose crease rises to a ridge. With
-  **Level Ridge** on, the piece angle is worked out so the ridge runs level
-  into the stage at full opening. Shut, the roof lies flat in the cut-away
-  corners. **Ridge Starts** sets how far up the spine it begins. **Eaves Length**
-  and **Ridge Length** are trimmed to what fits shut. Full-width eaves make a
-  roof about 300 mm across, so shorten them or print it on A3. A roof can't
-  open out flat (it would tear past about 135°), so it belongs in carousel
-  stages. Things can hang from its ridge: its crease is a host like any
-  V-fold's.
+* **Roof** (in the Add menu's stage section): cuts the background to a gable
+  along two eaves lines falling from the spine, and glues a V-fold along them
+  whose crease rises to a ridge. Its numbers are the V-fold's:
+  * **Ridge Starts** (up the spine) and **Glue Angle** (the roof's slope,
+    100° by default, just past level).
+  * **Glue Length** (the eaves). They stop at the card's edge; the panel
+    says where when you ask for more.
+  * **Fold Length** (the ridge): how far the ridge reaches into the stage.
+    Shut, the roof lies flat in the cut-away corners, so the ridge can only
+    be as long as still fits the closed card. The panel shows that length
+    and warns (it doesn't trim) when you go past it. To reach further,
+    start the roof lower or make the slope steeper: from 145 mm up a
+    three-stage A5 card at 100° it fits 84 mm, from 100 mm up 142 mm, and
+    at 120° from 145 mm, 115 mm.
+  * **Level Ridge** works the **Piece Angle** out so the ridge runs level
+    into the stage at full opening; turn it off to set the angle yourself.
+
+  Full-width eaves make a roof about 300 mm across, so shorten them or
+  print it on A3. A roof can't open out flat (it would tear past about
+  135°), so it belongs in carousel stages. Things can hang from its ridge:
+  its crease is a host like any V-fold's.
+* **Valley Floor** (next to the Roof, or **Upside Down** on a roof): the roof
+  turned upside down. The background is cut away below two lines rising
+  from the spine, and a V-fold floor glued along them dips to a valley that
+  runs level into the stage.
 
 ![A three-stage carousel stage with a peaked roof over a gable-cut background,
 fully open, part open and from above](docs/images/roof.jpg)

@@ -1703,50 +1703,65 @@ class Model:
         glued along them with its crease rising to a ridge. Shut, the roof
         lies flat in the cut-away corners; open, it stands over the stage,
         its ridge level at full opening (a stage) or at 90 degrees (a card)
-        with Level Ridge, or at the piece angle given."""
+        with Level Ridge, or at the piece angle given.
+
+        Valley: the same upside down (the card folds the same either way
+        up): the background cut away below two lines rising from the spine,
+        a V-fold floor glued along them dipping to a valley."""
         lab = m["label"]
+        valley = bool(m.get("valley"))
+        what = "valley floor" if valley else "roof"
         if not host.is_spine:
-            self.warn(f"{lab}: a roof goes on the card's spine; skipped")
+            self.warn(f"{lab}: a {what} goes on the card's spine; skipped")
             return
         W, H = self.W, self.H
-        yP = min(float(m.get("y", 0.85 * H)), H)
-        phi = float(m.get("phi_l", 120.0))
+        y = max(0.0, min(float(m.get("y", 0.85 * H)), H))
+        yR = H - y if valley else y  # worked in roof terms: the card upside down
+        phi = float(m.get("phi_l", 100.0))
         if phi <= 92.0:
-            self.warn(f"{lab}: the roof slope must fall from the spine (over 90 degrees); "
-                      f"set to 100")
+            self.warn(f"{lab}: the slope must run away from the spine past level (over 90 "
+                      f"degrees); set to 100")
             phi = 100.0
+        phiA = 180.0 - phi if valley else phi  # the V-fold's real glue angle
         sp, cp = math.sin(math.radians(phi)), math.cos(math.radians(phi))
-        reach = min(W / sp, yP / max(-cp, 1e-6))  # eaves to the side edge, or the bottom
+        reach = min(W / sp, yR / max(-cp, 1e-6))  # to the side edge, or the far edge
         g = min(float(m.get("glue", reach)), reach)
-        # cut the background to the gable: what's above the eaves lines goes
-        yE = yP + W * cp / sp
+
+        def flip(pts):
+            return [(x, H - yy) for x, yy in pts] if valley else pts
+
+        # cut the background away beyond the eaves lines
+        yE = yR + W * cp / sp
         for sx in (-1.0, 1.0):
-            region = [(0.0, yP), (0.0, H), (sx * W, H), (sx * W, yE)]
-            if yE < 0.0:  # the eaves reach the bottom edge first
-                xb = -yP * sp / cp
-                region = [(0.0, yP), (0.0, H), (sx * W, H), (sx * W, 0.0), (sx * xb, 0.0)]
-            if yP < H - 1e-6:
-                self.carve("Card", region, {"Page.L", "Page.R"}, f"{lab} gable")
+            region = [(0.0, yR), (0.0, H), (sx * W, H), (sx * W, yE)]
+            if yE < 0.0:  # the eaves reach the far edge first
+                xb = -yR * sp / cp
+                region = [(0.0, yR), (0.0, H), (sx * W, H), (sx * W, 0.0), (sx * xb, 0.0)]
+            if yR < H - 1e-6:
+                self.carve("Card", flip(region), {"Page.L", "Page.R"},
+                           f"{lab} {'cut-away' if valley else 'gable'}")
         # level at the stage's full opening; a whole card is level at 90
         # degrees (flat open, a roof can only lie flat)
         tm = self.tmax if self.tmax < 179.0 else 90.0
+        sA, cA = math.sin(math.radians(phiA)), math.cos(math.radians(phiA))
+        up = -1.0 if valley else 1.0
 
         def crease_up(al):
             key = f"__roof{m['uid']}"
-            self.joints[key] = dict(host=host, y=yP, uL=(-sp, cp), uR=(sp, cp),
+            self.joints[key] = dict(host=host, y=y, uL=(-sA, cA), uR=(sA, cA),
                                     aL=math.radians(al), aR=math.radians(al),
-                                    pref=(0.0, 1.0))
+                                    pref=(0.0, up))
             self._branch.pop(key, None)
             c = self.crease(key, tm)[0]
             Y = host.L(tm).to_3x3() @ Vector((0.0, 1.0, 0.0))
             del self.joints[key]
             self._branch.pop(key, None)
-            return c.dot(Y)
+            return up * c.dot(Y)
 
+        al = float(m.get("alpha_l", 70.0))
         if m.get("level", True):
             lo, hi = 5.0, 89.0  # the ridge climbs as the piece angle grows
             if crease_up(lo) > 0 or crease_up(hi) < 0:
-                al = float(m.get("alpha_l", 70.0))
                 self.warn(f"{lab}: no piece angle levels the ridge at this slope; "
                           f"using {al:.0f}")
             else:
@@ -1757,27 +1772,31 @@ class Model:
                     else:
                         lo = mid
                 al = 0.5 * (lo + hi)
-        else:
-            al = float(m.get("alpha_l", 70.0))
-        # shut, the crease lies at (slope - piece angle) from the spine: it
-        # must stay inside the card
+        # shut, the crease lies at (slope - piece angle) from the spine: past
+        # this length it pokes out of the closed card
         tilt = math.radians(phi - al)
-        room = (H - yP) / max(math.cos(tilt), 1e-6) if math.cos(tilt) > 1e-6 else g
-        Lc = min(float(m.get("height", g)), g, max(room - 0.5, 1.0))
-        d = dict(m, type="VFOLD", phi_l=phi, phi_r=phi, alpha_l=al, alpha_r=al, glue=g,
-                 height=Lc, shape="TRI", y=yP, tab_side=m.get("tab_side", "IN"),
-                 pref=(0.0, 1.0), lines=m.get("lines", []))
+        ct, st_ = abs(math.cos(tilt)), abs(math.sin(tilt))
+        fit = min((H - yR) / ct if ct > 1e-6 else 1e9, W / st_ if st_ > 1e-6 else 1e9) - 0.5
+        Lc = max(1.0, float(m.get("height", 60.0)))
+        if Lc > fit + 1e-6:
+            self.warn(f"{lab}: its {'valley' if valley else 'ridge'} sticks out of the closed "
+                      f"card by {Lc - fit:.0f} mm (fits up to {fit:.0f} mm; start it further "
+                      f"from the {'bottom' if valley else 'top'} edge, or change the slope "
+                      f"or the piece angle)")
+        d = dict(m, type="VFOLD", phi_l=phiA, phi_r=phiA, alpha_l=al, alpha_r=al, glue=g,
+                 height=Lc, shape="TRI", y=y, tab_side=m.get("tab_side", "IN"),
+                 pref=(0.0, up), flip=valley, lines=m.get("lines", []))
         n0 = len(self.warnings)
         self._vfold(d, host)
         for i in range(n0, len(self.warnings)):
             w = self.warnings[i]
             if w.startswith(f"{lab}: tears if opened past"):
                 deg = w.split("past ")[1].split(" ")[0]
-                self.warnings[i] = (f"{lab}: a peaked roof can't open out flat; it tears past "
-                                    f"{deg} degrees (it's made for carousel stages, which "
-                                    f"open less)")
+                self.warnings[i] = (f"{lab}: a {'peaked roof' if not valley else 'valley floor'} can't open out flat; it tears "
+                                    f"past {deg} degrees (it's made for carousel stages, "
+                                    f"which open less)")
         self.roofs = getattr(self, "roofs", {})
-        self.roofs[m["uid"]] = dict(alpha=al, ridge=Lc)
+        self.roofs[m["uid"]] = dict(alpha=al, ridge=Lc, eaves=g, reach=reach, fit=fit)
 
     def _stage(self, m, host):
         """Stage set in a card (Birmingham 118 on a V-fold): the background is

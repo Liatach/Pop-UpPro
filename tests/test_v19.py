@@ -23,6 +23,7 @@ for tm in (120.0, 90.0, 72.0):
     for slope in (110.0, 135.0):
         R = dict(type="ROOF", uid=1, label="Roof", y=0.85 * H, phi_l=slope, glue=100.0,
                  height=400.0, tab=10, tab_side="IN", level=True)
+        R["height"] = Model(card, [R]).roofs[1]["fit"]  # as long as fits shut
         m = Model(card, [R])
         m.check_fit()
         assert not m.warnings, (tm, slope, m.warnings)
@@ -43,7 +44,7 @@ st = sc.popup
 st.live = False
 assert bpy.ops.popup.add(kind="ROOF") == {"FINISHED"}
 r = st.mechs[-1]
-assert abs(r.y - 0.85 * st.card_dict()["H"]) < 0.2
+assert abs(r.y - 0.7 * st.card_dict()["H"]) < 0.2
 r.glue = 100.0
 assert bpy.ops.popup.build() == {"FINISHED"}
 model = build.make_model(sc)[0]

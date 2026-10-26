@@ -62,8 +62,7 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap"),
                         ("TUBE", "Tube (parallel strips)"), ("TETHER", "Tether"),
                         ("PYRAMID", "Pyramid / Tent (parallel strips)"),
-                        ("STANDUP", "Stand-up (parallelogram)"),
-                        ("ROOF", "Roof (peaked, cuts a gable)")):
+                        ("STANDUP", "Stand-up (parallelogram)")):
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
             if k == "VFOLD":
                 op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
@@ -78,6 +77,13 @@ class POPUP_MT_add(bpy.types.Menu):
             self.layout.label(text="Stage:")
             for k, name in (("FRAME", "Frame"), ("FLOOR", "Floor"), ("CEILING", "Ceiling")):
                 self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
+        if st.stage_master is None:
+            self.layout.separator()
+        self.layout.operator("popup.add", text="Roof (peaked, cuts a gable)",
+                             icon=KIND_ICON["ROOF"]).kind = "ROOF"
+        op = self.layout.operator("popup.add", text="Valley Floor (roof upside down)",
+                                  icon=KIND_ICON["ROOF"])
+        op.kind, op.variant = "ROOF", "VALLEY"
         if st.mechs and st.active < len(st.mechs) and \
                 st.mechs[st.active].kind in ("FLOOR", "CEILING"):
             h = st.mechs[st.active]
@@ -376,16 +382,41 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             self.draw_warnings(context, m)
             return
         if m.kind == "ROOF":
-            col.prop(m, "y", text="Ridge Starts (up spine)")
-            col.prop(m, "phi_l", text="Roof Slope")
-            col.prop(m, "glue", text="Eaves Length")
-            col.prop(m, "height", text="Ridge Length")
-            col.prop(m, "level")
-            if not m.level:
-                col.prop(m, "alpha_l", text="Piece Angle")
+            v = m.valley
+            info = {}
+            if st.rig is not None:
+                try:
+                    import json
+                    info = json.loads(st.rig.get("pop_meta", "{}")).get("roofs", {}).get(
+                        str(m.uid), {})
+                except (ValueError, TypeError, AttributeError):
+                    info = {}
+            col.prop(m, "valley")
+            col.prop(m, "y", text="Valley Starts (up spine)" if v else "Ridge Starts (up spine)")
+            col.prop(m, "phi_l", text="Glue Angle (slope)")
+            row = col.row()
+            row.prop(m, "glue", text="Glue Length (eaves)")
+            if info and info.get("eaves", 0) < m.glue - 0.05:
+                c = col.column()
+                c.scale_y = 0.7
+                c.label(text=f"    reaches the card's edge at {info['eaves']:.0f} mm",
+                        icon="INFO")
+            col.prop(m, "height", text="Fold Length (valley)" if v else "Fold Length (ridge)")
+            if info and info.get("fit", 1e9) < 1e8:
+                c = col.column()
+                c.scale_y = 0.7
+                c.label(text=f"    fits the shut card up to {info['fit']:.0f} mm",
+                        icon="ERROR" if m.height > info["fit"] + 0.05 else "INFO")
+            col.prop(m, "level", text="Level Valley" if v else "Level Ridge")
+            sub = col.row()
+            if m.level:
+                sub.label(text=f"Piece Angle: {info['alpha']:.1f}° (set for level)"
+                          if info else "Piece Angle: set for level")
+            else:
+                sub.prop(m, "alpha_l", text="Piece Angle")
             col.prop(m, "tab")
-            col.label(text="Cuts the background to a gable along the eaves; "
-                      "lengths are trimmed to fit when shut", icon="INFO")
+            col.label(text="Cuts the background away " + ("below the glue lines"
+                      if v else "to a gable along the eaves"), icon="INFO")
             _draw_lines(self.layout, context, m)
             self.draw_warnings(context, m)
             return
