@@ -713,6 +713,9 @@ too, along with the mouth and jaws.
 * A debug view: look straight into a stage (or card) part open, flattened
   like a plan, with every layer drawn see-through, to check how
   mechanisms overlap in complex builds.
+* Scene setup: a Set Up Scene button, run the first time a card is built,
+  for the render engine, Material Preview lighting and colour management
+  that suit pop-up work (the right settings still being worked out).
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe
