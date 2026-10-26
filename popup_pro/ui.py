@@ -8,7 +8,7 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "TUBE": "MESH_CYLINDER", "TETHER": "LINKED",
              "PYRAMID": "CONE", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
              "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND",
-             "STANDUP": "OUTLINER_OB_IMAGE"}
+             "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME"}
 
 
 def draw_export(layout, st):
@@ -62,7 +62,8 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap"),
                         ("TUBE", "Tube (parallel strips)"), ("TETHER", "Tether"),
                         ("PYRAMID", "Pyramid / Tent (parallel strips)"),
-                        ("STANDUP", "Stand-up (parallelogram)")):
+                        ("STANDUP", "Stand-up (parallelogram)"),
+                        ("ROOF", "Roof (peaked, cuts a gable)")):
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
             if k == "VFOLD":
                 op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
@@ -374,6 +375,20 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "tab_side", text="Base Tabs")
             self.draw_warnings(context, m)
             return
+        if m.kind == "ROOF":
+            col.prop(m, "y", text="Ridge Starts (up spine)")
+            col.prop(m, "phi_l", text="Roof Slope")
+            col.prop(m, "glue", text="Eaves Length")
+            col.prop(m, "height", text="Ridge Length")
+            col.prop(m, "level")
+            if not m.level:
+                col.prop(m, "alpha_l", text="Piece Angle")
+            col.prop(m, "tab")
+            col.label(text="Cuts the background to a gable along the eaves; "
+                      "lengths are trimmed to fit when shut", icon="INFO")
+            _draw_lines(self.layout, context, m)
+            self.draw_warnings(context, m)
+            return
         if m.kind == "TETHER":
             col.prop(m, "from_tube")
             col.prop(m, "from_pt")
@@ -504,7 +519,7 @@ def _line_fields(c, ln):
 def _draw_lines(lay, context, m):
     box = lay.box()
     box.label(text="Extra creases and cuts", icon="MOD_LINEART")
-    if m.kind != "VFOLD":
+    if m.kind in ("BOX", "BOXCUT"):
         c = box.column(align=True)
         c.scale_y = 0.7
         c.label(text="X: from the front's top fold (- over the top, + down the front)")

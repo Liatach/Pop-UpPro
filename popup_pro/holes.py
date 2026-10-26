@@ -280,7 +280,7 @@ def take_lines(scene, model, layout, mirror=True):
         return 0, 0
     mmu = st.mm_per_unit
     L = st.layout.matrix_world.inverted() @ obj.matrix_world
-    mechs = {m.uid: m for m in st.mechs if m.kind in ("VFOLD", "BOX", "BOXCUT")}
+    mechs = {m.uid: m for m in st.mechs if m.kind in ("VFOLD", "BOX", "BOXCUT", "ROOF")}
     got = miss = 0
     for kind, (lname, _, _) in LINE_LAYERS.items():
         layer = next((l for l in obj.data.layers if l.name == lname), None)

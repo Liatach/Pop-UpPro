@@ -30,7 +30,7 @@ TAB_LIFT = 0.15  # mm a glued tab floats above the page (avoids z-fighting)
 SAMPLES = [0.5, 5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
 
 IN = 25.4
-NO_HOST = ("FLAP", "TUBE", "TETHER", "PYRAMID")
+NO_HOST = ("FLAP", "TUBE", "TETHER", "PYRAMID", "ROOF")
 
 
 def _card(w, h, label, desc):
@@ -441,6 +441,8 @@ class Model:
                 self._pyramid(m, host)
             elif m["type"] == "STAGE":
                 self._stage(m, host)
+            elif m["type"] == "ROOF":
+                self._roof_stage(m, host)
             elif m["type"] == "FRAME":
                 self._frame(m, host)
             elif m["type"] in ("FLOOR", "CEILING"):
@@ -1662,6 +1664,88 @@ class Model:
             h.trig = False
             h.key = (m["uid"], side)
             self.hosts[(m["uid"], side)] = h
+
+    def _roof_stage(self, m, host):
+        """A peaked roof over a stage (or a card): the background is cut to a
+        gable along two eaves lines falling from the spine, and a V-fold is
+        glued along them with its crease rising to a ridge. Shut, the roof
+        lies flat in the cut-away corners; open, it stands over the stage,
+        its ridge level at full opening (a stage) or at 90 degrees (a card)
+        with Level Ridge, or at the piece angle given."""
+        lab = m["label"]
+        if not host.is_spine:
+            self.warn(f"{lab}: a roof goes on the card's spine; skipped")
+            return
+        W, H = self.W, self.H
+        yP = min(float(m.get("y", 0.85 * H)), H)
+        phi = float(m.get("phi_l", 120.0))
+        if phi <= 92.0:
+            self.warn(f"{lab}: the roof slope must fall from the spine (over 90 degrees); "
+                      f"set to 100")
+            phi = 100.0
+        sp, cp = math.sin(math.radians(phi)), math.cos(math.radians(phi))
+        reach = min(W / sp, yP / max(-cp, 1e-6))  # eaves to the side edge, or the bottom
+        g = min(float(m.get("glue", reach)), reach)
+        # cut the background to the gable: what's above the eaves lines goes
+        yE = yP + W * cp / sp
+        for sx in (-1.0, 1.0):
+            region = [(0.0, yP), (0.0, H), (sx * W, H), (sx * W, yE)]
+            if yE < 0.0:  # the eaves reach the bottom edge first
+                xb = -yP * sp / cp
+                region = [(0.0, yP), (0.0, H), (sx * W, H), (sx * W, 0.0), (sx * xb, 0.0)]
+            if yP < H - 1e-6:
+                self.carve("Card", region, {"Page.L", "Page.R"}, f"{lab} gable")
+        # level at the stage's full opening; a whole card is level at 90
+        # degrees (flat open, a roof can only lie flat)
+        tm = self.tmax if self.tmax < 179.0 else 90.0
+
+        def crease_up(al):
+            key = f"__roof{m['uid']}"
+            self.joints[key] = dict(host=host, y=yP, uL=(-sp, cp), uR=(sp, cp),
+                                    aL=math.radians(al), aR=math.radians(al),
+                                    pref=(0.0, 1.0))
+            self._branch.pop(key, None)
+            c = self.crease(key, tm)[0]
+            Y = host.L(tm).to_3x3() @ Vector((0.0, 1.0, 0.0))
+            del self.joints[key]
+            self._branch.pop(key, None)
+            return c.dot(Y)
+
+        if m.get("level", True):
+            lo, hi = 5.0, 89.0  # the ridge climbs as the piece angle grows
+            if crease_up(lo) > 0 or crease_up(hi) < 0:
+                al = float(m.get("alpha_l", 70.0))
+                self.warn(f"{lab}: no piece angle levels the ridge at this slope; "
+                          f"using {al:.0f}")
+            else:
+                for _ in range(40):
+                    mid = 0.5 * (lo + hi)
+                    if crease_up(mid) > 0:
+                        hi = mid
+                    else:
+                        lo = mid
+                al = 0.5 * (lo + hi)
+        else:
+            al = float(m.get("alpha_l", 70.0))
+        # shut, the crease lies at (slope - piece angle) from the spine: it
+        # must stay inside the card
+        tilt = math.radians(phi - al)
+        room = (H - yP) / max(math.cos(tilt), 1e-6) if math.cos(tilt) > 1e-6 else g
+        Lc = min(float(m.get("height", g)), g, max(room - 0.5, 1.0))
+        d = dict(m, type="VFOLD", phi_l=phi, phi_r=phi, alpha_l=al, alpha_r=al, glue=g,
+                 height=Lc, shape="TRI", y=yP, tab_side=m.get("tab_side", "IN"),
+                 pref=(0.0, 1.0), lines=m.get("lines", []))
+        n0 = len(self.warnings)
+        self._vfold(d, host)
+        for i in range(n0, len(self.warnings)):
+            w = self.warnings[i]
+            if w.startswith(f"{lab}: tears if opened past"):
+                deg = w.split("past ")[1].split(" ")[0]
+                self.warnings[i] = (f"{lab}: a peaked roof can't open out flat; it tears past "
+                                    f"{deg} degrees (it's made for carousel stages, which "
+                                    f"open less)")
+        self.roofs = getattr(self, "roofs", {})
+        self.roofs[m["uid"]] = dict(alpha=al, ridge=Lc)
 
     def _stage(self, m, host):
         """Stage set in a card (Birmingham 118 on a V-fold): the background is

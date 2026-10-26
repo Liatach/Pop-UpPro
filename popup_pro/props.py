@@ -50,6 +50,9 @@ KINDS = [
      "ceiling inside it (Birmingham 118)", "IMAGE_BACKGROUND", 12),
     ("STANDUP", "Stand-up", "A picture held up off the background by a small bridge, or "
      "flat on a leg (parallelogram stand-up, Birmingham 38)", "OUTLINER_OB_IMAGE", 13),
+    ("ROOF", "Roof", "A peaked roof: the background is cut to a gable and a V-fold glued "
+     "along its eaves rises to a ridge, level when the card or stage is fully open",
+     "HOME", 14),
 ]
 
 POINTS = [
@@ -120,7 +123,7 @@ def host_items(self, context):
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
-            if self.kind in ("FLAP", "TUBE", "TETHER", "PYRAMID") or m.uid in bad:
+            if self.kind in ("FLAP", "TUBE", "TETHER", "PYRAMID", "ROOF") or m.uid in bad:
                 continue
             if self.kind in ("FRAME", "FLOOR", "CEILING"):
                 if m.kind == "STAGE":
@@ -496,6 +499,10 @@ class PopupMech(bpy.types.PropertyGroup):
                             ("V", "On the Crease", "Across the V-fold's own centre crease, "
                              "between its halves: the V-fold is its spine")],
                         update=_fold_changed)
+    level: BoolProperty(name="Level Ridge", default=True, update=_changed,
+                        description="Work out the roof's piece angle so its ridge runs "
+                        "level when the card (or stage) is fully open. Off: set the Piece "
+                        "Angle yourself (bigger tilts the ridge up)")
     on_crease: BoolProperty(name="On the Crease", default=False, update=_changed,
                             description="Stand on the floor's (ceiling's) centre crease "
                             "instead of in a corner. Only V-folds can: from the stage side "
@@ -526,6 +533,11 @@ class PopupMech(bpy.types.PropertyGroup):
                      back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
                      roof_height=self.roof_height, ridge=self.ridge,
                      roof_fold=self.roof_fold, eave=self.eave, rib=self.rib)
+        elif self.kind == "ROOF":
+            d.update(type="ROOF", phi_l=self.phi_l, alpha_l=self.alpha_l, glue=self.glue,
+                     height=self.height, level=self.level, tab_side=self.tab_side,
+                     lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
+                            for ln in self.lines])
         elif self.kind == "STANDUP":
             d.update(type="STANDUP", stand=self.stand, width=self.width, height=self.height,
                      depth=self.depth, img_w=self.img_w, img_h=self.img_h)

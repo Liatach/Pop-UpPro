@@ -105,6 +105,7 @@ layout. This is viewport only and never rendered; the pointer button under
 | **Box fold** | A separate strip glued across a fold (parallel fold; [Tutorial 1](https://www.youtube.com/watch?v=RVZEsnzJTqM)) | Position, Height (along the fold), Width Left, Width Right, tab size |
 | **Box layer** | The same parallel fold cut into the paper itself ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc), [Tutorial 6](https://www.youtube.com/watch?v=9xRj1-OUX64)) | Position, Height, Width Left, Width Right |
 | **Stand-up** | A picture held off the background by a bridge, or flat on a leg ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc)) | Picture (Upright or Flat), Position, Bridge or Leg Width, Bridge Height, Out From Back, Picture Width and Height, tab size |
+| **Roof** | A peaked roof over a stage: the background cut to a gable, a V-fold glued along its eaves | Ridge Starts, Roof Slope, Eaves Length, Ridge Length, Level Ridge (or Piece Angle), tab size |
 | **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
 | **Tube** | Hexagon, box or recessed tube on two parallel sticking strips ([Tutorial 72](https://www.youtube.com/watch?v=6FKi95a14N4)) | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
 | **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
@@ -253,6 +254,21 @@ move around.
   Select the floor and use **Add → V-fold on its crease**, or tick **On the
   Crease** on a V-fold whose host is the floor. On a ceiling it hangs down
   into the stage.
+* **Roof**: **Add → Roof (peaked, cuts a gable)** cuts the background to a gable
+  along two eaves lines falling from the spine (**Roof Slope**, 120° by
+  default). It glues a V-fold along them whose crease rises to a ridge. With
+  **Level Ridge** on, the piece angle is worked out so the ridge runs level
+  into the stage at full opening. Shut, the roof lies flat in the cut-away
+  corners. **Ridge Starts** sets how far up the spine it begins. **Eaves Length**
+  and **Ridge Length** are trimmed to what fits shut. Full-width eaves make a
+  roof about 300 mm across, so shorten them or print it on A3. A roof can't
+  open out flat (it would tear past about 135°), so it belongs in carousel
+  stages. Things can hang from its ridge: its crease is a host like any
+  V-fold's.
+
+![A three-stage carousel stage with a peaked roof over a gable-cut background,
+fully open, part open and from above](docs/images/roof.jpg)
+
 * **The background as a roof, ceiling or floor**: in **Holes and Shaping**,
   **Card creases and cuts → +** offers:
   * *Peaked Roof*: the top of the background is cut apart at the spine and
@@ -674,6 +690,7 @@ python tests/test_v15.py       # creases and cuts on boxes, stand-ups (also on V
 python tests/test_v16.py       # true colours, strokes follow pieces, highlight, movement test
 python tests/test_v17.py       # asymmetric V-folds, mechanisms on a V-fold's crease
 python tests/test_v18.py       # card creases (ceiling, floor), V-folds on floor creases, crossing creases
+python tests/test_v19.py       # peaked roofs over a gable-cut background
 ```
 
 ## Tutorials

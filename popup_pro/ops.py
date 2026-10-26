@@ -63,11 +63,13 @@ DEFAULTS = {
     "CEILING": dict(tab=8.0),
     "STANDUP": dict(y=60.0, width=30.0, height=45.0, depth=30.0, img_w=80.0, img_h=90.0,
                     tab=10.0),
+    "ROOF": dict(phi_l=120.0, alpha_l=60.0, glue=400.0, height=400.0, tab=10.0,
+                 tab_side="IN"),
 }
 NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth",
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
          "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
-         "STAGE": "Stage set", "STANDUP": "Stand-up"}
+         "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof"}
 
 
 def _add(st, kind):
@@ -95,6 +97,8 @@ def _add(st, kind):
         m.depth = W
     if kind == "CUBE":
         m.y = min(m.y, max(0.0, H - m.size * 1.42 - 5))
+    if kind == "ROOF":
+        m.y = round(0.85 * H, 1)
     if kind == "FLAP":
         m.y = min(m.y, max(m.tab + m.length, H - 15))
     if kind == "TETHER":
@@ -781,7 +785,7 @@ BOX_PRESETS = [
 def _lined_active(context):
     st = context.scene.popup
     if 0 <= st.active < len(st.mechs) and st.mechs[st.active].kind in ("VFOLD", "BOX",
-                                                                         "BOXCUT"):
+                                                                         "BOXCUT", "ROOF"):
         return st.mechs[st.active]
     return None
 
@@ -791,7 +795,7 @@ _vfold_active = _lined_active
 
 def _preset_items(self, context):
     m = _lined_active(context) if context else None
-    return BOX_PRESETS if m is not None and m.kind != "VFOLD" else LINE_PRESETS
+    return BOX_PRESETS if m is not None and m.kind in ("BOX", "BOXCUT") else LINE_PRESETS
 
 
 def _arch(x0, yc, r, hgt, seg=8):
@@ -817,7 +821,7 @@ class POPUP_OT_add_line(bpy.types.Operator):
 
     def execute(self, context):
         m = _lined_active(context)
-        if m.kind == "VFOLD":
+        if m.kind in ("VFOLD", "ROOF"):
             w = m.glue * math.sin(math.radians(m.alpha_l))
             h = m.height
             t15 = math.tan(math.radians(15))
