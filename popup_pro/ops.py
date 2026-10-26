@@ -890,8 +890,12 @@ class POPUP_OT_remove_line(bpy.types.Operator):
 
 
 CARD_PRESETS_LINES = [
-    ("CEILING", "Ceiling", "Two creases rising from the spine to the top edge: the top of "
-     "the background folds in over the stage as a ceiling"),
+    ("PEAKED", "Peaked Roof", "The background's top, cut apart at the spine and joined "
+     "again by a glue tab: it folds in over the stage as a peaked roof, its ridge level "
+     "when the stage is fully open (change the Join Tab's angle to tilt the ridge, the "
+     "creases' to change the pitch)"),
+    ("CEILING", "Hanging Ceiling", "Two creases rising from the spine to the top edge: the "
+     "top of the background folds in over the stage and hangs down at the centre"),
     ("FLOOR", "Floor", "Two creases falling from the spine to the bottom edge: the bottom "
      "of the background folds in as a floor"),
     ("NONE", "Line", "A plain crease to set by numbers"),
@@ -924,9 +928,28 @@ class POPUP_OT_add_card_line(bpy.types.Operator):
             pts = [(0.0, y0), (-L * sx, y0 - L * cy)]
         else:
             pts = [(0.0, 0.5 * H), (-0.5 * W, 0.5 * H)]
+        if self.preset == "PEAKED":
+            y0 = 0.8 * H
+            # with the eaves 10 degrees below level, this join angle keeps the
+            # ridge level at the stage's full opening
+            psi = max(5.0, min(80.0, 99.0 - 0.5 * tmax))
+            for kind, mirror, ang, x0 in (("CREASE", True, 100.0, 0.0),
+                                          ("JOIN", True, psi, 0.0)):
+                ln = st.card_lines.add()
+                ln.kind, ln.mirror, ln.by_angle = kind, mirror, True
+                ln.x0, ln.y0, ln.angle, ln.length = x0, y0, ang, L
+            ln = st.card_lines.add()
+            ln.kind, ln.mirror = "CUT", False
+            (ln.x0, ln.y0), (ln.x1, ln.y1) = (0.0, y0), (0.0, H + 5.0)
+            st.active_card_line = len(st.card_lines) - 3
+            live.schedule(context.scene)
+            return {"FINISHED"}
         ln = st.card_lines.add()
-        ln.kind, ln.mirror = "CREASE", True
-        (ln.x0, ln.y0), (ln.x1, ln.y1) = pts
+        ln.kind, ln.mirror, ln.by_angle = "CREASE", True, True
+        (ln.x0, ln.y0) = pts[0]
+        ln.length = L
+        dx, dy = pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]
+        ln.angle = math.degrees(math.atan2(-dx, dy))
         st.active_card_line = len(st.card_lines) - 1
         live.schedule(context.scene)
         return {"FINISHED"}

@@ -41,6 +41,41 @@ for n in folds:
     assert (z.y < -0.6) if top else (z.y > 0.6), (n, z)
 print("background folds in as a ceiling and a floor")
 
+# ---- a peaked roof: the top cut apart at the spine, joined again by a glue
+# tab; the ridge runs level into the stage at full opening, above the eaves
+
+
+def by_angle(kind, y0, ang, mirror=True):
+    a = math.radians(ang)
+    return dict(kind=kind, mirror=mirror, pts=[(0, y0), (-400 * math.sin(a),
+                                                         y0 + 400 * math.cos(a))])
+
+
+y0 = 0.8 * H
+peak = [by_angle("CREASE", y0, 100.0), by_angle("JOIN", y0, 99.0 - 60.0),
+        dict(kind="CUT", mirror=False, pts=[(0, y0), (0, H + 5)])]
+m = Model(dict(STAGE, lines=peak), [])
+assert not m.warnings, m.warnings
+roof = [n for n in m.order if n.startswith("Card.Fold") and "join" not in m.panels[n].label]
+tabs = [n for n in m.order if "join tab" in m.panels[n].label]
+assert len(roof) == 2 and len(tabs) == 2, (roof, tabs)
+left = min(roof, key=lambda n: sum(q[0] for poly in m.panels[n].polys for q in poly))
+M = m.panels[left].asm(120.0)
+a = math.radians(39.0)
+Pw, Qw = M @ Vector((0, y0, 0)), M @ Vector((-60 * math.sin(a), y0 + 60 * math.cos(a), 0))
+ridge = (Qw - Pw).normalized()
+assert abs(ridge.y) < 0.05 and ridge.z > 0.9, ridge  # level, into the stage
+eave = M @ Vector((-55 * math.sin(math.radians(100)) - 5, y0 + 55 * math.cos(math.radians(100)), 0))
+assert eave.y < Qw.y, (eave, Qw)  # the eaves sit below the ridge: peaked
+# both halves' join lines meet at every opening (the ridge stays closed)
+right = [n for n in roof if n != left][0]
+for t in (30.0, 70.0, 120.0):
+    q = Vector((-60 * math.sin(a), y0 + 60 * math.cos(a), 0))
+    qr = Vector((60 * math.sin(a), y0 + 60 * math.cos(a), 0))
+    gap = (m.panels[left].asm(t) @ q - m.panels[right].asm(t) @ qr).length
+    assert gap < 0.05, (t, gap)
+print("peaked roof: ridge level and closed, eaves below")
+
 # ---- a V-fold on a floor's crease rises into the stage (and on a ceiling's,
 # hangs down into it); boxes are turned away
 for kind, sgn in (("FLOOR", 1), ("CEILING", -1)):
@@ -86,6 +121,13 @@ model = build.make_model(sc)[0]
 assert [n for n in model.order if n.startswith("Card.Fold")], model.warnings
 assert bpy.ops.popup.remove_card_line() == {"FINISHED"}
 assert not st.card_lines
+assert bpy.ops.popup.add_card_line(preset="PEAKED") == {"FINISHED"}
+assert [ln.kind for ln in st.card_lines] == ["CREASE", "JOIN", "CUT"]
+assert st.card_lines[0].by_angle and abs(st.card_lines[0].angle - 100.0) < 1e-6
+while len(st.card_lines):
+    st.active_card_line = 0
+    bpy.ops.popup.remove_card_line()
+assert st.solid_paper  # on by default
 o = st.openings.add()
 assert o.bl_rna.properties["x"].name == "X (Across Page)"
 assert o.bl_rna.properties["y"].name == "Y (Up Page)"

@@ -285,7 +285,10 @@ class PopupLine(bpy.types.PropertyGroup):
     fold from the V point (mm)."""
     kind: EnumProperty(name="Kind", items=[
         ("CREASE", "Crease", "Extra fold line"),
-        ("CUT", "Cut", "Slit through the paper")], update=_changed)
+        ("CUT", "Cut", "Slit through the paper"),
+        ("JOIN", "Join Tab", "A crease whose far side (towards the centre fold) is a "
+         "glue tab: it is glued back to back with its mirror image, joining two parts "
+         "cut apart at the centre (a peaked roof from the card)")], update=_changed)
     mirror: BoolProperty(name="Mirror", description="Copy the line onto the other half "
                          "(mirrored across the centre fold)", default=True, update=_changed)
     x0: FloatProperty(name="Start X", description="Across from the centre fold (mm, "
@@ -298,6 +301,16 @@ class PopupLine(bpy.types.PropertyGroup):
     y1: FloatProperty(name="End Y", default=20.0, soft_min=-50.0, soft_max=200.0,
                       update=_changed)
     path: StringProperty(description="Drawn line: its points as JSON (overrides the ends)")
+    by_angle: BoolProperty(name="By Angle", default=False, update=_changed,
+                           description="Set the line by its start, an angle and a length "
+                           "instead of its two ends")
+    angle: FloatProperty(name="Angle", description="Angle from straight up the centre fold, "
+                         "turning towards the left (degrees): 90 runs straight out to the "
+                         "left, over 90 runs down", default=60.0, min=-180.0, max=180.0,
+                         update=_changed)
+    length: FloatProperty(name="Length", description="How far it runs (mm); running past "
+                          "the edge of the paper is fine", default=100.0, min=1.0,
+                          soft_max=500.0, update=_changed)
 
     def points(self):
         if self.path:
@@ -306,6 +319,11 @@ class PopupLine(bpy.types.PropertyGroup):
                 return [tuple(q) for q in json.loads(self.path)]
             except ValueError:
                 pass
+        if self.by_angle:
+            import math
+            a = math.radians(self.angle)
+            return [(self.x0, self.y0), (self.x0 - self.length * math.sin(a),
+                                         self.y0 + self.length * math.cos(a))]
         return [(self.x0, self.y0), (self.x1, self.y1)]
 
 
@@ -769,7 +787,7 @@ class PopupSettings(bpy.types.PropertyGroup):
                             description="Closed (Open = 0) stops where the pages meet the "
                             "folded mechanisms, instead of squashing everything flat "
                             "through itself. Off: closed is exactly 0 degrees")
-    solid_paper: BoolProperty(name="Solid Paper", default=False, update=_changed,
+    solid_paper: BoolProperty(name="Solid Paper", default=True, update=_changed,
                               description="Give the paper real thickness in the viewport and "
                               "renders (Solidify, behind the printed side)")
     anim_frames: IntProperty(name="Frames", description="(old) Frames to open",

@@ -80,7 +80,7 @@ mechanisms, art and sketches.
   the folded mechanisms, not 0°, so a closed card doesn't squash everything
   through itself. The sidebar shows the angle it stops at. Turn it off for a
   card that closes to exactly 0°.
-* **Solid Paper**: gives the card real thickness (behind the printed side)
+* **Solid Paper** (on by default): gives the card real thickness (behind the printed side)
   for renders. Modifiers you add to the card after it are kept on rebuild.
 
 ### Card sizes
@@ -253,17 +253,32 @@ move around.
   Select the floor and use **Add → V-fold on its crease**, or tick **On the
   Crease** on a V-fold whose host is the floor. On a ceiling it hangs down
   into the stage.
-* **The background as a ceiling or floor**: in **Holes and Shaping**,
-  **Card creases and cuts → + → Ceiling** adds two creases rising from the
-  spine to the top edge (Mirror on). The top of the background then folds in
-  over the stage as a gable-shaped ceiling, cut from the card itself, with no
-  separate piece or glue. **Floor** does the same at the bottom. Their angle is
-  set to lie closest to level when the stage is fully open; move the line
-  ends to change the depth and slope. Mechanisms glued where the background
-  folds away are flagged (their tabs hang off the page).
+* **The background as a roof, ceiling or floor**: in **Holes and Shaping**,
+  **Card creases and cuts → +** offers:
+  * *Peaked Roof*: the top of the background is cut apart at the spine and
+    joined again by a **Join Tab**, a wedge along each side of the cut,
+    glued back to back as a fin above the ridge. It folds in over the stage
+    as a peaked roof whose ridge runs level into the stage at full opening.
+    The creases' **Angle** sets the pitch (100°, just past level, by
+    default). The Join Tab's **Angle** tilts the ridge: smaller lifts its
+    front, larger drops it. Level is about 99° minus half the stage angle:
+    63° for five stages, 39.5° for three. The three lines start at the
+    same point on the spine; move it (**Start Y**) to make the roof deeper
+    or shallower.
+  * *Hanging Ceiling*: two creases rising from the spine to the top edge.
+    The top of the background folds in and hangs down at the centre. Cut
+    from one piece of card, a fold into the stage can only hang like this
+    (or flip out behind the stage), which is why the peaked roof needs the
+    cut and the tab.
+  * *Floor*: the same at the bottom edge.
 
-![A three-stage carousel stage: the background's top folded in as a ceiling,
-and a floor with a V-fold standing on its crease](docs/images/card_ceiling.jpg)
+  Each line can be set **By Angle** (start, angle from straight up the
+  spine, length) instead of by its two ends. Mechanisms glued where the
+  background folds away are flagged (their tabs hang off the page).
+
+![A three-stage carousel stage: the background's top folded in as a peaked
+roof (its fin just shows above the ridge), and a floor with a V-fold standing on
+its crease](docs/images/card_ceiling.jpg)
 * **Joins**: *Glued* (default) makes each stage its own folded card. The
   back of each stage's right page is glued to the back of the next stage's
   left page. *Shared Page* prints each pair of neighbouring pages on one

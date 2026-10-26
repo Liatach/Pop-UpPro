@@ -2494,7 +2494,7 @@ class Model:
             self.warn(f"{lab}: its fold can't follow the card from about {min(far):.0f} "
                       f"to {max(far):.0f} degrees (the paper would tear)")
         elif err > 2e-3 and not bad:
-            if self.panels[name].hinge.kind == "TABLE" and getattr(h, "host_bound", False):
+            if getattr(h, "host_bound", False) or getattr(h, "corner_ok", False):
                 self.warn(f"{lab}: moves unevenly (its host fold kinks); check it in "
                           f"the movement test")
             else:

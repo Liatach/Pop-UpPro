@@ -471,13 +471,34 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
 
 class POPUP_UL_lines(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_prop, index=0):
-        ic = "MOD_LINEART" if item.kind == "CREASE" else "SCULPTMODE_HLT"
+        ic = {"CREASE": "MOD_LINEART", "CUT": "SCULPTMODE_HLT", "JOIN": "AUTOMERGE_ON"}[item.kind]
         row = layout.row(align=True)
-        kind = "Crease" if item.kind == "CREASE" else "Cut"
-        what = f"drawn {kind.lower()}" if item.path else \
-            f"{kind} ({item.x0:.0f}, {item.y0:.0f}) to ({item.x1:.0f}, {item.y1:.0f})"
+        kind = {"CREASE": "Crease", "CUT": "Cut", "JOIN": "Join tab"}[item.kind]
+        if item.path:
+            what = f"drawn {kind.lower()}"
+        elif item.by_angle:
+            what = f"{kind} from ({item.x0:.0f}, {item.y0:.0f}) at {item.angle:.0f}°"
+        else:
+            what = f"{kind} ({item.x0:.0f}, {item.y0:.0f}) to ({item.x1:.0f}, {item.y1:.0f})"
         row.label(text=what, icon=ic)
         row.prop(item, "mirror", text="", icon="MOD_MIRROR", emboss=False)
+
+
+def _line_fields(c, ln):
+    c.prop(ln, "kind")
+    c.prop(ln, "mirror")
+    if ln.path:
+        c.label(text="Drawn line: redraw it to change its shape")
+        return
+    c.prop(ln, "by_angle")
+    c.prop(ln, "x0")
+    c.prop(ln, "y0")
+    if ln.by_angle:
+        c.prop(ln, "angle")
+        c.prop(ln, "length")
+    else:
+        c.prop(ln, "x1")
+        c.prop(ln, "y1")
 
 
 def _draw_lines(lay, context, m):
@@ -498,15 +519,7 @@ def _draw_lines(lay, context, m):
         c = box.column(align=True)
         c.use_property_split = True
         c.use_property_decorate = False
-        c.prop(ln, "kind")
-        c.prop(ln, "mirror")
-        if ln.path:
-            c.label(text="Drawn line: redraw it to change its shape")
-        else:
-            c.prop(ln, "x0")
-            c.prop(ln, "y0")
-            c.prop(ln, "x1")
-            c.prop(ln, "y1")
+        _line_fields(c, ln)
     row = box.row(align=True)
     row.operator("popup.draw_lines", text="Draw Creases", icon="GREASEPENCIL").kind = "CREASE"
     row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"
@@ -601,15 +614,7 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
             c = box.column(align=True)
             c.use_property_split = True
             c.use_property_decorate = False
-            c.prop(ln, "kind")
-            c.prop(ln, "mirror")
-            if ln.path:
-                c.label(text="Drawn line: redraw it to change its shape")
-            else:
-                c.prop(ln, "x0")
-                c.prop(ln, "y0")
-                c.prop(ln, "x1")
-                c.prop(ln, "y1")
+            _line_fields(c, ln)
         row = box.row(align=True)
         row.operator("popup.draw_lines", text="Draw Creases", icon="GREASEPENCIL").kind = "CREASE"
         row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"

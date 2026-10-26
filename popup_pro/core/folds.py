@@ -173,6 +173,7 @@ class Region:
         self.links = {}  # other region idx -> [(type, p, q)]  type CREASE / FOLD
         self.polys = []
         self.area = 0.0
+        self.joins = set()  # regions across a Join Tab line
 
 
 def regions(model, names, lines):
@@ -253,7 +254,10 @@ def regions(model, names, lines):
             used |= lis
         if "CUT" in types:
             continue
-        if ra.panel == rb.panel:
+        if "JOIN" in types:
+            ra.joins.add(rb.idx)
+            rb.joins.add(ra.idx)
+        if ra.panel == rb.panel or "JOIN" in types:
             typ = "CREASE"
         else:
             together = all((M[(ra.panel, t)] @ Vector((x, y, 0.0)) -
@@ -274,6 +278,9 @@ def regions(model, names, lines):
         r.polys = [q for q in ([P[i] for i in poly] for poly in _merge_convex(tri_pts, P))
                    if len(q) >= 3 and abs(_area(q)) > 1e-6]
         r.area = sum(_area(q) for q in r.polys)
+        pts = [q for poly in r.polys for q in poly]
+        r.where = (sum(q[0] for q in pts) / max(1, len(pts)),
+                   sum(q[1] for q in pts) / max(1, len(pts)))
     unused = set(range(len(lines))) - used
     return out, unused, reg, tris, P
 
@@ -322,7 +329,9 @@ class Group:
         self.n = len(members)
         self.Hn = [_np(H) for _, H, _ in members]
         self.Hin = [_np(Hi) for _, _, Hi in members]
-        self.pts = [np.array((p[0], p[1], 0.0, 1.0)) for _, _, p in cons]
+        self.pts = [np.array((c[2][0], c[2][1], 0.0, 1.0)) for c in cons]
+        self.pts_b = [np.array((c[3][0], c[3][1], 0.0, 1.0)) if len(c) > 3 else None
+                      for c in cons]
         th = self._seed(t_ref)
         if th is None:
             self.ok = False
@@ -347,9 +356,11 @@ class Group:
         base = [_np(self.m.panels[par].asm(t)) if isinstance(par, str) else None
                 for par, _, _ in self.members]
         tgt = {}
-        for k, (i, j, p) in enumerate(self.cons):
+        for k, c in enumerate(self.cons):
+            j = c[1]
             if not isinstance(j, int):
-                w = self.m.panels[j].asm(t) @ Vector((p[0], p[1], 0.0))
+                q = c[3] if len(c) > 3 else c[2]
+                w = self.m.panels[j].asm(t) @ Vector((q[0], q[1], 0.0))
                 tgt[k] = np.array(w[:], dtype=np.float64)
         return base, tgt
 
@@ -365,9 +376,11 @@ class Group:
     def _res_only(self, th, base, tgt):
         W = self._worlds(th, base)
         out = []
-        for k, (i, j, p) in enumerate(self.cons):
+        for k, c in enumerate(self.cons):
+            i, j = c[0], c[1]
             wa = W[i] @ self.pts[k]
-            wb = W[j] @ self.pts[k] if isinstance(j, int) else tgt[k]
+            pb = self.pts_b[k] if self.pts_b[k] is not None else self.pts[k]
+            wb = W[j] @ pb if isinstance(j, int) else tgt[k]
             out.append(wa[:3] - wb[:3])
         return np.concatenate(out)
 
@@ -402,7 +415,7 @@ class Group:
             if f2 < f:
                 th, r, J, f = th2, r2, J2, f2
                 lam *= 0.3
-                if np.abs(step).max() < 1e-12:
+                if np.abs(step).max() < 1e-12 or f < 1e-18:
                     break
             else:
                 lam *= 10.0
@@ -424,6 +437,8 @@ class Group:
                 math.radians(90), math.radians(-90)] for sg in signs]
         found = []
         for s in seeds:
+            if self.n > 2 and len(found) >= 2:
+                break
             th, res = self._newton(t, s, Ms, tgt, iters=40)
             if res > 1e-3:
                 continue
@@ -499,6 +514,30 @@ def build(model, piece, names, lab, lines, base=None):
     if unused:
         model.warn(f"{lab}: {len(unused)} extra line(s) don't reach an edge, a cut or "
                    f"another line, so they do nothing (draw them right across)")
+    # Join Tabs: the part of a Join line nearer the centre fold is a glue tab,
+    # glued back to back with its mirror image, so the two parts it hangs from
+    # meet along their Join lines (a ridge); the glued pair stands out of the
+    # ridge as a fin, halfway between them
+    fins, flap_of, twin = set(), {}, {}
+    for r in regs:
+        for o in r.joins:
+            f, g = (r, regs[o]) if abs(r.where[0]) < abs(regs[o].where[0]) else (regs[o], r)
+            fins.add(f.idx)
+            flap_of[f.idx] = g.idx
+    for k in fins:
+        f = regs[k]
+        g = min((regs[o] for o in fins if o != k),
+                key=lambda g: math.hypot(g.where[0] + f.where[0], g.where[1] - f.where[1]),
+                default=None)
+        if g is None or math.hypot(g.where[0] + f.where[0], g.where[1] - f.where[1]) > 2.0:
+            model.warn(f"{lab}: a Join Tab has no mirror image to glue to (turn on Mirror)")
+            continue
+        twin[k] = g.idx
+    for k, kk in twin.items():
+        a_, b_ = flap_of[k], flap_of[kk]
+        segs = [sg for sg in regs[k].links.get(a_, []) if sg[0] == "CREASE"]
+        pts = {q for sg in segs for q in (sg[1], sg[2])}
+        regs[a_].links.setdefault(b_, []).extend(("GLUE", q, (-q[0], q[1])) for q in pts)
     roots = _roots(model, regs, reg, tris, P, names)
     panel = {}  # region idx -> panel name it moves with
     merged = {n: [] for n in names}
@@ -548,12 +587,14 @@ def build(model, piece, names, lab, lines, base=None):
                 continue
             # every unplaced region joined to it by creases or folds turns
             # with it: solved together
+            if r.idx in twin:
+                continue  # a join tab: placed once the parts it joins are
             grp, seen, stack = [], {r.idx}, [r.idx]
             while stack:
                 k = stack.pop()
                 grp.append(k)
                 for o in regs[k].links:
-                    if o not in panel and o not in seen:
+                    if o not in panel and o not in seen and o not in twin:
                         seen.add(o)
                         stack.append(o)
             # hang each on a crease: from placed paper first, then from those
@@ -599,6 +640,13 @@ def build(model, piece, names, lab, lines, base=None):
                         continue
                     for sg in segs:
                         if sg is hseg:
+                            continue
+                        if sg[0] == "GLUE":  # a point on it, on its glued twin
+                            key = (frozenset((k, o)), frozenset(((sg[1][0], sg[1][1]),
+                                                                (-sg[1][0], sg[1][1]))))
+                            if key not in done:
+                                done.add(key)
+                                cons.append((i, j, sg[1], sg[2]))
                             continue
                         key = (frozenset((k, o)), frozenset((sg[1], sg[2])))
                         if key in done:
@@ -648,6 +696,51 @@ def build(model, piece, names, lab, lines, base=None):
                 new_panels.append(name)
             progress = True
             force = False
+        # join tabs whose two parts are placed: the fin, halfway between them
+        for k, kk in twin.items():
+            if k in panel or flap_of[k] not in panel or flap_of[kk] not in panel:
+                continue
+            segs = [sg for sg in regs[k].links.get(flap_of[k], []) if sg[0] == "CREASE"]
+            if not segs:
+                continue
+            _, p, q = segs[0]
+            jd = (q[0] - p[0], q[1] - p[1])
+            H = hinge_frame_2d(p, jd)
+            Hi = H.inverted()
+            # in the pattern: across the join line, towards the tab
+            ef = Vector((jd[1], -jd[0], 0.0)).normalized()
+            if ef.x * (regs[k].where[0] - p[0]) + ef.y * (regs[k].where[1] - p[1]) < 0:
+                ef = -ef
+            jv = Vector((jd[0], jd[1], 0.0)).normalized()
+            pa = model.panels[panel[flap_of[k]]].asm
+            pb = model.panels[panel[flap_of[kk]]].asm
+            efb = Vector((-ef.x, ef.y, 0.0))
+
+            def asm(t, pa=pa, pb=pb, H=H, Hi=Hi, ef=ef, efb=efb, jv=jv):
+                MA, MB = pa(t), pb(t)
+                dA = MA.to_3x3() @ -ef
+                dB = MB.to_3x3() @ -efb
+                m_ = -(dA + dB)
+                th = 0.0
+                if m_.length > 1e-6:
+                    m_.normalize()
+                    base_ = MA.to_3x3() @ ef
+                    ax = (MA.to_3x3() @ jv).normalized()
+                    th = math.atan2(base_.cross(m_).dot(ax), base_.dot(m_))
+                    # the frame's Y runs along jv; its rotation is about that
+                    if (H.to_3x3() @ Vector((0, 1, 0))).dot(jv) < 0:
+                        th = -th
+                return MA @ H @ rot_y(th) @ Hi
+
+            count += 1
+            name = f"{base}.Fold{count}"
+            hg = Hinge(H, H, "TABLE")
+            hg.corner_ok = True
+            model.add(Panel(name, piece, "panel", regs[k].polys, asm, panel[flap_of[k]], hg,
+                            f"{lab}: join tab {count}"))
+            panel[k] = name
+            new_panels.append(name)
+            progress = True
         if not progress:
             if force:
                 break
