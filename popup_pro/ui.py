@@ -68,6 +68,10 @@ class POPUP_MT_add(bpy.types.Menu):
                 op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
                                           icon=KIND_ICON[k])
                 op.kind, op.variant = "VFOLD", "ASYM"
+            if k == "BOX":
+                op = self.layout.operator("popup.add", text="Strap (off-centre gullies)",
+                                          icon=KIND_ICON[k])
+                op.kind, op.variant = "BOX", "STRAP"
         st = context.scene.popup
         if st.stage_master is None:
             self.layout.operator("popup.add", text="Stage Set (V-fold)",
@@ -108,11 +112,21 @@ class POPUP_MT_add(bpy.types.Menu):
                                ("STANDUP", "Stand-up on the Crease")):
                 op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
                 op.kind, op.host, op.fold = kind, h.uid, "V"
+            for kind, text in (("CUBE", "Cube in the V (on the Crease)"),
+                               ("TUBE", "Tube in the V (on the Crease)")):
+                op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
+                op.kind, op.host, op.fold = kind, h.uid, "V"
+            self.layout.label(text="On its glue folds (off-centre):")
             for fold, where in (("FL", "in front, left"), ("FR", "in front, right"),
                                 ("BL", "behind, left"), ("BR", "behind, right")):
-                op = self.layout.operator("popup.add", text=f"Stand-up {where}",
-                                          icon=KIND_ICON["STANDUP"])
-                op.kind, op.host, op.fold = "STANDUP", h.uid, fold
+                for kind, name in (("STANDUP", "Stand-up"), ("CUBE", "Cube"),
+                                   ("TUBE", "Tube"), ("VFOLD", "V-fold"),
+                                   ("BOX", "Glued Box")):
+                    if fold[0] == "B" and kind != "STANDUP":
+                        continue  # inside the V there's little room: stand-ups only
+                    op = self.layout.operator("popup.add", text=f"{name} {where}",
+                                              icon=KIND_ICON[kind])
+                    op.kind, op.host, op.fold = kind, h.uid, fold
         elif st.mechs and st.active < len(st.mechs) and st.mechs[st.active].kind == "STAGE":
             h = st.mechs[st.active]
             self.layout.separator()
@@ -131,7 +145,13 @@ class POPUP_MT_add(bpy.types.Menu):
                                          ("BOX", "A", "Glued Box on Top"),
                                          ("BOX", "B", "Glued Box in Front"),
                                          ("STANDUP", "A", "Stand-up on Top"),
-                                         ("STANDUP", "B", "Stand-up in Front")):
+                                         ("STANDUP", "B", "Stand-up in Front"),
+                                         ("CUBE", "A", "Cube on Top"),
+                                         ("CUBE", "B", "Cube in Front"),
+                                         ("TUBE", "A", "Tube on Top"),
+                                         ("TUBE", "B", "Tube in Front"),
+                                         ("VFOLD", "A", "V-fold on Top"),
+                                         ("VFOLD", "B", "V-fold in Front")):
                     if kind == "BOXCUT" and h.kind != "BOXCUT" and fold != "C":
                         continue  # cut-ins need one piece of paper across the fold
                     if kind == "BOXCUT" and h.kind == "STANDUP":
@@ -323,6 +343,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 if m.host_uid else None
             if hm is not None and hm.kind in ("BOX", "BOXCUT", "STANDUP"):
                 col.prop(m, "fold")
+            if hm is not None and hm.kind == "VFOLD":
+                col.prop(m, "vside")
             col.prop(m, "y", text="Position" if hm is None else "Along the Fold")
             col.prop(m, "x", text="Strip Distance")
             col.prop(m, "depth", text="Side Length")

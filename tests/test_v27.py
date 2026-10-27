@@ -20,7 +20,7 @@ CARD = dict(W=148.5, H=210.0, hold="SYM")
 V = dict(type="VFOLD", uid=1, label="V", y=40, phi_l=45, phi_r=45, alpha_l=80, alpha_r=80,
          glue=60, height=70, tab=10, tab_side="IN")
 k = 0.35 * 60
-for kid in (dict(type="CUBE", uid=2, label="cube", y=10.5, size=0.7 * k, height=0.7 * k,
+for kid in (dict(type="CUBE", uid=2, label="cube", y=28.0, size=0.7 * k, height=0.7 * k,
                  tab=8, host=1, vside="V", lid="PEAK", tab_side="IN"),
             dict(type="TUBE", uid=2, label="tube", y=17.5, x=0.35 * k, depth=31.5,
                  height=0.8 * k, front=0.45 * k, back=0.45 * k, tab=8, host=1, vside="V",

@@ -134,8 +134,8 @@ layout. This is viewport only and never rendered; the pointer button under
 | **Box layer** | The same parallel fold cut into the paper itself ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc), [Tutorial 6](https://www.youtube.com/watch?v=9xRj1-OUX64)) | Position, Height, Width Left, Width Right |
 | **Stand-up** | A picture held off the background by a bridge, or flat on a leg ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc)) | Picture (Upright or Flat), Position, Bridge or Leg Width, Bridge Height, Out From Back, Picture Width and Height, tab size |
 | **Roof** | A peaked roof over a stage: the background cut to a gable, a V-fold glued along its eaves | Ridge Starts, Roof Slope, Eaves Length, Ridge Length, Level Ridge (or Piece Angle), tab size |
-| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat. Stands on the spine, a box fold, a stand-up, a floor's corner or a V-fold's crease | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
-| **Tube** | Hexagon, box or recessed tube on two parallel sticking strips ([Tutorial 72](https://www.youtube.com/watch?v=6FKi95a14N4)); on the spine, a box fold, a stand-up or a V-fold's crease | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
+| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat. Stands on the spine, a box fold or strap, a stand-up, a floor's corner, a V-fold's glue folds or inside a V-fold (on its crease) | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
+| **Tube** | Hexagon, box or recessed tube on two parallel sticking strips ([Tutorial 72](https://www.youtube.com/watch?v=6FKi95a14N4)); on the spine, a box fold or strap, a stand-up, a V-fold's glue folds or inside a V-fold | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
 | **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
 | **Pyramid** | Pyramid, hexagonal pyramid or tent on two parallel sticking strips ([Tutorial 21](https://www.youtube.com/watch?v=jZDHbUhV6Ms)) | Position, Strip Distance, Base Length, Height, Ridge, Front and Back Width, each Pointed Out or In, base tabs |
 | **Flap** | A lift-the-flap worked by a pull tab, with its own **Pull** slider | Page, From Spine, Up the Page, Hinge edge, Width, Length, Hinge Tab, Lift angle, Glue Point (5 mm from the hinge by default), Strip Width, Slit Gap, Pull Tab |
@@ -380,6 +380,24 @@ card is flat. The stage faces the top edge of the card; shut, its back
 crease lies down the card from where it stands, and the checks say how far
 up to move it if that would run off the bottom. Openings on its frames can
 go *Through* to its background.
+
+### Off-centre pop-ups: the Strap and V-fold glue folds
+
+Most pop-ups straddle the card's spine. To stand one in the middle of a
+page, give it a fold of its own that opens just like the spine:
+
+* **Strap** (Add menu, under the box fold; [Tutorial 9](https://www.youtube.com/watch?v=AMbeFT8L7oI)):
+  a strip glued across the spine, a box fold with equal sides. Open flat,
+  it lies on the pages; its two glue folds are **gullies** off the centre,
+  each opening exactly as the spine does. With the strap selected, the Add
+  menu offers cubes, tubes, V-folds, boxes and stand-ups **on top** (the left
+  gully) or **in front** (the right gully); move the gullies by changing
+  the strap's Height and Depth.
+* **A V-fold's glue folds**: with a V-fold selected, the Add menu offers
+  cubes, tubes, V-folds, glued boxes and stand-ups **in front of** its left
+  or right half (the valley between the half and the page), and cubes and
+  tubes **in the V** on its crease. A mechanism's **Where** setting moves it
+  between these afterwards, resized to fit.
 
 ### Asymmetric V-folds: carrying pop-ups off the centre
 
@@ -780,6 +798,7 @@ python tests/test_v24.py       # Set Up Scene
 python tests/test_v25.py       # bake guards: sRGB decode, emission materials
 python tests/test_v26.py       # images on pieces: placement, cuts, export
 python tests/test_v27.py       # picture-book defaults, cubes and tubes on other creases
+python tests/test_v28.py       # off-centre: the strap's gullies, V-fold glue folds
 ```
 
 ## Tutorials
@@ -790,6 +809,7 @@ The mechanisms follow The Pop-Up Channel's video tutorials:
 * [Pop-Up Tutorial 2 - V-folds Part 1: right-angle and acute-angle V-folds](https://www.youtube.com/watch?v=Lm2RYojO-q8)
 * [Pop-Up Tutorial 3 - V-folds Part 2: pointed and obtuse-angle V-folds](https://www.youtube.com/watch?v=MvbGJxH-1pg)
 * [Pop-Up Tutorial 4 - V-folds Part 3: asymmetric V-fold](https://www.youtube.com/watch?v=N-mv6ePRNAc)
+* [Pop-Up Tutorial 9 - Raising Pop-Ups Off-Centre: The Strap](https://www.youtube.com/watch?v=AMbeFT8L7oI)
 * [Pop-Up Tutorial 5 - Parallel-folds Part 1: parallelogram](https://www.youtube.com/watch?v=BvF15GfYwVc)
 * [Pop-Up Tutorial 6 - Parallel-folds Part 2: symmetric and asymmetric](https://www.youtube.com/watch?v=9xRj1-OUX64)
 * [Pop-Up Tutorial 7 - Adding extra creases to basic pop-up shapes, Part 1](https://www.youtube.com/watch?v=IkJAnmS-2ZE)

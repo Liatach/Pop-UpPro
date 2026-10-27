@@ -203,15 +203,31 @@ def fit_to_host(m, st):
                     m.jaw = 0.6 * k
                     m.upper = m.lower = 0.15 * L
                     m.y = 0.5 * L
-                elif m.kind == "CUBE":  # kept small: it lies along the crease when shut
+                elif m.kind == "CUBE":  # in the V, up the crease, clear of the page
                     m.size = m.height = 0.7 * k
-                    m.y = 0.15 * L
+                    m.y = 0.4 * L
                 elif m.kind == "TUBE":
-                    _fit_tube(m, k, L, 0.0)
+                    m.x, m.height = 0.25 * k, 0.7 * k
+                    m.depth = 0.4 * L
+                    m.front = m.back = 0.35 * k
+                    m.y = 0.3 * L
                 return
-            if m.kind in ("CUBE", "TUBE"):  # only on the crease
-                m.vside = "V"
-                return fit_to_host(m, st)
+            # in front of (or behind) a half: the half is the background, the
+            # page the floor, positions out along the glue line
+            s_ = 0.25 * min(g, L)
+            if m.kind == "CUBE":
+                m.size = m.height = s_
+                m.y = 0.2 * g
+                return
+            if m.kind == "TUBE":
+                m.x, m.depth, m.height = 0.1 * g, 0.35 * g, 0.25 * L
+                m.front = m.back = 0.15 * g
+                m.y = 0.15 * g
+                return
+            if m.kind == "VFOLD":
+                m.glue = m.height = s_
+                m.y = 0.3 * g
+                return
             if m.kind == "STANDUP":
                 m.width = 0.3 * g
                 m.y = 0.35 * g

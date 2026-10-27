@@ -145,7 +145,8 @@ class POPUP_OT_add(bpy.types.Operator):
     fold: StringProperty(default="A")
     side: StringProperty(default="", description="Wall, for a corner of a floor or ceiling")
     variant: StringProperty(default="", description="ASYM: an asymmetric V-fold; "
-                           "VALLEY: a roof upside down")
+                           "VALLEY: a roof upside down; STRAP: a box fold with equal sides "
+                           "(gullies off the centre)")
 
     def execute(self, context):
         st = context.scene.popup
@@ -178,6 +179,18 @@ class POPUP_OT_add(bpy.types.Operator):
             m.symmetric = False
             m.phi_l, m.phi_r, m.lean, m.fold_flat = 40.0, 75.0, 20.0, True
             m.label = "Asymmetric " + m.label
+            st["live"] = was
+        if self.kind == "BOX" and self.variant == "STRAP":
+            # Pop-Up Tutorial 9: a glued box fold with equal sides lies flat
+            # when the card is open; its two glue folds are gullies away from
+            # the spine that open just like it, for pop-ups off the centre
+            was = st.live
+            st["live"] = False
+            H = st.card_dict()["H"]
+            m.height = m.depth = 35.0
+            m.width = 70.0
+            m.y = round(0.5 * H - 35.0, 1)
+            m.label = m.label.replace("Box fold", "Strap")
             st["live"] = was
         if self.kind == "ROOF" and self.variant == "VALLEY":
             was = st.live

@@ -380,10 +380,12 @@ class Model:
                         m["type"] not in ("STANDUP", "BOX", "VFOLD", "MOUTH", "CUBE",
                                           "TUBE") or
                         (m.get("vside", "FL") != "V" and
-                         (m["type"] not in ("STANDUP", "BOX") or m.get("style") == "CUT"))):
+                         (m["type"] not in ("STANDUP", "BOX", "CUBE", "TUBE", "VFOLD")
+                          or m.get("style") == "CUT"))):
                     self.warn(f"{m['label']}: on a V-fold's crease go boxes, box layers, "
                               f"V-folds, mouths, cubes, tubes and stand-ups; in front of or "
-                              f"behind a half only stand-ups and glued boxes; skipped")
+                              f"behind a half stand-ups, glued boxes, cubes, tubes and "
+                              f"V-folds; skipped")
                     ok = False
                 elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD")
                                         and not lid and not stage
@@ -780,7 +782,10 @@ class Model:
             self._branch[key] = sgn
         if sgn is None:
             base, k, n, nl, nr, *_ = self._crease_parts(J, self.t_ref)
-            sgn = max((1.0, -1.0), key=lambda s: (base + s * k * n).normalized().dot(nl + nr))
+            want = nl + nr
+            if J.get("gap") and self.normals_out(J["host"]):
+                want = -want  # a host whose normals face out of its gap (a V-fold's crease)
+            sgn = max((1.0, -1.0), key=lambda s: (base + s * k * n).normalized().dot(want))
             self._branch[key] = sgn
         base, k, n, nl, nr, uL, uR, ok, P3 = self._crease_parts(J, t)
         return (base + sgn * k * n).normalized(), uL, uR, ok, P3
@@ -995,7 +1000,7 @@ class Model:
         r2 = math.sqrt(0.5)
         uLf, uRf = (-r2, r2), (r2, r2)
         self.joints[key] = dict(host=host, y=y0, uL=uLf, uR=uRf,
-                                aL=math.pi / 2, aR=math.pi / 2)
+                                aL=math.pi / 2, aR=math.pi / 2, gap=True)
         if host.is_spine and (y0 < 0 or y0 + sz * math.sqrt(2) > self.H):
             self.warn(f"{lab}: runs past the top or bottom of the card")
         # strip pattern: tab | A [0,s] | B [s,2s] | C [2s,3s] | D [3s,4s]
@@ -1130,6 +1135,16 @@ class Model:
             self.warn(f"{lab}: cannot fold below {max(tears):.0f} degrees")
 
     # ----------------------------------------------------- parallel strips
+    def normals_out(self, host):
+        """Does this host give normals facing out of the gap between its
+        pages (a V-fold's crease does), not into it like the card's spine?"""
+        flips = self.__dict__.setdefault("_strip_flip", {})
+        k = id(host)
+        if k not in flips:
+            _, l0, r0, _, nl0, nr0 = host.dirs(min(90.0, 0.5 * self.tmax))
+            flips[k] = (r0 - l0).dot(nl0 - nr0) < 0.0
+        return flips[k]
+
     def strip_frame(self, host, t):
         """Plan frame shared by everything standing on parallel sticking
         strips. Every wall leans along e (half-way between the pages) and
@@ -1140,12 +1155,7 @@ class Model:
         S, l, r, Y, nl, nr = host.dirs(t)
         # some hosts (a V-fold's crease) give normals facing out of the gap
         # between their pages, not into it: turn them round, once per host
-        flips = self.__dict__.setdefault("_strip_flip", {})
-        k = id(host)
-        if k not in flips:
-            _, l0, r0, _, nl0, nr0 = host.dirs(min(90.0, 0.5 * self.tmax))
-            flips[k] = (r0 - l0).dot(nl0 - nr0) < 0.0
-        if flips[k]:
+        if self.normals_out(host):
             nl, nr = -nl, -nr
         # l + r and nl + nr both point along e, r - l and nl - nr along xh;
         # adding them keeps e and xh accurate both near shut and near flat
