@@ -260,6 +260,9 @@ class Lay:
             pass
         return Op()
 
+    def panel(self, idname, **kw):  # a collapsible sub-panel: (header, body)
+        return Lay(self.seen), Lay(self.seen)
+
     def __getattr__(self, k):  # row, column, box, label, separator, menu, ...
         def f(*a, **kw):
             return Lay(self.seen)
