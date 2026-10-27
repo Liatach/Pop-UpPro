@@ -60,10 +60,14 @@ for kid in KIDS:
                 (kid["label"], t)
     print(f"{kid['label']} stands on the V-fold's crease")
 
-# what doesn't fit there is refused, not crashed
+# cubes stand there too (0.27); what doesn't fit is refused, not crashed
 m = Model(CARD, [V, dict(type="CUBE", uid=2, label="Cube", y=10, size=10, height=10, tab=6,
                          lid="NONE", tab_side="IN", host=1, vside="V")])
-assert any("Cube" in w and "skipped" in w for w in m.warnings), m.warnings
+assert not any("skipped" in w for w in m.warnings), m.warnings
+assert "Cube2.B" in m.panels or any(n.startswith("Cube2") for n in m.order)
+m = Model(CARD, [V, dict(type="STAGE", uid=2, label="Stage", y=10, phi_l=60, glue=20,
+                         height=20, tab=6, tab_side="OUT", host=1, vside="V")])
+assert any("Stage" in w and "skipped" in w for w in m.warnings), m.warnings
 
 # a mechanism on a host that tears is flagged, the card still builds
 bad = dict(V, y=150, phi_l=110, phi_r=140, alpha_l=160, alpha_r=130)

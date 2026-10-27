@@ -90,6 +90,67 @@ def sun(scenes, strength=0.6):
 
 
 WHITE = "Pop-up White"
+CAMERA = "Pop-up Camera"
+
+
+def camera(scene, make_active=True):
+    """A camera past the bottom end of the spine, looking down along it from
+    above, framed so the whole card shows from shut (standing on its spine)
+    to fully open (flat, both pages out)."""
+    from mathutils import Vector
+    st = scene.popup
+    master = st.stage_master or scene
+    card = master.popup.card_dict()
+    mu = _mm_per_unit(scene)
+    W, H = card["W"] / mu, card["H"] / mu
+    ob = bpy.data.objects.get(CAMERA)
+    if ob is None or ob.type != "CAMERA":
+        cam = bpy.data.cameras.new(CAMERA)
+        ob = bpy.data.objects.new(CAMERA, cam)
+    cam = ob.data
+    cam.lens = 35.0
+    cam.sensor_fit = "AUTO"
+    if master.popup.is_carousel:
+        # round the spine: the whole ring from above, a little in front
+        target = Vector((0.0, 0.5 * H, 0.0))
+        span = 2.4 * W
+    else:
+        target = Vector((0.0, 0.5 * H, 0.22 * W))
+        span = max(2.0 * W, H) * 1.18
+    aim = Vector((0.0, -0.62, 1.0)).normalized()  # from past the bottom end, above
+    fov = 2.0 * math.atan(18.0 / cam.lens)  # 36 mm sensor across
+    r = scene.render
+    aspect = max(r.resolution_x * r.pixel_aspect_x, 1) / max(r.resolution_y * r.pixel_aspect_y, 1)
+    vfov = 2.0 * math.atan(math.tan(0.5 * fov) / max(aspect, 1.0))
+    # across: the open card's width; up the picture: the spine's length seen
+    # at a slant plus the pages standing up when shut
+    tall = 1.15 * (H * 0.85 + 0.6 * W)
+    dist = max(0.5 * span / math.tan(0.5 * fov), 0.5 * tall / math.tan(0.5 * vfov)) + 0.3 * H
+    ob.location = target + aim * dist
+    ob.rotation_euler = (target - ob.location).to_track_quat("-Z", "Y").to_euler()
+    cam.clip_start = 0.01 * dist
+    cam.clip_end = 20.0 * dist
+    for sc in popup_scenes(scene):
+        if sc.collection.objects.get(ob.name) is None:
+            sc.collection.objects.link(ob)
+        if make_active and (sc.camera is None or sc.camera == ob):
+            sc.camera = ob
+    return ob
+
+
+def look_through(context):
+    """Point this window's 3D views through the card camera (orbit to leave)."""
+    win = context.window
+    if win is None:
+        return 0
+    n = 0
+    for area in win.screen.areas:
+        if area.type == "VIEW_3D":
+            r3 = area.spaces.active.region_3d
+            if r3 is not None:
+                r3.view_perspective = "CAMERA"
+                n += 1
+    return n
 
 
 def clean_render(scenes, on=True):
@@ -103,10 +164,26 @@ def clean_render(scenes, on=True):
     if on and w is None:
         w = bpy.data.worlds.new(WHITE)
         w.use_nodes = True
-        bg = next((n for n in w.node_tree.nodes if n.type == "BACKGROUND"), None)
+        nt = w.node_tree
+        bg = next((n for n in nt.nodes if n.type == "BACKGROUND"), None)
+        out = next((n for n in nt.nodes if n.type == "OUTPUT_WORLD"), None)
         if bg is not None:
             bg.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
             bg.inputs["Strength"].default_value = 1.0
+        if bg is not None and out is not None:
+            # lit in white, but seen against a soft grey (white paper on a
+            # white background would vanish)
+            seen = nt.nodes.new("ShaderNodeBackground")
+            seen.inputs["Color"].default_value = (0.32, 0.33, 0.35, 1.0)
+            lp = nt.nodes.new("ShaderNodeLightPath")
+            mix = nt.nodes.new("ShaderNodeMixShader")
+            nt.links.new(lp.outputs["Is Camera Ray"], mix.inputs[0])
+            nt.links.new(bg.outputs[0], mix.inputs[1])
+            nt.links.new(seen.outputs[0], mix.inputs[2])
+            nt.links.new(mix.outputs[0], out.inputs["Surface"])
+            lp.location = bg.location.x - 220, bg.location.y + 220
+            seen.location = bg.location.x, bg.location.y - 160
+            mix.location = bg.location.x + 200, bg.location.y
         w.color = (1.0, 1.0, 1.0)
     for sc in scenes:
         if on:
@@ -204,7 +281,7 @@ def viewports(context, all_workspaces=False, fold_lines=True):
 
 
 def setup(context, sun_on=True, grain=False, fold_lines=True, all_workspaces=False,
-          sun_strength=0.6, clean=True):
+          sun_strength=0.6, clean=True, cam=True, view_camera=False):
     scenes = popup_scenes(context.scene)
     for sc in scenes:
         eevee(sc)
@@ -221,6 +298,10 @@ def setup(context, sun_on=True, grain=False, fold_lines=True, all_workspaces=Fal
     master = scenes[0]
     master.popup["clean_render"] = clean
     views = viewports(context, all_workspaces, fold_lines)
+    if cam:
+        camera(context.scene)
+        if view_camera:
+            look_through(context)
     for sc in scenes:
         sc["pop_setup_done"] = True
     return scenes, views
@@ -252,13 +333,20 @@ class POPUP_OT_setup_scene(bpy.types.Operator):
     clean: bpy.props.BoolProperty(name="Clean White Renders", default=True,
                                   description="Renders lit evenly in white: the sun stays "
                                   "in the viewport but is left out of renders")
+    cam: bpy.props.BoolProperty(name="Camera", default=True,
+                                description="A camera past the bottom end of the spine, "
+                                "above it, framing the whole card as it opens")
+    view_camera: bpy.props.BoolProperty(name="Look Through Camera", default=False,
+                                        description="Point the 3D view through the camera "
+                                        "(orbit to leave it)")
     all_workspaces: bpy.props.BoolProperty(name="All Workspaces", default=False,
                                            description="Set every workspace's 3D views, not "
                                            "just this one")
 
     def execute(self, context):
         scenes, views = setup(context, self.sun, self.grain, self.fold_lines,
-                              self.all_workspaces, self.sun_strength, self.clean)
+                              self.all_workspaces, self.sun_strength, self.clean,
+                              self.cam, self.view_camera)
         self.report({"INFO"}, f"Set up {len(scenes)} scene(s), {views} view(s)")
         return {"FINISHED"}
 

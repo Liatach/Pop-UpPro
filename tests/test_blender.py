@@ -22,6 +22,9 @@ addon.register()
 sc = bpy.context.scene
 st = sc.popup
 st.keep_open = False  # this file checks raw kinematics: Open t is exactly t degrees
+from popup_pro.ops import _add  # noqa: E402
+_add(st, "VFOLD")  # the starter card before 0.27 (now a cube)
+_add(st, "BOX")
 assert bpy.ops.popup.build() == {"FINISHED"}  # adds a V-fold and a box fold
 assert bpy.ops.popup.add(kind="BOXCUT") == {"FINISHED"}
 v = st.mechs.add()

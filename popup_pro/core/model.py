@@ -30,7 +30,7 @@ TAB_LIFT = 0.15  # mm a glued tab floats above the page (avoids z-fighting)
 SAMPLES = [0.5, 5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
 
 IN = 25.4
-NO_HOST = ("FLAP", "TUBE", "TETHER", "PYRAMID", "ROOF")
+NO_HOST = ("FLAP", "TETHER", "PYRAMID", "ROOF")
 
 
 def _card(w, h, label, desc):
@@ -377,12 +377,13 @@ class Model:
                               f"and only they do; skipped")
                     ok = False
                 elif parent is not None and parent["type"] == "VFOLD" and (
-                        m["type"] not in ("STANDUP", "BOX", "VFOLD", "MOUTH") or
+                        m["type"] not in ("STANDUP", "BOX", "VFOLD", "MOUTH", "CUBE",
+                                          "TUBE") or
                         (m.get("vside", "FL") != "V" and
                          (m["type"] not in ("STANDUP", "BOX") or m.get("style") == "CUT"))):
                     self.warn(f"{m['label']}: on a V-fold's crease go boxes, box layers, "
-                              f"V-folds, mouths and stand-ups; in front of or behind a half "
-                              f"only stand-ups and glued boxes; skipped")
+                              f"V-folds, mouths, cubes, tubes and stand-ups; in front of or "
+                              f"behind a half only stand-ups and glued boxes; skipped")
                     ok = False
                 elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD")
                                         and not lid and not stage
@@ -1097,7 +1098,7 @@ class Model:
             nrm = Vector((-1, 1, 0)).normalized()
             P0 = Vector((s2, hgt, 0))
             Lh = math.sqrt(2) * sz
-            gt = min(tb, 0.25 * Lh)
+            gt = min(tb, 0.18 * Lh)  # the triangle it glues to narrows to its corners
             tab_poly = [tuple((P0 + d * 0.15 * Lh)[:2]), tuple((P0 + d * 0.85 * Lh)[:2]),
                         tuple((P0 + d * 0.8 * Lh + nrm * gt)[:2]),
                         tuple((P0 + d * 0.2 * Lh + nrm * gt)[:2])]
@@ -1137,6 +1138,15 @@ class Model:
         x = -/+ a sin(t/2), with its foot a cos(t/2) up e."""
         t = max(t, T_MIN)
         S, l, r, Y, nl, nr = host.dirs(t)
+        # some hosts (a V-fold's crease) give normals facing out of the gap
+        # between their pages, not into it: turn them round, once per host
+        flips = self.__dict__.setdefault("_strip_flip", {})
+        k = id(host)
+        if k not in flips:
+            _, l0, r0, _, nl0, nr0 = host.dirs(min(90.0, 0.5 * self.tmax))
+            flips[k] = (r0 - l0).dot(nl0 - nr0) < 0.0
+        if flips[k]:
+            nl, nr = -nl, -nr
         # l + r and nl + nr both point along e, r - l and nl - nr along xh;
         # adding them keeps e and xh accurate both near shut and near flat
         e = (nl + nr + l + r).normalized()
@@ -1180,8 +1190,6 @@ class Model:
         fold, pointing Out (hexagon), In (recessed) or flat when the pair is
         as wide as the strips are apart (box)."""
         uid, lab = m["uid"], m["label"]
-        if not host.is_spine:
-            self.warn(f"{lab}: tubes stand on the card spine for now")
         a, y0 = float(m["x"]), float(m["y"])
         D, hgt = float(m["depth"]), float(m["height"])
         wf, wb = max(float(m["front"]), a), max(float(m["back"]), a)
@@ -1194,10 +1202,10 @@ class Model:
         if sf < 0 and sb < 0 and wf + wb > D + 1e-6:
             self.warn(f"{lab}: recessed front and back meet inside the tube when closed "
                       f"(make it longer or the walls narrower)")
-        if a + hgt > self.W + 1e-6:
+        if host.is_spine and a + hgt > self.W + 1e-6:
             self.warn(f"{lab}: strip distance + height is more than the page width, so it "
                       f"sticks out when closed")
-        if y0 - sf * wf < -1e-6 or y0 + D + sb * wb > self.H + 1e-6:
+        if host.is_spine and (y0 - sf * wf < -1e-6 or y0 + D + sb * wb > self.H + 1e-6):
             self.warn(f"{lab}: runs past the top or bottom of the card")
         self.tubes[uid] = dict(host=host, a=a, y0=y0, D=D, wf=wf, wb=wb, sf=sf, sb=sb, h=hgt,
                                label=lab)

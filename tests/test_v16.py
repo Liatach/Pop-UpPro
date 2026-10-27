@@ -17,6 +17,9 @@ addon.register()
 sc = bpy.context.scene
 st = sc.popup
 st.live = False
+from popup_pro.ops import _add  # noqa: E402
+_add(st, "VFOLD")  # the starter card before 0.27 (now a cube)
+_add(st, "BOX")
 assert bpy.ops.popup.build() == {"FINISHED"}
 art.add_art_texture(sc, dpi=20)
 sc.view_settings.view_transform = "AgX"

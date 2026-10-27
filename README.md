@@ -56,9 +56,13 @@ mechanisms, art and sketches.
 ## Use
 
 1. **Card**: A5 (A4 folded, the default), A6, 150 mm square or custom.
-   **Hold** picks which page stays still (right page flat is the usual 90°
-   view; *Both Pages Move* keeps the spine upright).
-2. **Build Card**. The first build adds a V-fold and a box fold to play with.
+   **Opens**: *Picture Book* (the default) opens both pages out from the
+   spine, like a book on its spine; *Right Page Flat* or *Left Page Flat*
+   keeps one page on the table while the other turns over.
+2. **Build Card**. The first build adds a cube to play with, sets the scene
+   up (below), puts a camera past the bottom end of the spine, looking down
+   along it so the whole card shows as it unfurls, and keys a movement test:
+   press **Play**, or drag the timeline.
 3. **Mechanisms**: add, remove and tune them. With **Live Rebuild** on (the
    clock icon) the card updates as you drag values.
 4. **Set Up Scene** (runs by itself the first time you build a card or make a
@@ -76,10 +80,12 @@ mechanisms, art and sketches.
      one-eighth resolution, as in many files, is what makes it look smeared.
    * The Standard view transform (true colours), on the carousel and every
      stage.
+   * A **Camera** past the bottom end of the spine, above the card, framing
+     it from shut to fully open (for a carousel, the whole ring).
    * **Clean White Renders** (the sun button beside Set Up Scene, on by
-     default): renders are lit evenly by a plain white world, without the
-     viewport's sun, so the sun and shadows help while you work but stay
-     out of finished images.
+     default): renders are lit evenly by a plain white light (seen against
+     a soft grey), without the viewport's sun, so the sun and shadows help
+     while you work but stay out of finished images.
    * **Paper Texture** (off by default): a fine grain as a bump, so colours
      and prints are untouched. It is one node group, *Pop-up Paper Texture*:
      put your own paper texture inside it and every card uses it.
@@ -128,8 +134,8 @@ layout. This is viewport only and never rendered; the pointer button under
 | **Box layer** | The same parallel fold cut into the paper itself ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc), [Tutorial 6](https://www.youtube.com/watch?v=9xRj1-OUX64)) | Position, Height, Width Left, Width Right |
 | **Stand-up** | A picture held off the background by a bridge, or flat on a leg ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc)) | Picture (Upright or Flat), Position, Bridge or Leg Width, Bridge Height, Out From Back, Picture Width and Height, tab size |
 | **Roof** | A peaked roof over a stage: the background cut to a gable, a V-fold glued along its eaves | Ridge Starts, Roof Slope, Eaves Length, Ridge Length, Level Ridge (or Piece Angle), tab size |
-| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
-| **Tube** | Hexagon, box or recessed tube on two parallel sticking strips ([Tutorial 72](https://www.youtube.com/watch?v=6FKi95a14N4)) | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
+| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat. Stands on the spine, a box fold, a stand-up, a floor's corner or a V-fold's crease | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
+| **Tube** | Hexagon, box or recessed tube on two parallel sticking strips ([Tutorial 72](https://www.youtube.com/watch?v=6FKi95a14N4)); on the spine, a box fold, a stand-up or a V-fold's crease | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
 | **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
 | **Pyramid** | Pyramid, hexagonal pyramid or tent on two parallel sticking strips ([Tutorial 21](https://www.youtube.com/watch?v=jZDHbUhV6Ms)) | Position, Strip Distance, Base Length, Height, Ridge, Front and Back Width, each Pointed Out or In, base tabs |
 | **Flap** | A lift-the-flap worked by a pull tab, with its own **Pull** slider | Page, From Spine, Up the Page, Hinge edge, Width, Length, Hinge Tab, Lift angle, Glue Point (5 mm from the hinge by default), Strip Width, Slit Gap, Pull Tab |
@@ -773,6 +779,7 @@ python tests/test_v22.py       # roof lengths, valley floor, V-fold cut-away
 python tests/test_v24.py       # Set Up Scene
 python tests/test_v25.py       # bake guards: sRGB decode, emission materials
 python tests/test_v26.py       # images on pieces: placement, cuts, export
+python tests/test_v27.py       # picture-book defaults, cubes and tubes on other creases
 ```
 
 ## Tutorials

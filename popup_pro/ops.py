@@ -36,8 +36,7 @@ class POPUP_OT_build(bpy.types.Operator):
         st = context.scene.popup
         first = st.rig is None
         if first and not st.mechs:
-            _add(st, "VFOLD")
-            _add(st, "BOX")
+            _add(st, "CUBE")  # something to play with: it's Blender after all
         if not _rebuild(self, context):
             return {"CANCELLED"}
         if first:
@@ -55,8 +54,13 @@ def _first_setup(context):
     master = sc.popup.stage_master or sc
     if not master.get("pop_setup_done"):
         try:
-            scene_setup.setup(context)
+            scene_setup.setup(context, view_camera=True)
         except (RuntimeError, TypeError, AttributeError, KeyError):
+            pass
+        # a movement test ready to play: press Play or scrub the timeline
+        try:
+            bpy.ops.popup.animate(mode="CYCLE")
+        except RuntimeError:
             pass
 
 

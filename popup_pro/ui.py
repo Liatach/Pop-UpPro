@@ -318,7 +318,12 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             self.draw_flap(context, col, m)
             return
         if m.kind == "TUBE":
-            col.prop(m, "y", text="Position")
+            col.prop(m, "host")
+            hm = next((h for h in st.mechs if h.uid == m.host_uid), None) \
+                if m.host_uid else None
+            if hm is not None and hm.kind in ("BOX", "BOXCUT", "STANDUP"):
+                col.prop(m, "fold")
+            col.prop(m, "y", text="Position" if hm is None else "Along the Fold")
             col.prop(m, "x", text="Strip Distance")
             col.prop(m, "depth", text="Side Length")
             col.prop(m, "height")

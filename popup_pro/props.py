@@ -126,7 +126,7 @@ def host_items(self, context):
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
-            if self.kind in ("FLAP", "TUBE", "TETHER", "PYRAMID", "ROOF") or m.uid in bad:
+            if self.kind in ("FLAP", "TETHER", "PYRAMID", "ROOF") or m.uid in bad:
                 continue
             if self.kind in ("FRAME", "FLOOR", "CEILING"):
                 if m.kind == "STAGE":
@@ -134,7 +134,7 @@ def host_items(self, context):
                                   "IMAGE_BACKGROUND", m.uid))
                 continue
             if m.kind == "VFOLD" and self.kind in ("STANDUP", "BOX", "BOXCUT", "VFOLD",
-                                                   "MOUTH"):
+                                                   "MOUTH", "CUBE", "TUBE"):
                 items.append((str(m.uid), m.label, f"On {m.label}: its crease, or in "
                               f"front of or behind a half", "MOD_TRIANGULATE", m.uid))
             elif m.kind in ("BOX", "BOXCUT", "STANDUP"):
@@ -203,7 +203,15 @@ def fit_to_host(m, st):
                     m.jaw = 0.6 * k
                     m.upper = m.lower = 0.15 * L
                     m.y = 0.5 * L
+                elif m.kind == "CUBE":  # kept small: it lies along the crease when shut
+                    m.size = m.height = 0.7 * k
+                    m.y = 0.15 * L
+                elif m.kind == "TUBE":
+                    _fit_tube(m, k, L, 0.0)
                 return
+            if m.kind in ("CUBE", "TUBE"):  # only on the crease
+                m.vside = "V"
+                return fit_to_host(m, st)
             if m.kind == "STANDUP":
                 m.width = 0.3 * g
                 m.y = 0.35 * g
@@ -267,8 +275,19 @@ def fit_to_host(m, st):
         elif m.kind == "CUBE":
             m.size = m.height = 0.6 * k
             m.y = hy + 0.25 * w
+        elif m.kind == "TUBE":
+            _fit_tube(m, k, w, hy)
     finally:
         st["live"] = was
+
+
+def _fit_tube(m, k, w, y0):
+    """A tube sized to a host's fold: strips a little either side of it."""
+    m.x = 0.35 * k
+    m.height = 0.8 * k
+    m.depth = 0.45 * w
+    m.front = m.back = max(m.x, 0.45 * k)
+    m.y = y0 + 0.25 * w
 
 
 def _host_set(self, value):
@@ -741,12 +760,16 @@ class PopupSettings(bpy.types.PropertyGroup):
                               default=148.5, min=20.0, soft_max=400.0, update=_changed)
     spine_length: FloatProperty(name="Spine Length", default=210.0, min=20.0,
                                 soft_max=400.0, update=_changed)
-    hold: EnumProperty(name="Hold", description="Which page stays still while the card "
-                       "opens", items=[
-                           ("RIGHT", "Right Page Flat", "Right page lies on the table"),
-                           ("LEFT", "Left Page Flat", "Left page lies on the table"),
-                           ("SYM", "Both Pages Move", "Spine stays upright")],
-                       update=_changed)
+    hold: EnumProperty(name="Opens", description="How the card opens: like a picture "
+                       "book, both pages turning out from the spine, or one page flat on "
+                       "the table while the other turns over", items=[
+                           ("RIGHT", "Right Page Flat", "The right page lies on the table; "
+                            "the left turns over to the left"),
+                           ("LEFT", "Left Page Flat", "The left page lies on the table; "
+                            "the right turns over to the right"),
+                           ("SYM", "Picture Book", "Both pages open out symmetrically "
+                            "from the spine")],
+                       default="SYM", update=_changed)
     paper: EnumProperty(name="Piece Paper", items=[(k, v[1], "") for k, v in PAPERS.items()],
                         description="Sheet size for the loose pieces", update=_changed)
     mm_per_unit: FloatProperty(name="mm per Unit", description="Millimetres of paper per "
