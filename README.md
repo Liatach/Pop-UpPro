@@ -76,6 +76,10 @@ mechanisms, art and sketches.
      one-eighth resolution, as in many files, is what makes it look smeared.
    * The Standard view transform (true colours), on the carousel and every
      stage.
+   * **Clean White Renders** (the sun button beside Set Up Scene, on by
+     default): renders are lit evenly by a plain white world, without the
+     viewport's sun, so the sun and shadows help while you work but stay
+     out of finished images.
    * **Paper Texture** (off by default): a fine grain as a bump, so colours
      and prints are untouched. It is one node group, *Pop-up Paper Texture*:
      put your own paper texture inside it and every card uses it.
@@ -117,7 +121,7 @@ layout. This is viewport only and never rendered; the pointer button under
 
 | | What it is | Settings |
 |---|---|---|
-| **V-fold** | A folded piece glued along two lines that meet on a fold ([Tutorial 2](https://www.youtube.com/watch?v=Lm2RYojO-q8), [Tutorial 3](https://www.youtube.com/watch?v=MvbGJxH-1pg)) | Position, Fold Length, Glue Length, Glue Angle (fold to glue line), Piece Angle (centre fold to glue edge), tab size and side, symmetric or separate left/right. **Shape: Panels or Beak** (two triangles meeting at a point) |
+| **V-fold** | A folded piece glued along two lines that meet on a fold ([Tutorial 2](https://www.youtube.com/watch?v=Lm2RYojO-q8), [Tutorial 3](https://www.youtube.com/watch?v=MvbGJxH-1pg)) | Position, Fold Length, Glue Length, Glue Angle (fold to glue line), Piece Angle (centre fold to glue edge), tab size and side, symmetric or separate left/right. **Shape: Panels, Beak** (two triangles meeting at a point), **or a beak on one side and a panel on the other** |
 | **Asymmetric V-fold** | A V-fold with different glue angles each side, whose crease leans over; it carries what stands on it off the card's centre ([Tutorial 4](https://www.youtube.com/watch?v=N-mv6ePRNAc), [Tutorial 29](https://www.youtube.com/watch?v=1OqP1pXhDUQ)) | As the V-fold, plus Glue Angle R, Fold Flat and Lean |
 | **Mouth** | A slit across a fold with two pairs of triangles cut into the paper; the jaws open as the card opens | Slit Position, Jaw Length (slit each side of the fold), Upper Jaw, Lower Jaw |
 | **Box fold** | A separate strip glued across a fold (parallel fold; [Tutorial 1](https://www.youtube.com/watch?v=RVZEsnzJTqM)) | Position, Height (along the fold), Width Left, Width Right, tab size |
@@ -625,7 +629,17 @@ mesh, no rig). So:
   **PopupArt** UV map for its layers. Then **Bake Art for Print** flattens
   whatever the material shows into **Pop-up Print** for the export. The bake
   works on temporary copies of the layout and its materials, so your
-  materials and render settings are never changed.
+  materials and render settings are never changed. It guards against two
+  things that print the wrong colours (the same guards as Papercraft Pro):
+  * Some Blender builds skip decoding sRGB image textures in Cycles, so
+    painted art bakes pale while the viewport shows it right. Each bake
+    checks, and on such a build bakes from linear copies of the paint.
+  * Materials that colour through an emission path (Paint System often
+    does) bake black as a base colour; the bake then takes the emission.
+
+  The bake never uses the lighting, and neither does painting (True
+  Colours) or the export: the scene's sun and shadows only show in the
+  viewport and in renders.
 * **Sketch on Panel** (Grease Pencil): pick a panel and press the button.
   It makes a layer on **Pop-up Sketch** parented to that panel's bone, sets
   the stroke placement to *Surface* and turns the view to face the panel.
@@ -737,6 +751,7 @@ python tests/test_v19.py       # peaked roofs over a gable-cut background
 python tests/test_v21.py       # ceiling and floor by numbers; impossible lines fail fast
 python tests/test_v22.py       # roof lengths, valley floor, V-fold cut-away
 python tests/test_v24.py       # Set Up Scene
+python tests/test_v25.py       # bake guards: sRGB decode, emission materials
 ```
 
 ## Tutorials

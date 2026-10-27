@@ -347,7 +347,11 @@ class PopupMech(bpy.types.PropertyGroup):
     # V-fold
     shape: EnumProperty(name="Shape", items=[
         ("QUAD", "Panels", "Each half is a four-sided panel"),
-        ("TRI", "Beak", "Each half is a triangle meeting at a point: beaks and mouths")],
+        ("TRI", "Beak", "Each half is a triangle meeting at a point: beaks and mouths"),
+        ("BEAK_L", "Beak Left, Panel Right", "The left half a triangle to the crease's "
+         "end, the right half a four-sided panel"),
+        ("BEAK_R", "Panel Left, Beak Right", "The left half a four-sided panel, the right "
+         "half a triangle to the crease's end")],
         update=_changed)
     # cube
     size: FloatProperty(name="Size", description="Width of each wall (mm)", default=40.0,
@@ -713,6 +717,12 @@ def _carousel_changed(self, context):
     carousel.schedule_sync(self.id_data)
 
 
+def _clean(self, context):
+    from . import scene_setup
+    sc = self.id_data
+    scene_setup.clean_render(scene_setup.popup_scenes(sc), self.clean_render)
+
+
 def _ceiling_style(self, context):
     # each style's natural starting slope
     self.ceiling_slope = {"HANG": 30.0, "PEAK": -10.0}.get(self.ceiling, self.ceiling_slope)
@@ -841,6 +851,11 @@ class PopupSettings(bpy.types.PropertyGroup):
                              description="0: the join tab is set so the floor's valley runs "
                              "level into the stage when it is fully open. More dips the "
                              "valley's front (tipping it up past level would tear)")
+    clean_render: BoolProperty(name="Clean White Renders", default=True,
+                               update=lambda self, ctx: _clean(self, ctx),
+                               description="Renders lit evenly in white light, without the "
+                               "viewport's sun and shadows (painting and printing never use "
+                               "the lighting)")
     card_lines: CollectionProperty(type=PopupLine,
                                    description="Extra creases and cuts in the card itself")
     active_card_line: IntProperty(name="Card Line")

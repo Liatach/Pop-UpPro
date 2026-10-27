@@ -213,7 +213,9 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
         if st.rig is None:
             self.layout.separator()
             self.layout.operator("popup.make_carousel", icon="MESH_CIRCLE")
-        self.layout.operator("popup.setup_scene", icon="SHADING_RENDERED")
+        row = self.layout.row(align=True)
+        row.operator("popup.setup_scene", icon="SHADING_RENDERED")
+        row.prop(st, "clean_render", text="", icon="LIGHT_SUN")
 
     def _open(self, lay, master, full):
         from . import carousel
@@ -244,7 +246,9 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
         row = lay.row(align=True)
         row.operator("popup.carousel_sync", icon="FILE_REFRESH")
         row.operator("popup.export_carousel", text="Export", icon="EXPORT")
-        lay.operator("popup.setup_scene", icon="SHADING_RENDERED")
+        row = lay.row(align=True)
+        row.operator("popup.setup_scene", icon="SHADING_RENDERED")
+        row.prop(st, "clean_render", text="", icon="LIGHT_SUN")
         self._open(lay, context.scene, 360.0)
         box = lay.box()
         box.label(text="Stages")

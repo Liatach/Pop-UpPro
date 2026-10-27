@@ -60,5 +60,20 @@ assert not bsdf.inputs["Normal"].is_linked
 scene_setup.setup(bpy.context, sun_on=False)
 assert sc.collection.objects.get(scene_setup.SUN) is None
 assert bpy.ops.popup.setup_scene() == {"FINISHED"}
+# clean renders: the sun stays in the viewport, out of renders, white world
+assert bpy.data.objects[scene_setup.SUN].hide_render
+assert all(s.world is not None and s.world.name == scene_setup.WHITE for s in [sc] + stages)
+sc.popup.clean_render = False
+assert not bpy.data.objects[scene_setup.SUN].hide_render
+assert stages[0].world is None
+# one-sided beak
+from popup_pro.core.model import Model  # noqa: E402
+for sh, nl, nr in (("BEAK_L", 3, 4), ("BEAK_R", 4, 3)):
+    V = dict(type="VFOLD", uid=1, label="v", y=60, phi_l=40, phi_r=75, alpha_l=95,
+             alpha_r=60, glue=40, height=50, tab=8, tab_side="IN", shape=sh)
+    m = Model(dict(W=148.5, H=210, hold="SYM"), [V])
+    m.check_fit()
+    assert not m.warnings, m.warnings
+    assert [len(m.panels[n].polys[0]) for n in ("VFold1.HalfL", "VFold1.HalfR")] == [nl, nr]
 addon.unregister()
 print("V24 OK")

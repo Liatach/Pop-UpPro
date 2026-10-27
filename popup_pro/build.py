@@ -408,6 +408,19 @@ def build_rig(scene, rig, model, layout, s, t0=0.0):
                 pass
 
 
+def _piece_bounds(model, piece):
+    """The piece's face (tabs left out) in its own pattern: x0, y0, x1, y1."""
+    pts = [q for n in model.pieces[piece].panels if model.panels[n].kind != "tab"
+           for poly in model.panels[n].polys for q in poly]
+    if not pts:
+        pts = [q for n in model.pieces[piece].panels for poly in model.panels[n].polys
+               for q in poly]
+    if not pts:
+        return [0.0, 0.0, 1.0, 1.0]
+    return [round(min(q[0] for q in pts), 3), round(min(q[1] for q in pts), 3),
+            round(max(q[0] for q in pts), 3), round(max(q[1] for q in pts), 3)]
+
+
 def write_meta(rig, model, layout, s):
     meta = dict(
         version=1,
@@ -417,7 +430,8 @@ def write_meta(rig, model, layout, s):
                      label=model.panels[n].label, parent=model.panels[n].parent)
                 for n in model.order],
         pieces={k: dict(label=p.label, slot=p.slot, sheet=layout["on_sheet"].get(k, 0),
-                        anchor=list(p.anchor), is_card=p.is_card)
+                        anchor=list(p.anchor), is_card=p.is_card,
+                        bounds=_piece_bounds(model, k))
                 for k, p in model.pieces.items() if p.panels},
         sheets=[dict(size=list(sh.size), origin=list(sh.origin)) for sh in layout["sheets"]],
         flaps={str(k): v for k, v in model.flaps.items()},

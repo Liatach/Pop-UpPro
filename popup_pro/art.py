@@ -143,7 +143,8 @@ def bake_art(scene, dpi=150):
     img = bpy.data.images.get(N(scene, PRINT_IMAGE))
     if img is not None:
         bpy.data.images.remove(img)
-    img = make_tiled_image(N(scene, PRINT_IMAGE), meta, dpi, color=(1, 1, 1, 1))
+    # transparent until baked: shows whether the bake drew anything
+    img = make_tiled_image(N(scene, PRINT_IMAGE), meta, dpi, color=(0, 0, 0, 0))
     margin = max(4, int(_m.ceil(st.bleed / 25.4 * dpi)) + 2)
 
     mesh = src.data.copy()
@@ -169,6 +170,18 @@ def bake_art(scene, dpi=150):
         uvn.uv_map = ART_UV
         nt.links.new(uvn.outputs["UV"], n.inputs["Vector"])
         nt.nodes.active = n
+    from . import bakecheck
+    # Cycles on some Blender builds doesn't decode sRGB textures (pale
+    # prints): check, and bake from linear copies if so
+    fixed_groups, fixed_images = [], []
+    try:
+        decoded = bakecheck.textures_decode(bpy.context)
+    except Exception as ex:  # the check must never stop a bake
+        print(f"Pop-Up Pro: texture decode check skipped: {ex}")
+        decoded = True
+    if not decoded:
+        fixed_groups, fixed_images = bakecheck.linearize_textures(copies, skip={img})
+    bake_art.textures_fixed = bool(fixed_images)
     tmp = bpy.data.objects.new("_pop_bake", mesh)
     tmp.matrix_world = src.matrix_world
     scene.collection.objects.link(tmp)
@@ -189,6 +202,13 @@ def bake_art(scene, dpi=150):
         vl.objects.active = tmp
         bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"}, margin=margin,
                             use_clear=True, target="IMAGE_TEXTURES")
+        bake_art.last_pass = "BASE"
+        # materials that colour through an emission path (paint add-ons)
+        # bake black as base colour: bake their emission instead
+        if 0.0 <= bakecheck.tiles_brightness(img) < 0.02:
+            bpy.ops.object.bake(type="EMIT", margin=margin, use_clear=True,
+                                target="IMAGE_TEXTURES")
+            bake_art.last_pass = "EMIT"
     finally:
         scene.render.engine = engine
         cyc.samples, cyc.device = keep_cycles  # never leave render settings changed
@@ -196,6 +216,10 @@ def bake_art(scene, dpi=150):
         bpy.data.meshes.remove(mesh)
         for c in copies:
             bpy.data.materials.remove(c)
+        for g in fixed_groups:
+            bpy.data.node_groups.remove(g)
+        for i in fixed_images:
+            bpy.data.images.remove(i)
         for o in prev_sel:
             if o.name in vl.objects:
                 o.select_set(True)

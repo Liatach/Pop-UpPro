@@ -89,6 +89,36 @@ def sun(scenes, strength=0.6):
     return ob
 
 
+WHITE = "Pop-up White"
+
+
+def clean_render(scenes, on=True):
+    """Renders lit evenly in white: the sun stays in the viewport (shadows
+    while you work) but is left out of renders, and the scene's world is a
+    plain white light. Painting and printing never use the lighting."""
+    ob = bpy.data.objects.get(SUN)
+    if ob is not None:
+        ob.hide_render = on
+    w = bpy.data.worlds.get(WHITE)
+    if on and w is None:
+        w = bpy.data.worlds.new(WHITE)
+        w.use_nodes = True
+        bg = next((n for n in w.node_tree.nodes if n.type == "BACKGROUND"), None)
+        if bg is not None:
+            bg.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+            bg.inputs["Strength"].default_value = 1.0
+        w.color = (1.0, 1.0, 1.0)
+    for sc in scenes:
+        if on:
+            old = sc.world
+            if old is not None and old != w:
+                sc["pop_world_before"] = old.name
+            sc.world = w
+        elif sc.world is not None and sc.world.name == WHITE:
+            before = sc.get("pop_world_before")
+            sc.world = bpy.data.worlds.get(before) if before else None
+
+
 def paper_texture(scenes, on=True, strength=0.12):
     """A fine procedural grain on the paper (a bump only, so the colours you
     paint and print are untouched). It lives in one node group: edit the
@@ -174,7 +204,7 @@ def viewports(context, all_workspaces=False, fold_lines=True):
 
 
 def setup(context, sun_on=True, grain=False, fold_lines=True, all_workspaces=False,
-          sun_strength=0.6):
+          sun_strength=0.6, clean=True):
     scenes = popup_scenes(context.scene)
     for sc in scenes:
         eevee(sc)
@@ -187,6 +217,9 @@ def setup(context, sun_on=True, grain=False, fold_lines=True, all_workspaces=Fal
                 if sc.collection.objects.get(ob.name) is not None:
                     sc.collection.objects.unlink(ob)
     paper_texture(scenes, on=grain)
+    clean_render(scenes, clean)
+    master = scenes[0]
+    master.popup["clean_render"] = clean
     views = viewports(context, all_workspaces, fold_lines)
     for sc in scenes:
         sc["pop_setup_done"] = True
@@ -216,13 +249,16 @@ class POPUP_OT_setup_scene(bpy.types.Operator):
                                   description="A fine paper grain (a bump only; colours and "
                                   "prints untouched). Edit the 'Pop-up Paper Texture' node "
                                   "group to use your own")
+    clean: bpy.props.BoolProperty(name="Clean White Renders", default=True,
+                                  description="Renders lit evenly in white: the sun stays "
+                                  "in the viewport but is left out of renders")
     all_workspaces: bpy.props.BoolProperty(name="All Workspaces", default=False,
                                            description="Set every workspace's 3D views, not "
                                            "just this one")
 
     def execute(self, context):
         scenes, views = setup(context, self.sun, self.grain, self.fold_lines,
-                              self.all_workspaces, self.sun_strength)
+                              self.all_workspaces, self.sun_strength, self.clean)
         self.report({"INFO"}, f"Set up {len(scenes)} scene(s), {views} view(s)")
         return {"FINISHED"}
 

@@ -514,6 +514,12 @@ class POPUP_OT_bake(bpy.types.Operator):
         except Exception as ex:
             self.report({"ERROR"}, f"Bake failed: {ex}")
             return {"CANCELLED"}
+        notes = []
+        if getattr(art.bake_art, "last_pass", "BASE") == "EMIT":
+            notes.append("baked the emission colour (the material colours through emission)")
+        if getattr(art.bake_art, "textures_fixed", False):
+            notes.append("decoded sRGB paint textures for Cycles (this Blender skips it)")
+        self.report({"INFO"}, "Baked" + (": " + "; ".join(notes) if notes else ""))
         return {"FINISHED"}
 
 

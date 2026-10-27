@@ -851,11 +851,16 @@ class Model:
         GL = (g * uLp[0], g * uLp[1])
         GR = (g * uRp[0], g * uRp[1])
         Q = (0.0, Lc)
-        if m.get("shape") == "TRI":  # beak: two triangles meeting at a point
+        shape = m.get("shape", "QUAD")
+        # beak: a triangle to the crease's end; panel: a four-sided half.
+        # Either side can be either (beak on one side, panel on the other)
+        if shape in ("TRI", "BEAK_L"):
             halfL = [(0, 0), Q, GL]
-            halfR = [(0, 0), GR, Q]
         else:
             halfL = [(0, 0), Q, (GL[0], GL[1] + Lc), GL]
+        if shape in ("TRI", "BEAK_R"):
+            halfR = [(0, 0), GR, Q]
+        else:
             halfR = [(0, 0), GR, (GR[0], GR[1] + Lc), Q]
         FcL = hinge_frame_2d((0, 0), uLp)
         FcR = hinge_frame_2d((0, 0), uRp)
