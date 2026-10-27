@@ -747,6 +747,8 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
         row.operator("popup.paint", text="Paint Flat", icon="BRUSH_DATA").target = "LAYOUT"
         row.operator("popup.paint", text="Paint Folded", icon="BRUSH_DATA").target = "CARD"
         col.prop(st, "true_colours")
+        from . import images
+        images.draw(lay, context)
         col = lay.column(align=True)
         col.label(text="Sketch (Grease Pencil)")
         col.prop(st, "sketch_panel", text="")

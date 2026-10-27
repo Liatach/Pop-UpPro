@@ -684,11 +684,14 @@ def simplify(pts, tol):
 
 
 def trace_painted(scene, threshold=0.5, res_mm=0.5, tol_mm=0.15):
-    """Trace the see-through parts of the art into hole outlines per piece and
-    keep them on the scene (they are cut at every rebuild until traced again).
-    Erasing up to a piece's edge trims its outline the same way."""
+    """Trace the see-through parts of the art, and of placed images set to
+    Cut Where Transparent, into hole outlines per piece and keep them on the
+    scene (they are cut at every rebuild until traced again). Erasing up to
+    a piece's edge trims its outline the same way."""
     import tempfile
-    from . import art, export_svg, live
+
+    import numpy as np
+    from . import art, export_svg, images, live
     from .build import TILE_MM
     from .naming import N
     st = scene.popup
@@ -696,39 +699,42 @@ def trace_painted(scene, threshold=0.5, res_mm=0.5, tol_mm=0.15):
     if meta is None:
         raise RuntimeError("build the card first")
     img = bpy.data.images.get(N(scene, art.ART_IMAGE))
-    if img is None:
+    if img is None and not images.has_cuts(scene):
         raise RuntimeError("add art first")
-    tiles = export_svg._tile_pngs(img, tempfile.mkdtemp(prefix="popup_holes_"))
+    tiles = export_svg._tile_pngs(img, tempfile.mkdtemp(prefix="popup_holes_")) if img else {}
     out = {}
     for piece, info in meta["pieces"].items():
+        if info["is_card"]:
+            W, H = meta["W"], meta["H"]
+            x0, y0, ex, ey = -W, 0.0, 2 * W, H
+        else:
+            ax, ay = info["anchor"]
+            x0, y0, ex, ey = ax - TILE_MM / 2, ay - TILE_MM / 2, TILE_MM, TILE_MM
         path = tiles.get(1001 + info["slot"])
-        if path is None:
-            continue
-        t = bpy.data.images.load(path)
-        try:
-            w, h = t.size
-            if info["is_card"]:
-                W, H = meta["W"], meta["H"]
-                x0, y0, sx, sy = -W, 0.0, 2 * W / w, H / h
-            else:
-                ax, ay = info["anchor"]
-                x0, y0 = ax - TILE_MM / 2, ay - TILE_MM / 2
-                sx, sy = TILE_MM / w, TILE_MM / h
-            k = max(1, int(round(res_mm / max(sx, sy))))
+        mask = None
+        if path is not None:
+            t = bpy.data.images.load(path)
             try:
-                import numpy as np
+                w, h = t.size
                 px = np.empty(w * h * 4, dtype=np.float32)
                 t.pixels.foreach_get(px)
-                mask = px[3::4].reshape(h, w)[::k, ::k] < threshold
-                any_hole = bool(mask.any())
-            except ImportError:
-                px = t.pixels[:]
-                mask = [[px[4 * ((r * k) * w + c * k) + 3] < threshold
-                         for c in range(w // k)] for r in range(h // k)]
-                any_hole = any(any(row) for row in mask)
-        finally:
-            bpy.data.images.remove(t)
-        if not any_hole:
+            finally:
+                bpy.data.images.remove(t)
+            sx, sy = ex / w, ey / h
+            k = max(1, int(round(res_mm / max(sx, sy))))
+            mask = px[3::4].reshape(h, w)[::k, ::k] < threshold
+        if any(pl.piece == piece and pl.cut and pl.on and pl.image is not None
+               for pl in st.images):
+            if mask is None:
+                k = 1
+                sx = sy = res_mm
+                mask = np.zeros((int(ey / res_mm), int(ex / res_mm)), dtype=bool)
+            xs = x0 + (np.arange(mask.shape[1]) + 0.5) * k * sx
+            ys = y0 + (np.arange(mask.shape[0]) + 0.5) * k * sy
+            extra = images.cut_mask(scene, meta, piece, xs, ys, threshold)
+            if extra is not None:
+                mask = mask | extra
+        if mask is None or not bool(mask.any()):
             continue
         polys = []
         for loop in trace(mask, k):
@@ -749,10 +755,15 @@ def has_art(scene):
     return scene.popup.rig is not None and bpy.data.images.get(N(scene, art.ART_IMAGE)) is not None
 
 
-def cut_painted(scene):
-    """Trace the painted see-through areas and rebuild, if there is art."""
-    from . import build
-    if not has_art(scene):
+def cut_painted(scene, force=False):
+    """Trace the painted see-through areas (and placed images' cut shapes)
+    and rebuild, if there is anything to trace. force: also when nothing is
+    left to cut (an image's cut was just turned off)."""
+    from . import build, images
+    if not has_art(scene) and not images.has_cuts(scene):
+        if force and scene.popup.get("pop_painted", "{}") != "{}":
+            scene.popup["pop_painted"] = "{}"
+            build.rebuild(scene, force=True)
         return 0
     before = scene.popup.get("pop_painted", "{}")
     n = trace_painted(scene)

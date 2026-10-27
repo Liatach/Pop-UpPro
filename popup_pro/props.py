@@ -6,6 +6,7 @@ from bpy.props import (BoolProperty, CollectionProperty, EnumProperty,
                        StringProperty)
 
 from . import live
+from .images import PopupImage
 
 
 def _changed(self, context):
@@ -851,6 +852,9 @@ class PopupSettings(bpy.types.PropertyGroup):
                              description="0: the join tab is set so the floor's valley runs "
                              "level into the stage when it is fully open. More dips the "
                              "valley's front (tipping it up past level would tear)")
+    images: CollectionProperty(type=PopupImage,
+                               description="Images placed on pieces, front or back")
+    active_image: IntProperty(name="Image")
     clean_render: BoolProperty(name="Clean White Renders", default=True,
                                update=lambda self, ctx: _clean(self, ctx),
                                description="Renders lit evenly in white light, without the "
@@ -983,7 +987,7 @@ def card_shape_lines(W, H, tmax, ceiling="NONE", drop=40.0, slope=30.0, lift=0.0
     return shape(ceiling, drop, slope, lift, False) + shape(floor, rise, fslope, dip, True)
 
 
-classes = (PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupSettings)
+classes = (PopupImage, PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupSettings)
 
 
 def register():

@@ -495,6 +495,8 @@ def rebuild(scene, force=False):
         o.update_tag()
     from . import art
     art.refresh_material(scene)
+    from . import images
+    images.sync(scene)
     if stage:
         from . import carousel
         carousel.link_stage(scene)

@@ -640,6 +640,26 @@ mesh, no rig). So:
   The bake never uses the lighting, and neither does painting (True
   Colours) or the export: the scene's sun and shadows only show in the
   viewport and in renders.
+* **Images on pieces** (Artwork panel, **+**): pick an image file and the
+  piece it goes on (the selected mechanism's piece to start; the card for
+  the background), front or back. It is fitted to the piece's face (**Fit**,
+  **Fill** or **Stretch**), then **Move X / Y**, **Scale**, **Turn** and
+  **Opacity** adjust it like a UV transform: it shows at once on the folded
+  card and while painting, and nothing is painted into your art, so you can
+  keep adjusting. Change its piece from the menu beside the piece name.
+  * **Front** images print with the art; the export places the original
+    image at full resolution, clipped to its piece (Bake Art for Print leaves
+    them out so they aren't printed twice).
+  * **Back** images print on the sheet's reverse page, mirrored so they line
+    up when printed double-sided and read the right way round on the back.
+  * **Cut Where Transparent**: the image's see-through parts are cut out of
+    the paper (holes inside, or a new outline where it reaches the piece's
+    edge), the same way as painted holes: a PNG with a transparent
+    background cuts the piece to its shape.
+
+  For a cutting machine, export **Cut Lines Only** and **Crease Lines Only**
+  (or **Cut + Crease**) with Dashed Folds off; to print with the lines, or
+  with outlines only over the art, use **Print** or **Art + Cut Lines**.
 * **Sketch on Panel** (Grease Pencil): pick a panel and press the button.
   It makes a layer on **Pop-up Sketch** parented to that panel's bone, sets
   the stroke placement to *Surface* and turns the view to face the panel.
@@ -752,6 +772,7 @@ python tests/test_v21.py       # ceiling and floor by numbers; impossible lines 
 python tests/test_v22.py       # roof lengths, valley floor, V-fold cut-away
 python tests/test_v24.py       # Set Up Scene
 python tests/test_v25.py       # bake guards: sRGB decode, emission materials
+python tests/test_v26.py       # images on pieces: placement, cuts, export
 ```
 
 ## Tutorials

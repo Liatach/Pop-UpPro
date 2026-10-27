@@ -111,6 +111,9 @@ def refresh_material(scene):
         nt.links.new(mix.outputs["Result"], bsdf.inputs["Base Color"])
     tex.image = img
     nt.nodes.active = tex
+    from . import images
+    nt["pop_images"] = ""  # the art's mix is new: put the images back over it
+    images.sync(scene)
     # painted transparency shows as see-through (Cut Painted Holes makes it real)
     if bsdf.inputs.get("Alpha") is not None and not bsdf.inputs["Alpha"].is_linked:
         nt.links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
@@ -159,6 +162,8 @@ def bake_art(scene, dpi=150):
             continue
         c = m.copy()
         c.name = "_pop_bake_" + m.name
+        from . import images
+        images.mute_in(c)  # placed images go into the export at full size instead
         copies.append(c)
         mesh.materials.append(c)
         if not c.use_nodes:

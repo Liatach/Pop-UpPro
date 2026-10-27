@@ -219,7 +219,9 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
     if content == "ART_CUT":
         include_guides = include_labels = False
     if content != "PRINT":
-        include_reverse = include_layout = False
+        include_layout = False
+    if content not in ("PRINT", "ART_CUT"):
+        include_reverse = False
     show = {"cut": content in ("PRINT", "ART_CUT", "CUT", "LINES"),
             "fold": content in ("PRINT", "CREASE", "LINES")}
     glue_style = (f'fill="{_hex(tab_color)}" stroke="none"' if tab_fill else None)
@@ -310,6 +312,27 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
 
     # ---- art tiles
     tmp = tempfile.mkdtemp(prefix="popup_svg_")
+    from . import images as _images
+    placed_png = {}
+
+    def placed(pl, piece, T):
+        """An <image> for a placed image: T maps pattern mm to the sheet."""
+        key = pl.image.name
+        if key not in placed_png:
+            got = _images.png_data(pl.image, tmp)
+            if got is None:
+                placed_png[key] = None
+            else:
+                with open(got[0], "rb") as fh:
+                    placed_png[key] = base64.b64encode(fh.read()).decode("ascii")
+        data = placed_png[key]
+        m = _images.svg_matrix(pl, meta)
+        if data is None or m is None:
+            return ""
+        M = T @ Affine.from4(prints[piece]) @ Affine(*m)
+        return (f'<image width="1" height="1" preserveAspectRatio="none" '
+                f'opacity="{pl.opacity:.3g}" transform="{M.svg()}" '
+                f'href="data:image/png;base64,{data}"/>')
     tiles = {}
     if include_art:
         img = bpy.data.images.get(N(scene, PRINT_IMAGE)) or bpy.data.images.get(N(scene, ART_IMAGE))
@@ -419,6 +442,12 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
                     f'<g clip-path="url(#{clip_id})"><image width="{w:.3f}" height="{h:.3f}" '
                     f'preserveAspectRatio="none" transform="{M.svg()}" '
                     f'href="data:image/png;base64,{data}"/></g>')
+            # placed images, full size, over the art
+            if include_art and faces:
+                got = "".join(placed(pl, piece, flip)
+                              for pl in _images.for_piece(scene, piece, "FRONT"))
+                if got:
+                    L["art"].append(f'<g clip-path="url(#{clip_id})">{got}</g>')
             # sketch
             sks = strokes_by_piece.get(piece, [])
             if sks:
@@ -482,12 +511,21 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
             fh.write(svg)
         written.append(path)
         # ---- reverse: tab markers for the back of this sheet's pieces
-        rev = [pc for pc in pieces if back_guides.get(pc)]
-        if include_reverse and include_guides and rev:
+        rev = [pc for pc in pieces if back_guides.get(pc)] if include_guides else []
+        mirror = Affine(-1, 0, 0, 1, SW, 0) @ flip
+        back_art = {}
+        if include_art:
+            for pc in pieces:
+                got = "".join(placed(pl, pc, mirror)
+                              for pl in _images.for_piece(scene, pc, "BACK"))
+                if got and faces_by_piece.get(pc):
+                    back_art[pc] = got
+        if include_reverse and (rev or back_art):
             path = f"{root}{suffix}_sheet{si + 1}_reverse.svg"
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(_reverse_svg(si, SW, SH, P, pieces, rev, segs_by_piece, faces_by_piece,
-                                      back_guides, meta))
+                                      back_guides, meta, back_art, bleed,
+                                      notes=include_guides))
             written.append(path)
     if include_layout:
         path = f"{root}_layout.svg"
@@ -517,15 +555,25 @@ def _outline(segs, P):
 
 
 def _reverse_svg(si, SW, SH, P, pieces, rev, segs_by_piece, faces_by_piece, back_guides,
-                 meta):
+                 meta, back_art=None, bleed=0.0, notes=True):
     """The back of a sheet, mirrored left to right so it lines up when printed
-    on the other side: faint outlines of every piece, the glue markers for
-    tabs that stick to the back, and labels that read the right way round."""
+    on the other side: images placed on the backs of pieces, faint outlines
+    of every piece, the glue markers for tabs that stick to the back, and
+    labels that read the right way round."""
     def R(q):
         x, y = P(q)
         return (SW - x, y)
 
     out = []
+    for piece, got in (back_art or {}).items():
+        cid = f"back_{piece.replace('.', '_')}"
+        d = " ".join("M" + " L".join(_fmt(R(q)) for q in inflate(pts, bleed)) + " Z"
+                     for _, pts, _ in faces_by_piece.get(piece, []))
+        out.append(f'<defs><clipPath id="{cid}" clipPathUnits="userSpaceOnUse">'
+                   f'<path d="{d}"/></clipPath></defs>'
+                   f'<g clip-path="url(#{cid})">{got}</g>')
+    if not notes:
+        return _svg_doc(SW, SH, "\n".join(out))
     for piece in pieces:
         out.append(_outline(segs_by_piece.get(piece, []), R))
     for piece in rev:
