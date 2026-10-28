@@ -107,6 +107,8 @@ FOLDS = [
      "TRIA_DOWN", 1),
     ("C", "Inset", "Pushed into the box's outer corner: a valley fold, opening inside "
      "the box", "TRIA_LEFT", 2),
+    ("V", "Valley", "Between two peaks of a strap with several (Gully picks which)",
+     "IPO_EASE_IN_OUT", 3),
 ]
 
 _host_items = []
@@ -300,7 +302,7 @@ def fit_to_host(m, st):
         room, w = host.x, host.depth
     else:
         a, b, w = host.height, host.depth, host.width  # left page, right page, along spine
-        room = {"A": b, "B": a, "C": min(a, b)}[m.fold]
+        room = {"A": b, "B": a, "C": min(a, b)}.get(m.fold, min(a, b))
     k = 0.5 * room
     was = st.live
     st["live"] = False
@@ -311,8 +313,20 @@ def fit_to_host(m, st):
         else:
             hy = host.y
             k_ = math.tan(math.radians(host.slant))  # a slanted strip's folds move up or down
-            hy += {"A": -k_ * host.height, "B": k_ * host.depth,
-                   "C": k_ * (host.depth - host.height)}.get(m.fold, 0.0)
+            np_ = max(1, host.peaks) if host.kind == "BOX" else 1
+            a_, b_ = host.height, host.depth
+            if m.fold == "V" and np_ > 1:
+                # a valley between two peaks: x where it lies when flat
+                g_ = max(1, min(m.gully, np_ - 1))
+                x_ = -a_ + g_ * (a_ + b_) / np_
+                room = min(a_, b_) / np_
+                k = 0.5 * room
+                hy += k_ * x_
+            else:
+                hy += {"A": -k_ * a_, "B": k_ * b_, "C": k_ * (b_ - a_)}.get(m.fold, 0.0)
+                if np_ > 1 and m.fold in ("A", "B"):
+                    room = min(room, (b_ if m.fold == "A" else a_) / np_)
+                    k = 0.5 * room
         if m.kind in ("BOX", "BOXCUT"):
             m.height = m.depth = k
             m.width = 0.5 * w
@@ -414,13 +428,15 @@ class PopupMech(bpy.types.PropertyGroup):
     uid: IntProperty()
     kind: EnumProperty(items=KINDS, update=_changed)
     label: StringProperty(name="Name", default="Mechanism")
-    y: FloatProperty(name="Position", description="Distance up the spine from the "
-                     "bottom edge (mm)", default=70.0, min=0.0, soft_max=300.0,
+    y: FloatProperty(name="Position", description="Where it sits along the fold it stands "
+                     "on (mm): up the spine from the card's bottom edge; up a V-fold's crease "
+                     "from its point; out along a glue line from the V point; along a box "
+                     "fold, strap, cube or tube wall from its end", default=70.0, min=0.0, soft_max=300.0,
                      update=_changed)
     host_uid: IntProperty(default=0)
     host: EnumProperty(name="Host", description="Fold this mechanism sits on",
                        items=host_items, get=_host_get, set=_host_set)
-    fold: EnumProperty(name="Where", items=FOLDS, update=_fold_changed,
+    fold: EnumProperty(name="Fold", items=FOLDS, update=_fold_changed,
                        description="Which fold of the host box")
     # V-fold
     shape: EnumProperty(name="Shape", items=[
@@ -434,7 +450,7 @@ class PopupMech(bpy.types.PropertyGroup):
     # cube
     size: FloatProperty(name="Size", description="Width of each wall (mm)", default=40.0,
                         min=5.0, soft_max=150.0, update=_changed)
-    wall: EnumProperty(name="Wall", update=lambda self, ctx: _fold_changed(self, ctx), items=[
+    wall: EnumProperty(name="Fold", update=lambda self, ctx: _fold_changed(self, ctx), items=[
         ("NONE", "Roof Crease", "On a tube: across its dipped flat roof's centre crease"),
         ("L", "Left Wall", "Where the host's left (front-left) wall meets the page, "
          "outside it: the wall as the background"),
@@ -569,6 +585,14 @@ class PopupMech(bpy.types.PropertyGroup):
                            update=_changed)
     glue: FloatProperty(name="Glue Length", description="Length of each glue edge (mm)",
                         default=40.0, min=2.0, soft_max=150.0, update=_changed)
+    peaks: IntProperty(name="Peaks", default=1, min=1, max=8, update=_changed,
+                       description="Box fold or strap: creases along the strip so it "
+                       "zig-zags into this many peaks as the card closes (still glued only "
+                       "at its ends). Each valley between two peaks opens like a small spine "
+                       "and can carry a pop-up (Fold: Valley)")
+    gully: IntProperty(name="Gully", default=1, min=1, max=5, update=lambda s, c: _fold_changed(s, c),
+                       description="Which valley of a strap with several peaks, counted from "
+                       "the left")
     slant: FloatProperty(name="Slant", default=0.0, min=-60.0, max=60.0, precision=1,
                          update=_changed,
                          description="Box fold or strap: run the strip across the fold at "
@@ -579,7 +603,7 @@ class PopupMech(bpy.types.PropertyGroup):
                           update=_changed,
                           description="Asymmetric V-fold: length of the right glue edge "
                           "(mm; 0 = as the left)")
-    tab_side: EnumProperty(name="Tabs", items=[
+    tab_side: EnumProperty(name="Tab Side", items=[
         ("IN", "Inside", "Tabs fold in, under the piece"),
         ("OUT", "Outside", "Tabs fold out, away from the piece")], update=_changed)
     # shared
@@ -590,9 +614,9 @@ class PopupMech(bpy.types.PropertyGroup):
                          default=30.0, min=2.0, soft_max=150.0, update=_changed)
     width: FloatProperty(name="Width", description="Width along the spine (mm)",
                          default=50.0, min=2.0, soft_max=200.0, update=_changed)
-    tab: FloatProperty(name="Tab", description="Glue tab size (mm)", default=12.0,
+    tab: FloatProperty(name="Tab Size", description="Glue tab size (mm)", default=12.0,
                        min=3.0, soft_max=30.0, update=_changed)
-    vside: EnumProperty(name="Where", description="Which half of the host V-fold, and "
+    vside: EnumProperty(name="Fold", description="Which half of the host V-fold, and "
                         "which side of it", items=[
                             ("FL", "In Front, Left", "Stands on the page in front of the "
                              "left half, the half as its background"),
@@ -643,6 +667,7 @@ class PopupMech(bpy.types.PropertyGroup):
     def to_dict(self):
         d = dict(uid=self.uid, label=self.label, y=self.y, tab=self.tab,
                  host=self.host_uid, fold=self.fold, side=self.side, wall=self.wall,
+                 gully=self.gully,
                  vside="V" if self.on_crease else self.vside)
         if self.kind == "TUBE":
             d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
@@ -705,7 +730,7 @@ class PopupMech(bpy.types.PropertyGroup):
         else:
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
                      width=self.width, height=self.height, depth=self.depth,
-                     slant=self.slant,
+                     slant=self.slant, peaks=self.peaks if self.kind == "BOX" else 1,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         return d
@@ -1046,6 +1071,7 @@ class PopupSettings(bpy.types.PropertyGroup):
         tmax = 180.0
         return dict(W=W, H=H, hold=self.hold, sheet=sheet,
                     piece_sheet=PAPERS[self.paper][0],
+                    thickness=self.paper_thickness if self.solid_paper else 0.0,
                     lines=self.shape_lines(W, H, tmax) + lines)
 
     def shape_lines(self, W, H, tmax):

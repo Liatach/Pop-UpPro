@@ -224,6 +224,8 @@ def _put_on(st, uid, host, fold="A"):
         m["on_crease"] = fold == "V"  # (a floor's or ceiling's crease)
     elif fold in ("WL", "WR"):  # outside a cube's or tube's wall
         m["wall"] = 1 if fold == "WL" else 2
+    elif fold == "VAL":  # a strap's valley between two peaks
+        m["fold"] = 3
     else:
         m["fold"] = {"A": 0, "B": 1, "C": 2}.get(fold, 0)
     fit_to_host(m, st)

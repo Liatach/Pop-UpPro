@@ -90,16 +90,18 @@ mechanisms, art and sketches.
    * **Paper Texture** (off by default): a fine grain as a bump, so colours
      and prints are untouched. It is one node group, *Pop-up Paper Texture*:
      put your own paper texture inside it and every card uses it.
-5. **Open**: slider and 0/45/90/135/180° buttons. The movement test keyframes
-   the card opening and closing from the scene's start frame. **Open To**
-   sets how far it opens (degrees; a carousel up to 360). **Opening**,
-   **Hold Open** and **Closing** set how long each part takes, in seconds;
-   the panel shows the frames that makes at the scene's frame rate. **Open**
-   keys just the opening; **Open and Close** keys the whole cycle and sets
-   the scene's end frame. Each press replaces the previous test.
-6. **Checks** lists problems found by sweeping the open angle: paper that
-   would tear, panels poking through a page, pieces sticking out of the
-   closed card, pieces too big for the sheet.
+5. **Open**: slider and 0/45/90/135/180° buttons. Under it, **Movement Test**
+   is folded down to a play button and its length in frames; unfold it for
+   **Open To** (degrees; a carousel up to 360), **Opening**, **Hold Open**
+   and **Closing** (seconds), and **Open** (keys just the opening) or
+   **Open and Close** (the whole cycle, setting the scene's end frame). Each
+   press replaces the previous test. **Paper** folds away the same way,
+   showing its thickness, with Stop at Paper Thickness and Solid Paper
+   inside.
+6. **Checks** sits right under the card panel. Its header says *all clear*,
+   or turns red with how many things to fix: paper that would tear, panels
+   poking through a page, pieces sticking out of the closed card, pieces
+   too big for the sheet.
 7. **Export SVG Sheets** writes one SVG per sheet.
 
 ### Closing and paper thickness
@@ -393,19 +395,28 @@ page, give it a fold of its own that opens just like the spine:
   each opening exactly as the spine does. With the strap selected, the Add
   menu offers cubes, tubes, V-folds, boxes and stand-ups **on top** (the left
   gully) or **in front** (the right gully); move the gullies by changing
-  the strap's Height and Depth. **Slant** runs the strap across the card at
+  the strap's Width Left and Width Right. **Peaks** creases the strip so it
+  zig-zags into several peaks as the card closes, still one strip glued
+  only at its ends: the plain strap's chevron, repeated smaller along the
+  line between the gullies, so it still lies flat when open. Each **valley**
+  between two peaks opens like a small spine: the Add menu offers cubes,
+  tubes, V-folds and stand-ups there (**Fold**: *Valley*, **Gully** picks
+  which, counted from the left). Evenly spaced and exact, so they don't
+  break the way hand-drawn creases can. Flat open, a glued strip is shown
+  resting on its glue tabs, just above them and the page, so nothing
+  flickers where they meet. **Slant** runs the strap across the card at
   an angle: its creases stay parallel to the spine (they must), but one end
   sits further up the card than the other, so the gullies, and what stands
   in them, are offset diagonally. Box folds and box layers take a Slant too.
 * **A V-fold's glue folds**: with a V-fold selected, the Add menu offers
   cubes, tubes, V-folds, glued boxes and stand-ups **in front of** its left
   or right half (the valley between the half and the page), and cubes and
-  tubes **in the V** on its crease. A mechanism's **Where** setting moves it
+  tubes **in the V** on its crease. A mechanism's **Fold** setting moves it
   between these afterwards, resized to fit.
 * **Outside a cube's or tube's walls**: where a cube's front walls, or a
   tube's side walls, meet the page is a valley fold too. With a cube or tube
   selected, the Add menu offers cubes, tubes, V-folds, glued boxes and
-  stand-ups outside its left or right wall; **Wall** moves them between
+  stand-ups outside its left or right wall; **Fold** moves them between
   the two.
 
 ### Asymmetric V-folds: carrying pop-ups off the centre
@@ -429,7 +440,7 @@ piece angles yourself; the checks say if the paper would tear.
 The V-fold's own crease is a spine in its own right, so what stands on it is
 carried away from the card's centre. With a V-fold selected, **Add** offers a
 glued box, a box layer cut into the piece, another V-fold, a mouth or a
-stand-up **on the crease**. **Where** → *On the Crease* and **Up the Crease**
+stand-up **on the crease**. **Fold** → *On the Crease* and **Position**
 place them. Its halves open like a little card as the card opens, and
 everything on them follows. Boxes, box layers, mouths and stand-ups sit in the
 angle between the halves. A V-fold sits on the other side of the crease, the
@@ -612,10 +623,10 @@ strip would run across the spine, or the pull tab is too short for the travel.
 The strip runs behind the page, so glue a backing card behind it, leaving the
 edge open where the tab comes out.
 
-### Stacking: Host and Where
+### Stacking: Stands On and Fold
 
-Every mechanism sits on a **Host**: the card spine, or any box. On a box,
-**Where** picks which of its three folds:
+Every mechanism **Stands On** something: the card spine, or another
+mechanism. On a box, **Fold** picks which of its three folds:
 
 * **On Top**: on the box's top, against the back panel (a step up).
 * **In Front**: on the floor, against the box's front (a step forward).
@@ -809,6 +820,7 @@ python tests/test_v26.py       # images on pieces: placement, cuts, export
 python tests/test_v27.py       # picture-book defaults, cubes and tubes on other creases
 python tests/test_v28.py       # off-centre: the strap's gullies, V-fold glue folds
 python tests/test_v29.py       # slanted strap, V-fold glue lengths, rectangular cubes, wall hosts
+python tests/test_v30.py       # strap peaks and valleys, rebuild speed, interface tidy
 ```
 
 ## Tutorials
@@ -837,8 +849,8 @@ too, along with the mouth and jaws.
 ## Limits and roadmap
 
 * One card (or carousel) per scene. Mechanisms sit on the spine, on box
-  folds, stand-ups, a basic box's roof or a V-fold's crease; in front of or
-  behind a V-fold half only stand-ups and glued boxes.
+  folds and straps (and their valleys), stand-ups, a tube's roof, a V-fold's
+  crease or glue folds, or outside a cube's or tube's walls.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms.
 * Extra creases and cuts work on the card itself, V-folds, box folds and box
@@ -849,23 +861,24 @@ too, along with the mouth and jaws.
 * A debug view: look straight into a stage (or card) part open, flattened
   like a plan, with every layer drawn see-through, to check how
   mechanisms overlap in complex builds.
-* A consolidation and elegance pass over the interface, before more
-  mechanisms:
+* The consolidation and elegance pass over the interface, continued. Done
+  so far: one naming scheme (Stands On, Fold, Gully, Position; Length Along
+  Fold, Width Left / Right, Height; Glue Length / Angle, Piece Angle, Fold
+  Length), glue tabs folded away in every mechanism, Checks second and red
+  when there's anything to fix, the movement test and paper settings folded
+  down. Still to do:
   * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
     Background Above and Level Ridge; floors, ceilings and the background
     folding in sit together as one "Stage" section.
-  * The mechanism panel in three tiers: where it sits (host, side,
-    position), its shape (the few numbers that matter), then folded-away
-    extras (tabs, creases and cuts, asymmetric settings).
   * Holes and Shaping split into collapsible sub-panels (openings,
     the background, painted holes, drawn holes), each closed when empty.
   * The Add menu grouped by where things go (on the spine, on a V-fold, on
     a floor or ceiling, in a stage), offering only what fits the selected
     host.
-  * One naming scheme for angles and lengths across mechanisms (Glue
-    Angle, Piece Angle, Slope; Length, Depth, Height), with the same order
-    of fields everywhere.
-  * Warnings gathered into one list; clicking one selects the mechanism.
+  * Clicking a warning in Checks selects the mechanism it's about.
+* A **fan**: like a large upright V-fold with extra creases, opening into a
+  fan, but standing free of the centre crease, so it can arch across the
+  scene as arches, rainbows and arcs.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   arch V-folds, moving arms.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe

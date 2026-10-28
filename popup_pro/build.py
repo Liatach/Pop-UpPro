@@ -204,7 +204,7 @@ def build_mesh(mesh, model, layout, s, holes=None):
                 key = (round(q[0], 5), round(q[1], 5))
                 bv = cache.get(key)
                 if bv is None:
-                    bv = bm.verts.new((P @ v3(q)) * s)
+                    bv = bm.verts.new((P @ Vector((q[0], q[1], p.zoff))) * s)
                     cache[key] = bv
                     idx.append(bv)
                 vs.append(bv)

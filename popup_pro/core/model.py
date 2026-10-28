@@ -74,6 +74,7 @@ class Panel:
         self.hinge = hinge
         self.label = label or name
         self.outside = False  # lies behind the card (pull strips): skip fit checks
+        self.zoff = 0.0  # mm the surface sits off its own fold lines (display only)
 
     @property
     def glue(self):
@@ -195,10 +196,19 @@ class Host:
         return self.m.panels[self.p2].asm(t) @ self.T2
 
     def dirs(self, t):
-        L, R = self.L(t), self.R(t)
-        Lr, Rr = L.to_3x3(), R.to_3x3()
-        return (L.to_translation(), Lr @ Vector((-1, 0, 0)), Rr @ Vector((1, 0, 0)),
-                Lr @ Vector((0, 1, 0)), Lr @ Z, Rr @ Z)
+        # asked for many times at the same opening while hinges are sampled
+        # (everything standing on this fold): remember them
+        c = self.__dict__.setdefault("_dirs", {})
+        v = c.get(t)
+        if v is None:
+            L, R = self.L(t), self.R(t)
+            Lr, Rr = L.to_3x3(), R.to_3x3()
+            v = (L.to_translation(), Lr @ Vector((-1, 0, 0)), Rr @ Vector((1, 0, 0)),
+                 Lr @ Vector((0, 1, 0)), Lr @ Z, Rr @ Z)
+            if len(c) > 8192:
+                c.clear()
+            c[t] = v
+        return tuple(x.copy() for x in v)
 
     def finish(self):
         """Which way glued tabs lift off each panel (towards the mechanism)."""
@@ -424,7 +434,11 @@ class Model:
                     fold = "V"  # on its centre crease, from the stage side
             if h and by_uid[h]["type"] == "VFOLD":
                 fold = m.get("vside", "FL")  # in front of / behind a half
-            host = self.hosts.get((h, fold) if h else (0, "S"))
+            if h and fold == "V" and by_uid[h]["type"] == "BOX":
+                # a strap's valley between two peaks, counted from the left
+                host = self.hosts.get((h, f"V{int(m.get('gully', 1) or 1)}"))
+            else:
+                host = self.hosts.get((h, fold) if h else (0, "S"))
             if host is None:
                 self.warn(f"{m['label']}: its host was skipped; skipped too")
                 continue
@@ -561,28 +575,56 @@ class Model:
             piece = f"Box{uid}"
             self.add_piece(Piece(piece, lab, 1 + uid, (0.0, w / 2)))
             ch = min(0.3 * t_, 0.25 * w)
+            # Peaks: the strip zig-zags. The plain strap is one chevron, up
+            # from gully A (direction r, b long) to the peak and down to gully
+            # B (direction -l, a long). N peaks: N copies of it at 1/N scale
+            # along the line between the gullies, so the valleys between
+            # them stay on that line and the strip still lies flat when open.
+            npk = max(1, min(8, int(m.get("peaks", 1) or 1)))
+            L_ = a + b
+            ub = [0.0]  # crease positions along the strip
+            for i in range(npk):
+                ub += [i * L_ / npk + b / npk, (i + 1) * L_ / npk]
+            names = ["AC"] + [f"Z{j}" for j in range(1, 2 * npk - 1)] + ["CB"] if npk > 1 \
+                else ["AC", "CB"]
+            polys = [[(ub[j], 0), (ub[j + 1], 0), (ub[j + 1], w), (ub[j], w)]
+                     for j in range(2 * npk)]
             poly_tabA = [(-t_, ch), (0, 0), (0, w), (-t_, w - ch)]
-            poly_ac = [(0, 0), (b, 0), (b, w), (0, w)]
-            poly_cb = [(b, 0), (a + b, 0), (a + b, w), (b, w)]
-            poly_tabB = [(a + b, 0), (a + b + t_, ch), (a + b + t_, w - ch), (a + b, w)]
+            poly_tabB = [(L_, 0), (L_ + t_, ch), (L_ + t_, w - ch), (L_, w)]
             if k:
-                # along the strip u, flat on the card at x = u - a
-                def sh(poly):
-                    return [(u, v + k * (u - a)) for u, v in poly]
-                poly_tabA, poly_ac, poly_cb, poly_tabB = (
-                    sh(poly_tabA), sh(poly_ac), sh(poly_cb), sh(poly_tabB))
+                # each part moves k x up the fold, x where it lies on the
+                # card when flat: the strip at x = u - a, the tabs folded
+                # back under it at x = -a - u (A) and x = a + 2b - u (B)
+                def sh(poly, x):
+                    return [(u, v + k * x(u)) for u, v in poly]
+                polys = [sh(pl, lambda u: u - a) for pl in polys]
+                poly_tabA = sh(poly_tabA, lambda u: -a - u)
+                poly_tabB = sh(poly_tabB, lambda u: a + 2 * b - u)
 
             def asm_tabA(t):
                 S, l, r, Y, nl, nr = host.dirs(t)
                 return frame(S + a * l + y0 * Y + lift1 * TAB_LIFT * nl, l, Y)
 
-            def asm_ac(t):
+            def shape(t):
+                """Fold line A, the line B - A between the gullies and the
+                two sides' directions: the plain strap's chevron (exact,
+                its folds turning with the card), which the peaks repeat."""
                 S, l, r, Y, nl, nr = host.dirs(t)
-                return frame(S + a * l + y0 * Y, r, Y)
+                A_ = S + a * l + y0 * Y
+                return A_, b * r - a * l, r, -l, Y
 
-            def asm_cb(t):
-                S, l, r, Y, nl, nr = host.dirs(t)
-                return frame(S + (a + b) * l + b * r + y0 * Y, -l, Y)
+            def make_asm(j):
+                i, up = divmod(j, 2)  # chevron i; up side (0) or down side (1)
+                u0 = i * L_ / npk
+
+                def asm(t):
+                    A_, c, uA, uB, Y = shape(t)
+                    V = A_ + (i / npk) * c  # its valley
+                    if up == 0:
+                        return frame(V - u0 * uA, uA, Y)
+                    Q = V + (b / npk) * uA  # its peak
+                    return frame(Q - (u0 + b / npk) * uB, uB, Y)
+                return asm
 
             def asm_tabB(t):
                 S, l, r, Y, nl, nr = host.dirs(t)
@@ -590,19 +632,43 @@ class Model:
 
             self.add(Panel(f"{base}.TabA", piece, "tab", [poly_tabA], asm_tabA,
                            host.p1, None, f"{lab}: tab A"))
-            ac = self.add(Panel(f"{base}.AC", piece, "panel", [poly_ac], asm_ac, host.p1,
-                                Hinge(host.T1 @ hinge_frame_2d((-a, y0), (0, 1)),
-                                      hinge_frame_2d((0, 0), (0, 1))),
-                                f"{lab}: top"))
-            self.add(Panel(f"{base}.CB", piece, "panel", [poly_cb], asm_cb, ac.name,
-                           Hinge(hinge_frame_2d((b, 0), (0, 1)),
-                                 hinge_frame_2d((b, 0), (0, 1))),
-                           f"{lab}: front"))
+            prev = None
+            for j in range(2 * npk):
+                if npk == 1:
+                    txt = ("top", "front")[j]
+                else:
+                    txt = f"peak {j // 2 + 1} {'up' if j % 2 == 0 else 'down'}"
+                if prev is None:
+                    hg = Hinge(host.T1 @ hinge_frame_2d((-a, y0), (0, 1)),
+                               hinge_frame_2d((0, 0), (0, 1)))
+                    par = host.p1
+                else:
+                    hg = Hinge(hinge_frame_2d((ub[j], 0), (0, 1)),
+                               hinge_frame_2d((ub[j], 0), (0, 1)))
+                    par = prev.name
+                prev = self.add(Panel(f"{base}.{names[j]}", piece, "panel", [polys[j]],
+                                      make_asm(j), par, hg, f"{lab}: {txt}"))
+                if prev is not None:
+                    # shown resting on its glue tabs: flat open, the strip sits
+                    # above them and the page, not level with it and under them
+                    tf = min(self.tmax, 179.9)
+                    nz = prev.asm(tf).to_3x3() @ Z
+                    S_, l_, r_, Y_, nl_, nr_ = host.dirs(tf)
+                    prev.zoff = 2.0 * TAB_LIFT * (1.0 if nz.dot(lift1 * nl_) >= 0 else -1.0)
             self.add(Panel(f"{base}.TabB", piece, "tab", [poly_tabB], asm_tabB,
                            host.p2, None, f"{lab}: tab B"))
             TA = Matrix.Translation((0.0, -y0, 0.0))
             TC = Matrix.Translation((b, -y0, 0.0))
             TB = Matrix.Translation((a + b, -y0, 0.0))
+            # the valleys between the peaks: folds opening like small spines
+            for i in range(1, npk):
+                uv = i * L_ / npk
+                Tv = Matrix.Translation((uv, -y0, 0.0))
+                hv = Host(self, f"{base}.{names[2 * i - 1]}", 0.0, 0.0,
+                          f"{base}.{names[2 * i]}", 0.0, 0.0, f"{lab}: valley {i}",
+                          Tv, Tv).finish()
+                hv.trig = False
+                self.hosts[(uid, f"V{i}")] = hv
         if m.get("style") == "CUT":
             Tv_ = host.T1.inverted()
             self.line_frames[uid] = (piece, lambda q: (
@@ -627,10 +693,13 @@ class Model:
                 if n in self.panels:
                     self.panels[n].label = self.panels[n].label.replace(": ", " (inset): ")
         AC, CB = f"{base}.AC", f"{base}.CB"
+        single = int(m.get("peaks", 1) or 1) <= 1 or m.get("style") == "CUT"
         for key, p1, T1, p2, T2, txt in (
                 ("A", host.p1, host.T1 @ Matrix.Translation((-a, 0.0, 0.0)), AC, TA, "on top"),
                 ("C", AC, TC, CB, TC, "inset"),
                 ("B", CB, TB, host.p2, host.T2 @ Matrix.Translation((b, 0.0, 0.0)), "in front")):
+            if key == "C" and not single:
+                continue  # several peaks: the top panel doesn't meet the front
             h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0, f"{lab}: {txt}", T1, T2).finish()
             h.trig = host.trig
             self.hosts[(uid, key)] = h

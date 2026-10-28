@@ -93,7 +93,7 @@ class POPUP_MT_add(bpy.types.Menu):
             h = st.mechs[st.active]
             self.layout.separator()
             self.layout.label(text=f"In the corners of {h.label}:")
-            for k, name in (("BOX", "Glued Box"), ("VFOLD", "V-fold"), ("CUBE", "Cube")):
+            for k, name in (("BOX", "Box Fold"), ("VFOLD", "V-fold"), ("CUBE", "Cube")):
                 for side, wall in (("L", "left wall"), ("R", "right wall")):
                     op = self.layout.operator("popup.add", text=f"{name}, {wall}",
                                               icon=KIND_ICON[k])
@@ -105,7 +105,7 @@ class POPUP_MT_add(bpy.types.Menu):
             h = st.mechs[st.active]
             self.layout.separator()
             self.layout.label(text=f"On {h.label}:")
-            for kind, text in (("BOX", "Glued Box on the Crease"),
+            for kind, text in (("BOX", "Box Fold on the Crease"),
                                ("BOXCUT", "Box Layer cut in the Crease"),
                                ("VFOLD", "V-fold on the Crease"),
                                ("MOUTH", "Mouth cut in the Crease"),
@@ -121,7 +121,7 @@ class POPUP_MT_add(bpy.types.Menu):
                                 ("BL", "behind, left"), ("BR", "behind, right")):
                 for kind, name in (("STANDUP", "Stand-up"), ("CUBE", "Cube"),
                                    ("TUBE", "Tube"), ("VFOLD", "V-fold"),
-                                   ("BOX", "Glued Box")):
+                                   ("BOX", "Box Fold")):
                     if fold[0] == "B" and kind != "STANDUP":
                         continue  # inside the V there's little room: stand-ups only
                     op = self.layout.operator("popup.add", text=f"{name} {where}",
@@ -141,7 +141,7 @@ class POPUP_MT_add(bpy.types.Menu):
             self.layout.label(text=f"Outside the walls of {h.label}:")
             for wall, where in (("L", "left wall"), ("R", "right wall")):
                 for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
-                                   ("BOX", "Glued Box"), ("STANDUP", "Stand-up")):
+                                   ("BOX", "Box Fold"), ("STANDUP", "Stand-up")):
                     op = self.layout.operator("popup.add", text=f"{name}, {where}",
                                               icon=KIND_ICON[kind])
                     op.kind, op.host, op.fold = kind, h.uid, "W" + wall
@@ -153,8 +153,8 @@ class POPUP_MT_add(bpy.types.Menu):
                 for kind, fold, text in (("BOXCUT", "C", "Inset Box Layer"),
                                          ("BOXCUT", "A", "Box Layer on Top"),
                                          ("BOXCUT", "B", "Box Layer in Front"),
-                                         ("BOX", "A", "Glued Box on Top"),
-                                         ("BOX", "B", "Glued Box in Front"),
+                                         ("BOX", "A", "Box Fold on Top"),
+                                         ("BOX", "B", "Box Fold in Front"),
                                          ("STANDUP", "A", "Stand-up on Top"),
                                          ("STANDUP", "B", "Stand-up in Front"),
                                          ("CUBE", "A", "Cube on Top"),
@@ -169,12 +169,29 @@ class POPUP_MT_add(bpy.types.Menu):
                         continue  # cut-ins need one piece of paper across the fold
                     op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
                     op.kind, op.host, op.fold = kind, h.uid, fold
+                if h.kind == "BOX" and h.peaks > 1:
+                    for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
+                                       ("STANDUP", "Stand-up")):
+                        op = self.layout.operator("popup.add", text=f"{name} in a Valley",
+                                                  icon=KIND_ICON[kind])
+                        op.kind, op.host, op.fold = kind, h.uid, "VAL"
 
 
 def draw_anim(box, sc, st, to):
-    """Movement test settings: how far, and how long each way."""
+    """Movement test: a play button; its settings folded away beneath."""
     from .ops import anim_timing
-    sub = box.box()
+    head, body = box.panel("popup_anim", default_closed=True)
+    playing = bpy.context.screen is not None and bpy.context.screen.is_animation_playing
+    head.operator("screen.animation_play", text="", icon="PAUSE" if playing else "PLAY")
+    head.label(text="Movement Test")
+    try:
+        n_open, n_hold, n_close = anim_timing(sc)
+        head.label(text=f"{n_open + n_hold + n_close} frames")
+    except Exception:
+        pass
+    if body is None:
+        return
+    sub = body
     col = sub.column(align=True)
     col.use_property_split = True
     col.use_property_decorate = False
@@ -193,6 +210,50 @@ def draw_anim(box, sc, st, to):
     row.operator("popup.animate", text="Open and Close", icon="FILE_REFRESH").mode = "CYCLE"
 
 
+def _tabs(lay, m, side=True, side_text="Tab Side"):
+    """Glue tabs, tucked away: the size in the header, the rest inside."""
+    head, body = lay.panel(f"popup_tabs_{m.kind}", default_closed=True)
+    head.label(text="Glue Tabs")
+    head.prop(m, "tab", text="")
+    if body is not None and side:
+        c = body.column()
+        c.use_property_split = True
+        c.use_property_decorate = False
+        c.prop(m, "tab_side", text=side_text)
+
+
+def _where(col, st, m):
+    """Where a mechanism stands: the same few words for every kind."""
+    col.prop(m, "host", text="Stands On")
+    hm = next((h for h in st.mechs if h.uid == m.host_uid), None) if m.host_uid else None
+    if hm is not None and hm.kind in ("BOX", "BOXCUT", "STANDUP"):
+        col.prop(m, "fold", text="Fold")
+        if hm.kind == "BOX" and m.fold == "V":
+            col.prop(m, "gully")
+    if hm is not None and hm.kind == "VFOLD":
+        col.prop(m, "vside", text="Fold")
+    if hm is not None and hm.kind in ("CUBE", "TUBE"):
+        col.prop(m, "wall", text="Fold")
+    return hm
+
+
+def _paper(box, st, rig):
+    """Paper thickness and how it shows, folded away: the thickness in view."""
+    head, body = box.panel("popup_paper", default_closed=True)
+    head.label(text="Paper")
+    head.prop(st, "paper_thickness", text="")
+    if body is None:
+        return
+    col = body.column()
+    col.use_property_split = True
+    col.use_property_decorate = False
+    if rig is not None:
+        col.prop(st, "keep_open")
+    col.prop(st, "solid_paper")
+    if rig is not None and st.keep_open and "pop_close" in rig:
+        col.label(text=f"Closes to {rig['pop_close']:.1f}°", icon="INFO")
+
+
 class _Base:
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -201,6 +262,7 @@ class _Base:
 
 class POPUP_PT_card(_Base, bpy.types.Panel):
     bl_label = "Pop-Up Pro"
+    bl_order = 0
 
     def draw(self, context):
         st = context.scene.popup
@@ -233,14 +295,7 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
             for a in (0, 45, 90, 135, 180):
                 row.operator("popup.set_open", text=f"{a}°").angle = a
             draw_anim(box, context.scene, st, "anim_to")
-            col = box.column()
-            col.use_property_split = True
-            col.use_property_decorate = False
-            col.prop(st, "paper_thickness")
-            col.prop(st, "keep_open")
-            col.prop(st, "solid_paper")
-            if st.keep_open and "pop_close" in rig:
-                col.label(text=f"Closes to {rig['pop_close']:.1f}°", icon="INFO")
+            _paper(box, st, rig)
         if st.rig is None:
             self.layout.separator()
             self.layout.operator("popup.make_carousel", icon="MESH_CIRCLE")
@@ -314,15 +369,12 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
         if st.status:
             lay.label(text=st.status, icon="ERROR" if st.edited else "INFO")
         box = self._open(lay, master, 360.0)
-        col = box.column()
-        col.use_property_split = True
-        col.use_property_decorate = False
-        col.prop(st, "paper_thickness")
-        col.prop(st, "solid_paper")
+        _paper(box, st, None)
 
 
 class POPUP_PT_mechs(_Base, bpy.types.Panel):
     bl_label = "Mechanisms"
+    bl_order = 2
 
     @classmethod
     def poll(cls, context):
@@ -349,25 +401,15 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             self.draw_flap(context, col, m)
             return
         if m.kind == "TUBE":
-            col.prop(m, "host")
-            hm = next((h for h in st.mechs if h.uid == m.host_uid), None) \
-                if m.host_uid else None
-            if hm is not None and hm.kind in ("BOX", "BOXCUT", "STANDUP"):
-                col.prop(m, "fold")
-            if hm is not None and hm.kind == "VFOLD":
-                col.prop(m, "vside")
-            if hm is not None and hm.kind in ("CUBE", "TUBE"):
-                col.prop(m, "wall")
-            col.prop(m, "y", text="Position" if hm is None else "Along the Fold")
+            _where(col, st, m)
+            col.prop(m, "y", text="Position")
             col.prop(m, "x", text="Strip Distance")
-            col.prop(m, "depth", text="Side Length")
+            col.prop(m, "depth", text="Length Along Fold")
             col.prop(m, "height")
             col.prop(m, "front")
             col.prop(m, "front_style")
             col.prop(m, "back")
             col.prop(m, "back_style")
-            col.prop(m, "tab")
-            col.prop(m, "tab_side", text="Base Tabs")
             col.prop(m, "roof")
             if m.roof == "POINTED":
                 col.prop(m, "roof_height")
@@ -377,16 +419,16 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "eave")
                 if m.roof_fold == "DIP":
                     col.prop(m, "rib")
+            _tabs(self.layout, m)
             self.draw_warnings(context, m)
             return
         if m.kind == "STAGE":
             col.prop(m, "y", text="Position")
             col.prop(m, "phi_l", text="Glue Angle")
             col.label(text=f"Opens to {2 * m.phi_l:.0f}° when the card is flat", icon="INFO")
-            col.prop(m, "glue", text="Half Width")
+            col.prop(m, "glue", text="Glue Length (half width)")
             col.prop(m, "height")
-            col.prop(m, "tab")
-            col.prop(m, "tab_side")
+            _tabs(self.layout, m)
             self.draw_warnings(context, m)
             return
         if m.kind == "FRAME":
@@ -400,9 +442,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "x", text="Depth")
             col.prop(m, "y", text="Bottom")
             col.prop(m, "height")
-            col.prop(m, "tab")
             col.label(text=f"Width {2 * m.x * _m.sin(_m.radians(tmax / 2)):.1f} mm "
                            f"(flat at {tmax:.0f}°)", icon="INFO")
+            _tabs(self.layout, m, side=False)
             self.draw_warnings(context, m)
             return
         if m.kind in ("FLOOR", "CEILING"):
@@ -410,21 +452,20 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "host", text="Stage")
             col.prop(m, "depth")
             col.prop(m, "lead")
-            col.prop(m, "tab")
+            _tabs(self.layout, m, side=False)
             self.draw_warnings(context, m)
             return
         if m.kind == "PYRAMID":
             col.prop(m, "y", text="Position")
             col.prop(m, "x", text="Strip Distance")
-            col.prop(m, "depth", text="Base Length")
+            col.prop(m, "depth", text="Length Along Fold")
             col.prop(m, "height")
             col.prop(m, "ridge")
             col.prop(m, "front", text="Front Width")
             col.prop(m, "front_style")
             col.prop(m, "back", text="Back Width")
             col.prop(m, "back_style")
-            col.prop(m, "tab")
-            col.prop(m, "tab_side", text="Base Tabs")
+            _tabs(self.layout, m)
             self.draw_warnings(context, m)
             return
         if m.kind == "ROOF":
@@ -438,7 +479,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 except (ValueError, TypeError, AttributeError):
                     info = {}
             col.prop(m, "valley")
-            col.prop(m, "y", text="Valley Starts (up spine)" if v else "Ridge Starts (up spine)")
+            col.prop(m, "y", text="Position")
             col.prop(m, "phi_l", text="Glue Angle (slope)")
             row = col.row()
             row.prop(m, "glue", text="Glue Length (eaves)")
@@ -460,9 +501,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                           if info else "Piece Angle: set for level")
             else:
                 sub.prop(m, "alpha_l", text="Piece Angle")
-            col.prop(m, "tab")
             col.label(text="Cuts the background away " + ("below the glue lines"
                       if v else "to a gable along the eaves"), icon="INFO")
+            _tabs(self.layout, m, side=False)
             _draw_lines(self.layout, context, m)
             self.draw_warnings(context, m)
             return
@@ -475,41 +516,27 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "to_pt")
             else:
                 col.prop(m, "to_y")
-                col.prop(m, "tab_side", text="Foot Tab")
             col.prop(m, "height")
             col.prop(m, "bend")
             col.prop(m, "slack")
-            col.prop(m, "tab")
+            _tabs(self.layout, m, side=m.to != "TUBE", side_text="Foot Tab Side")
             self.draw_warnings(context, m)
             return
-        col.prop(m, "host")
-        hm = next((h for h in st.mechs if h.uid == m.host_uid), None) if m.host_uid else None
-        if hm is not None and hm.kind in ("BOX", "BOXCUT", "STANDUP"):
-            col.prop(m, "fold")
-        if hm is not None and hm.kind == "VFOLD":
-            col.prop(m, "vside")
-        if hm is not None and hm.kind in ("CUBE", "TUBE"):
-            col.prop(m, "wall")
+        hm = _where(col, st, m)
         joint = hm is not None and hm.kind in ("FLOOR", "CEILING")
         if joint and m.kind == "VFOLD":
             col.prop(m, "on_crease")
         if joint and not (m.kind == "VFOLD" and m.on_crease):
             col.prop(m, "side", text="Wall")
-        on_v = hm is not None and hm.kind == "VFOLD"
-        col.prop(m, "y", text=("Up the Crease" if m.vside == "V" else "Out Along Glue Line")
-                 if on_v else
-                 {"MOUTH": "Slit Position"}.get(m.kind, "Position")
-                 if not joint else "Out from Fold")
+        col.prop(m, "y", text="Position")
         if m.kind == "CUBE":
-            col.prop(m, "size", text="Size" if m.size_r <= 0 else "Width Left")
+            col.prop(m, "size", text="Width" if m.size_r <= 0 else "Width Left")
             col.prop(m, "size_r", text="Width Right (0 = square)" if m.size_r <= 0
                      else "Width Right")
             col.prop(m, "height")
             row = col.row()
             row.active = m.size_r <= 0 or abs(m.size_r - m.size) < 1e-6
             row.prop(m, "lid")
-            col.prop(m, "tab")
-            col.prop(m, "tab_side", text="Base Tabs")
         elif m.kind == "MOUTH":
             col.prop(m, "jaw")
             col.prop(m, "upper")
@@ -522,7 +549,6 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "depth", text="Leg Out From Back" if flat else "Out From Back")
             col.prop(m, "img_w")
             col.prop(m, "img_h", text="Picture Depth" if flat else "Picture Height")
-            col.prop(m, "tab")
             col.label(text="Shape the picture by erasing its art (Holes and Shaping)",
                       icon="INFO")
         elif m.kind == "VFOLD":
@@ -545,13 +571,12 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "alpha_l", text="Piece Angle" if m.symmetric else "Piece Angle L")
                 if not m.symmetric:
                     col.prop(m, "alpha_r")
-            col.prop(m, "tab")
-            col.prop(m, "tab_side")
             if not m.host_uid:
                 col.prop(m, "cut_above")
+            _tabs(self.layout, m)
             _draw_lines(self.layout, context, m)
         else:
-            col.prop(m, "width", text="Height")
+            col.prop(m, "width", text="Length Along Fold")
             if joint:
                 # which side of the joint each width lies on
                 flat = "Along Floor" if hm.kind == "FLOOR" else "Along Ceiling"
@@ -567,9 +592,11 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             if m.kind in ("BOX", "BOXCUT"):
                 col.prop(m, "slant")
             if m.kind == "BOX":
-                col.prop(m, "tab")
-            if m.kind in ("BOX", "BOXCUT"):
-                _draw_lines(self.layout, context, m)
+                col.prop(m, "peaks")
+        if m.kind in ("CUBE", "STANDUP", "BOX"):
+            _tabs(self.layout, m, side=m.kind == "CUBE")
+        if m.kind in ("BOX", "BOXCUT"):
+            _draw_lines(self.layout, context, m)
         self.draw_warnings(context, m)
 
 
@@ -676,6 +703,7 @@ class POPUP_UL_openings(bpy.types.UIList):
 
 class POPUP_PT_openings(_Base, bpy.types.Panel):
     bl_label = "Holes and Shaping"
+    bl_order = 3
 
     @classmethod
     def poll(cls, context):
@@ -759,8 +787,10 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
 
 
 class POPUP_PT_checks(_Base, bpy.types.Panel):
-    bl_label = "Checks"
-    bl_options = {"DEFAULT_CLOSED"}
+    """Right under the card: what would tear, collide or stick out, in red
+    when there's anything to fix"""
+    bl_label = ""
+    bl_order = 1
 
     @classmethod
     def poll(cls, context):
@@ -768,19 +798,25 @@ class POPUP_PT_checks(_Base, bpy.types.Panel):
 
     def draw_header(self, context):
         n = len(context.scene.popup.warnings.splitlines())
-        self.layout.label(text="", icon="ERROR" if n else "CHECKMARK")
+        row = self.layout.row()
+        row.alert = n > 0
+        row.label(text=f"Checks: {n} to fix" if n else "Checks: all clear",
+                  icon="ERROR" if n else "CHECKMARK")
 
     def draw(self, context):
         ws = context.scene.popup.warnings.splitlines()
         if not ws:
             self.layout.label(text="Folds flat, opens flat, no collisions found")
+            return
         col = self.layout.column(align=True)
+        col.alert = True
         for w in ws:
             col.label(text=w, icon="ERROR")
 
 
 class POPUP_PT_art(_Base, bpy.types.Panel):
     bl_label = "Artwork"
+    bl_order = 4
 
     @classmethod
     def poll(cls, context):
@@ -811,6 +847,7 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
 
 class POPUP_PT_export(_Base, bpy.types.Panel):
     bl_label = "Export"
+    bl_order = 5
     bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
