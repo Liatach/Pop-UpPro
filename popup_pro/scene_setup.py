@@ -114,20 +114,25 @@ def camera(scene, make_active=True):
         # round the spine: the whole ring from above, a little in front
         target = Vector((0.0, 0.5 * H, 0.0))
         span = 2.4 * W
+        aim = Vector((0.0, -0.62, 1.0)).normalized()  # from past the bottom end, above
+        fov = 2.0 * math.atan(18.0 / cam.lens)  # 36 mm sensor across
+        r = scene.render
+        aspect = max(r.resolution_x * r.pixel_aspect_x, 1) / \
+            max(r.resolution_y * r.pixel_aspect_y, 1)
+        vfov = 2.0 * math.atan(math.tan(0.5 * fov) / max(aspect, 1.0))
+        tall = 1.15 * (H * 0.85 + 0.6 * W)
+        dist = max(0.5 * span / math.tan(0.5 * fov),
+                   0.5 * tall / math.tan(0.5 * vfov)) + 0.3 * H
+        ob.location = target + aim * dist
+        ob.rotation_euler = (target - ob.location).to_track_quat("-Z", "Y").to_euler()
     else:
-        target = Vector((0.0, 0.5 * H, 0.22 * W))
-        span = max(2.0 * W, H) * 1.18
-    aim = Vector((0.0, -0.62, 1.0)).normalized()  # from past the bottom end, above
-    fov = 2.0 * math.atan(18.0 / cam.lens)  # 36 mm sensor across
-    r = scene.render
-    aspect = max(r.resolution_x * r.pixel_aspect_x, 1) / max(r.resolution_y * r.pixel_aspect_y, 1)
-    vfov = 2.0 * math.atan(math.tan(0.5 * fov) / max(aspect, 1.0))
-    # across: the open card's width; up the picture: the spine's length seen
-    # at a slant plus the pages standing up when shut
-    tall = 1.15 * (H * 0.85 + 0.6 * W)
-    dist = max(0.5 * span / math.tan(0.5 * fov), 0.5 * tall / math.tan(0.5 * vfov)) + 0.3 * H
-    ob.location = target + aim * dist
-    ob.rotation_euler = (target - ob.location).to_track_quat("-Z", "Y").to_euler()
+        # Kim's framing for an A5 card (297 x 210 mm open): 310 mm back from
+        # the spine's bottom end, 303 mm up, tipped 58.8 degrees from looking
+        # straight down; scaled with the card
+        f = max(2.0 * W / 29.7, H / 21.0)
+        ob.location = (0.0, -30.981 * f, 30.296 * f)
+        ob.rotation_euler = (math.radians(58.82), 0.0, 0.0)
+        dist = 43.3 * f
     cam.clip_start = 0.01 * dist
     cam.clip_end = 20.0 * dist
     for sc in popup_scenes(scene):

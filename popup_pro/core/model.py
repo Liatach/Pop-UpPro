@@ -387,9 +387,11 @@ class Model:
                               f"behind a half stand-ups, glued boxes, cubes, tubes and "
                               f"V-folds; skipped")
                     ok = False
-                elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD")
-                                        and not lid and not stage
-                                        and not joint):
+                elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD",
+                                                               "CUBE")
+                                        and not lid and not stage and not joint
+                                        and not (parent["type"] == "TUBE" and
+                                                 m.get("wall") in ("L", "R"))):
                     self.warn(f"{m['label']}: its host is missing (a box, or a tube with a "
                               f"dipped flat roof); skipped")
                     ok = False
@@ -410,7 +412,10 @@ class Model:
             h = m.get("host", 0) if m["type"] not in NO_HOST else 0
             fold = m.get("fold", "A")
             if h and by_uid[h]["type"] == "TUBE":
-                fold = "R"  # the roof's centre crease
+                # a side wall's foot, or the roof's centre crease
+                fold = {"L": "WL", "R": "WR"}.get(m.get("wall", "NONE"), "R")
+            if h and by_uid[h]["type"] == "CUBE":
+                fold = "WR" if m.get("wall") == "R" else "WL"  # a front wall's foot
             if h and by_uid[h]["type"] == "STAGE":
                 fold = "S"  # the stage set's back crease
             if h and by_uid[h]["type"] in ("FLOOR", "CEILING"):
@@ -496,10 +501,15 @@ class Model:
         y0, w = float(m["y"]), float(m["width"])
         lab = m["label"]
         W, H = self.W, self.H
+        # Slant: the strip runs across the fold at an angle. Its creases stay
+        # parallel to the fold (they must), so its outline is sheared along
+        # it: a point x across the fold moves k x up it. Nothing else changes.
+        k = math.tan(math.radians(max(-75.0, min(75.0, float(m.get("slant", 0.0))))))
         if host.is_spine and a + b > W + 1e-6:
             self.warn(f"{lab}: height + depth ({a + b:.0f} mm) is deeper than the "
                       f"page ({W:.0f} mm), so it sticks out when closed")
-        if y0 < -1e-6 or y0 + w > H + 1e-6:
+        if min(y0, y0 - k * a, y0 + k * b) < -1e-6 or \
+                max(y0, y0 - k * a, y0 + k * b) + w > H + 1e-6:
             self.warn(f"{lab}: runs past the top or bottom of the card")
         base = f"Box{uid}"
         role = "inset" if m.get("fold") == "C" and m.get("host") else ""
@@ -511,7 +521,8 @@ class Model:
                           f"piece of paper (use a glued box here); skipped")
                 return
             piece = self.panels[host.p1].piece
-            rect = [host.v1(-a, y0), host.v1(b, y0), host.v1(b, y0 + w), host.v1(-a, y0 + w)]
+            rect = [host.v1(-a, y0 - k * a), host.v1(b, y0 + k * b),
+                    host.v1(b, y0 + w + k * b), host.v1(-a, y0 + w - k * a)]
             cells = self.carve(piece, rect, {host.p1, host.p2}, lab)
             if cells is None:
                 return
@@ -554,6 +565,12 @@ class Model:
             poly_ac = [(0, 0), (b, 0), (b, w), (0, w)]
             poly_cb = [(b, 0), (a + b, 0), (a + b, w), (b, w)]
             poly_tabB = [(a + b, 0), (a + b + t_, ch), (a + b + t_, w - ch), (a + b, w)]
+            if k:
+                # along the strip u, flat on the card at x = u - a
+                def sh(poly):
+                    return [(u, v + k * (u - a)) for u, v in poly]
+                poly_tabA, poly_ac, poly_cb, poly_tabB = (
+                    sh(poly_tabA), sh(poly_ac), sh(poly_cb), sh(poly_tabB))
 
             def asm_tabA(t):
                 S, l, r, Y, nl, nr = host.dirs(t)
@@ -832,6 +849,8 @@ class Model:
         phl, phr = math.radians(m["phi_l"]), math.radians(m["phi_r"])
         all_, alr = math.radians(m["alpha_l"]), math.radians(m["alpha_r"])
         g, Lc, t_ = float(m["glue"]), float(m["height"]), float(m["tab"])
+        # an asymmetric V-fold can glue down along different lengths each side
+        gs = {"L": g, "R": float(m.get("glue_r", g) or g)}
         base = f"VFold{uid}"
         piece = base
         if math.sin(all_) < 1e-3 or math.sin(alr) < 1e-3:
@@ -854,8 +873,8 @@ class Model:
             self.joints[base]["pref"] = m["pref"]
 
         # Pattern: crease along +Y' from P' = (0, 0); halves either side.
-        GL = (g * uLp[0], g * uLp[1])
-        GR = (g * uRp[0], g * uRp[1])
+        GL = (gs["L"] * uLp[0], gs["L"] * uLp[1])
+        GR = (gs["R"] * uRp[0], gs["R"] * uRp[1])
         Q = (0.0, Lc)
         shape = m.get("shape", "QUAD")
         # beak: a triangle to the crease's end; panel: a four-sided half.
@@ -887,8 +906,8 @@ class Model:
             # Tab pattern -> virtual page: Y'(up) -> uf, X' -> -sigma * q
             T = frame(Vector((0, yP, lift * TAB_LIFT)), -sigma * q,
                       Vector((uf[0], uf[1], 0))) @ Fc.inverted()
-            gp = (g * up[0], g * up[1])
-            ins = min(0.5 * t_, 0.3 * g)
+            gp = (gs[side] * up[0], gs[side] * up[1])
+            ins = min(0.5 * t_, 0.3 * gs[side])
             poly = [(0, 0), gp,
                     (gp[0] + t_ * s2.x - ins * up[0], gp[1] + t_ * s2.y - ins * up[1]),
                     (t_ * s2.x, t_ * s2.y)]
@@ -922,7 +941,7 @@ class Model:
             fold_build(self, piece, [f"{base}.HalfL", f"{base}.HalfR"], lab,
                        expand(m["lines"]), base)
 
-        self._vfold_hosts(uid, base, host, yP, g, Lc, (uLf, uRf), (uLp, uRp))
+        self._vfold_hosts(uid, base, host, yP, (gs["L"], gs["R"]), Lc, (uLf, uRf), (uLp, uRp))
 
         tears = [s for s in self.samples if not self.crease(base, s)[3]]
         if tears:
@@ -930,7 +949,7 @@ class Model:
                       f"forward, make each piece angle at least its glue angle; or turn on "
                       f"Fold Flat)")
 
-    def _vfold_hosts(self, uid, base, host, yP, g, Lc, uf, up):
+    def _vfold_hosts(self, uid, base, host, yP, gs, Lc, uf, up):
         """Each half's glue line is a fold too: a stand-up (or a glued box)
         can stand in front of a half (FL, FR: between it and the page outside
         the V) or behind it (BL, BR: inside the V). The half is the
@@ -948,7 +967,7 @@ class Model:
             h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0,
                      f"{self.panels[hl].label.split(':')[0]}: crease").finish()
             h.trig = False
-            h.size = (g, Lc)
+            h.size = (max(gs), Lc)
             h.key = (uid, "V")
             self.hosts[(uid, "V")] = h
         bis = Vector((uf[0][0] + uf[1][0], uf[0][1] + uf[1][1], 0.0))
@@ -975,9 +994,29 @@ class Model:
                 h = Host(self, half, 0.0, 0.0, page, 0.0, 0.0,
                          f"{self.panels[half].label} ({txt})", T1, T2).finish()
                 h.trig = False
-                h.size = (g, Lc)
+                h.size = (gs[k], Lc)
                 h.key = (uid, key)  # its foot may sit on the V-fold's own tab
                 self.hosts[(uid, key)] = h
+
+    def _wall_host(self, uid, key, wall, w_org, w_foot, w_up, page, Tp, p_org, p_foot,
+                   p_out, label, size):
+        """The fold where a wall standing on a page meets it, seen from
+        outside: the wall is the background (virtual left page), the page
+        the floor beyond it (virtual right). Positions run along the wall's
+        foot from w_org (p_org on the page). Like a V-fold's glue folds,
+        what stands here is tabulated."""
+        if wall not in self.panels or page not in self.panels:
+            return None
+        T1 = frame(Vector((w_org[0], w_org[1], 0.0)), -Vector((w_up[0], w_up[1], 0.0)),
+                   Vector((w_foot[0], w_foot[1], 0.0)))
+        T2 = Tp @ frame(Vector((p_org[0], p_org[1], 0.0)), Vector((p_out[0], p_out[1], 0.0)),
+                        Vector((p_foot[0], p_foot[1], 0.0)))
+        h = Host(self, wall, 0.0, 0.0, page, 0.0, 0.0, label, T1, T2).finish()
+        h.trig = False
+        h.size = size
+        h.key = (uid, key)
+        self.hosts[(uid, key)] = h
+        return h
 
     # ------------------------------------------------------------------ cube
     def _cube(self, m, host):
@@ -992,19 +1031,24 @@ class Model:
         dipped."""
         uid, lab = m["uid"], m["label"]
         sz, hgt = float(m["size"]), float(m["height"])
+        # a rectangular base: the front-left wall (and the back-right) wB
+        # wide, the front-right (and back-left) wC; a square when equal
+        wB = sz
+        wC = float(m.get("size_r", 0.0) or 0.0) or sz
         y0 = float(m["y"])
-        tb = min(float(m.get("tab", 10.0)), 0.45 * sz)
+        tb = min(float(m.get("tab", 10.0)), 0.45 * min(wB, wC))
         piece = f"Cube{uid}"
-        self.add_piece(Piece(piece, lab, 1 + uid, (2 * sz, 0.5 * hgt)))
+        self.add_piece(Piece(piece, lab, 1 + uid, (wB + wC, 0.5 * hgt)))
         key = f"{piece}.V"
         r2 = math.sqrt(0.5)
         uLf, uRf = (-r2, r2), (r2, r2)
         self.joints[key] = dict(host=host, y=y0, uL=uLf, uR=uRf,
                                 aL=math.pi / 2, aR=math.pi / 2, gap=True)
-        if host.is_spine and (y0 < 0 or y0 + sz * math.sqrt(2) > self.H):
+        if host.is_spine and (y0 < 0 or y0 + (wB + wC) * r2 > self.H):
             self.warn(f"{lab}: runs past the top or bottom of the card")
-        # strip pattern: tab | A [0,s] | B [s,2s] | C [2s,3s] | D [3s,4s]
-        s1, s2, s3, s4 = sz, 2 * sz, 3 * sz, 4 * sz
+        # strip pattern: tab | A [0,wC] | B (wB) | C (wC) | D (wB)
+        s1, s2, s3, s4 = wC, wC + wB, 2 * wC + wB, 2 * (wC + wB)
+        square = abs(wB - wC) < 1e-6
         B = [(s1, 0), (s2, 0), (s2, hgt), (s1, hgt)]
         C = [(s2, 0), (s3, 0), (s3, hgt), (s2, hgt)]
         A = [(0, 0), (s1, 0), (s1, hgt), (0, hgt)]
@@ -1025,16 +1069,16 @@ class Model:
 
         def asm_a(t):
             c, uL, uR, P3 = parts(t)
-            return frame(P3 + sz * uL, -uR, c) @ pat((s1, 0))
+            return frame(P3 + wB * uL, -uR, c) @ pat((s1, 0))
 
         def asm_d(t):
             c, uL, uR, P3 = parts(t)
-            return frame(P3 + sz * uR, uL, c) @ pat((s3, 0))
+            return frame(P3 + wC * uR, uL, c) @ pat((s3, 0))
 
         def asm_close(t):
             c, uL, uR, P3 = parts(t)
             nD = uL.cross(c).normalized()
-            return frame(P3 + sz * (uL + uR) - TAB_LIFT * nD, uL, c) @ pat((0, 0))
+            return frame(P3 + wB * uL + wC * uR - TAB_LIFT * nD, uL, c) @ pat((0, 0))
 
         # side corners: the angle between the front walls' bottom edges,
         # cos = uL . uR = cos^2(t/2)
@@ -1077,33 +1121,56 @@ class Model:
                            (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
                            f"{lab}: base tab {side}"))
 
+        # the folds where the front walls meet the page, outside the cube
+        for wkey, wall, foot, page, Tp, uf in (
+                ("WL", f"{piece}.B", (-1.0, 0.0), host.p1, host.T1, uLf),
+                ("WR", f"{piece}.C", (1.0, 0.0), host.p2, host.T2, uRf)):
+            out = Vector((uf[1], -uf[0], 0.0))
+            if out.y > 0:  # away from the cube (the bisector of its glue lines is +y)
+                out = -out
+            self._wall_host(uid, wkey, wall, (s2, 0.0), foot, (0.0, 1.0), page, Tp,
+                            (0.0, y0), uf, out[:2],
+                            f"{lab}: {'front left' if wkey == 'WL' else 'front right'} wall",
+                            (wB if wkey == "WL" else wC, hgt))
+
         lid = m.get("lid", "PEAK")
+        if lid != "NONE" and not square:
+            self.warn(f"{lab}: a lid creased corner to corner only folds flat on a square "
+                      f"base; this one is left open (set the widths equal for a lid)")
+            lid = "NONE"
         if lid != "NONE":
             sg = 1.0 if lid == "PEAK" else -1.0
 
+            Lh = math.hypot(wB, wC)
+
             def lid_dir(t):
+                # the lid's far corner Q, from the front-top corner: wB from
+                # the left lid's corner, wC from the right's, Lh from it;
+                # peaked (up) or dipped (down) out of the walls' top plane
                 c, uL, uR, P3 = parts(t)
-                G = max(-1.0, min(1.0, uL.dot(uR)))
-                a = r2 / (1 + G)
-                k = sg * math.sqrt(max(G, 0.0) / (1 + G))
-                return (a * (uL + uR) + k * c).normalized(), c, uL, uR, P3
+                G = max(-0.999999, min(0.999999, uL.dot(uR)))
+                x = (wB - G * wC) / (1 - G * G)
+                y = (wC - G * wB) / (1 - G * G)
+                z2 = Lh * Lh - (x * x + y * y + 2 * x * y * G)
+                Q = x * uL + y * uR + sg * math.sqrt(max(z2, 0.0)) * c
+                return Q.normalized(), c, uL, uR, P3, Q
 
             def asm_lb(t):
-                cp, c, uL, uR, P3 = lid_dir(t)
-                return frame(P3 + hgt * c, -uL, math.sqrt(2) * cp - uL) @ pat((s2, hgt))
+                cp, c, uL, uR, P3, Q = lid_dir(t)
+                return frame(P3 + hgt * c, -uL, Q - wB * uL) @ pat((s2, hgt))
 
             def asm_lc(t):
-                cp, c, uL, uR, P3 = lid_dir(t)
-                return frame(P3 + hgt * c, uR, math.sqrt(2) * cp - uR) @ pat((s2, hgt))
+                cp, c, uL, uR, P3, Q = lid_dir(t)
+                return frame(P3 + hgt * c, uR, Q - wC * uR) @ pat((s2, hgt))
 
-            LB = [(s2, hgt), (s1, hgt), (s1, hgt + sz)]
-            LC = [(s2, hgt), (s3, hgt), (s3, hgt + sz)]
+            LB = [(s2, hgt), (s1, hgt), (s1, hgt + wC)]
+            LC = [(s2, hgt), (s3, hgt), (s3, hgt + wB)]
             # glue tab on the right lid's diagonal, tucked under the left lid
-            d = Vector((1, 1, 0)).normalized()
-            nrm = Vector((-1, 1, 0)).normalized()
+            d = Vector((wC, wB, 0)).normalized()
+            nrm = Vector((-wB, wC, 0)).normalized()
             P0 = Vector((s2, hgt, 0))
-            Lh = math.sqrt(2) * sz
-            gt = min(tb, 0.18 * Lh)  # the triangle it glues to narrows to its corners
+            # the triangle it glues to narrows to its corners
+            gt = min(tb, 0.18 * math.sqrt(2) * min(wB, wC))
             tab_poly = [tuple((P0 + d * 0.15 * Lh)[:2]), tuple((P0 + d * 0.85 * Lh)[:2]),
                         tuple((P0 + d * 0.8 * Lh + nrm * gt)[:2]),
                         tuple((P0 + d * 0.2 * Lh + nrm * gt)[:2])]
@@ -1111,21 +1178,25 @@ class Model:
                                        sg * math.sqrt(2) * math.cos(math.radians(t) / 2)))
             ex = (f"atan2(sin(radians(T)/2),{sg * math.sqrt(2):.9g}*cos(radians(T)/2))")
             ht = hinge_frame_2d((s2, hgt), (-1, 0))
-            lb = self.add(Panel(f"{piece}.LidL", piece, "panel", [LB], asm_lb, hb.name,
-                                Hinge(ht, ht, "EXPR", dict(var="t", fn=lambda t: fn(max(t, T_MIN)), expr=ex)),
-                                f"{lab}: lid left"))
             ht2 = hinge_frame_2d((s2, hgt), (1, 0))
-            self.add(Panel(f"{piece}.LidR", piece, "panel", [LC], asm_lc, hc.name,
-                           Hinge(ht2, ht2, "EXPR", dict(var="t", fn=lambda t: fn(max(t, T_MIN)), expr=ex)),
+            if square:  # closed form
+                hl_ = Hinge(ht, ht, "EXPR", dict(var="t", fn=lambda t: fn(max(t, T_MIN)), expr=ex))
+                hr_ = Hinge(ht2, ht2, "EXPR", dict(var="t", fn=lambda t: fn(max(t, T_MIN)), expr=ex))
+            else:  # a rectangle: sampled
+                hl_ = Hinge(ht, ht, "TABLE", {})
+                hr_ = Hinge(ht2, ht2, "TABLE", {})
+            lb = self.add(Panel(f"{piece}.LidL", piece, "panel", [LB], asm_lb, hb.name, hl_,
+                                f"{lab}: lid left"))
+            self.add(Panel(f"{piece}.LidR", piece, "panel", [LC], asm_lc, hc.name, hr_,
                            f"{lab}: lid right"))
 
             def asm_lt(t):
-                cp, c, uL, uR, P3 = lid_dir(t)
+                cp, c, uL, uR, P3, Q = lid_dir(t)
                 M = asm_lb(t)
                 nL = M.to_3x3() @ Z
                 into = (uL - uL.dot(cp) * cp).normalized()  # across the crease, into the left lid
                 return frame(P3 + hgt * c - TAB_LIFT * nL, cp, into) \
-                    @ frame(v3((s2, hgt)), (1, 1, 0), (-1, 1, 0)).inverted()
+                    @ frame(v3((s2, hgt)), (wC, wB, 0), (-wB, wC, 0)).inverted()
 
             self.add(Panel(f"{piece}.LidTab", piece, "tab", [tab_poly], asm_lt, lb.name, None,
                            f"{lab}: lid glue tab"))
@@ -1288,6 +1359,13 @@ class Model:
             self.add(Panel(f"{piece}.Tab{side}", piece, "tab", [poly],
                            (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
                            f"{lab}: base tab {side}"))
+        # the folds where the side walls meet the page, outside the tube
+        self._wall_host(uid, "WL", P["FL_"].name, (0.0, 0.0), (1.0, 0.0), (0.0, 1.0),
+                        host.p1, host.T1, (-a, y0 + D), (0.0, -1.0), (-1.0, 0.0),
+                        f"{lab}: left side wall", (D, hgt))
+        self._wall_host(uid, "WR", P["FR_"].name, (u[3], 0.0), (1.0, 0.0), (0.0, 1.0),
+                        host.p2, host.T2, (a, y0), (0.0, 1.0), (1.0, 0.0),
+                        f"{lab}: right side wall", (D, hgt))
         # which wall a tether glues to at each point, and the way along it
         self.tubes[uid]["attach"] = dict(
             FL=(P["FL_"].name, "BL"), BL=(P["FL_"].name, "FL"),

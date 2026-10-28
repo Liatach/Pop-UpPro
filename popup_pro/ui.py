@@ -134,6 +134,17 @@ class POPUP_MT_add(bpy.types.Menu):
             for k, name in (("FRAME", "Frame"), ("CEILING", "Ceiling")):
                 op = self.layout.operator("popup.add", text=name, icon=KIND_ICON[k])
                 op.kind, op.host = k, h.uid
+        if st.mechs and st.active < len(st.mechs) and \
+                st.mechs[st.active].kind in ("CUBE", "TUBE"):
+            h = st.mechs[st.active]
+            self.layout.separator()
+            self.layout.label(text=f"Outside the walls of {h.label}:")
+            for wall, where in (("L", "left wall"), ("R", "right wall")):
+                for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
+                                   ("BOX", "Glued Box"), ("STANDUP", "Stand-up")):
+                    op = self.layout.operator("popup.add", text=f"{name}, {where}",
+                                              icon=KIND_ICON[kind])
+                    op.kind, op.host, op.fold = kind, h.uid, "W" + wall
         if st.mechs and st.active < len(st.mechs):
             h = st.mechs[st.active]
             if h.kind in ("BOX", "BOXCUT", "STANDUP"):
@@ -345,6 +356,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "fold")
             if hm is not None and hm.kind == "VFOLD":
                 col.prop(m, "vside")
+            if hm is not None and hm.kind in ("CUBE", "TUBE"):
+                col.prop(m, "wall")
             col.prop(m, "y", text="Position" if hm is None else "Along the Fold")
             col.prop(m, "x", text="Strip Distance")
             col.prop(m, "depth", text="Side Length")
@@ -475,6 +488,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "fold")
         if hm is not None and hm.kind == "VFOLD":
             col.prop(m, "vside")
+        if hm is not None and hm.kind in ("CUBE", "TUBE"):
+            col.prop(m, "wall")
         joint = hm is not None and hm.kind in ("FLOOR", "CEILING")
         if joint and m.kind == "VFOLD":
             col.prop(m, "on_crease")
@@ -486,9 +501,13 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                  {"MOUTH": "Slit Position"}.get(m.kind, "Position")
                  if not joint else "Out from Fold")
         if m.kind == "CUBE":
-            col.prop(m, "size")
+            col.prop(m, "size", text="Size" if m.size_r <= 0 else "Width Left")
+            col.prop(m, "size_r", text="Width Right (0 = square)" if m.size_r <= 0
+                     else "Width Right")
             col.prop(m, "height")
-            col.prop(m, "lid")
+            row = col.row()
+            row.active = m.size_r <= 0 or abs(m.size_r - m.size) < 1e-6
+            row.prop(m, "lid")
             col.prop(m, "tab")
             col.prop(m, "tab_side", text="Base Tabs")
         elif m.kind == "MOUTH":
@@ -509,7 +528,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         elif m.kind == "VFOLD":
             col.prop(m, "shape")
             col.prop(m, "height", text="Fold Length")
-            col.prop(m, "glue")
+            col.prop(m, "glue", text="Glue Length" if m.symmetric else "Glue Length L")
+            if not m.symmetric:
+                col.prop(m, "glue_r")
             col.prop(m, "symmetric")
             col.prop(m, "phi_l", text="Glue Angle" if m.symmetric else "Glue Angle L")
             if not m.symmetric:
@@ -543,6 +564,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 left, right = "Width Left", "Width Right"
             col.prop(m, "height", text=left)
             col.prop(m, "depth", text=right)
+            if m.kind in ("BOX", "BOXCUT"):
+                col.prop(m, "slant")
             if m.kind == "BOX":
                 col.prop(m, "tab")
             if m.kind in ("BOX", "BOXCUT"):

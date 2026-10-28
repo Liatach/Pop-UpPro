@@ -25,6 +25,8 @@ def _sym(self, context):
     if self.symmetric:
         self["phi_r"] = self.phi_l
         self["alpha_r"] = self.alpha_l
+    elif self.get("glue_r", 0.0) <= 0.0:
+        self["glue_r"] = self.glue  # start the right side as long as the left
     live.schedule(context.scene)
 
 
@@ -145,6 +147,12 @@ def host_items(self, context):
                 items.append((str(m.uid), m.label, f"Sit in the corner where {m.label} "
                               f"meets a wall", "TRIA_DOWN_BAR" if m.kind == "FLOOR"
                               else "TRIA_UP_BAR", m.uid))
+            elif m.kind in ("CUBE", "TUBE") and self.kind in ("STANDUP", "BOX", "CUBE",
+                                                               "TUBE", "VFOLD"):
+                items.append((str(m.uid), m.label, f"Stand outside a wall of {m.label}, "
+                              f"where it meets the page" + (", or on its roof's crease"
+                                                            if m.kind == "TUBE" else ""),
+                              "CUBE" if m.kind == "CUBE" else "MESH_CYLINDER", m.uid))
             elif m.kind == "TUBE" and m.roof == "FLAT" and m.roof_fold == "DIP":
                 items.append((str(m.uid), f"{m.label} roof", f"Sit on the centre crease of "
                               f"{m.label}'s roof", "MESH_CYLINDER", m.uid))
@@ -242,6 +250,37 @@ def fit_to_host(m, st):
         finally:
             st["live"] = was
         return
+    if host is not None and host.kind in ("CUBE", "TUBE") and not (
+            host.kind == "TUBE" and m.wall == "NONE" and host.roof == "FLAT"
+            and host.roof_fold == "DIP"):
+        # outside a wall, at its foot: the wall the background, the page the floor
+        was = st.live
+        st["live"] = False
+        try:
+            if m.wall == "NONE":
+                m["wall"] = 1  # the left wall
+            if host.kind == "CUBE":
+                ww = host.size if m.wall == "L" or host.size_r <= 0 else host.size_r
+            else:
+                ww = host.depth
+            k = 0.3 * min(ww, host.height)
+            if m.kind == "CUBE":
+                m.size, m.size_r, m.height = k, 0.0, k
+            elif m.kind in ("BOX", "BOXCUT"):
+                m.height = m.depth = k
+                m.width = 0.4 * ww
+            elif m.kind == "STANDUP":
+                m.height = m.depth = 0.8 * k
+                m.width = 0.25 * ww
+                m.img_w, m.img_h = 0.5 * ww, 1.4 * k
+            elif m.kind == "VFOLD":
+                m.glue = m.height = k
+            elif m.kind == "TUBE":
+                _fit_tube(m, k, ww, 0.0)
+            m.y = 0.3 * ww
+        finally:
+            st["live"] = was
+        return
     if host is not None and host.kind == "STAGE":
         was = st.live
         st["live"] = False
@@ -271,6 +310,9 @@ def fit_to_host(m, st):
             hy = host.y + 0.5 * host.width - 0.5 * w
         else:
             hy = host.y
+            k_ = math.tan(math.radians(host.slant))  # a slanted strip's folds move up or down
+            hy += {"A": -k_ * host.height, "B": k_ * host.depth,
+                   "C": k_ * (host.depth - host.height)}.get(m.fold, 0.0)
         if m.kind in ("BOX", "BOXCUT"):
             m.height = m.depth = k
             m.width = 0.5 * w
@@ -392,6 +434,18 @@ class PopupMech(bpy.types.PropertyGroup):
     # cube
     size: FloatProperty(name="Size", description="Width of each wall (mm)", default=40.0,
                         min=5.0, soft_max=150.0, update=_changed)
+    wall: EnumProperty(name="Wall", update=lambda self, ctx: _fold_changed(self, ctx), items=[
+        ("NONE", "Roof Crease", "On a tube: across its dipped flat roof's centre crease"),
+        ("L", "Left Wall", "Where the host's left (front-left) wall meets the page, "
+         "outside it: the wall as the background"),
+        ("R", "Right Wall", "Where the host's right (front-right) wall meets the page, "
+         "outside it")],
+        description="On a cube or tube: which wall's foot it stands at")
+    size_r: FloatProperty(name="Width Right", default=0.0, min=0.0, soft_max=150.0,
+                          update=_changed,
+                          description="Cube: width of the front-right (and back-left) walls "
+                          "for a rectangular base, mm (0 = square). Only a square base takes "
+                          "a lid")
     lid: EnumProperty(name="Lid", items=[
         ("PEAK", "Peaked", "Two-triangle lid that rises to a ridge as the card closes"),
         ("DIP", "Dipped", "Two-triangle lid that sinks into the box as the card closes"),
@@ -515,6 +569,16 @@ class PopupMech(bpy.types.PropertyGroup):
                            update=_changed)
     glue: FloatProperty(name="Glue Length", description="Length of each glue edge (mm)",
                         default=40.0, min=2.0, soft_max=150.0, update=_changed)
+    slant: FloatProperty(name="Slant", default=0.0, min=-60.0, max=60.0, precision=1,
+                         update=_changed,
+                         description="Box fold or strap: run the strip across the fold at "
+                         "an angle (degrees from square). Its creases stay parallel to the "
+                         "fold; one end sits further up the card than the other, so what "
+                         "stands on its folds is offset diagonally")
+    glue_r: FloatProperty(name="Glue Length R", default=0.0, min=0.0, soft_max=150.0,
+                          update=_changed,
+                          description="Asymmetric V-fold: length of the right glue edge "
+                          "(mm; 0 = as the left)")
     tab_side: EnumProperty(name="Tabs", items=[
         ("IN", "Inside", "Tabs fold in, under the piece"),
         ("OUT", "Outside", "Tabs fold out, away from the piece")], update=_changed)
@@ -578,7 +642,7 @@ class PopupMech(bpy.types.PropertyGroup):
 
     def to_dict(self):
         d = dict(uid=self.uid, label=self.label, y=self.y, tab=self.tab,
-                 host=self.host_uid, fold=self.fold, side=self.side,
+                 host=self.host_uid, fold=self.fold, side=self.side, wall=self.wall,
                  vside="V" if self.on_crease else self.vside)
         if self.kind == "TUBE":
             d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
@@ -613,6 +677,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      bend=self.bend, height=self.height, tab_side=self.tab_side)
         elif self.kind == "CUBE":
             d.update(type="CUBE", size=self.size, height=self.height, lid=self.lid,
+                     size_r=self.size_r,
                      tab_side=self.tab_side)
         elif self.kind == "FLAP":
             d.update(type="FLAP", side=self.side, x=self.x, hinge=self.hinge,
@@ -633,12 +698,14 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="VFOLD", phi_l=self.phi_l, alpha_l=al,
                      phi_r=self.phi_l if self.symmetric else self.phi_r, alpha_r=ar,
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
+                     glue_r=self.glue if self.symmetric or self.glue_r <= 0 else self.glue_r,
                      shape=self.shape, cut_above=self.cut_above,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         else:
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
                      width=self.width, height=self.height, depth=self.depth,
+                     slant=self.slant,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         return d

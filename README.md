@@ -81,7 +81,8 @@ mechanisms, art and sketches.
    * The Standard view transform (true colours), on the carousel and every
      stage.
    * A **Camera** past the bottom end of the spine, above the card, framing
-     it from shut to fully open (for a carousel, the whole ring).
+     it from shut to fully open (Kim's framing, scaled with the card; for a
+     carousel, the whole ring).
    * **Clean White Renders** (the sun button beside Set Up Scene, on by
      default): renders are lit evenly by a plain white light (seen against
      a soft grey), without the viewport's sun, so the sun and shadows help
@@ -128,13 +129,13 @@ layout. This is viewport only and never rendered; the pointer button under
 | | What it is | Settings |
 |---|---|---|
 | **V-fold** | A folded piece glued along two lines that meet on a fold ([Tutorial 2](https://www.youtube.com/watch?v=Lm2RYojO-q8), [Tutorial 3](https://www.youtube.com/watch?v=MvbGJxH-1pg)) | Position, Fold Length, Glue Length, Glue Angle (fold to glue line), Piece Angle (centre fold to glue edge), tab size and side, symmetric or separate left/right. **Shape: Panels, Beak** (two triangles meeting at a point), **or a beak on one side and a panel on the other** |
-| **Asymmetric V-fold** | A V-fold with different glue angles each side, whose crease leans over; it carries what stands on it off the card's centre ([Tutorial 4](https://www.youtube.com/watch?v=N-mv6ePRNAc), [Tutorial 29](https://www.youtube.com/watch?v=1OqP1pXhDUQ)) | As the V-fold, plus Glue Angle R, Fold Flat and Lean |
+| **Asymmetric V-fold** | A V-fold with different glue angles each side, whose crease leans over; it carries what stands on it off the card's centre ([Tutorial 4](https://www.youtube.com/watch?v=N-mv6ePRNAc), [Tutorial 29](https://www.youtube.com/watch?v=1OqP1pXhDUQ)) | As the V-fold, plus Glue Length R, Glue Angle R, Fold Flat and Lean |
 | **Mouth** | A slit across a fold with two pairs of triangles cut into the paper; the jaws open as the card opens | Slit Position, Jaw Length (slit each side of the fold), Upper Jaw, Lower Jaw |
 | **Box fold** | A separate strip glued across a fold (parallel fold; [Tutorial 1](https://www.youtube.com/watch?v=RVZEsnzJTqM)) | Position, Height (along the fold), Width Left, Width Right, tab size |
 | **Box layer** | The same parallel fold cut into the paper itself ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc), [Tutorial 6](https://www.youtube.com/watch?v=9xRj1-OUX64)) | Position, Height, Width Left, Width Right |
 | **Stand-up** | A picture held off the background by a bridge, or flat on a leg ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc)) | Picture (Upright or Flat), Position, Bridge or Leg Width, Bridge Height, Out From Back, Picture Width and Height, tab size |
 | **Roof** | A peaked roof over a stage: the background cut to a gable, a V-fold glued along its eaves | Ridge Starts, Roof Slope, Eaves Length, Ridge Length, Level Ridge (or Piece Angle), tab size |
-| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat. Stands on the spine, a box fold or strap, a stand-up, a floor's corner, a V-fold's glue folds or inside a V-fold (on its crease) | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
+| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat. **Width Right** makes the base a rectangle (lids need a square: a corner-to-corner lid can't fold flat over a rectangle). Stands on the spine, a box fold or strap, a stand-up, a floor's corner, a V-fold's glue folds or inside a V-fold (on its crease) | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
 | **Tube** | Hexagon, box or recessed tube on two parallel sticking strips ([Tutorial 72](https://www.youtube.com/watch?v=6FKi95a14N4)); on the spine, a box fold or strap, a stand-up, a V-fold's glue folds or inside a V-fold | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
 | **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
 | **Pyramid** | Pyramid, hexagonal pyramid or tent on two parallel sticking strips ([Tutorial 21](https://www.youtube.com/watch?v=jZDHbUhV6Ms)) | Position, Strip Distance, Base Length, Height, Ridge, Front and Back Width, each Pointed Out or In, base tabs |
@@ -392,12 +393,20 @@ page, give it a fold of its own that opens just like the spine:
   each opening exactly as the spine does. With the strap selected, the Add
   menu offers cubes, tubes, V-folds, boxes and stand-ups **on top** (the left
   gully) or **in front** (the right gully); move the gullies by changing
-  the strap's Height and Depth.
+  the strap's Height and Depth. **Slant** runs the strap across the card at
+  an angle: its creases stay parallel to the spine (they must), but one end
+  sits further up the card than the other, so the gullies, and what stands
+  in them, are offset diagonally. Box folds and box layers take a Slant too.
 * **A V-fold's glue folds**: with a V-fold selected, the Add menu offers
   cubes, tubes, V-folds, glued boxes and stand-ups **in front of** its left
   or right half (the valley between the half and the page), and cubes and
   tubes **in the V** on its crease. A mechanism's **Where** setting moves it
   between these afterwards, resized to fit.
+* **Outside a cube's or tube's walls**: where a cube's front walls, or a
+  tube's side walls, meet the page is a valley fold too. With a cube or tube
+  selected, the Add menu offers cubes, tubes, V-folds, glued boxes and
+  stand-ups outside its left or right wall; **Wall** moves them between
+  the two.
 
 ### Asymmetric V-folds: carrying pop-ups off the centre
 
@@ -799,6 +808,7 @@ python tests/test_v25.py       # bake guards: sRGB decode, emission materials
 python tests/test_v26.py       # images on pieces: placement, cuts, export
 python tests/test_v27.py       # picture-book defaults, cubes and tubes on other creases
 python tests/test_v28.py       # off-centre: the strap's gullies, V-fold glue folds
+python tests/test_v29.py       # slanted strap, V-fold glue lengths, rectangular cubes, wall hosts
 ```
 
 ## Tutorials

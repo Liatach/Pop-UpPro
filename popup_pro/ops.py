@@ -178,6 +178,7 @@ class POPUP_OT_add(bpy.types.Operator):
             st["live"] = False
             m.symmetric = False
             m.phi_l, m.phi_r, m.lean, m.fold_flat = 40.0, 75.0, 20.0, True
+            m.glue_r = m.glue
             m.label = "Asymmetric " + m.label
             st["live"] = was
         if self.kind == "BOX" and self.variant == "STRAP":
@@ -221,6 +222,8 @@ def _put_on(st, uid, host, fold="A"):
     if fold in ("FL", "BL", "FR", "BR", "V"):  # on a V-fold: a half, or its crease
         m["vside"] = ("FL", "BL", "FR", "BR", "V").index(fold)
         m["on_crease"] = fold == "V"  # (a floor's or ceiling's crease)
+    elif fold in ("WL", "WR"):  # outside a cube's or tube's wall
+        m["wall"] = 1 if fold == "WL" else 2
     else:
         m["fold"] = {"A": 0, "B": 1, "C": 2}.get(fold, 0)
     fit_to_host(m, st)
