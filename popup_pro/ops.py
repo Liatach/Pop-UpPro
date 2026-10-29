@@ -927,9 +927,14 @@ class POPUP_OT_add_line(bpy.types.Operator):
                      ("CUT", True, [(-e, 0.3 * w), (e, 0.3 * w)])]
             if P is None:
                 return {"CANCELLED"}
+        group = 1 + max([ln.group for ln in m.lines] + [0])
+        allp = [q for _k, _m, pts in P for q in pts]
+        px = 0.5 * (min(q[0] for q in allp) + max(q[0] for q in allp))
+        py = 0.5 * (min(q[1] for q in allp) + max(q[1] for q in allp))
         for kind, mirror, pts in P:
             ln = m.lines.add()
             ln.kind, ln.mirror = kind, mirror
+            ln.group, ln.pivot_x, ln.pivot_y = group, px, py
             (ln.x0, ln.y0), (ln.x1, ln.y1) = pts[0], pts[-1]
             if len(pts) > 2:
                 ln.path = json.dumps([(round(x, 3), round(y, 3)) for x, y in pts])

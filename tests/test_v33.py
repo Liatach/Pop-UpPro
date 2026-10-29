@@ -86,3 +86,40 @@ o.face = f"Box{box.uid}.CB"
 bpy.ops.popup.build()
 assert "warn" not in str(st.get("pop_warnings", "")).lower() or True
 print("all v33 checks pass")
+
+# ---- box presets: flip across the fold, turn and move the whole shape
+import importlib  # noqa: E402
+st.active = 0
+n0 = len(box.lines)
+assert bpy.ops.popup.add_line(preset="BATTLEMENTS") == {"FINISHED"}
+bat = list(box.lines)[n0:]
+assert len(bat) >= 2 and len({ln.group for ln in bat}) == 1 and bat[0].group
+before = [ln.points() for ln in bat]
+assert all(x <= 1e-9 for pts in before for x, _ in pts)  # cut over the top
+bat[0].flip = True
+after = [ln.points() for ln in bat]
+assert all(x >= -1e-9 for pts in after for x, _ in pts), after  # now down the front
+assert all(ln.flip for ln in bat)
+print("battlements flip across the fold together")
+bat[0].flip = False
+bat[1].turn = math.radians(180)
+assert all(abs(ln.turn - math.pi) < 1e-5 for ln in bat)
+turned = [q for ln in bat for q in ln.points()]
+orig = [q for pts in before for q in pts]
+cx = 0.5 * (min(q[0] for q in orig) + max(q[0] for q in orig))
+cy = 0.5 * (min(q[1] for q in orig) + max(q[1] for q in orig))
+assert all(any(abs(2 * cx - a - b[0]) < 1e-3 and abs(2 * cy - c - b[1]) < 1e-3 for b in turned)
+           for a, c in orig)
+bat[0].turn = 0.0
+bat[0].move_y = 5.0
+assert all(abs(p[1] - q[1] - 5.0) < 1e-5 for ln, pts in zip(bat, before)
+           for p, q in zip(ln.points(), pts))
+print("turned about the shape's centre, moved along, together")
+n1 = len(box.lines)
+bpy.ops.popup.add_line(preset="TOWER")
+tower = box.lines[n1]
+assert tower.group != bat[0].group
+tower.flip = True
+assert not bat[0].flip
+bpy.ops.popup.build()
+print("all v33 line checks pass")

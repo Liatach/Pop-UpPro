@@ -376,6 +376,21 @@ def _fold_changed(self, context):
     live.schedule(context.scene)
 
 
+def _line_xform(self, context):
+    """Flip, Turn and Move act on the whole shape: every line added with it."""
+    if self.group:
+        path = self.path_from_id()
+        try:
+            coll = self.id_data.path_resolve(path[:path.rindex("[")])
+        except (ValueError, AttributeError):
+            coll = ()
+        for ln in coll:
+            if ln.group == self.group and ln != self:
+                for k in ("flip", "turn", "move_x", "move_y"):
+                    ln[k] = getattr(self, k)
+    live.schedule(context.scene)
+
+
 class PopupLine(bpy.types.PropertyGroup):
     """An extra crease or cut on a V-fold piece, in the piece's own pattern:
     x across (the centre fold at 0, the left half negative), y up the centre
@@ -409,7 +424,21 @@ class PopupLine(bpy.types.PropertyGroup):
                           "the edge of the paper is fine", default=100.0, min=1.0,
                           soft_max=500.0, update=_changed)
 
-    def points(self):
+    group: IntProperty(description="Lines added together as one shape (a preset) share it")
+    pivot_x: FloatProperty()  # the shape's centre as added: Turn turns about it
+    pivot_y: FloatProperty()
+    flip: BoolProperty(name="Flip Across Fold", default=False, update=_line_xform,
+                       description="Mirror the shape to the other side of the fold it "
+                       "starts from (a box: from over the top to down the front)")
+    turn: FloatProperty(name="Turn", subtype="ANGLE", default=0.0, min=-2 * math.pi,
+                        max=2 * math.pi, update=_line_xform,
+                        description="Turn the shape about its centre")
+    move_x: FloatProperty(name="Move X", default=0.0, soft_min=-150.0, soft_max=150.0,
+                          update=_line_xform, description="Move the shape across (mm)")
+    move_y: FloatProperty(name="Move Y", default=0.0, soft_min=-150.0, soft_max=150.0,
+                          update=_line_xform, description="Move the shape along (mm)")
+
+    def base_points(self):
         if self.path:
             import json
             try:
@@ -417,11 +446,28 @@ class PopupLine(bpy.types.PropertyGroup):
             except ValueError:
                 pass
         if self.by_angle:
-            import math
             a = math.radians(self.angle)
             return [(self.x0, self.y0), (self.x0 - self.length * math.sin(a),
                                          self.y0 + self.length * math.cos(a))]
         return [(self.x0, self.y0), (self.x1, self.y1)]
+
+    def points(self):
+        pts = self.base_points()
+        if not (self.flip or self.turn or self.move_x or self.move_y):
+            return pts
+        if self.group:
+            px, py = self.pivot_x, self.pivot_y
+        else:
+            px = 0.5 * (min(q[0] for q in pts) + max(q[0] for q in pts))
+            py = 0.5 * (min(q[1] for q in pts) + max(q[1] for q in pts))
+        if self.flip:
+            pts = [(-x, y) for x, y in pts]
+            px = -px
+        if self.turn:
+            c, s_ = math.cos(self.turn), math.sin(self.turn)
+            pts = [(px + (x - px) * c - (y - py) * s_, py + (x - px) * s_ + (y - py) * c)
+                   for x, y in pts]
+        return [(x + self.move_x, y + self.move_y) for x, y in pts]
 
 
 class PopupMech(bpy.types.PropertyGroup):

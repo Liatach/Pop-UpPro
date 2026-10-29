@@ -481,6 +481,13 @@ end at score lines: a cut that leaves a fold and comes back to it makes a shape 
 * *Inset Step*: two creases and two cuts across the front-top fold. That part
   folds in.
 
+Each preset is one shape however many lines it has. With any of its lines
+selected, **Flip Across Fold** mirrors the whole shape to the other side of
+the fold it starts from (a spire cut down into the front instead of up into
+the top, so it juts forward), **Turn** rotates it about its centre, and
+**Move X / Y** shifts it. The lines keep their own numbers underneath. The
+same settings work on V-fold presets and on single lines.
+
 Curved or irregular outlines work too: draw the cut with **Draw Cuts** from
 one fold to another. On a box layer, **Draw Creases** and **Draw Cuts** work
 on the card itself, over the box.

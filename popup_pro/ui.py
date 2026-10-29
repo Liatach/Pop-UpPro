@@ -618,8 +618,15 @@ class POPUP_UL_lines(bpy.types.UIList):
 def _line_fields(c, ln):
     c.prop(ln, "kind")
     c.prop(ln, "mirror")
+    c.separator()
+    c.label(text="Whole shape" if ln.group else "This line", icon="ORIENTATION_GIMBAL")
+    c.prop(ln, "flip")
+    c.prop(ln, "turn")
+    c.prop(ln, "move_x")
+    c.prop(ln, "move_y")
+    c.separator()
     if ln.path:
-        c.label(text="Drawn line: redraw it to change its shape")
+        c.label(text="Its outline: redraw it to change the shape")
         return
     c.prop(ln, "by_angle")
     c.prop(ln, "x0")
