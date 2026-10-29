@@ -326,13 +326,18 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
                 with open(got[0], "rb") as fh:
                     placed_png[key] = base64.b64encode(fh.read()).decode("ascii")
         data = placed_png[key]
-        m = _images.svg_matrix(pl, meta)
-        if data is None or m is None:
+        if data is None:
             return ""
-        M = T @ Affine.from4(prints[piece]) @ Affine(*m)
-        return (f'<image width="1" height="1" preserveAspectRatio="none" '
-                f'opacity="{pl.opacity:.3g}" transform="{M.svg()}" '
-                f'href="data:image/png;base64,{data}"/>')
+        out = []
+        for k in range(max(1, pl.repeat)):  # copies side by side
+            m = _images.svg_matrix(pl, meta, k)
+            if m is None:
+                return ""
+            M = T @ Affine.from4(prints[piece]) @ Affine(*m)
+            out.append(f'<image width="1" height="1" preserveAspectRatio="none" '
+                       f'opacity="{pl.opacity:.3g}" transform="{M.svg()}" '
+                       f'href="data:image/png;base64,{data}"/>')
+        return "".join(out)
     tiles = {}
     if include_art:
         img = bpy.data.images.get(N(scene, PRINT_IMAGE)) or bpy.data.images.get(N(scene, ART_IMAGE))

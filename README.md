@@ -82,7 +82,9 @@ mechanisms, art and sketches.
      stage.
    * A **Camera** past the bottom end of the spine, above the card, framing
      it from shut to fully open (Kim's framing, scaled with the card; for a
-     carousel, the whole ring).
+     carousel, the whole ring). It becomes the scene camera (a new file's own
+     Camera would otherwise win); turn off *Make It the Scene Camera* in the
+     button's options to keep yours.
    * **Clean White Renders** (the sun button beside Set Up Scene, on by
      default): renders are lit evenly by a plain white light (seen against
      a soft grey), without the viewport's sun, so the sun and shadows help
@@ -403,8 +405,8 @@ page, give it a fold of its own that opens just like the spine:
   tubes, V-folds and stand-ups there (**Fold**: *Valley*, **Gully** picks
   which, counted from the left). Evenly spaced and exact, so they don't
   break the way hand-drawn creases can. Flat open, a glued strip is shown
-  resting on its glue tabs, just above them and the page, so nothing
-  flickers where they meet. **Slant** runs the strap across the card at
+  resting on top of its glue tabs (allowing for both papers' thickness
+  with Solid Paper), so nothing flickers where they meet. **Slant** runs the strap across the card at
   an angle: its creases stay parallel to the spine (they must), but one end
   sits further up the card than the other, so the gullies, and what stands
   in them, are offset diagonally. Box folds and box layers take a Slant too.
@@ -684,10 +686,13 @@ mesh, no rig). So:
   The bake never uses the lighting, and neither does painting (True
   Colours) or the export: the scene's sun and shadows only show in the
   viewport and in renders.
-* **Images on pieces** (Artwork panel, **+**): pick an image file and the
-  piece it goes on (the selected mechanism's piece to start; the card for
-  the background), front or back. It is fitted to the piece's face (**Fit**,
-  **Fill** or **Stretch**), then **Move X / Y**, **Scale**, **Turn** and
+* **Images on pieces** (Artwork panel): **Image on a Piece** puts an image
+  file on the selected mechanism's piece (any piece, from its menu);
+  **Image on the Card** puts it on the card itself: Front is the inside
+  (the scene's background), Back the outside cover. It is fitted to the
+  piece's face (**Fit**, **Fill**, **Stretch**, or **Wrap Around**, the
+  default on cubes and tubes: round all their walls, back ones included;
+  **Repeat** puts copies side by side, 4 for one on each wall of a cube), then **Move X / Y**, **Scale**, **Turn** and
   **Opacity** adjust it like a UV transform: it shows at once on the folded
   card and while painting, and nothing is painted into your art, so you can
   keep adjusting. Change its piece from the menu beside the piece name.
@@ -821,6 +826,7 @@ python tests/test_v27.py       # picture-book defaults, cubes and tubes on other
 python tests/test_v28.py       # off-centre: the strap's gullies, V-fold glue folds
 python tests/test_v29.py       # slanted strap, V-fold glue lengths, rectangular cubes, wall hosts
 python tests/test_v30.py       # strap peaks and valleys, rebuild speed, interface tidy
+python tests/test_v31.py       # strap on its tabs, images wrap round cubes, card images, camera
 ```
 
 ## Tutorials

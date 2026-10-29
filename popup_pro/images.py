@@ -55,7 +55,12 @@ class PopupImage(bpy.types.PropertyGroup):
     fit: EnumProperty(name="Fit", update=_changed, items=[
         ("FIT", "Fit", "The whole image inside the piece's face"),
         ("FILL", "Fill", "Cover the piece's face (the image's edges may be cut off)"),
-        ("STRETCH", "Stretch", "Stretch to the piece's face")])
+        ("STRETCH", "Stretch", "Stretch to the piece's face"),
+        ("WRAP", "Wrap Around", "Round all the walls of a cube or tube, back ones included "
+         "(on other pieces, across the whole face); Repeat puts a copy on each wall")])
+    repeat: IntProperty(name="Repeat", default=1, min=1, max=16, update=_changed,
+                        description="Copies side by side across the area it fits (4 on a "
+                        "square cube's walls: one on each)")
     scale: FloatProperty(name="Scale", default=1.0, min=0.01, soft_max=5.0, update=_changed)
     offset_x: FloatProperty(name="Move X", default=0.0, soft_min=-200, soft_max=200,
                             description="mm across the piece", update=_changed)
@@ -92,10 +97,12 @@ def placement(pl, meta):
     img = pl.image
     if b is None or img is None:
         return None
+    if pl.fit == "WRAP":
+        b = meta["pieces"][pl.piece].get("wrap") or b  # the walls, round
     bw, bh = max(b[2] - b[0], 1e-3), max(b[3] - b[1], 1e-3)
     iw, ih = img.size if img.size[0] and img.size[1] else (1, 1)
-    ia = iw / ih
-    if pl.fit == "STRETCH":
+    ia = iw * max(1, pl.repeat) / ih  # the copies side by side, as one picture
+    if pl.fit in ("STRETCH", "WRAP"):
         w, h = bw, bh
     elif pl.fit == "FILL":
         w, h = (bw, bw / ia) if bw / bh > ia else (bh * ia, bh)
@@ -205,7 +212,7 @@ def sync(scene):
     if bsdf is None:
         return
     want = [pl for pl in st.images if pl.image is not None and pl.piece in meta["pieces"]]
-    sig = ";".join(f"{pl.uid}:{pl.image.name}:{pl.piece}:{pl.side}" for pl in want)
+    sig = "v2;" + ";".join(f"{pl.uid}:{pl.image.name}:{pl.piece}:{pl.side}" for pl in want)
     if nt.get("pop_images") != sig:
         _rebuild_nodes(scene, mat, bsdf, want, meta)
         nt["pop_images"] = sig
@@ -260,8 +267,23 @@ def _rebuild_nodes(scene, mat, bsdf, want, meta):
             add.location.y -= 120 * j
             nt.links.new(d.outputs["Value"], add.inputs[0])
             dots.append(add)
+        # copies side by side: s -> fract(s n), only where 0 <= s < 1
+        rep = node("ShaderNodeMath", "rep", x0 - 840, operation="MULTIPLY")
+        rep.location.y += 60
+        nt.links.new(dots[0].outputs[0], rep.inputs[0])
+        frc = node("ShaderNodeMath", "frac", x0 - 800, operation="FRACT")
+        frc.location.y += 120
+        nt.links.new(rep.outputs[0], frc.inputs[0])
+        gt = node("ShaderNodeMath", "s_in0", x0 - 840, operation="GREATER_THAN")
+        gt.location.y -= 420
+        gt.inputs[1].default_value = -1e-6
+        nt.links.new(dots[0].outputs[0], gt.inputs[0])
+        lt = node("ShaderNodeMath", "s_in1", x0 - 840, operation="LESS_THAN")
+        lt.location.y -= 480
+        lt.inputs[1].default_value = 1.0
+        nt.links.new(dots[0].outputs[0], lt.inputs[0])
         comb = node("ShaderNodeCombineXYZ", "st", x0 - 760)
-        nt.links.new(dots[0].outputs[0], comb.inputs[0])
+        nt.links.new(frc.outputs[0], comb.inputs[0])
         nt.links.new(dots[1].outputs[0], comb.inputs[1])
         tex = node("ShaderNodeTexImage", "tex", x0 - 600, image=pl.image, extension="CLIP")
         tex.label = pl.image.name
@@ -279,10 +301,18 @@ def _rebuild_nodes(scene, mat, bsdf, want, meta):
             cm.inputs[2].default_value = 0.5
             nt.links.new(fl.outputs[0], cm.inputs[0])
             masks.append(cm)
-        m1 = node("ShaderNodeMath", "mask", x0 - 760, operation="MULTIPLY")
-        m1.location.y -= 260
-        nt.links.new(masks[0].outputs[0], m1.inputs[0])
-        nt.links.new(masks[1].outputs[0], m1.inputs[1])
+        m0 = node("ShaderNodeMath", "mask0", x0 - 760, operation="MULTIPLY")
+        m0.location.y -= 260
+        nt.links.new(masks[0].outputs[0], m0.inputs[0])
+        nt.links.new(masks[1].outputs[0], m0.inputs[1])
+        ms = node("ShaderNodeMath", "s_in", x0 - 700, operation="MULTIPLY")
+        ms.location.y -= 440
+        nt.links.new(gt.outputs[0], ms.inputs[0])
+        nt.links.new(lt.outputs[0], ms.inputs[1])
+        m1 = node("ShaderNodeMath", "mask", x0 - 640, operation="MULTIPLY")
+        m1.location.y -= 300
+        nt.links.new(m0.outputs[0], m1.inputs[0])
+        nt.links.new(ms.outputs[0], m1.inputs[1])
         # front or back
         side = node("ShaderNodeMath", "side", x0 - 600, operation="SUBTRACT"
                     if pl.side == "FRONT" else "ADD")
@@ -326,6 +356,9 @@ def _set_values(nt, pl, meta):
     op = nt.nodes.get(f"{k}.opacity")
     if op is not None:
         op.inputs[1].default_value = pl.opacity if pl.on else 0.0
+    rp = nt.nodes.get(f"{k}.rep")
+    if rp is not None:
+        rp.inputs[1].default_value = float(max(1, pl.repeat))
 
 
 def mute_in(mat):
@@ -368,18 +401,19 @@ def png_data(img, tmp):
     return path, w, h
 
 
-def svg_matrix(pl, meta):
+def svg_matrix(pl, meta, k=0):
     """Affine (a, b, c, d, e, f) from an SVG <image width=1 height=1> (y down)
-    to the piece's pattern mm."""
+    to the piece's pattern mm: copy k of Repeat."""
     P = placement(pl, meta)
     if P is None:
         return None
     L, c = P
-    # pattern = c + L . (x - 1/2, 1/2 - y)
-    a, b = L[0][0], L[1][0]
+    n = max(1, pl.repeat)
+    # pattern = c + L . (s - 1/2, 1/2 - y), s = (x + k) / n
+    a, b = L[0][0] / n, L[1][0] / n
     cc, d = -L[0][1], -L[1][1]
-    e = c[0] - 0.5 * L[0][0] + 0.5 * L[0][1]
-    f = c[1] - 0.5 * L[1][0] + 0.5 * L[1][1]
+    e = c[0] + L[0][0] * (k / n - 0.5) + 0.5 * L[0][1]
+    f = c[1] + L[1][0] * (k / n - 0.5) + 0.5 * L[1][1]
     return a, b, cc, d, e, f
 
 
@@ -412,6 +446,7 @@ def cut_mask(scene, meta, piece, xs, ys, threshold=0.5):
         s = M[0][0] * (X - c[0]) + M[0][1] * (Y - c[1]) + 0.5
         t = M[1][0] * (X - c[0]) + M[1][1] * (Y - c[1]) + 0.5
         inside = (s >= 0) & (s < 1) & (t >= 0) & (t < 1)
+        s = np.mod(s * max(1, pl.repeat), 1.0)  # copies side by side
         w, h = pl.image.size
         if not w or not h:
             continue
@@ -498,8 +533,13 @@ class POPUP_OT_add_image(bpy.types.Operator):
     filter_image: BoolProperty(default=True, options={"HIDDEN"})
     filter_folder: BoolProperty(default=True, options={"HIDDEN"})
     piece: EnumProperty(name="Piece", items=_piece_enum)
-    side: EnumProperty(name="Side", items=[("FRONT", "Front", ""), ("BACK", "Back", "")])
+    side: EnumProperty(name="Side", items=[
+        ("FRONT", "Front", "The printed side (on the card: inside, the scene)"),
+        ("BACK", "Back", "The back (on the card: the outside cover)")])
     cut: BoolProperty(name="Cut Where Transparent", default=False)
+    to_card: BoolProperty(name="On the Card", default=False, options={"SKIP_SAVE"},
+                          description="Put it on the card itself (the background, or with "
+                          "Back the outside cover)")
 
     @classmethod
     def poll(cls, context):
@@ -507,8 +547,13 @@ class POPUP_OT_add_image(bpy.types.Operator):
 
     def invoke(self, context, event):
         try:
-            self.piece = active_piece(context.scene)
-        except TypeError:
+            if self.to_card:
+                meta = live.meta(context.scene.popup.rig)
+                self.piece = next((k for k, v in meta["pieces"].items() if v["is_card"]),
+                                  "Card")
+            else:
+                self.piece = active_piece(context.scene)
+        except (TypeError, KeyError):
             pass
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
@@ -537,6 +582,9 @@ def add(scene, img, piece, side="FRONT", cut=False):
     pl["piece"] = piece
     pl["side"] = 0 if side == "FRONT" else 1
     pl["cut"] = cut
+    meta = live.meta(st.rig)
+    if meta and (meta["pieces"].get(piece) or {}).get("wrap"):
+        pl["fit"] = 3  # round a cube's or tube's walls
     pl.image = img  # triggers the sync
     st.active_image = len(st.images) - 1
     sync(scene)
@@ -608,8 +656,11 @@ def draw(layout, context):
     row = col.row()
     row.template_list("POPUP_UL_images", "", st, "images", st, "active_image", rows=2)
     c = row.column(align=True)
-    c.operator("popup.add_image", text="", icon="ADD")
+    c.operator("popup.add_image", text="", icon="ADD").to_card = False
     c.operator("popup.remove_image", text="", icon="REMOVE")
+    r = col.row(align=True)
+    r.operator("popup.add_image", text="Image on a Piece", icon="IMAGE_DATA").to_card = False
+    r.operator("popup.add_image", text="Image on the Card", icon="FILE_IMAGE").to_card = True
     if 0 <= st.active_image < len(st.images):
         pl = st.images[st.active_image]
         meta = live.meta(st.rig) or {"pieces": {}}
@@ -622,7 +673,8 @@ def draw(layout, context):
         row.label(text="Piece: " + meta["pieces"].get(pl.piece, {}).get("label", pl.piece))
         row.operator_menu_enum("popup.image_piece", "piece", text="", icon="DOWNARROW_HLT")
         c.prop(pl, "side", expand=True)
-        c.prop(pl, "fit", expand=True)
+        c.prop(pl, "fit")
+        c.prop(pl, "repeat")
         c.prop(pl, "scale")
         c.prop(pl, "offset_x")
         c.prop(pl, "offset_y")

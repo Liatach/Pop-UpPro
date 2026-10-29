@@ -41,6 +41,7 @@ mech = next(k for k, v in meta["pieces"].items() if not v["is_card"])
 # ---- placement maths: the face's centre is the image's centre, any piece
 for piece, side in ((card, "FRONT"), (mech, "BACK")):
     pl = images.add(sc, img, piece, side)
+    pl.fit = "FIT"  # (a cube's piece wraps round by default)
     b = meta["pieces"][piece]["bounds"]
     c = (0.5 * (b[0] + b[2]), 0.5 * (b[1] + b[3]))
     u, v = art_uv(model, piece, c)

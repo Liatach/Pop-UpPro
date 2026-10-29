@@ -138,7 +138,7 @@ def camera(scene, make_active=True):
     for sc in popup_scenes(scene):
         if sc.collection.objects.get(ob.name) is None:
             sc.collection.objects.link(ob)
-        if make_active and (sc.camera is None or sc.camera == ob):
+        if make_active:  # (a new file's own Camera would otherwise win)
             sc.camera = ob
     return ob
 
@@ -286,7 +286,7 @@ def viewports(context, all_workspaces=False, fold_lines=True):
 
 
 def setup(context, sun_on=True, grain=False, fold_lines=True, all_workspaces=False,
-          sun_strength=0.6, clean=True, cam=True, view_camera=False):
+          sun_strength=0.6, clean=True, cam=True, view_camera=False, active_camera=True):
     scenes = popup_scenes(context.scene)
     for sc in scenes:
         eevee(sc)
@@ -304,7 +304,7 @@ def setup(context, sun_on=True, grain=False, fold_lines=True, all_workspaces=Fal
     master.popup["clean_render"] = clean
     views = viewports(context, all_workspaces, fold_lines)
     if cam:
-        camera(context.scene)
+        camera(context.scene, make_active=active_camera)
         if view_camera:
             look_through(context)
     for sc in scenes:
@@ -341,6 +341,10 @@ class POPUP_OT_setup_scene(bpy.types.Operator):
     cam: bpy.props.BoolProperty(name="Camera", default=True,
                                 description="A camera past the bottom end of the spine, "
                                 "above it, framing the whole card as it opens")
+    active_camera: bpy.props.BoolProperty(name="Make It the Scene Camera", default=True,
+                                          description="Render through the card camera. Off: "
+                                          "keep the scene's own camera for renders (the card "
+                                          "camera is still placed)")
     view_camera: bpy.props.BoolProperty(name="Look Through Camera", default=False,
                                         description="Point the 3D view through the camera "
                                         "(orbit to leave it)")
@@ -351,7 +355,7 @@ class POPUP_OT_setup_scene(bpy.types.Operator):
     def execute(self, context):
         scenes, views = setup(context, self.sun, self.grain, self.fold_lines,
                               self.all_workspaces, self.sun_strength, self.clean,
-                              self.cam, self.view_camera)
+                              self.cam, self.view_camera, self.active_camera)
         self.report({"INFO"}, f"Set up {len(scenes)} scene(s), {views} view(s)")
         return {"FINISHED"}
 

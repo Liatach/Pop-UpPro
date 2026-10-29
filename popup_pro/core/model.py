@@ -106,6 +106,7 @@ class Piece:
         self.anchor = anchor  # pattern point at the art tile centre
         self.is_card = is_card
         self.panels = []
+        self.wrap = None  # walls an image wraps round (x0, y0, x1, y1), if any
 
 
 def halfplanes(poly):
@@ -654,7 +655,12 @@ class Model:
                     tf = min(self.tmax, 179.9)
                     nz = prev.asm(tf).to_3x3() @ Z
                     S_, l_, r_, Y_, nl_, nr_ = host.dirs(tf)
-                    prev.zoff = 2.0 * TAB_LIFT * (1.0 if nz.dot(lift1 * nl_) >= 0 else -1.0)
+                    # with Solid Paper a tab's thickness stands up off the
+                    # page and the strip's hangs below its printed face:
+                    # clear the tab's top by the strip's own thickness
+                    th = float(self.card.get("thickness", 0.0) or 0.0)
+                    up_ = TAB_LIFT + 2.0 * th + 0.05 if th > 0 else 2.0 * TAB_LIFT
+                    prev.zoff = up_ * (1.0 if nz.dot(lift1 * nl_) >= 0 else -1.0)
             self.add(Panel(f"{base}.TabB", piece, "tab", [poly_tabB], asm_tabB,
                            host.p2, None, f"{lab}: tab B"))
             TA = Matrix.Translation((0.0, -y0, 0.0))
@@ -1118,6 +1124,7 @@ class Model:
         # strip pattern: tab | A [0,wC] | B (wB) | C (wC) | D (wB)
         s1, s2, s3, s4 = wC, wC + wB, 2 * wC + wB, 2 * (wC + wB)
         square = abs(wB - wC) < 1e-6
+        self.pieces[piece].wrap = [0.0, 0.0, s4, hgt]  # the four walls, round
         B = [(s1, 0), (s2, 0), (s2, hgt), (s1, hgt)]
         C = [(s2, 0), (s3, 0), (s3, hgt), (s2, hgt)]
         A = [(0, 0), (s1, 0), (s1, hgt), (0, hgt)]
@@ -1365,6 +1372,7 @@ class Model:
         # strip pattern: F_L | G_fl | G_fr | F_R | G_br | G_bl | closing tab
         u = [0.0, D, D + wf, D + 2 * wf, 2 * D + 2 * wf, 2 * D + 2 * wf + wb,
              2 * D + 2 * wf + 2 * wb]
+        self.pieces[piece].wrap = [0.0, 0.0, u[6], hgt]  # all six walls, round
         names = ["FL_", "GFL", "GFR", "FR_", "GBR", "GBL"]
         ends = [("BL", "FL"), ("FL", "CF"), ("CF", "FR"), ("FR", "BR"), ("BR", "CB"), ("CB", "BL")]
         labels = ["left side", "front left", "front right", "right side", "back right",

@@ -431,7 +431,7 @@ def write_meta(rig, model, layout, s):
                 for n in model.order],
         pieces={k: dict(label=p.label, slot=p.slot, sheet=layout["on_sheet"].get(k, 0),
                         anchor=list(p.anchor), is_card=p.is_card,
-                        bounds=_piece_bounds(model, k))
+                        bounds=_piece_bounds(model, k), wrap=p.wrap)
                 for k, p in model.pieces.items() if p.panels},
         sheets=[dict(size=list(sh.size), origin=list(sh.origin)) for sh in layout["sheets"]],
         flaps={str(k): v for k, v in model.flaps.items()},
