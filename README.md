@@ -27,11 +27,11 @@ Every setting is explained in the [guide](docs/guide.md).
 
 ## Examples
 
-<!-- SHOT: box layer + box layer on top, Battlements / Pointed Tower / Doorway presets, two stand-ups (one in front of the other). Showcase look. -->
+<!-- SHOT: box layer + box layer on top, Battlements / Pointed Tower presets, a door flap on the front, two stand-ups (one in front of the other). Showcase look. -->
 ### Castle
 ![Castle](docs/images/ex_castle.png)
 
-Stacked box layers with battlements, a spire and a doorway cut in, and parallelogram stand-ups in front.
+Stacked box layers with battlements, a spire and a hinged door, and parallelogram stand-ups in front.
 
 <!-- SHOT: strap Peaks 3 with cubes in two valleys; a slanted strap; asym V-fold with a box on its crease. Showcase look, ~110° open. -->
 ### Off the centre
@@ -80,9 +80,10 @@ Paint flat or folded, wrap an image round a cube, then export layered SVG sheets
 * Stack anything on anything: boxes on boxes, V-folds on V-folds, cubes in
   valleys and gullies, off-centre on straps and glue folds.
 * Extra creases and cuts from presets or drawn by hand: reverse points,
-  steps, jaws, battlements, spires, doorways.
-* Windows, arches and holes on any face, turned to any angle, painted or
-  sketched, lined up through every layer behind.
+  steps, jaws, battlements, spires; flip, turn and move a whole shape.
+* Windows, arches, holes and hinged door flaps on any face, turned to any
+  angle, painted or sketched, lined up through every layer behind.
+* Duplicate a mechanism with everything on it.
 * Live checks for tearing, poking through, sticking out and overlapping glue.
 
 **Art and output**
@@ -147,6 +148,9 @@ too, along with the mouth and jaws.
     a floor or ceiling, in a stage), offering only what fits the selected
     host.
   * Clicking a warning in Checks selects the mechanism it's about.
+* **Align**: line selected mechanisms up (left, right, centre, top, bottom)
+  and space them evenly along their fold.
+* Door flaps on cubes, tubes and stand-up pictures.
 * A **fan**: like a large upright V-fold with extra creases, opening into a
   fan, but standing free of the centre crease, so it can arch across the
   scene as arches, rainbows and arcs.

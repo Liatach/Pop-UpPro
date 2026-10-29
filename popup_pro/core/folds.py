@@ -257,7 +257,10 @@ def regions(model, names, lines):
         if "JOIN" in types:
             ra.joins.add(rb.idx)
             rb.joins.add(ra.idx)
-        if ra.panel == rb.panel or "JOIN" in types:
+        hinge = sorted(k for k in types if k.startswith("HINGE"))
+        if hinge and ra.panel == rb.panel:
+            typ = hinge[0]  # a door's hinge: "HINGE:<degrees>"
+        elif ra.panel == rb.panel or "JOIN" in types:
             typ = "CREASE"
         else:
             together = all((M[(ra.panel, t)] @ Vector((x, y, 0.0)) -
@@ -614,6 +617,44 @@ def build(model, piece, names, lab, lines, base=None):
                 o = min(nb, key=lambda o: _depth(model, panel[o]))
                 flat(r, panel[o])
                 progress = True
+        # door flaps: cut free but for one hinge, they swing out of the
+        # printed side by their set angle, opening with the card
+        for r in pending():
+            hs = [(o, sg) for o, segs in r.links.items() for sg in segs
+                  if sg[0].startswith("HINGE")]
+            if not hs or any(not sg[0].startswith("HINGE")
+                             for segs in r.links.values() for sg in segs):
+                continue
+            hs = [(o, sg) for o, sg in hs if o in panel]
+            if not hs:
+                continue
+            o, (typ, p, q) = max(hs, key=lambda h: math.hypot(h[1][2][0] - h[1][1][0],
+                                                              h[1][2][1] - h[1][1][1]))
+            ang = math.radians(float(typ.split(":", 1)[1]))
+            pname = panel[o]
+            H = hinge_frame_2d(p, (q[0] - p[0], q[1] - p[1]))
+            Hi = H.inverted()
+            w_ = H @ rot_y(0.5) @ Hi @ Vector((r.where[0], r.where[1], 0.0))
+            if w_.z < 0:
+                ang = -ang
+            tm = max(1.0, model.tmax)
+            count += 1
+            name = f"{base}.Door{count}"
+
+            def asm(t, pa=model.panels[pname].asm, H=H, Hi=Hi, ang=ang, tm=tm):
+                # eased in: barely open while the card is nearly shut, so a
+                # door near a fold clears the paper closing on it
+                s_ = max(0.0, min(1.0, t / tm))
+                return pa(t) @ H @ rot_y(ang * s_ * s_) @ Hi
+
+            panel[r.idx] = name
+            hg = Hinge(H, H, "TABLE")
+            hg.corner_ok = True
+            model.add(Panel(name, piece, "panel", r.polys, asm, pname, hg, f"{lab}: door"))
+            if pname in model.cut_panels:
+                model.cut_panels.add(name)
+            new_panels.append(name)
+            progress = True
         for r in pending():
             if r.idx in panel or not crease_parents(r):
                 continue

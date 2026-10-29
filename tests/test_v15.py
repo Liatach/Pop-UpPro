@@ -131,8 +131,10 @@ assert bpy.ops.popup.add(kind="BOXCUT") == {"FINISHED"}
 st.active = 0
 box = st.mechs[0]
 box.y, box.width, box.height, box.depth = 25, 60, 40, 30
-for pre in ("BATTLEMENTS", "DOORWAY"):
-    assert bpy.ops.popup.add_line(preset=pre) == {"FINISHED"}
+assert bpy.ops.popup.add_line(preset="BATTLEMENTS") == {"FINISHED"}
+assert bpy.ops.popup.add_opening() == {"FINISHED"}  # a door in the front (v0.35)
+st.openings[-1].cut = "DOOR"
+st.openings[-1].y = 4.0  # a side-hinged door clears the floor
 assert bpy.ops.popup.add(kind="STANDUP") == {"FINISHED"}
 su = st.mechs[-1]
 su.y, su.img_w = 108, 50

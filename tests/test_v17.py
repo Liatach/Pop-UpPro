@@ -118,7 +118,7 @@ for t in (5, 45, 90, 150, 180):
     ev = card.evaluated_get(dg).data
     for poly in me.polygons:
         p = model.panels[model.order[attr.data[poly.index].value]]
-        D_ = p.asm(t) @ lay["prints"][p.piece].inverted()
+        D_ = model.shown(p.name, t) @ lay["prints"][p.piece].inverted()
         for vi in poly.vertices:
             want = (D_ @ (me.vertices[vi].co / s_)) * s_
             worst = max(worst, (ev.vertices[vi].co - want).length / s_)

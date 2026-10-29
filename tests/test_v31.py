@@ -28,7 +28,7 @@ print("the card camera is the scene camera")
 m = Model(dict(W=148.5, H=210.0, hold="SYM", thickness=0.3),
           [dict(type="BOX", style="GLUED", uid=1, label="S", y=70, width=50, height=35,
                 depth=35, tab=8)])
-z = [m.panels[n].zoff for n in ("Box1.AC", "Box1.CB")]
+z = [m.panels["Box1.AC"].lift]  # v0.35: lifted by the rig near flat, the whole strip
 assert all(abs(v - (0.15 + 0.6 + 0.05)) < 1e-9 for v in z), z  # tab top 0.45, strip 0.3 thick
 print("strap rests on its tabs' thickness")
 

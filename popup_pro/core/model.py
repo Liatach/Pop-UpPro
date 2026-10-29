@@ -75,6 +75,7 @@ class Panel:
         self.label = label or name
         self.outside = False  # lies behind the card (pull strips): skip fit checks
         self.zoff = 0.0  # mm the surface sits off its own fold lines (display only)
+        self.lift = 0.0  # mm the rig raises it off its parent near flat (display only)
 
     @property
     def glue(self):
@@ -245,6 +246,8 @@ class Model:
         # mechanism uid -> (piece, pattern -> its line coordinates, bounds) for
         # drawn creases and cuts
         self.line_frames = {}
+        self.doors = list(card.get("doors") or [])
+        self.doors_done = set()
         # A carousel stage only ever opens to 360/n degrees; everything is
         # sampled and checked up to there.
         self.tmax = min(180.0, float(card.get("tmax", 180.0)))
@@ -487,16 +490,40 @@ class Model:
                         hg.host_bound = True  # rides a fold that may not open evenly
         self._card_lines()
 
+    def _door_lines(self, piece, names, primary):
+        """Door flaps cut in these panels, as extra lines in the pattern. A
+        door on a face goes with the panels holding that face; a door on the
+        whole piece with the piece's own creases (primary)."""
+        from .openings import door_lines
+        out = []
+        for d in self.doors:
+            if d["id"] in self.doors_done or (d.get("piece") or "Card") != piece:
+                continue
+            face = d.get("face") or ""
+            if face:
+                if face not in names or (face.startswith("Page.") and not primary):
+                    continue
+            elif not primary:
+                continue
+            out += door_lines(self, d)
+            self.doors_done.add(d["id"])
+        return out
+
     def _card_lines(self):
         """Extra creases and cuts in the card itself (the background): a
         ceiling or floor folded out of the pages, cut-out shapes. Pattern x
         across the card (left page negative), y up the spine."""
         self.line_frames[0] = ("Card", lambda q: q, None)
         lines = self.card.get("lines")
-        if not lines:
-            return
         from .folds import build as fold_build, expand
-        fold_build(self, "Card", ["Page.L", "Page.R"], "Card", expand(lines), "Card")
+        doors = self._door_lines("Card", ["Page.L", "Page.R"], True)
+        if lines or doors:
+            fold_build(self, "Card", ["Page.L", "Page.R"], "Card", expand(lines) + doors,
+                       "Card")
+        for d in self.doors:
+            if d["id"] not in self.doors_done:
+                self.warn(f"Door flap on {d.get('piece') or 'Card'}: door flaps work on the "
+                          f"card, V-folds, box folds and box layers; cut as a hole")
 
     # ------------------------------------------------------- page directions
     def dirs(self, t):
@@ -649,18 +676,15 @@ class Model:
                     par = prev.name
                 prev = self.add(Panel(f"{base}.{names[j]}", piece, "panel", [polys[j]],
                                       make_asm(j), par, hg, f"{lab}: {txt}"))
-                if prev is not None:
-                    # shown resting on its glue tabs: flat open, the strip sits
-                    # above them and the page, not level with it and under them
-                    tf = min(self.tmax, 179.9)
-                    nz = prev.asm(tf).to_3x3() @ Z
-                    S_, l_, r_, Y_, nl_, nr_ = host.dirs(tf)
-                    # with Solid Paper a tab's thickness stands up off the
-                    # page and the strip's hangs below its printed face:
-                    # clear the tab's top by the strip's own thickness
+                if prev is not None and j == 0:
+                    # shown resting on its glue tabs: open flat, the whole strip
+                    # sits above them, not level with the page and under them.
+                    # The rig lifts it off the page it hangs from as the card
+                    # nears flat (lift), and not while it folds, so it never
+                    # pokes through a page closing on it.
                     th = float(self.card.get("thickness", 0.0) or 0.0)
                     up_ = TAB_LIFT + 2.0 * th + 0.05 if th > 0 else 2.0 * TAB_LIFT
-                    prev.zoff = up_ * (1.0 if nz.dot(lift1 * nl_) >= 0 else -1.0)
+                    prev.lift = up_ * lift1
             self.add(Panel(f"{base}.TabB", piece, "tab", [poly_tabB], asm_tabB,
                            host.p2, None, f"{lab}: tab B"))
             TA = Matrix.Translation((0.0, -y0, 0.0))
@@ -682,7 +706,7 @@ class Model:
                 (Tv_ @ Vector((q[0], q[1], 0.0)))[1] - y0), (-b, a, 0.0, w))
         else:
             self.line_frames[uid] = (piece, lambda q: (q[0] - b, q[1]), (-b, a, 0.0, w))
-        if m.get("lines") and f"{base}.AC" in self.panels and f"{base}.CB" in self.panels:
+        if f"{base}.AC" in self.panels and f"{base}.CB" in self.panels:
             # extra creases and cuts: X across from the front-top fold (C),
             # negative over the top, positive down the front; Y along the box
             from .folds import build as fold_build, expand
@@ -692,8 +716,11 @@ class Model:
             else:
                 names = [f"{base}.AC", f"{base}.CB"]
                 to_pat = (lambda p: (b + p[0], p[1]))
-            fold_build(self, piece, names, lab,
-                       expand(m["lines"], to_pat, lambda p: (p[0], w - p[1])), base)
+            doors = self._door_lines(piece, names, m.get("style") != "CUT")
+            if m.get("lines") or doors:
+                fold_build(self, piece, names, lab,
+                           expand(m.get("lines"), to_pat, lambda p: (p[0], w - p[1])) + doors,
+                           base)
         if role:
             for n in (f"{base}.AC", f"{base}.CB"):
                 if n in self.panels:
@@ -1011,10 +1038,11 @@ class Model:
                            f"{lab}: tab {side}"))
 
         self.line_frames[uid] = (piece, lambda q: q, None)
-        if m.get("lines"):
+        halves = [f"{base}.HalfL", f"{base}.HalfR"]
+        doors = self._door_lines(piece, halves, True)
+        if m.get("lines") or doors:
             from .folds import build as fold_build, expand
-            fold_build(self, piece, [f"{base}.HalfL", f"{base}.HalfR"], lab,
-                       expand(m["lines"]), base)
+            fold_build(self, piece, halves, lab, expand(m.get("lines")) + doors, base)
 
         self._vfold_hosts(uid, base, host, yP, (gs["L"], gs["R"]), Lc, (uLf, uRf), (uLp, uRp))
 
@@ -2938,6 +2966,25 @@ class Model:
         sgn = "+" if s > 0 else "-"
         h.expr = f"atan2(b,a){sgn}acos(max(-1,min(1,d/max(sqrt(a*a+b*b),1e-9))))"
         h.fn = lambda t, s=s: psi(t, s)
+
+    # ------------------------------------------------------------- display
+    LIFT_FROM, LIFT_SPAN = 60.0, 50.0  # degrees before full open; see build.lift
+
+    def lift_fraction(self, t):
+        return max(0.0, min(1.0, (t - (self.tmax - self.LIFT_FROM)) / self.LIFT_SPAN))
+
+    def shown(self, name, t):
+        """Where the rig shows a panel: its pose, plus the lift of anything
+        it hangs from that is raised onto its tabs near flat (display only)."""
+        M = self.panels[name].asm(t)
+        off = Vector((0.0, 0.0, 0.0))
+        p = self.panels[name]
+        while p is not None:
+            if p.lift and p.parent:
+                n = self.panels[p.parent].asm(t).to_3x3() @ Vector((0.0, 0.0, 1.0))
+                off += self.lift_fraction(t) * p.lift * n
+            p = self.panels.get(p.parent) if p.parent else None
+        return Matrix.Translation(off) @ M
 
     # --------------------------------------------------------- closing stop
     def close_angle(self, thickness, clearance=0.1, near_spine=8.0, cap=45.0):

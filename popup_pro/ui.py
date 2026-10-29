@@ -388,6 +388,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col = row.column(align=True)
         col.menu("POPUP_MT_add", text="", icon="ADD")
         col.operator("popup.remove", text="", icon="REMOVE")
+        col.operator("popup.duplicate", text="", icon="DUPLICATE")
         col.separator()
         col.prop(st, "highlight", text="", icon="RESTRICT_SELECT_OFF")
         if not st.mechs or st.active >= len(st.mechs):
@@ -600,10 +601,38 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         self.draw_warnings(context, m)
 
 
+def _group_head(lines, item):
+    """The first line of item's shape (a preset's lines collapse to it)."""
+    return next((ln for ln in lines if ln.group == item.group), item)
+
+
 class POPUP_UL_lines(bpy.types.UIList):
+    """Lines one by one; a preset's lines (battlements, say) fold into one
+    row for the whole shape, which opens to show them."""
+
+    def filter_items(self, context, data, propname):
+        lines = getattr(data, propname)
+        flags = []
+        for ln in lines:
+            hidden = (ln.group and not ln.expanded and len(
+                [x for x in lines if x.group == ln.group]) > 1 and
+                _group_head(lines, ln) != ln)
+            flags.append(0 if hidden else self.bitflag_filter_item)
+        return flags, []
+
     def draw_item(self, context, layout, data, item, icon, active_data, active_prop, index=0):
         ic = {"CREASE": "MOD_LINEART", "CUT": "SCULPTMODE_HLT", "JOIN": "AUTOMERGE_ON"}[item.kind]
         row = layout.row(align=True)
+        lines = data.card_lines if self.list_id == "card" else data.lines
+        mates = [x for x in lines if item.group and x.group == item.group]
+        if len(mates) > 1:
+            if _group_head(lines, item) == item:
+                row.prop(item, "expanded", text="", emboss=False,
+                         icon="DISCLOSURE_TRI_DOWN" if item.expanded else "DISCLOSURE_TRI_RIGHT")
+                row.label(text=f"{item.shape_name or 'Shape'} ({len(mates)} lines)",
+                          icon="OUTLINER_OB_GROUP_INSTANCE")
+                return
+            row.separator(factor=3.0)
         kind = {"CREASE": "Crease", "CUT": "Cut", "JOIN": "Join tab"}[item.kind]
         if item.path:
             what = f"drawn {kind.lower()}"
@@ -616,15 +645,20 @@ class POPUP_UL_lines(bpy.types.UIList):
 
 
 def _line_fields(c, ln):
-    c.prop(ln, "kind")
-    c.prop(ln, "mirror")
-    c.separator()
+    whole = ln.group and ln.shape_name and not ln.expanded
+    if not whole:
+        c.prop(ln, "kind")
+        c.prop(ln, "mirror")
+        c.separator()
     c.label(text="Whole shape" if ln.group else "This line", icon="ORIENTATION_GIMBAL")
     c.prop(ln, "flip")
     c.prop(ln, "turn")
     c.prop(ln, "move_x")
     c.prop(ln, "move_y")
     c.separator()
+    if whole:
+        c.label(text="Open the shape (triangle) to edit its lines one by one")
+        return
     if ln.path:
         c.label(text="Its outline: redraw it to change the shape")
         return
@@ -645,6 +679,7 @@ def _draw_lines(lay, context, m):
     if m.kind in ("BOX", "BOXCUT"):
         c = box.column(align=True)
         c.scale_y = 0.7
+        c.label(text="Doors and windows: Holes and Shaping", icon="INFO")
         c.label(text="X: from the front's top fold (- over the top, + down the front)")
         c.label(text="Y: along from the box's end; Mirror flips end to end")
     row = box.row()
@@ -731,6 +766,7 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
             col.use_property_decorate = False
             col.prop(o, "on")
             col.prop(o, "face_pick")
+            col.prop(o, "cut", expand=True)
             col.prop(o, "shape")
             if o.face:
                 col.prop(o, "x", text="X (Across Face)")
@@ -741,7 +777,16 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
             col.prop(o, "width")
             col.prop(o, "height")
             col.prop(o, "turn")
-            col.prop(o, "through")
+            if o.cut == "DOOR":
+                col.prop(o, "hinge")
+                col.prop(o, "door_open")
+                if o.shape == "ARCH" and o.hinge == "TOP":
+                    col.label(text="An arch has no straight top: hinged on the left",
+                              icon="INFO")
+                if o.shape == "OVAL":
+                    col.label(text="An oval door is cut as a rectangle", icon="INFO")
+            else:
+                col.prop(o, "through")
             if o.through == "NEXT" and (st.stage_master is None or
                                         (o.on_piece or ("Card" if not o.on_uid else "")) != "Card"):
                 col.label(text="Next Stage works on a carousel stage's background",

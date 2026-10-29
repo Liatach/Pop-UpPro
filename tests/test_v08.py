@@ -80,7 +80,7 @@ for ov in (0, 10, 30, 60, 90, 120, 150, 170, 180):
     attr = me.attributes["pop_panel"]
     for poly in me.polygons:
         p = model.panels[model.order[attr.data[poly.index].value]]
-        D = p.asm(real) @ lay["prints"][p.piece].inverted()
+        D = model.shown(p.name, real) @ lay["prints"][p.piece].inverted()
         for vi in poly.vertices:
             worst = max(worst, (ev.vertices[vi].co - (D @ (me.vertices[vi].co / s)) * s).length / s)
 drv = list(rig.animation_data.drivers) + (list(rig.data.animation_data.drivers)

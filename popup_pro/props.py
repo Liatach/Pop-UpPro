@@ -376,18 +376,27 @@ def _fold_changed(self, context):
     live.schedule(context.scene)
 
 
+def _line_siblings(ln):
+    path = ln.path_from_id()
+    try:
+        coll = ln.id_data.path_resolve(path[:path.rindex("[")])
+    except (ValueError, AttributeError):
+        return []
+    return [x for x in coll if x.group == ln.group and x != ln]
+
+
+def _line_expand(self, context):
+    if self.group:
+        for ln in _line_siblings(self):
+            ln["expanded"] = self.expanded
+
+
 def _line_xform(self, context):
     """Flip, Turn and Move act on the whole shape: every line added with it."""
     if self.group:
-        path = self.path_from_id()
-        try:
-            coll = self.id_data.path_resolve(path[:path.rindex("[")])
-        except (ValueError, AttributeError):
-            coll = ()
-        for ln in coll:
-            if ln.group == self.group and ln != self:
-                for k in ("flip", "turn", "move_x", "move_y"):
-                    ln[k] = getattr(self, k)
+        for ln in _line_siblings(self):
+            for k in ("flip", "turn", "move_x", "move_y"):
+                ln[k] = getattr(self, k)
     live.schedule(context.scene)
 
 
@@ -425,6 +434,9 @@ class PopupLine(bpy.types.PropertyGroup):
                           soft_max=500.0, update=_changed)
 
     group: IntProperty(description="Lines added together as one shape (a preset) share it")
+    shape_name: StringProperty(name="Shape", description="The shape these lines make")
+    expanded: BoolProperty(name="Show Lines", default=False, update=_line_expand,
+                           description="Show the shape's lines one by one")
     pivot_x: FloatProperty()  # the shape's centre as added: Turn turns about it
     pivot_y: FloatProperty()
     flip: BoolProperty(name="Flip Across Fold", default=False, update=_line_xform,
@@ -907,6 +919,22 @@ class PopupOpening(bpy.types.PropertyGroup):
     turn: FloatProperty(name="Turn", subtype="ANGLE", default=0.0, min=-math.pi * 2,
                         max=math.pi * 2, update=_opening_changed,
                         description="Turns the opening about its centre")
+    cut: EnumProperty(name="Cut", items=[
+        ("HOLE", "Hole", "Cut right out: a window or an open doorway"),
+        ("DOOR", "Door Flap", "Cut on every side but one, which is creased as a hinge: "
+         "the door swings open as the card opens (on the card, V-folds, box folds and "
+         "box layers)")], update=_opening_changed)
+    hinge: EnumProperty(name="Hinge", items=[
+        ("LEFT", "Left", "Hinged down its left side"),
+        ("RIGHT", "Right", "Hinged down its right side"),
+        ("BOTTOM", "Bottom", "Hinged along its bottom: it folds down like a drawbridge (on "
+         "a box's front, a door hinged on the floor fold stays flat on the floor)"),
+        ("TOP", "Top", "Hinged along its top, like a cat flap (rectangles)")],
+        default="LEFT", update=_opening_changed)
+    door_open: FloatProperty(name="Opens To", default=60.0, min=0.0, max=170.0,
+                             update=_opening_changed,
+                             description="How far the door swings out when the card is fully "
+                             "open (degrees); it closes flat as the card shuts")
     shape: EnumProperty(name="Shape", items=[
         ("RECT", "Rectangle", "Window or plain doorway"),
         ("ARCH", "Arch", "Round-topped doorway or window"),
@@ -1171,6 +1199,7 @@ class PopupSettings(bpy.types.PropertyGroup):
             d.update(hold="SYM", tmax=360.0 / master.popup.stage_count,
                      piece_sheet=PAPERS[self.paper][0])
             d["lines"] = self.shape_lines(d["W"], d["H"], d["tmax"]) + lines
+            d["doors"] = self.doors()
             return d
         if self.size == "CUSTOM":
             W, H = self.page_depth, self.spine_length
@@ -1181,7 +1210,11 @@ class PopupSettings(bpy.types.PropertyGroup):
         return dict(W=W, H=H, hold=self.hold, sheet=sheet,
                     piece_sheet=PAPERS[self.paper][0],
                     thickness=self.paper_thickness if self.solid_paper else 0.0,
-                    lines=self.shape_lines(W, H, tmax) + lines)
+                    lines=self.shape_lines(W, H, tmax) + lines, doors=self.doors())
+
+    def doors(self):
+        from .core.openings import opening_dict
+        return [opening_dict(o, i) for i, o in enumerate(self.openings) if o.cut == "DOOR"]
 
     def shape_lines(self, W, H, tmax):
         """The creases (and cut) the Ceiling and Floor settings make."""

@@ -84,7 +84,10 @@ includes 12 x 12 and 12 x 24 in cutting mats.
 
 The mechanism selected in the list is tinted orange on the folded card and the
 layout. This is viewport only and never rendered; the pointer button under
-**+** and **−** turns it off.
+**+** and **−** turns it off. **Duplicate** (under **−**) copies the
+selected mechanism with its settings, creases, cuts and openings, 15 mm
+further along its fold. New names keep counting up (Cube 1, Cube 2, Cube 3),
+never reusing a number still in use.
 
 | | What it is | Settings |
 |---|---|---|
@@ -476,13 +479,15 @@ end at score lines: a cut that leaves a fold and comes back to it makes a shape 
 * *Pointed Tower*: a tall pointed shape cut into the top from that fold; it
   stands up like a spire. Put it on a box layer stacked on top for the castle
   keep.
-* *Doorway*: an arch cut up from the front's bottom fold. On a box layer the
-  door stays flat on the floor; on a glued box it is cut away.
 * *Inset Step*: two creases and two cuts across the front-top fold. That part
   folds in.
 
-Each preset is one shape however many lines it has. With any of its lines
-selected, **Flip Across Fold** mirrors the whole shape to the other side of
+Doors and windows live in **Holes and Shaping** (an opening on the box's
+front, cut out or as a door flap); older cards keep their Doorway lines.
+
+Each preset is one shape however many lines it has, and shows in the list
+as one row: open it (the triangle) to see and edit its lines one by one.
+With the shape (or any of its lines) selected, **Flip Across Fold** mirrors the whole shape to the other side of
 the fold it starts from (a spire cut down into the front instead of up into
 the top, so it juts forward), **Turn** rotates it about its centre, and
 **Move X / Y** shifts it. The lines keep their own numbers underneath. The
@@ -548,6 +553,14 @@ so they show in 3D and print as cut lines:
   box fold or box layer selected starts with an arched doorway there.
   **Turn** rotates the opening about its centre (a diamond window, a
   sideways arch).
+  **Cut**: *Hole* cuts it right out; *Door Flap* cuts every side but one,
+  which is creased as the **Hinge** (Left, Right, Bottom, or Top for a
+  rectangle), and the door swings out of the printed side as the card opens,
+  to **Opens To** degrees when it is fully open and flat when it shuts. Door
+  flaps work on the card, V-folds, box folds and box layers (elsewhere they
+  are cut as holes, with a warning). A side-hinged door needs to stand a
+  few mm off a fold below it, or it scrapes the paper there (the checks say
+  so); hinged on the floor fold of a box front, it lies flat on the floor.
   **Through** carries an
   opening:
   * *Everything Behind*: every frame behind it and the background, lined up

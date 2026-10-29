@@ -90,6 +90,16 @@ NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "
          "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof"}
 
 
+def unique_label(items, base, skip=None):
+    """The next free "<base> N": numbers are never reused while any name in
+    use carries them, and keep counting up past the highest."""
+    import re
+    pat = re.compile(re.escape(base) + r" (\d+)")
+    nums = [int(mt.group(1)) for x in items if x != skip
+            for mt in [pat.fullmatch(x.label)] if mt]
+    return f"{base} {max(nums, default=0) + 1}"
+
+
 def _add(st, kind):
     # never reuse an id: sketch layers and art tiles are keyed by it
     uid = max([m.uid + 1 for m in st.mechs] + [st.get("pop_next_uid", 1)])
@@ -100,7 +110,7 @@ def _add(st, kind):
     m.uid = uid
     m.kind = kind
     n = sum(1 for x in st.mechs if x.kind == kind)
-    m.label = f"{NAMES[kind]} {n}"
+    m.label = unique_label(st.mechs, NAMES[kind], m)
     H = st.card_dict()["H"]
     for k, v in DEFAULTS[kind].items():
         setattr(m, k, v)
@@ -179,7 +189,7 @@ class POPUP_OT_add(bpy.types.Operator):
             m.symmetric = False
             m.phi_l, m.phi_r, m.lean, m.fold_flat = 40.0, 75.0, 20.0, True
             m.glue_r = m.glue
-            m.label = "Asymmetric " + m.label
+            m.label = unique_label(st.mechs, "Asymmetric V-fold", m)
             st["live"] = was
         if self.kind == "BOX" and self.variant == "STRAP":
             # Pop-Up Tutorial 9: a glued box fold with equal sides lies flat
@@ -191,14 +201,14 @@ class POPUP_OT_add(bpy.types.Operator):
             m.height = m.depth = 35.0
             m.width = 70.0
             m.y = round(0.5 * H - 35.0, 1)
-            m.label = m.label.replace("Box fold", "Strap")
+            m.label = unique_label(st.mechs, "Strap", m)
             st["live"] = was
         if self.kind == "ROOF" and self.variant == "VALLEY":
             was = st.live
             st["live"] = False
             m.valley = True
             m.y = round(0.3 * st.card_dict()["H"], 1)
-            m.label = m.label.replace("Roof", "Valley floor")
+            m.label = unique_label(st.mechs, "Valley floor", m)
             st["live"] = was
         if self.host:
             if self.side:
@@ -250,6 +260,75 @@ class POPUP_OT_remove(bpy.types.Operator):
         st = context.scene.popup
         st.mechs.remove(st.active)
         st.active = max(0, min(st.active, len(st.mechs) - 1))
+        if st.rig is not None:
+            _rebuild(self, context)
+        return {"FINISHED"}
+
+
+def _copy_props(src, dst, skip=()):
+    """Copy a property group's stored values."""
+    for k in src.keys():
+        if k in skip:
+            continue
+        v = src[k]
+        if hasattr(v, "to_dict"):
+            v = v.to_dict()
+        elif hasattr(v, "to_list"):
+            v = v.to_list()
+        elif isinstance(v, list):
+            v = [x.to_dict() if hasattr(x, "to_dict") else x for x in v]
+        try:
+            dst[k] = v
+        except (TypeError, ValueError, KeyError):
+            pass
+
+
+class POPUP_OT_duplicate(bpy.types.Operator):
+    """Duplicate the selected mechanism, with its settings, creases, cuts and
+    openings, a little further along"""
+    bl_idname = "popup.duplicate"
+    bl_label = "Duplicate Mechanism"
+    bl_options = {"REGISTER", "UNDO"}
+    offset: FloatProperty(name="Move Along", default=15.0, soft_min=-200.0, soft_max=200.0,
+                          description="How far along its fold the copy goes (mm)")
+
+    @classmethod
+    def poll(cls, context):
+        st = context.scene.popup
+        return 0 <= st.active < len(st.mechs)
+
+    def execute(self, context):
+        import re
+        st = context.scene.popup
+        i_src = st.active
+        src = st.mechs[i_src]
+        was = st.live
+        st["live"] = False
+        try:
+            m = _add(st, src.kind)
+            uid = m.uid
+            src = st.mechs[i_src]  # the collection may have moved in memory
+            _copy_props(src, m, skip=("uid", "label", "lines"))
+            m.uid = uid
+            for ln in src.lines:
+                n = m.lines.add()
+                _copy_props(ln, n)
+            base = re.sub(r" \d+$", "", src.label) or NAMES.get(src.kind, "Mechanism")
+            m.label = unique_label(st.mechs, base, m)
+            m.y = max(0.0, src.y + self.offset)
+            # openings cut in it come along, on the copy's own piece and faces
+            pat = re.compile(rf"^([A-Za-z]+){src.uid}(?=$|\.)")
+            for o in list(st.openings):
+                if not (pat.match(o.on_piece or "") or pat.match(o.face or "")):
+                    continue
+                n = st.openings.add()
+                _copy_props(o, n)
+                n.label = unique_label([x for x in st.openings if x != n], "Opening")
+                n.on_piece = pat.sub(rf"\g<1>{uid}", o.on_piece)
+                n.face = pat.sub(rf"\g<1>{uid}", o.face)
+            st.active = len(st.mechs) - 1
+        finally:
+            st["live"] = was
         if st.rig is not None:
             _rebuild(self, context)
         return {"FINISHED"}
@@ -702,7 +781,7 @@ class POPUP_OT_add_opening(bpy.types.Operator):
     def execute(self, context):
         st = context.scene.popup
         o = st.openings.add()
-        o.label = f"Opening {len(st.openings)}"
+        o.label = unique_label([x for x in st.openings if x != o], "Opening")
         # on the selected mechanism if it can take one, else the card
         o.on_piece = "Card"
         meta = live.meta(st.rig)
@@ -839,8 +918,6 @@ BOX_PRESETS = [
      "merlons stand up above the top (Birmingham 37, the castle)"),
     ("TOWER", "Pointed Tower", "A pointed shape cut into the top from the front's top "
      "fold: it stands up above the box like a spire"),
-    ("DOORWAY", "Doorway", "An arch cut up from the front's bottom fold: the door stays "
-     "flat on the floor, leaving an opening"),
     ("INSET", "Inset Step", "Two creases and two cuts across the front-top fold: that "
      "part folds in (a step back)"),
 ]
@@ -935,6 +1012,8 @@ class POPUP_OT_add_line(bpy.types.Operator):
             ln = m.lines.add()
             ln.kind, ln.mirror = kind, mirror
             ln.group, ln.pivot_x, ln.pivot_y = group, px, py
+            names = {k: n for k, n, _ in BOX_PRESETS + LINE_PRESETS}
+            ln.shape_name = names.get(self.preset, "Line") if len(P) > 1 else ""
             (ln.x0, ln.y0), (ln.x1, ln.y1) = pts[0], pts[-1]
             if len(pts) > 2:
                 ln.path = json.dumps([(round(x, 3), round(y, 3)) for x, y in pts])
@@ -956,7 +1035,16 @@ class POPUP_OT_remove_line(bpy.types.Operator):
 
     def execute(self, context):
         m = _vfold_active(context)
-        m.lines.remove(m.active_line)
+        ln = m.lines[m.active_line]
+        if ln.group and not ln.expanded:
+            # a collapsed shape goes as a whole
+            g = ln.group
+            for i in reversed(range(len(m.lines))):
+                if m.lines[i].group == g:
+                    m.lines.remove(i)
+                    m.active_line = min(m.active_line, i)
+        else:
+            m.lines.remove(m.active_line)
         m.active_line = max(0, min(m.active_line, len(m.lines) - 1))
         live.schedule(context.scene)
         return {"FINISHED"}
@@ -1149,7 +1237,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

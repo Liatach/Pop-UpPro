@@ -47,7 +47,8 @@ for npk, sl, a, b in ((2, 0.0, 35.0, 35.0), (3, 0.0, 40.0, 30.0), (3, 20.0, 35.0
                for poly in m.panels[n].polys for q in poly) < 0.5
     assert all((1, f"V{i}") in m.hosts for i in range(1, npk))
     # shown resting on its glue tabs: above them (and the page) when flat
-    assert all(abs(m.panels[n].zoff - 0.3) < 1e-9 for n in names), [m.panels[n].zoff for n in names]
+    # (v0.35: the rig lifts the whole strip off its page near flat)
+    assert abs(m.panels[names[0]].lift - 0.3) < 1e-9, m.panels[names[0]].lift
 print("strap peaks: one strip, joined at every crease, flat when open")
 
 # a cube in each valley, where it lies when flat

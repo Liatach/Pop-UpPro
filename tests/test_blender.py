@@ -49,7 +49,7 @@ for hold in ("RIGHT", "SYM"):
         ev = card.evaluated_get(dg).data
         for poly in me.polygons:
             p = model.panels[model.order[attr.data[poly.index].value]]
-            D = p.asm(t) @ lay["prints"][p.piece].inverted()
+            D = model.shown(p.name, t) @ lay["prints"][p.piece].inverted()
             for vi in poly.vertices:
                 want = (D @ (me.vertices[vi].co / s)) * s
                 worst = max(worst, (ev.vertices[vi].co - want).length / s)

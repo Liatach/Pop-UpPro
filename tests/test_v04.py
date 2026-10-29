@@ -50,7 +50,7 @@ def rig_error(open_value, real_angle):
     worst = 0.0
     for poly in me.polygons:
         p = model.panels[model.order[attr.data[poly.index].value]]
-        D = p.asm(real_angle) @ lay["prints"][p.piece].inverted()
+        D = model.shown(p.name, real_angle) @ lay["prints"][p.piece].inverted()
         for vi in poly.vertices:
             worst = max(worst, (ev.vertices[vi].co - (D @ (me.vertices[vi].co / s)) * s).length / s)
     return worst

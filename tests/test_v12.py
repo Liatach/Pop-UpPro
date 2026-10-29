@@ -81,7 +81,7 @@ for T in (30.0, 180.0, 340.0):
     attr = me.attributes["pop_panel"]
     for poly in me.polygons:
         p = model.panels[model.order[attr.data[poly.index].value]]
-        D = p.asm(T / 5) @ layout["prints"][p.piece].inverted()
+        D = model.shown(p.name, T / 5) @ layout["prints"][p.piece].inverted()
         for vi in poly.vertices:
             worst = max(worst, (ev.vertices[vi].co - (D @ (me.vertices[vi].co / s_)) * s_).length / s_)
 assert worst < 0.1, worst

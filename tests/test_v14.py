@@ -122,6 +122,7 @@ assert svg.count("<line") + svg.count("<path") > 0
 print("printed")
 # remove a line
 st.active = 0
+st.mechs[0].lines[0].expanded = True  # one line of the shape (v0.35: shapes group)
 assert bpy.ops.popup.remove_line() == {"FINISHED"}
 assert len(st.mechs[0].lines) == 1
 
@@ -172,6 +173,7 @@ stub.draw_warnings = types.MethodType(ui._draw_warnings, stub)
 stub.draw_flap = types.MethodType(ui._draw_flap, stub)
 st.active = 1
 st.mechs[1].active_line = 0
+st.mechs[1].lines[0].expanded = True  # a shape shows its lines once opened
 stub.draw(Ctx(sc))
 assert "x0" in seen and "mirror" in seen, seen
 print("lines panel draws")
