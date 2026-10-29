@@ -81,8 +81,8 @@ Paint flat or folded, wrap an image round a cube, then export layered SVG sheets
   valleys and gullies, off-centre on straps and glue folds.
 * Extra creases and cuts from presets or drawn by hand: reverse points,
   steps, jaws, battlements, spires, doorways.
-* Windows, arches and holes, painted or sketched, lined up through every
-  layer behind.
+* Windows, arches and holes on any face, turned to any angle, painted or
+  sketched, lined up through every layer behind.
 * Live checks for tearing, poking through, sticking out and overlapping glue.
 
 **Art and output**

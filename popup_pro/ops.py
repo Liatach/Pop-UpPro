@@ -712,7 +712,18 @@ class POPUP_OT_add_opening(bpy.types.Operator):
             for name, info in meta["pieces"].items():
                 if not info["is_card"] and int(info["slot"]) == 1 + m.uid:
                     o.on_piece = name
-        if o.on_piece == "Card":
+            if m.kind in ("BOX", "BOXCUT"):
+                # a doorway in the box's front, standing on the floor
+                front = f"Box{m.uid}.CB"
+                p = next((p for p in meta["panels"] if p["name"] == front), None)
+                if p is not None:
+                    o.on_piece = p["piece"]
+                    o.face = front
+                    o.shape = "ARCH"
+                    o.x, o.y = 0.0, 0.0
+                    o.width = min(20.0, 0.4 * m.width)
+                    o.height = 0.6 * m.height  # the front stands the box's height
+        if o.on_piece == "Card" and not o.face:
             o.x = 0.5 * st.card_dict()["W"]
         st.active_opening = len(st.openings) - 1
         live.schedule(context.scene)

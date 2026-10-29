@@ -90,13 +90,89 @@ def _behind(model, piece, poly):
     return out
 
 
+def face_frame(model, face):
+    """Where an opening on one face of a piece sits: (origin, across, up) in
+    the piece's pattern, and the face's outline to keep the hole inside it
+    (None when the face isn't a single convex outline). X runs across the
+    face from its centre, Y up from its bottom edge. Up is the pattern's up,
+    except on a box's panels, whose folds run along the pattern: there up
+    points to the fold the panel hangs from (a front's top, a top's back)."""
+    p = model.panels.get(face)
+    if p is None or not p.polys:
+        return None
+    up = (0.0, 1.0)
+    if p.hinge is not None and face.startswith("Box"):
+        F = p.hinge.Fc
+        fy = (F.col[1][0], F.col[1][1])
+        if abs(fy[0]) < 1e-6:  # fold along the pattern's y
+            pts = [q for poly in p.polys for q in poly]
+            cx = sum(q[0] for q in pts) / len(pts)
+            up = (1.0 if F.col[3][0] > cx else -1.0, 0.0)
+    across = (up[1], -up[0])
+    pts = [q for poly in p.polys for q in poly]
+    ss = [q[0] * across[0] + q[1] * across[1] for q in pts]
+    ts = [q[0] * up[0] + q[1] * up[1] for q in pts]
+    s0, t0 = 0.5 * (min(ss) + max(ss)), min(ts)
+    origin = (s0 * across[0] + t0 * up[0], s0 * across[1] + t0 * up[1])
+    clip = None
+    if len(p.polys) == 1 and _convex(p.polys[0]):
+        clip = p.polys[0]
+    return origin, across, up, clip
+
+
+def _convex(poly):
+    n = len(poly)
+    sign = 0
+    for i in range(n):
+        a, b, c = poly[i], poly[(i + 1) % n], poly[(i + 2) % n]
+        z = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])
+        if abs(z) > 1e-9:
+            if sign and (z > 0) != (sign > 0):
+                return False
+            sign = 1 if z > 0 else -1
+    return True
+
+
+def place(model, o, faces=True):
+    """An opening's outline in its piece's pattern: shaped, turned about its
+    centre, put on its face and kept inside it."""
+    poly = shape(o.shape, o.x, o.y, o.width, o.height)
+    turn = getattr(o, "turn", 0.0)  # radians
+    if abs(turn) > 1e-9:
+        cx, cy = o.x, o.y + 0.5 * o.height
+        c, s_ = math.cos(turn), math.sin(turn)
+        poly = [(cx + (x - cx) * c - (y - cy) * s_, cy + (x - cx) * s_ + (y - cy) * c)
+                for x, y in poly]
+    fr = face_frame(model, o.face) if faces and getattr(o, "face", "") else None
+    if fr is None:
+        return poly
+    (ox, oy), a, u, clip = fr
+    poly = [(ox + x * a[0] + y * u[0], oy + x * a[1] + y * u[1]) for x, y in poly]
+    if clip is not None:
+        c = clip if poly_area(clip) > 0 else clip[::-1]
+        for i in range(len(c)):
+            p0, p1 = c[i], c[(i + 1) % len(c)]
+            n = (-(p1[1] - p0[1]), p1[0] - p0[0])  # inward on a CCW outline
+            L = math.hypot(*n)
+            if L < 1e-9:
+                continue
+            n = (n[0] / L, n[1] / L)
+            # stop a hair short of the folds, so the face stays joined
+            poly = clip_halfplane(poly, n, n[0] * p0[0] + n[1] * p0[1] + 0.5)
+            if len(poly) < 3:
+                return []
+    return poly
+
+
 def _openings(scene, model, st, own=True):
     out = []
     for o in st.openings:
         piece = _target(model, o) if own else "Card"
         if own and piece is None:
             continue
-        poly = shape(o.shape, o.x, o.y, o.width, o.height)
+        poly = place(model, o, faces=own)
+        if len(poly) < 3:
+            continue
         if own:
             out.append((piece, poly))
             if o.through == "BEHIND":

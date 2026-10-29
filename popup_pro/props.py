@@ -802,8 +802,48 @@ def _on_set(self, v):
     if meta:
         for name, info in meta["pieces"].items():
             if int(info["slot"]) == v:
+                if name != self.on_piece:
+                    self.face = ""
                 self.on_piece = name
                 break
+    live.schedule(bpy.context.scene)
+
+
+_face_items = []
+
+
+def face_items(self, context):
+    """The faces of the piece an opening is cut in (folded panels: a box's
+    top and front, a cube's walls, a page)."""
+    global _face_items
+    st = context.scene.popup if context and context.scene else None
+    meta = live.meta(st.rig) if st is not None else None
+    items = [("WHOLE", "Whole Piece", "X and Y on the whole piece's pattern", "FILE_BLANK", 0)]
+    if meta:
+        piece = self.on_piece or "Card"
+        for i, p in enumerate(meta["panels"]):
+            if p["piece"] == piece and p["kind"] != "tab":
+                label = p["label"].split(": ", 1)[-1]
+                if piece == "Card" and ": " in p["label"]:
+                    label = p["label"]  # a box layer's faces, cut in the card
+                items.append((p["name"], label[:1].upper() + label[1:], "", "MESH_PLANE",
+                              i + 1))
+    _face_items = items
+    return _face_items
+
+
+def _face_get(self):
+    for it in face_items(self, bpy.context):
+        if it[0] == (self.face or "WHOLE"):
+            return it[4]
+    return 0
+
+
+def _face_set(self, v):
+    for it in face_items(self, bpy.context):
+        if it[4] == v:
+            self.face = "" if it[0] == "WHOLE" else it[0]
+            break
     live.schedule(bpy.context.scene)
 
 
@@ -813,6 +853,14 @@ class PopupOpening(bpy.types.PropertyGroup):
     on_piece: StringProperty(description="The piece the opening is cut in")
     on: EnumProperty(name="Cut In", items=on_items, get=_on_get, set=_on_set,
                      description="The piece the opening is cut in")
+    face: StringProperty(description="The face (panel) the opening is placed on")
+    face_pick: EnumProperty(name="Face", items=face_items, get=_face_get, set=_face_set,
+                            description="Place it on one face of the piece: X across "
+                            "the face from its centre, Y up from its bottom edge, and "
+                            "kept inside the face so it never cuts through a fold")
+    turn: FloatProperty(name="Turn", subtype="ANGLE", default=0.0, min=-math.pi * 2,
+                        max=math.pi * 2, update=_opening_changed,
+                        description="Turns the opening about its centre")
     shape: EnumProperty(name="Shape", items=[
         ("RECT", "Rectangle", "Window or plain doorway"),
         ("ARCH", "Arch", "Round-topped doorway or window"),

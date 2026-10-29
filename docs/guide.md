@@ -533,6 +533,14 @@ so they show in 3D and print as cut lines:
 * **Openings**: rectangles, arches and ovals, with **X (Across Page)**, **Y (Up Page)**,
   **Width** and **Height** sliders, cut in any piece (**Cut In** lists them
   all). X is measured from the piece's centre fold, Y up from its bottom.
+  **Face** puts it on one face of the piece instead (a box's top or front,
+  a cube's or tube's wall, a V-fold half): X across that face from its
+  centre, Y up from its bottom edge, and the hole is kept inside the face so
+  it never cuts through a fold. On a box, up is towards the fold the panel
+  hangs from: a door in the front stands on the floor. Add Opening with a
+  box fold or box layer selected starts with an arched doorway there.
+  **Turn** rotates the opening about its centre (a diamond window, a
+  sideways arch).
   **Through** carries an
   opening:
   * *Everything Behind*: every frame behind it and the background, lined up

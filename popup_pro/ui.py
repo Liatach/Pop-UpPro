@@ -723,11 +723,17 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
             col.use_property_split = True
             col.use_property_decorate = False
             col.prop(o, "on")
+            col.prop(o, "face_pick")
             col.prop(o, "shape")
-            col.prop(o, "x")
-            col.prop(o, "y")
+            if o.face:
+                col.prop(o, "x", text="X (Across Face)")
+                col.prop(o, "y", text="Y (Up Face)")
+            else:
+                col.prop(o, "x")
+                col.prop(o, "y")
             col.prop(o, "width")
             col.prop(o, "height")
+            col.prop(o, "turn")
             col.prop(o, "through")
             if o.through == "NEXT" and (st.stage_master is None or
                                         (o.on_piece or ("Card" if not o.on_uid else "")) != "Card"):
