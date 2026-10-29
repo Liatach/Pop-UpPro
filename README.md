@@ -85,10 +85,16 @@ mechanisms, art and sketches.
      carousel, the whole ring). It becomes the scene camera (a new file's own
      Camera would otherwise win); turn off *Make It the Scene Camera* in the
      button's options to keep yours.
-   * **Clean White Renders** (the sun button beside Set Up Scene, on by
-     default): renders are lit evenly by a plain white light (seen against
-     a soft grey), without the viewport's sun, so the sun and shadows help
-     while you work but stay out of finished images.
+   * **Render Look** (the sun menu beside Set Up Scene): how finished
+     renders are lit. The viewport keeps its own light, and painting,
+     baking and printing never use any of it.
+     * *Clean* (default): even white light, no sun, against a soft grey.
+     * *Showcase*: a soft, faintly cool sky and a render-only key sun, so
+       every fold casts a crisp shadow (64 render samples).
+     * *Dawn*: Blender's sunrise light (the one Material Preview uses) with
+       the sun: white paper turns warm where the low sun strikes and blue
+       where only the sky reaches it (64 render samples).
+     * *Your Own*: your scene's own world and lights.
    * **Paper Texture** (off by default): a fine grain as a bump, so colours
      and prints are untouched. It is one node group, *Pop-up Paper Texture*:
      put your own paper texture inside it and every card uses it.

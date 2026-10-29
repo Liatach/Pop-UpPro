@@ -845,6 +845,12 @@ def _carousel_changed(self, context):
     carousel.schedule_sync(self.id_data)
 
 
+def _look(self, context):
+    from . import scene_setup
+    sc = self.id_data
+    scene_setup.render_look(scene_setup.popup_scenes(sc), self.render_look)
+
+
 def _clean(self, context):
     from . import scene_setup
     sc = self.id_data
@@ -986,6 +992,15 @@ class PopupSettings(bpy.types.PropertyGroup):
     images: CollectionProperty(type=PopupImage,
                                description="Images placed on pieces, front or back")
     active_image: IntProperty(name="Image")
+    render_look: EnumProperty(name="Render Look", update=lambda self, ctx: _look(self, ctx),
+                              items=[("CLEAN", "Clean", "Even white light, no sun"),
+                                     ("SHOWCASE", "Showcase", "White light and the sun's "
+                                      "shadows, 64 render samples"),
+                                     ("DAWN", "Dawn", "Blender's sunrise light (warm sun, "
+                                      "blue sky) and the sun's shadows, 64 render samples"),
+                                     ("OWN", "Your Own", "Your own world and lights")],
+                              description="How finished renders are lit (painting, baking and "
+                              "printing never use the lighting)")
     clean_render: BoolProperty(name="Clean White Renders", default=True,
                                update=lambda self, ctx: _clean(self, ctx),
                                description="Renders lit evenly in white light, without the "

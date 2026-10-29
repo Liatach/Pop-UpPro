@@ -193,12 +193,139 @@ def clean_render(scenes, on=True):
     for sc in scenes:
         if on:
             old = sc.world
-            if old is not None and old != w:
+            if old is not None and old.name not in OURS:
                 sc["pop_world_before"] = old.name
             sc.world = w
-        elif sc.world is not None and sc.world.name == WHITE:
+        elif sc.world is not None and sc.world.name in OURS:
             before = sc.get("pop_world_before")
             sc.world = bpy.data.worlds.get(before) if before else None
+
+
+DAWN = "Pop-up Dawn"
+SHOW = "Pop-up Showcase"
+OURS = ("Pop-up White", DAWN, SHOW)
+LOOKS = [
+    ("CLEAN", "Clean", "Even white light, no sun: plain, flat images of the design"),
+    ("SHOWCASE", "Showcase", "White light and the sun's shadows, at 64 render samples: "
+     "every fold reads at a glance"),
+    ("DAWN", "Dawn", "Blender's sunrise light, as in Material Preview (warm where the low "
+     "sun strikes, blue where the sky does) with the sun's shadows, at 64 samples"),
+    ("OWN", "Your Own", "Renders use your own world and lights; the card's sun stays in the "
+     "viewport only")]
+
+
+def _sunrise_path():
+    import os
+    p = bpy.utils.system_resource("DATAFILES", path="studiolights/world/sunrise.exr")
+    if not p:
+        p = os.path.join(bpy.utils.resource_path("LOCAL"), "datafiles", "studiolights",
+                         "world", "sunrise.exr")
+    return p if p and os.path.exists(p) else None
+
+
+def _seen_grey(w, light_socket):
+    """Light with one thing, show the camera a soft grey (white paper on a
+    bright background would vanish)."""
+    nt = w.node_tree
+    out = next((n for n in nt.nodes if n.type == "OUTPUT_WORLD"), None)
+    if out is None:
+        return
+    seen = nt.nodes.new("ShaderNodeBackground")
+    seen.inputs["Color"].default_value = (0.32, 0.33, 0.35, 1.0)
+    lp = nt.nodes.new("ShaderNodeLightPath")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(lp.outputs["Is Camera Ray"], mix.inputs[0])
+    nt.links.new(light_socket, mix.inputs[1])
+    nt.links.new(seen.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    lp.location, seen.location, mix.location = (-500, 300), (-300, -200), (100, 0)
+
+
+def _show_world():
+    """A softer, faintly cool sky so the sun's light and shadows read."""
+    w = bpy.data.worlds.get(SHOW)
+    if w is not None:
+        return w
+    w = bpy.data.worlds.new(SHOW)
+    w.use_nodes = True
+    bg = next((n for n in w.node_tree.nodes if n.type == "BACKGROUND"), None)
+    if bg is not None:
+        bg.inputs["Color"].default_value = (0.85, 0.9, 1.0, 1.0)
+        bg.inputs["Strength"].default_value = 0.5
+        _seen_grey(w, bg.outputs[0])
+    return w
+
+
+def _dawn_world():
+    w = bpy.data.worlds.get(DAWN)
+    if w is not None:
+        return w
+    path = _sunrise_path()
+    w = bpy.data.worlds.new(DAWN)
+    w.use_nodes = True
+    nt = w.node_tree
+    bg = next((n for n in nt.nodes if n.type == "BACKGROUND"), None)
+    if bg is None:
+        return w
+    bg.inputs["Strength"].default_value = 1.0
+    if path:
+        env = nt.nodes.new("ShaderNodeTexEnvironment")
+        env.image = bpy.data.images.load(path, check_existing=True)
+        env.location = (-500, 0)
+        nt.links.new(env.outputs["Color"], bg.inputs["Color"])
+    _seen_grey(w, bg.outputs[0])
+    w.color = (0.8, 0.75, 0.7)
+    return w
+
+
+KEY = "Pop-up Key Light"
+
+
+def _key(scenes, sun_ob, on):
+    """Showcase's own sun: renders only, stronger than the viewport's sun
+    (which is balanced for Material Preview), from the same direction."""
+    ob = bpy.data.objects.get(KEY)
+    if not on:
+        if ob is not None:
+            ob.hide_render = True
+        return
+    if ob is None or ob.type != "LIGHT":
+        light = bpy.data.lights.new(KEY, "SUN")
+        ob = bpy.data.objects.new(KEY, light)
+    ob.data.energy = 3.0
+    ob.data.angle = math.radians(3.0)
+    ob.data.use_shadow = True
+    ob.rotation_euler = (sun_ob.rotation_euler.copy() if sun_ob is not None else
+                         (math.radians(50.0), math.radians(-20.0), math.radians(-35.0)))
+    ob.hide_viewport = True
+    ob.hide_render = False
+    for sc in scenes:
+        if sc.collection.objects.get(ob.name) is None:
+            sc.collection.objects.link(ob)
+
+
+def render_look(scenes, look="CLEAN"):
+    """How finished renders are lit. Painting, baking and printing never use
+    the lighting; the viewport keeps its own (Material Preview, dawn)."""
+    if look == "OWN":
+        _key(scenes, None, False)
+        clean_render(scenes, False)
+        ob = bpy.data.objects.get(SUN)
+        if ob is not None:
+            ob.hide_render = True
+        return
+    clean_render(scenes, True)  # the white world, the scenes' own worlds remembered
+    ob = bpy.data.objects.get(SUN)
+    if ob is not None:
+        ob.hide_render = look != "DAWN"
+    _key(scenes, ob, look == "SHOWCASE")
+    if look in ("DAWN", "SHOWCASE"):
+        w = _dawn_world() if look == "DAWN" else _show_world()
+        for sc in scenes:
+            sc.world = w
+    if look in ("SHOWCASE", "DAWN"):
+        for sc in scenes:
+            sc.eevee.taa_render_samples = max(64, sc.eevee.taa_render_samples)
 
 
 def paper_texture(scenes, on=True, strength=0.12):
@@ -286,7 +413,8 @@ def viewports(context, all_workspaces=False, fold_lines=True):
 
 
 def setup(context, sun_on=True, grain=False, fold_lines=True, all_workspaces=False,
-          sun_strength=0.6, clean=True, cam=True, view_camera=False, active_camera=True):
+          sun_strength=0.6, clean=True, cam=True, view_camera=False, active_camera=True,
+          look=None):
     scenes = popup_scenes(context.scene)
     for sc in scenes:
         eevee(sc)
@@ -299,9 +427,11 @@ def setup(context, sun_on=True, grain=False, fold_lines=True, all_workspaces=Fal
                 if sc.collection.objects.get(ob.name) is not None:
                     sc.collection.objects.unlink(ob)
     paper_texture(scenes, on=grain)
-    clean_render(scenes, clean)
+    look = look or ("CLEAN" if clean else "OWN")
+    render_look(scenes, look)
     master = scenes[0]
-    master.popup["clean_render"] = clean
+    master.popup["clean_render"] = look != "OWN"
+    master.popup["render_look"] = [k for k, *_ in LOOKS].index(look)
     views = viewports(context, all_workspaces, fold_lines)
     if cam:
         camera(context.scene, make_active=active_camera)
@@ -335,9 +465,8 @@ class POPUP_OT_setup_scene(bpy.types.Operator):
                                   description="A fine paper grain (a bump only; colours and "
                                   "prints untouched). Edit the 'Pop-up Paper Texture' node "
                                   "group to use your own")
-    clean: bpy.props.BoolProperty(name="Clean White Renders", default=True,
-                                  description="Renders lit evenly in white: the sun stays "
-                                  "in the viewport but is left out of renders")
+    look: bpy.props.EnumProperty(name="Render Look", items=LOOKS, default="CLEAN",
+                                 description="How finished renders are lit")
     cam: bpy.props.BoolProperty(name="Camera", default=True,
                                 description="A camera past the bottom end of the spine, "
                                 "above it, framing the whole card as it opens")
@@ -354,8 +483,8 @@ class POPUP_OT_setup_scene(bpy.types.Operator):
 
     def execute(self, context):
         scenes, views = setup(context, self.sun, self.grain, self.fold_lines,
-                              self.all_workspaces, self.sun_strength, self.clean,
-                              self.cam, self.view_camera, self.active_camera)
+                              self.all_workspaces, self.sun_strength, self.look != "OWN",
+                              self.cam, self.view_camera, self.active_camera, self.look)
         self.report({"INFO"}, f"Set up {len(scenes)} scene(s), {views} view(s)")
         return {"FINISHED"}
 
