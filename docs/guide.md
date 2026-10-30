@@ -78,7 +78,10 @@ A6, A5, A4 and A3 (from a folded A5, A4, A3 and A2), Half Letter and Letter
 (folded US Letter and Tabloid), a 5 x 7 in greeting card, 150 mm square, the
 common picture-book trims (8.5 x 8.5, 8 x 10, 10 x 8, 7.5 x 7.5 and
 8.5 x 11 in), or Custom. Loose pieces go on the **Piece Paper** sheet, which
-includes 12 x 12 and 12 x 24 in cutting mats.
+includes 12 x 12 and 12 x 24 in cutting mats. A piece too big for the piece
+paper either way round gets a sheet of its own the size of the card's sheet
+(turned if that fits better), and the checks say so; pick a bigger Piece
+Paper to keep them together.
 
 ### Mechanisms (all lengths in mm)
 
@@ -319,7 +322,9 @@ its crease](images/card_ceiling.jpg)
 * Each stage stands a paper thickness clear of its neighbours, so glued
   pages sit back to back with Solid Paper on instead of passing through
   each other.
-* Frames print the way up they stand, on A4 portrait by default in a stage.
+* Frames print the way up they stand, on A4 portrait by default in a stage
+  (on a larger sheet of their own, with a note in the checks, when they're
+  too big for it).
 * Grease Pencil sketches show in each stage's own scene but not in the
   carousel view (a stage's sketches are tied to its rig, which a collection
   instance can't carry); painted art shows in both.
@@ -583,6 +588,9 @@ so they show in 3D and print as cut lines:
   rebuild (**Cut**). **Keep** fixes them onto their pieces and clears the
   strokes, so they stay put if the layout is rearranged; **Edit** puts them
   back as strokes. Holes sketched on panels in v0.10 are folded in by Keep.
+  **Done Drawing** (in the panel and the 3D view's header while you draw)
+  goes back to Object Mode and the view you had, leaving the strokes to cut
+  later. Draw Creases and Draw Cuts have it too.
 
 Drawn strokes not yet kept (holes, and creases and cuts waiting for Add Drawn
 Lines) move with the piece they were drawn on when the layout is packed

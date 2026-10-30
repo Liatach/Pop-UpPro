@@ -693,6 +693,11 @@ def _draw_lines(lay, context, m):
         c.use_property_split = True
         c.use_property_decorate = False
         _line_fields(c, ln)
+    if _drawing(context):
+        r = box.row()
+        r.alert = True
+        r.scale_y = 1.4
+        r.operator("popup.done_drawing", icon="CHECKMARK")
     row = box.row(align=True)
     row.operator("popup.draw_lines", text="Draw Creases", icon="GREASEPENCIL").kind = "CREASE"
     row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"
@@ -837,6 +842,11 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
         row.operator("popup.trace_holes", text="", icon="X").clear = True
         box = lay.box()
         box.label(text="Drawn holes: closed strokes on the flat layout", icon="GREASEPENCIL")
+        if _drawing(context):
+            r = box.row()
+            r.alert = True
+            r.scale_y = 1.4
+            r.operator("popup.done_drawing", icon="CHECKMARK")
         box.operator("popup.draw_holes", icon="MOD_BOOLEAN")
         row = box.row(align=True)
         row.operator("popup.build", text="Cut", icon="FILE_REFRESH")
@@ -923,11 +933,29 @@ classes = (POPUP_UL_lines, POPUP_UL_mechs, POPUP_UL_openings, POPUP_MT_add, POPU
            POPUP_PT_art, POPUP_PT_export)
 
 
+def _drawing(context):
+    from .ops import drawing
+    try:
+        return drawing(context)
+    except (AttributeError, ReferenceError):
+        return False
+
+
+def _header_done(self, context):
+    """While drawing on the layout, a Done button in the 3D view's header."""
+    if _drawing(context):
+        row = self.layout.row()
+        row.alert = True
+        row.operator("popup.done_drawing", icon="CHECKMARK")
+
+
 def register():
     for c in classes:
         bpy.utils.register_class(c)
+    bpy.types.VIEW3D_HT_header.append(_header_done)
 
 
 def unregister():
+    bpy.types.VIEW3D_HT_header.remove(_header_done)
     for c in reversed(classes):
         bpy.utils.unregister_class(c)

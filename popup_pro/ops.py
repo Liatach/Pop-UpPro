@@ -493,6 +493,63 @@ class POPUP_OT_add_art(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def _remember_view(context):
+    """Before drawing on the layout: the view and active object to go back to."""
+    sc = context.scene
+    _area, rv3d = _view3d(context)
+    if rv3d is not None and "pop_view_before" not in sc:
+        sc["pop_view_before"] = dict(rot=list(rv3d.view_rotation), loc=list(rv3d.view_location),
+                                     dist=rv3d.view_distance, persp=rv3d.view_perspective)
+    act = context.view_layer.objects.active
+    if act is not None and "pop_active_before" not in sc and not act.name.startswith(
+            "Pop-up Holes"):
+        sc["pop_active_before"] = act.name
+
+
+def drawing(context):
+    """Drawing holes, creases or cuts on the layout right now?"""
+    from . import holes
+    obj = context.view_layer.objects.active if context.view_layer else None
+    return (context.mode == "PAINT_GREASE_PENCIL" and obj is not None and
+            obj == holes.hole_sketch(context.scene, create=False)[0])
+
+
+class POPUP_OT_done_drawing(bpy.types.Operator):
+    """Stop drawing on the layout: back to Object Mode and the view you had.
+    The strokes stay, to be cut (holes) or added (creases and cuts) when you
+    choose"""
+    bl_idname = "popup.done_drawing"
+    bl_label = "Done Drawing"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        from mathutils import Quaternion as Q
+        sc = context.scene
+        if context.mode != "OBJECT":
+            try:
+                bpy.ops.object.mode_set(mode="OBJECT")
+            except RuntimeError:
+                pass
+        v = sc.get("pop_view_before")
+        _area, rv3d = _view3d(context)
+        if v is not None and rv3d is not None:
+            rv3d.view_rotation = Q(v["rot"])
+            rv3d.view_location = Vector(v["loc"])
+            rv3d.view_distance = v["dist"]
+            rv3d.view_perspective = v["persp"]
+        name = sc.get("pop_active_before")
+        ob = bpy.data.objects.get(name) if name else None
+        for o in context.selected_objects:
+            o.select_set(False)
+        if ob is not None and ob.name in context.view_layer.objects:
+            ob.select_set(True)
+            context.view_layer.objects.active = ob
+        for k in ("pop_view_before", "pop_active_before"):
+            if k in sc:
+                del sc[k]
+        return {"FINISHED"}
+
+
 def _view3d(context):
     if context.area and context.area.type == "VIEW_3D":
         return context.area, context.space_data.region_3d
@@ -843,6 +900,7 @@ class POPUP_OT_draw_holes(bpy.types.Operator):
         st = sc.popup
         if context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
+        _remember_view(context)
         obj, layer = holes.hole_sketch(sc)
         obj.data.layers.active = layer
         obj.active_material_index = len(obj.data.materials) - 1
@@ -1153,6 +1211,7 @@ class POPUP_OT_draw_lines(bpy.types.Operator):
         st = sc.popup
         if context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
+        _remember_view(context)
         obj, layer = holes.line_layer(sc, self.kind)
         st.layout.hide_set(False)
         for o in context.selected_objects:
@@ -1237,7 +1296,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

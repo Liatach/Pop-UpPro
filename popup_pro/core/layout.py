@@ -54,37 +54,55 @@ def build_layout(model, margin=8.0, gap=6.0):
 
     loose = [p for p in model.pieces.values() if not p.is_card and p.panels]
     loose.sort(key=lambda p: p.slot)
+    # sheets a piece may go on, smallest first: the piece paper either way
+    # round, then the card's sheet either way round
+    sizes = []
+    for sz in (piece_sheet, piece_sheet[::-1], card_sheet, card_sheet[::-1]):
+        if tuple(sz) not in sizes:
+            sizes.append(tuple(sz))
+
+    def fits(o, sz):
+        return o[3] <= sz[0] - 2 * margin + 1e-6 and o[4] <= sz[1] - 2 * margin + 1e-6
+
     sheet = None
     cx = cy = row = 0.0
     for piece in loose:
         pts = [q for n in piece.panels for poly in model.panels[n].polys for q in poly]
-        SW, SH = piece_sheet
-        best = None
         opts = []
         for k in (0, 1):
             rp = [rot2(q, k * math.pi / 2) for q in pts]
             x0, y0, x1, y1 = bbox2(rp)
             opts.append((k, x0, y0, x1 - x0, y1 - y0))
-        if getattr(piece, "upright", False):
-            # the way up it stands (frames, stage sets), if it fits the sheet
-            k0 = opts[0]
-            fits = k0[3] <= SW - 2 * margin and k0[4] <= SH - 2 * margin
-            best = k0 if fits else opts[1]
-        else:
-            for o in opts:
-                if best is None or (o[3] >= o[4] and best[3] < best[4]):
-                    best = o
+        best, size = None, None
+        # the current sheet first, if it's one the piece fits
+        order = ([tuple(sheet.size)] if sheet is not None else []) + sizes
+        for sz in order:
+            ok = [o for o in opts if fits(o, sz)]
+            if not ok:
+                continue
+            if getattr(piece, "upright", False) and ok[0][0] == 0:
+                best = ok[0]  # the way up it stands (frames, stage sets)
+            else:
+                best = max(ok, key=lambda o: (o[3] >= o[4], -o[0]))
+            size = sz
+            break
+        if best is None:
+            size = max(sizes, key=lambda z: z[0] * z[1])
+            best = min(opts, key=lambda o: max(o[3] - size[0], o[4] - size[1]))
+            model.warn(f"{piece.label}: bigger than the print sheet")
+        elif size != tuple(piece_sheet):
+            model.warn(f"{piece.label}: too big for the piece paper, so it has a "
+                       f"{size[0]:.0f} x {size[1]:.0f} mm sheet of its own")
         k, x0, y0, w, h = best
-        if sheet is None:
-            sheet = new_sheet(piece_sheet)
+        if sheet is None or tuple(sheet.size) != size:
+            sheet = new_sheet(size)
             cx, cy, row = margin, margin, 0.0
+        SW, SH = size
         if cx + w > SW - margin and cx > margin:
             cx, cy, row = margin, cy + row + gap, 0.0
         if cy + h > SH - margin and cy > margin:
-            sheet = new_sheet(piece_sheet)
+            sheet = new_sheet(size)
             cx, cy, row = margin, margin, 0.0
-        if w > SW - 2 * margin or h > SH - 2 * margin:
-            model.warn(f"{piece.label}: bigger than the print sheet")
         ox = sheet.origin[0] + cx - x0
         oy = sheet.origin[1] + cy - y0
         prints[piece.name] = place(k * math.pi / 2, ox, oy)
