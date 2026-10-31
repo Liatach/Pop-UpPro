@@ -165,7 +165,8 @@ calls when it is installed.
   fan, but standing free of the centre crease, so it can arch across the
   scene as arches, rainbows and arcs.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
-  arch V-folds, moving arms.
+  arch V-folds, moving arms, and the 45° mechanism (Birmingham, *Pop-Up! A
+  Manual of Paper Mechanisms*, pp. 68–69).
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe
   route for printing.
 

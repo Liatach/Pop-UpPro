@@ -26,7 +26,7 @@ v = st.mechs[-1]
 st.live = False
 v.y, v.height = 40, 80
 v.shape = "FAN"
-assert v.fan_pleats == 5 and v.fan_spread == 180.0
+assert v.fan_pleats == 5 and v.fan_spread == 180.0 and v.fan_stand == 60.0
 from mathutils import Vector  # noqa: E402
 
 
@@ -46,15 +46,25 @@ for phi in (30.0, 60.0):
     for a, b in zip(fan, fan[1:]):
         c = abs(normal(m, a, 1.0).dot(normal(m, b, 1.0)))
         assert c > math.cos(math.radians(2.0)), (a, b, math.degrees(math.acos(min(1, c))))
-    # open: evenly pleated, never flat (more paper than room)
+    # open: pleated, never flat (more paper than room), and standing up
     for t in (90.0, 180.0):
         angs = [math.degrees(math.acos(min(1.0, abs(normal(m, a, t).dot(normal(m, b, t))))))
                 for a, b in zip(fan, fan[1:])]
-        assert min(angs) > 15 and max(angs) - min(angs) < 5, (t, angs)
+        assert min(angs) > 15, (t, angs)
+        assert all(abs(x - y) < 1.0 for x, y in zip(angs, angs[::-1])), "both sides alike"
+    top = max((m.panels[n].asm(180.0) @ Vector((q[0], q[1], 0.0))).z
+              for n in fan for poly in m.panels[n].polys for q in poly)
+    assert top > 0.6 * 80.0, top
+    d0 = dict(d, fan_stand=0.0)
+    m0 = Model(dict(st.card_dict(), thickness=0.3), [d0])
+    top0 = max((m0.panels[n].asm(180.0) @ Vector((q[0], q[1], 0.0))).z
+               for n in fan for poly in m0.panels[n].polys for q in poly)
+    assert top0 < 0.5 * top, (top0, top)
     # the radius, and the ends glued on their glue lines
     r = max(math.hypot(*q) for n in fan for poly in m.panels[n].polys for q in poly)
     assert abs(r - 80.0) < 0.5, r
-    print(f"fan, glue angle {phi:.0f}: shut flat pleat on pleat, open evenly pleated")
+    print(f"fan, glue angle {phi:.0f}: shut flat pleat on pleat; open it stands "
+          f"{top:.0f} mm tall (Stand 0: {top0:.0f} mm)")
 
 d = dict(v.to_dict(), phi_l=60, phi_r=60, fan_spread=100.0)
 m = Model(dict(st.card_dict(), thickness=0.3), [d])

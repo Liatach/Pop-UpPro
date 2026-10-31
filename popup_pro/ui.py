@@ -555,6 +555,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             if fan:
                 col.prop(m, "fan_pleats")
                 col.prop(m, "fan_spread")
+                col.prop(m, "fan_stand")
                 col.prop(m, "phi_l", text="Glue Angle")
                 if not m.host_uid:
                     col.prop(m, "cut_above")

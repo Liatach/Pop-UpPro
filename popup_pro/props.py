@@ -526,6 +526,11 @@ class PopupMech(bpy.types.PropertyGroup):
         update=lambda self, ctx: _shape_changed(self, ctx))
     fan_pleats: IntProperty(name="Pleats", default=5, min=1, max=24, update=_changed,
                             description="How many pleats (ridges) the fan has")
+    fan_stand: FloatProperty(name="Stand", default=60.0, min=0.0, max=90.0, update=_changed,
+                             description="How far the middle of the fan stands up out of "
+                             "the plane of its two glued edges when the card is open "
+                             "(degrees): 0 lies along it, 90 stands straight up. Shut, it "
+                             "lies flat whatever this is")
     fan_spread: FloatProperty(name="Spread", default=180.0, min=20.0, max=340.0,
                               update=_changed,
                               description="How far round the fan's paper reaches, laid flat "
@@ -821,7 +826,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
                      glue_r=self.glue if self.symmetric or self.glue_r <= 0 else self.glue_r,
                      shape=self.shape, cut_above=self.cut_above, fan_pleats=self.fan_pleats,
-                     fan_spread=self.fan_spread,
+                     fan_spread=self.fan_spread, fan_stand=self.fan_stand,
                      pleat=self.pleat,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])

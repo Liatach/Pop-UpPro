@@ -1067,6 +1067,7 @@ class Model:
         N = max(1, int(m.get("fan_pleats", 3)))
         Phi = math.radians(float(m.get("fan_spread", 180.0)))
         d = 0.5 * Phi / N  # each sector's angle at the V point
+        E = math.radians(float(m.get("fan_stand", 60.0)))  # how far the middle stands
         J = self.joints[base]
         tr = self.t_ref
         _b, _k, n0, nl0, nr0, uL0, uR0, _ok, _P = self._crease_parts(J, tr)
@@ -1076,6 +1077,11 @@ class Model:
         sn = 1.0 if uL0.cross(uR0).dot(want) >= 0 else -1.0
         cache = {}
         tight = []
+        # Stand: the middle's rise out of the glue lines' plane, fully open
+        x0 = 0.5 * math.acos(max(-1.0, min(1.0, self._crease_parts(J, self.tmax)[5].dot(
+            self._crease_parts(J, self.tmax)[6]))))
+        kst = (math.acos(max(-1.0, min(1.0, math.cos(x0) * math.cos(E)))) / x0
+               if x0 > 1e-6 else 1.0)
 
         def rays(t):
             """World directions of the 2N+1 creases from the V point, and it."""
@@ -1091,23 +1097,58 @@ class Model:
                 cache["n"] = n
             else:  # shut flat: the side it stood out to a moment before
                 n = cache.get("n", nl.normalized())
-            beta = Th / N
-            ch = math.cos(d) / max(1e-9, math.cos(0.5 * beta))
-            if ch > 1.0:
-                tight.append(t)
-                ch = 1.0
-            sh = math.sqrt(max(0.0, 1.0 - ch * ch))
-            # valleys evenly from one glue line to the other, across their plane
+            # the middle stands out of the glue lines' plane (Stand), more the
+            # further the card opens: valleys follow one glue line up over it
+            # and down to the other, evenly; shut, it lies down with the rest
             w = uR - G * uL  # across the glue lines' plane, towards the other one
             w = w.normalized() if w.length > 1e-9 else n.cross(uL).normalized()
+            mid = (math.cos(0.5 * Th) * uL + math.sin(0.5 * Th) * w).normalized()
+            # the middle is the crease of a V-fold whose piece angle is k times
+            # half the gap between the glue lines: it always stays in the gap
+            # between the pages, and lies down as they close (Stand sets k)
+            x = 0.5 * Th
+            # eased: near shut the pleats collapse first (as a hand fan closes)
+            # and only then does the middle lie down with them
+            f = max(0.0, min(1.0, t / max(1.0, self.tmax))) ** 2
+            k = 1.0 + (kst - 1.0) * f
+            ce = math.cos(min(math.pi, k * x)) / max(1e-9, math.cos(x))
+            e = math.acos(max(-1.0, min(1.0, ce)))
+            c = (math.cos(e) * mid + math.sin(e) * n).normalized()
+            A1 = math.acos(max(-1.0, min(1.0, uL.dot(c))))
+            A2 = math.acos(max(-1.0, min(1.0, c.dot(uR))))
+            Ltot = A1 + A2
+
+            def along(sv):
+                """The point sv of the way (radians) along the valleys' path."""
+                a, b, ang, s0 = (uL, c, A1, sv) if sv <= A1 else (c, uR, A2, sv - A1)
+                if ang < 1e-9:
+                    return a.copy()
+                f = s0 / ang
+                return ((math.sin((1 - f) * ang) * a + math.sin(f * ang) * b) /
+                        math.sin(ang)).normalized()
+
+            vs = [along(Ltot * i / N) for i in range(N + 1)]
             out = []
             for i in range(N + 1):
-                a = Th * i / N
-                v = (math.cos(a) * uL + math.sin(a) * w).normalized()
-                out.append(v)
-                if i < N:
-                    mid = (math.cos(a + 0.5 * beta) * uL + math.sin(a + 0.5 * beta) * w)
-                    out.append((ch * mid.normalized() + sh * n).normalized())
+                out.append(vs[i])
+                if i == N:
+                    break
+                a, b = vs[i], vs[i + 1]
+                beta = math.acos(max(-1.0, min(1.0, a.dot(b))))
+                ch = math.cos(d) / max(1e-9, math.cos(0.5 * beta))
+                if ch > 1.0 + 1e-9:
+                    tight.append(t)
+                ch = min(1.0, ch)
+                sh = math.sqrt(max(0.0, 1.0 - ch * ch))
+                mm = a + b
+                mm = mm.normalized() if mm.length > 1e-9 else a.copy()
+                nn = a.cross(b)
+                if nn.length < 1e-9:
+                    nn = n.copy()  # shut: they lift the way the fan opens
+                nn.normalize()
+                if nn.dot(n) < 0:
+                    nn = -nn  # ridges stand out on the same side as the middle
+                out.append((ch * mm + sh * nn).normalized())
             r = (out, P3)
             if len(cache) > 4000:
                 cache.clear()

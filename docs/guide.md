@@ -454,8 +454,13 @@ its glued edges ever is, so the pleats are what make it fit: every pleat is
 a small V-fold, its valleys spread evenly across the plane of the two glue
 lines and its ridge standing out just far enough. Shut, every sector lies
 flat against the next; open, it fans out evenly and never quite flat.
-**Pleats** sets how many ridges, **Radius** its size and **Glue Angle**
-where its edges are glued (smaller stands it more upright). If Spread is
+**Stand** sets how far its middle rises out of the plane of its two glued
+edges when the card is open, like a V-fold's crease (0 lies along that
+plane, 90 stands straight up); as the card shuts the pleats collapse first
+and the middle then lies down with them. **Pleats** sets how many ridges,
+**Radius** its size and **Glue Angle** where its edges are glued. A hole
+cut where the pleats crowd together at the V point (an arch, say) makes it
+easier to fold in real paper. If Spread is
 less than the gap at full opening, the checks say it would tear.
 
 The **+** menu's *Fan Pleats* and *Concertina Pleats* add creases to an
