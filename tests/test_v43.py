@@ -24,39 +24,68 @@ st.mechs.clear()
 assert bpy.ops.popup.add(kind="VFOLD") == {"FINISHED"}
 v = st.mechs[-1]
 st.live = False
-v.y, v.height = 60, 60
+v.y, v.height = 40, 80
 v.shape = "FAN"
-assert v.pleat == 45.0 and v.fan_pleats == 3
+assert v.fan_pleats == 5 and v.fan_spread == 180.0
+from mathutils import Vector  # noqa: E402
 
 
-def ang(m, n, t):
-    p = m.panels[n]
-    M = m.panels[p.parent].asm(t).inverted() @ p.asm(t)
-    return math.degrees(math.acos(max(-1.0, min(1.0, M[2][2]))))
+def normal(m, n, t):
+    return m.panels[n].asm(t).to_3x3() @ Vector((0, 0, 1))
 
 
-for alpha in (60.0, 90.0):
-    d = dict(v.to_dict(), alpha_l=alpha, alpha_r=alpha)
+for phi in (30.0, 60.0):
+    d = dict(v.to_dict(), phi_l=phi, phi_r=phi)
     m = Model(dict(st.card_dict(), thickness=0.3), [d])
     m.check_fit()
     m.solve_hinges()
     assert not m.warnings, m.warnings
-    folds = [n for n in m.order if ".Fold" in n]
-    assert len(folds) == 6
-    for a, b in zip(folds[:3], folds[3:]):
-        assert abs(ang(m, a, 90) - ang(m, b, 90)) < 0.5, "both halves alike"
-    assert all(ang(m, n, 90) > 10 for n in folds), "every pleat folds"
-    assert all(ang(m, n, 180) < 0.5 for n in folds), "flat when the card is"
-    half = next(n for n in m.order if n.endswith(".HalfL"))
-    outline = [q for n in [half] + folds[:3] for poly in m.panels[n].polys for q in poly]
-    r = max(math.hypot(*q) for q in outline)
-    assert abs(r - 60.0) < 0.5, r
-    print(f"fan at {alpha:.0f}°: six pleats, halves alike, flat open; radius {r:.1f} mm")
+    fan = [n for n in m.order if ".Fan" in n]
+    assert len(fan) == 10
+    # shut: every sector flat against the next
+    for a, b in zip(fan, fan[1:]):
+        c = abs(normal(m, a, 1.0).dot(normal(m, b, 1.0)))
+        assert c > math.cos(math.radians(2.0)), (a, b, math.degrees(math.acos(min(1, c))))
+    # open: evenly pleated, never flat (more paper than room)
+    for t in (90.0, 180.0):
+        angs = [math.degrees(math.acos(min(1.0, abs(normal(m, a, t).dot(normal(m, b, t))))))
+                for a, b in zip(fan, fan[1:])]
+        assert min(angs) > 15 and max(angs) - min(angs) < 5, (t, angs)
+    # the radius, and the ends glued on their glue lines
+    r = max(math.hypot(*q) for n in fan for poly in m.panels[n].polys for q in poly)
+    assert abs(r - 80.0) < 0.5, r
+    print(f"fan, glue angle {phi:.0f}: shut flat pleat on pleat, open evenly pleated")
+
+d = dict(v.to_dict(), phi_l=60, phi_r=60, fan_spread=100.0)
+m = Model(dict(st.card_dict(), thickness=0.3), [d])
+assert any("not enough Spread" in w for w in m.warnings)
+print("too little Spread is flagged")
 
 st.live = True
 build.rebuild(sc, force=True)
 assert not st.warnings, st.warnings
-print("the fan builds in Blender")
+model, lay = build.make_model(sc)
+rig, card = st.rig, st.card
+if rig.animation_data:
+    rig.animation_data.action = None  # the movement test would drive Open
+s_ = 1 / st.mm_per_unit
+me = card.data
+attr = me.attributes["pop_panel"]
+worst = 0.0
+for t in (10, 60, 120, 180):
+    rig["pop_open"] = float(t)
+    rig.update_tag()
+    dg = bpy.context.evaluated_depsgraph_get()
+    dg.update()
+    ev = card.evaluated_get(dg).data
+    real = rig.get("pop_close", 0.0) + t * (180 - rig.get("pop_close", 0.0)) / 180
+    for poly in me.polygons:
+        p = model.panels[model.order[attr.data[poly.index].value]]
+        D = model.shown(p.name, real) @ lay["prints"][p.piece].inverted()
+        for vi in poly.vertices:
+            worst = max(worst, (ev.vertices[vi].co - (D @ (me.vertices[vi].co / s_)) * s_).length / s_)
+assert worst < 0.5, worst
+print(f"the fan builds in Blender; the rig follows it to {worst:.3f} mm")
 
 # ---- the pleat presets
 v.shape = "QUAD"

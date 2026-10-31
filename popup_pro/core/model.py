@@ -981,37 +981,14 @@ class Model:
         shape = m.get("shape", "QUAD")
         # beak: a triangle to the crease's end; panel: a four-sided half.
         # Either side can be either (beak on one side, panel on the other)
-        fan_lines = []
         if shape == "FAN":
-            # a quarter circle each half (a semicircle at right-angle piece
-            # angles), radius the fold length, glued along its straight edge
-            gs = {"L": Lc, "R": Lc}
-            GL = (Lc * uLp[0], Lc * uLp[1])
-            GR = (Lc * uRp[0], Lc * uRp[1])
-            seg = 16
-            aL0, aL1 = math.atan2(Q[1], Q[0]), math.atan2(uLp[1], uLp[0])
-            aR0, aR1 = math.atan2(uRp[1], uRp[0]), math.atan2(Q[1], Q[0])
-            halfL = [(0, 0), Q] + [(Lc * math.cos(aL0 + (aL1 - aL0) * k / seg),
-                                    Lc * math.sin(aL0 + (aL1 - aL0) * k / seg))
-                                   for k in range(1, seg)] + [GL]
-            halfR = [(0, 0), GR] + [(Lc * math.cos(aR0 + (aR1 - aR0) * k / seg),
-                                     Lc * math.sin(aR0 + (aR1 - aR0) * k / seg))
-                                    for k in range(1, seg)] + [Q]
-            # pleats fanning out from the V point, evenly between the centre
-            # fold and the glue edge, each side
-            n = max(1, int(m.get("fan_pleats", 3)))
-            for a0, a1 in ((aL0, aL1), (aR0, aR1)):
-                for k in range(1, n + 1):
-                    a = a0 + (a1 - a0) * k / (n + 1)
-                    fan_lines.append(("CREASE", [(0.0, 0.0), (1.2 * Lc * math.cos(a),
-                                                              1.2 * Lc * math.sin(a))]))
-        elif shape in ("TRI", "BEAK_L"):
+            self._fan(m, host, base, piece, lab, yP, uLf, Lc, t_)
+            return
+        if shape in ("TRI", "BEAK_L"):
             halfL = [(0, 0), Q, GL]
         else:
             halfL = [(0, 0), Q, (GL[0], GL[1] + Lc), GL]
-        if shape == "FAN":
-            pass
-        elif shape in ("TRI", "BEAK_R"):
+        if shape in ("TRI", "BEAK_R"):
             halfR = [(0, 0), GR, Q]
         else:
             halfR = [(0, 0), GR, (GR[0], GR[1] + Lc), Q]
@@ -1066,10 +1043,9 @@ class Model:
         self.line_frames[uid] = (piece, lambda q: q, None)
         halves = [f"{base}.HalfL", f"{base}.HalfR"]
         doors = self._door_lines(piece, halves, True)
-        if m.get("lines") or doors or fan_lines:
+        if m.get("lines") or doors:
             from .folds import build as fold_build, expand
-            fold_build(self, piece, halves, lab,
-                       fan_lines + expand(m.get("lines")) + doors, base,
+            fold_build(self, piece, halves, lab, expand(m.get("lines")) + doors, base,
                        float(m.get("pleat", 0.0) or 0.0))
 
         self._vfold_hosts(uid, base, host, yP, (gs["L"], gs["R"]), Lc, (uLf, uRf), (uLp, uRp))
@@ -1079,6 +1055,147 @@ class Model:
             self.warn(f"{lab}: tears if opened past {min(tears):.0f} degrees (pointing "
                       f"forward, make each piece angle at least its glue angle; or turn on "
                       f"Fold Flat)")
+
+    def _fan(self, m, host, base, piece, lab, yP, uLf, R_, t_):
+        """A pleated fan: a row of small V-folds side by side, sharing their
+        glue lines. Its paper spans Spread degrees, more than the gap between
+        its two glued edges ever is, so the pleats are what make it fit: the
+        valleys lie evenly across the plane of the two glue lines, each ridge
+        stands out of it just far enough for its two sectors to reach. Shut,
+        every sector lies flat against the next; open, it fans out, and never
+        quite flat (there's more paper than room)."""
+        N = max(1, int(m.get("fan_pleats", 3)))
+        Phi = math.radians(float(m.get("fan_spread", 180.0)))
+        d = 0.5 * Phi / N  # each sector's angle at the V point
+        J = self.joints[base]
+        tr = self.t_ref
+        _b, _k, n0, nl0, nr0, uL0, uR0, _ok, _P = self._crease_parts(J, tr)
+        want = nl0 + nr0
+        if J.get("gap") and self.normals_out(host):
+            want = -want
+        sn = 1.0 if uL0.cross(uR0).dot(want) >= 0 else -1.0
+        cache = {}
+        tight = []
+
+        def rays(t):
+            """World directions of the 2N+1 creases from the V point, and it."""
+            r = cache.get(t)
+            if r is not None:
+                return r
+            _b, _k, _n, nl, nr, uL, uR, _ok, P3 = self._crease_parts(J, t)
+            G = max(-1.0, min(1.0, uL.dot(uR)))
+            Th = math.acos(G)
+            cr = uL.cross(uR)
+            if cr.length > 1e-9:
+                n = sn * cr.normalized()
+                cache["n"] = n
+            else:  # shut flat: the side it stood out to a moment before
+                n = cache.get("n", nl.normalized())
+            beta = Th / N
+            ch = math.cos(d) / max(1e-9, math.cos(0.5 * beta))
+            if ch > 1.0:
+                tight.append(t)
+                ch = 1.0
+            sh = math.sqrt(max(0.0, 1.0 - ch * ch))
+            # valleys evenly from one glue line to the other, across their plane
+            w = uR - G * uL  # across the glue lines' plane, towards the other one
+            w = w.normalized() if w.length > 1e-9 else n.cross(uL).normalized()
+            out = []
+            for i in range(N + 1):
+                a = Th * i / N
+                v = (math.cos(a) * uL + math.sin(a) * w).normalized()
+                out.append(v)
+                if i < N:
+                    mid = (math.cos(a + 0.5 * beta) * uL + math.sin(a + 0.5 * beta) * w)
+                    out.append((ch * mid.normalized() + sh * n).normalized())
+            r = (out, P3)
+            if len(cache) > 4000:
+                cache.clear()
+            cache[t] = r
+            return r
+
+        a0 = 0.5 * math.pi + 0.5 * Phi
+        pat = [(math.cos(a0 - k * d), math.sin(a0 - k * d)) for k in range(2 * N + 1)]
+
+        def basis(a, b):
+            e1 = Vector(a).normalized()
+            e2 = (Vector(b) - e1 * e1.dot(Vector(b))).normalized()
+            return Matrix((e1, e2, e1.cross(e2))).transposed()
+
+        def make(k, mx):
+            pa = Vector((mx * pat[k][0], pat[k][1], 0.0))
+            pb = Vector((mx * pat[k + 1][0], pat[k + 1][1], 0.0))
+            F = basis(pa, pb)
+
+            def asm(t, k=k, F=F):
+                W, P3 = rays(t)
+                Rm = basis(W[k], W[k + 1]) @ F.transposed()
+                M = Rm.to_4x4()
+                M.translation = P3
+                return M
+            return asm
+
+        # the printed side faces into the card (as a V-fold's does)
+        mx = 1.0
+        if (make(0, 1.0)(self.tmax).to_3x3() @ Vector((0, 0, 1))).dot(
+                self._crease_parts(J, self.tmax)[3]) < 0:
+            mx = -1.0
+        seg = max(2, int(math.ceil(24 / (2 * N))))
+        prev = host.p1
+        names = []
+        for k in range(2 * N):
+            poly = [(0.0, 0.0)]
+            for j in range(seg + 1):
+                a = a0 - (k + j / seg) * d
+                poly.append((mx * R_ * math.cos(a), R_ * math.sin(a)))
+            name = f"{base}.Fan{k + 1}"
+            asm = make(k, mx)
+            Fc = hinge_frame_2d((0.0, 0.0), (mx * pat[k][0], pat[k][1]))
+            Hp = self.panels[prev].asm(tr).inverted() @ asm(tr) @ Fc
+            hg = Hinge(Hp, Fc, "TABLE")
+            hg.corner_ok = True
+            hg.host_bound = True
+            kind = "ridge" if k % 2 else "valley"
+            self.add(Panel(name, piece, "panel", [poly], asm, prev, hg,
+                           f"{lab}: pleat {k // 2 + 1} {'right' if k % 2 else 'left'}"))
+            names.append(name)
+            prev = name
+        # glue tabs along the two end edges, flat on their pages
+        inside = m.get("tab_side", "IN") == "IN"
+        for side, ke, page, k_in in (("L", 0, host.p1, 1), ("R", 2 * N, host.p2, 2 * N - 1)):
+            p = Vector((mx * pat[ke][0], pat[ke][1], 0.0))
+            pin = Vector((mx * pat[k_in][0], pat[k_in][1], 0.0))
+            s2 = Vector((p.y, -p.x, 0.0))
+            if s2.dot(pin) > 0:
+                s2 = -s2  # away from the fan
+            ins = min(0.5 * t_, 0.3 * R_)
+            poly = [(0.0, 0.0), (R_ * p.x, R_ * p.y),
+                    (R_ * p.x + t_ * s2.x - ins * p.x, R_ * p.y + t_ * s2.y - ins * p.y),
+                    (t_ * s2.x, t_ * s2.y)]
+            W, P3 = rays(tr)
+            u = W[ke]
+            other = W[2 * N] if side == "L" else W[0]
+            npage = self.panels[page].asm(tr).to_3x3() @ Vector((0, 0, 1))
+            q = u.cross(npage).normalized()
+            if (q.dot(other) > 0) != inside:
+                q = -q
+            lift = host.lift[0 if side == "L" else 1]
+            Wt = frame(P3 + lift * TAB_LIFT * npage, q, u) @ frame((0, 0, 0), s2, p).inverted()
+            Tc = self.panels[page].asm(tr).inverted() @ Wt
+            # stay on this side of the fold it stands on, as a V-fold's tabs do
+            Tv = (host.T1 if side == "L" else host.T2).inverted() @ Tc
+            sgn = -1.0 if side == "L" else 1.0
+            poly = clip_halfplane(poly, (sgn * Tv[0][0], sgn * Tv[0][1]), 0.5 - sgn * Tv[0][3])
+            pa_ = self.panels[page].asm
+            self.add(Panel(f"{base}.Tab{side}", piece, "tab", [poly],
+                           (lambda t, pa=pa_, T=Tc: pa(t) @ T), page, None, f"{lab}: tab {side}"))
+        if m.get("lines"):
+            self.warn(f"{lab}: a fan makes its own creases; extra lines are left out")
+        rays(self.tmax)
+        if tight:
+            self.warn(f"{lab}: not enough Spread for the gap it bridges (it would tear "
+                      f"opened past about {min(tight):.0f} degrees): widen Spread or "
+                      f"narrow the glue angles")
 
     def _vfold_hosts(self, uid, base, host, yP, gs, Lc, uf, up):
         """Each half's glue line is a fold too: a stand-up (or a glued box)

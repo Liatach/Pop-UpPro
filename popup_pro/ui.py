@@ -551,10 +551,16 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         elif m.kind == "VFOLD":
             col.prop(m, "shape")
             fan = m.shape == "FAN"
-            col.prop(m, "height", text="Radius (Fold Length)" if fan else "Fold Length")
+            col.prop(m, "height", text="Radius" if fan else "Fold Length")
             if fan:
                 col.prop(m, "fan_pleats")
-                col.prop(m, "pleat", text="Concertina")
+                col.prop(m, "fan_spread")
+                col.prop(m, "phi_l", text="Glue Angle")
+                if not m.host_uid:
+                    col.prop(m, "cut_above")
+                _tabs(self.layout, m)
+                self.draw_warnings(context, m)
+                return
             else:
                 col.prop(m, "glue", text="Glue Length" if m.symmetric else "Glue Length L")
                 if not m.symmetric:

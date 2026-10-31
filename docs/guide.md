@@ -447,11 +447,19 @@ Creases are straightened end to end, and cuts keep their shape (arrows,
 horses, trees). Then press **Add Drawn Lines**. Line ends within 1.5 mm of
 the centre fold, an edge or another line snap onto it.
 
-**Fan** (a V-fold Shape): each half is a quarter circle whose radius is the
-fold length (a semicircle when the piece angles are square), glued all
-along its straight edge, with **Pleats** creases fanning out from the V
-point each side and **Concertina** to fold them. The **+** menu's *Fan
-Pleats* and *Concertina Pleats* add the same kind of creases to any V-fold.
+**Fan** (a V-fold Shape): a pleated fan glued along its two end edges on the
+glue lines, like a hand fan opened between the pages. Its paper reaches
+**Spread** degrees round (180 is a semicircle), more than the gap between
+its glued edges ever is, so the pleats are what make it fit: every pleat is
+a small V-fold, its valleys spread evenly across the plane of the two glue
+lines and its ridge standing out just far enough. Shut, every sector lies
+flat against the next; open, it fans out evenly and never quite flat.
+**Pleats** sets how many ridges, **Radius** its size and **Glue Angle**
+where its edges are glued (smaller stands it more upright). If Spread is
+less than the gap at full opening, the checks say it would tear.
+
+The **+** menu's *Fan Pleats* and *Concertina Pleats* add creases to an
+ordinary V-fold instead, with **Concertina** to fold them (below).
 
 **Concertinas and fans.** Several creases side by side (a concertina, or
 creases fanning out from the V point) leave the paper free to fold more

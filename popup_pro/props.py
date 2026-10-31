@@ -496,10 +496,6 @@ def _strap(self, context):
 
 
 def _shape_changed(self, context):
-    if self.shape == "FAN":
-        # a semicircle when flat: square to the fold, glued all along its edge
-        if self.pleat <= 0:
-            self["pleat"] = 45.0
     _changed(self, context)
 
 
@@ -525,12 +521,16 @@ class PopupMech(bpy.types.PropertyGroup):
          "end, the right half a four-sided panel"),
         ("BEAK_R", "Panel Left, Beak Right", "The left half a four-sided panel, the right "
          "half a triangle to the crease's end"),
-        ("FAN", "Fan", "A semicircle (a quarter circle each half, the radius the fold "
-         "length) pleated by creases fanning out from the V point: they concertina as the "
-         "card closes")],
+        ("FAN", "Fan", "A pleated fan glued along its two end edges: more paper than the "
+         "gap it spans (Spread), folding flat pleat on pleat as the card shuts")],
         update=lambda self, ctx: _shape_changed(self, ctx))
-    fan_pleats: IntProperty(name="Pleats", default=3, min=1, max=12, update=_changed,
-                            description="Creases fanning out from the V point in each half")
+    fan_pleats: IntProperty(name="Pleats", default=5, min=1, max=24, update=_changed,
+                            description="How many pleats (ridges) the fan has")
+    fan_spread: FloatProperty(name="Spread", default=180.0, min=20.0, max=340.0,
+                              update=_changed,
+                              description="How far round the fan's paper reaches, laid flat "
+                              "(degrees; 180 is a semicircle). More than the gap between its "
+                              "glued edges, so the pleats are what make it fit")
     # cube
     size: FloatProperty(name="Size", description="Width of each wall (mm)", default=40.0,
                         min=5.0, soft_max=150.0, update=_changed)
@@ -821,6 +821,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
                      glue_r=self.glue if self.symmetric or self.glue_r <= 0 else self.glue_r,
                      shape=self.shape, cut_above=self.cut_above, fan_pleats=self.fan_pleats,
+                     fan_spread=self.fan_spread,
                      pleat=self.pleat,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
