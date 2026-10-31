@@ -35,8 +35,30 @@ class PopupPartMaterial(bpy.types.PropertyGroup):
                               update=_rebuild_mod)
 
 
+def _mech_of(panel):
+    """A whole mechanism's entry: its panels' shared name prefix + ".*"."""
+    return panel.split(".")[0] + ".*"
+
+
+def _parts(scene, panel):
+    """Vertex groups an entry covers: one part, or a whole mechanism's
+    parts (not its glue tabs, which show the paper they glue to)."""
+    if not panel.endswith(".*"):
+        return [panel]
+    m = live.meta(scene.popup.rig)
+    pre = panel[:-1]
+    return [p["name"] for p in (m["panels"] if m else [])
+            if p["name"].startswith(pre) and p["kind"] != "tab"]
+
+
 def _label(scene, panel):
     m = live.meta(scene.popup.rig)
+    if panel.endswith(".*"):
+        parts = _parts(scene, panel)
+        if parts and m:
+            lab = next(p["label"] for p in m["panels"] if p["name"] == parts[0])
+            return lab.split(":")[0] + " (all of it)"
+        return f"{panel[:-2]} (not on the card)"
     if m:
         for p in m["panels"]:
             if p["name"] == panel:
@@ -59,8 +81,11 @@ def apply(scene):
     card = st.card
     if card is None:
         return
-    items = [(it.panel, it.material) for it in st.part_materials
-             if it.panel and it.material is not None]
+    # whole mechanisms first, so a single part's own material wins over them
+    items = [(part, it.material)
+             for it in sorted(st.part_materials, key=lambda i: not i.panel.endswith(".*"))
+             if it.panel and it.material is not None
+             for part in _parts(scene, it.panel)]
     mod = card.modifiers.get(MOD)
     if not items:
         if mod is not None:
@@ -168,6 +193,8 @@ class POPUP_OT_part_material(bpy.types.Operator):
         if not panel or panel == "NONE":
             self.report({"ERROR"}, "Build the card and pick a part first")
             return {"CANCELLED"}
+        if st.material_whole and not panel.startswith("Page."):
+            panel = _mech_of(panel)
         it = next((i for i in st.part_materials if i.panel == panel), None)
         if it is None:
             it = st.part_materials.add()
@@ -212,6 +239,7 @@ def draw(layout, context):
     row = col.row(align=True)
     row.operator_menu_enum("popup.part_material", "look", text="Own Material",
                            icon="MATERIAL")
+    row.prop(st, "material_whole", text="", icon="LINKED")
     if len(st.part_materials):
         col.template_list("POPUP_UL_part_materials", "", st, "part_materials", st,
                           "part_material_index", rows=2)

@@ -152,7 +152,10 @@ def bake_art(scene, dpi=150):
 
     mesh = src.data.copy()
     mesh.name = "_pop_bake"
-    mesh.uv_layers.active = mesh.uv_layers[ART_UV]
+    # bake each piece into its own place (outside tabs show their host's art
+    # through PopupArt, and bake it into their own place to print)
+    from .build import TILE_UV
+    mesh.uv_layers.active = mesh.uv_layers.get(TILE_UV) or mesh.uv_layers[ART_UV]
     mesh.materials.clear()
     copies = []
     for slot in src.material_slots:

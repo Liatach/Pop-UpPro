@@ -53,6 +53,28 @@ def art_uv(model, piece, q):
     return (tu + min(max(u, 0.0), 0.999), tv + min(max(v, 0.0), 0.999))
 
 
+TILE_UV = "PopupTile"  # each piece's own place in the art (bake target, export)
+
+
+def tab_art(model):
+    """Outside tabs: glue tabs whose printed side faces out, on the front
+    of the part they glue to, so it shows. They carry that part's art where
+    they land (as Papercraft Pro's outside tabs do) and blend into it.
+    {tab: (host piece, tab pattern -> host pattern)}"""
+    out = {}
+    t = model.t_ref
+    z = Vector((0.0, 0.0, 1.0))
+    for name in model.order:
+        p = model.panels[name]
+        if p.kind != "tab" or not p.parent:
+            continue
+        host = model.panels[p.parent]
+        R = host.asm(t).inverted() @ p.asm(t)
+        if (R.to_3x3() @ z).z > 0.9 and R.to_translation().z > -1e-6:
+            out[name] = (host.piece, R)
+    return out
+
+
 def panel_frame(panel):
     """Bone frame in the panel's own pattern: the hinge, or (for glued tabs)
     an axis-aligned frame at the first corner."""
@@ -188,6 +210,8 @@ def build_mesh(mesh, model, layout, s, holes=None):
     bm = bmesh.new()
     lay = bm.faces.layers.int.new("pop_panel")
     uvl = bm.loops.layers.uv.new(ART_UV)
+    tile = bm.loops.layers.uv.new(TILE_UV)
+    carry = tab_art(model)
     groups = {}
     for pi, name in enumerate(model.order):
         p = model.panels[name]
@@ -215,8 +239,15 @@ def build_mesh(mesh, model, layout, s, holes=None):
             except ValueError:
                 continue
             f[lay] = pi
+            to_host = carry.get(name)
             for loop, q in zip(f.loops, poly):
-                loop[uvl].uv = art_uv(model, p.piece, q)
+                own = art_uv(model, p.piece, q)
+                loop[tile].uv = own
+                if to_host is not None:
+                    h = to_host[1] @ Vector((q[0], q[1], 0.0))
+                    loop[uvl].uv = art_uv(model, to_host[0], (h.x, h.y))
+                else:
+                    loop[uvl].uv = own
         groups[name] = idx
     bm.verts.index_update()
     order = {name: [v.index for v in vs] for name, vs in groups.items()}

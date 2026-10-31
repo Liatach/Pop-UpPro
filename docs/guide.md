@@ -776,7 +776,17 @@ mesh, no rig). So:
   Editor. The rest of the card stays paper. It's set by a Geometry Nodes
   modifier (*Pop-up Part Materials*) between the rig and Solid Paper,
   which finds the part by its vertex group, so rebuilding or resizing keeps
-  it. **Back to Paper** undoes it. Prints and exports are unchanged.
+  it. **Back to Paper** undoes it. Prints and exports are unchanged. With
+  **Whole Mechanism** (the link button, on by default) one material goes on
+  every part of the picked part's mechanism (both halves of a V-fold, every
+  wall of a cube) but not its glue tabs; turn it off for a single part. A
+  single part's own material wins over its mechanism's.
+* **Outside tabs carry the art** (as in Papercraft Pro): a glue tab whose
+  printed side faces out where it's glued (a V-fold with **Tab Side**
+  Outside) shows and prints the art of the part it glues onto, where it
+  lands, so it disappears into the picture. Painting on the tab paints the
+  card under it; Bake Art for Print and the SVG export put that art on the
+  tab's own outline.
 * **Editing shapes**: edit the Layout object in Edit Mode (cut an arch into
   a box front, round the top of a V-fold) and the folded card follows. A
   hand-edited card stops live rebuilding; **Rebuild** resets the shapes.

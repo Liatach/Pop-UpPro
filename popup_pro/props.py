@@ -1076,6 +1076,10 @@ class PopupSettings(bpy.types.PropertyGroup):
     sketch_panel: EnumProperty(name="Panel", items=lambda s, c: live.panel_items(c.scene))
     material_part: EnumProperty(name="Part", description="The part to give its own "
                                 "material", items=lambda s, c: live.panel_items(c.scene))
+    material_whole: BoolProperty(name="Whole Mechanism", default=True,
+                                 description="Give the picked part's whole mechanism "
+                                 "(both halves of a V-fold, every wall of a cube) one "
+                                 "material; off: just the picked part")
     part_materials: CollectionProperty(type=PopupPartMaterial)
     part_material_index: IntProperty(default=0)
     # export ------------------------------------------------------------

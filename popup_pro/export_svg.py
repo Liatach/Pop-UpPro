@@ -315,8 +315,9 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
     from . import images as _images
     placed_png = {}
 
-    def placed(pl, piece, T):
-        """An <image> for a placed image: T maps pattern mm to the sheet."""
+    def placed(pl, piece, T, pre=None):
+        """An <image> for a placed image: T maps pattern mm to the sheet
+        (pre: the image's own piece's pattern -> this piece's pattern)."""
         key = pl.image.name
         if key not in placed_png:
             got = _images.png_data(pl.image, tmp)
@@ -333,16 +334,36 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
             m = _images.svg_matrix(pl, meta, k)
             if m is None:
                 return ""
-            M = T @ Affine.from4(prints[piece]) @ Affine(*m)
+            M = T @ Affine.from4(prints[piece]) @ (pre or Affine()) @ Affine(*m)
             out.append(f'<image width="1" height="1" preserveAspectRatio="none" '
                        f'opacity="{pl.opacity:.3g}" transform="{M.svg()}" '
                        f'href="data:image/png;base64,{data}"/>')
         return "".join(out)
     tiles = {}
+    baked = False
     if include_art:
-        img = bpy.data.images.get(N(scene, PRINT_IMAGE)) or bpy.data.images.get(N(scene, ART_IMAGE))
+        img = bpy.data.images.get(N(scene, PRINT_IMAGE))
+        baked = img is not None
+        img = img or bpy.data.images.get(N(scene, ART_IMAGE))
         if img is not None:
             tiles = _tile_pngs(img, tmp)
+    from .build import tab_art
+    carry = tab_art(model) if include_art else {}
+    tile_b64 = {}
+
+    def tile_data(path):
+        if path not in tile_b64:
+            with open(path, "rb") as fh:
+                tile_b64[path] = base64.b64encode(fh.read()).decode("ascii")
+        return tile_b64[path]
+
+    def tile_rect(info):
+        """The tile's image rectangle in its piece's pattern: x0, top, w, h."""
+        if info["is_card"]:
+            W, H = meta["W"], meta["H"]
+            return -W, H, 2 * W, H
+        ax, ay = info["anchor"]
+        return ax - TILE_MM / 2, ay + TILE_MM / 2, TILE_MM, TILE_MM
 
     # ---- sketch strokes, grouped by piece, in layout mm
     strokes_by_piece = {}
@@ -434,14 +455,8 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
             # art
             tile = tiles.get(1001 + info["slot"])
             if tile:
-                if info["is_card"]:
-                    W, H = meta["W"], meta["H"]
-                    x0, y1, w, h = -W, H, 2 * W, H
-                else:
-                    ax, ay = info["anchor"]
-                    x0, y1, w, h = ax - TILE_MM / 2, ay + TILE_MM / 2, TILE_MM, TILE_MM
-                with open(tile, "rb") as fh:
-                    data = base64.b64encode(fh.read()).decode("ascii")
+                x0, y1, w, h = tile_rect(info)
+                data = tile_data(tile)
                 M = flip @ Affine.from4(prints[piece]) @ Affine(1, 0, 0, -1, x0, y1)
                 L["art"].append(
                     f'<g clip-path="url(#{clip_id})"><image width="{w:.3f}" height="{h:.3f}" '
@@ -453,6 +468,30 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
                               for pl in _images.for_piece(scene, piece, "FRONT"))
                 if got:
                     L["art"].append(f'<g clip-path="url(#{clip_id})">{got}</g>')
+            # outside tabs: the art of the part each glues onto, where it lands
+            for pi, pts, _ in faces:
+                tname = panel_info[pi]["name"]
+                if tname not in carry:
+                    continue
+                hpiece, R = carry[tname]
+                pre = Affine.from4(R.inverted())  # host pattern -> tab pattern
+                cid = f"clip_tab_{pi}_{len(defs)}"
+                defs.append(f'<clipPath id="{cid}" clipPathUnits="userSpaceOnUse"><path d="M'
+                            + " L".join(_fmt(P(q)) for q in inflate(pts, bleed))
+                            + ' Z"/></clipPath>')
+                got = ""
+                hinfo = meta["pieces"].get(hpiece)
+                htile = tiles.get(1001 + hinfo["slot"]) if (hinfo and not baked) else None
+                if htile:  # unbaked: the host's painted art (baked prints have it)
+                    x0, y1, w, h = tile_rect(hinfo)
+                    M = flip @ Affine.from4(prints[piece]) @ pre @ Affine(1, 0, 0, -1, x0, y1)
+                    got += (f'<image width="{w:.3f}" height="{h:.3f}" preserveAspectRatio='
+                            f'"none" transform="{M.svg()}" '
+                            f'href="data:image/png;base64,{tile_data(htile)}"/>')
+                got += "".join(placed(pl, piece, flip, pre)
+                               for pl in _images.for_piece(scene, hpiece, "FRONT"))
+                if got:
+                    L["art"].append(f'<g clip-path="url(#{cid})">{got}</g>')
             # sketch
             sks = strokes_by_piece.get(piece, [])
             if sks:

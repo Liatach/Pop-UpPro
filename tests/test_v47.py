@@ -24,6 +24,7 @@ build.rebuild(sc, force=True)
 bpy.ops.popup.add_art()
 half = f"VFold{v.uid}.HalfL"
 st.material_part = half
+st.material_whole = False
 assert bpy.ops.popup.part_material(look="METALLIC") == {"FINISHED"}
 it = st.part_materials[0]
 mat = it.material
@@ -79,4 +80,23 @@ for look in ("GLOSSY", "GLOW", "PLAIN"):
 assert len(st.part_materials) == 1
 bpy.ops.popup.part_material_remove()
 assert len(st.part_materials) == 0 and card.modifiers.get(materials.MOD) is None
+# the whole mechanism at once: both halves, not the tabs
+st.material_whole = True
+st.material_part = half
+assert bpy.ops.popup.part_material(look="GLOSSY") == {"FINISHED"}
+assert st.part_materials[0].panel == f"VFold{v.uid}.*"
+gm = st.part_materials[0].material
+m = mats_on(None)
+for k in m:
+    if k.startswith(f"VFold{v.uid}.Half"):
+        assert m[k] == {gm.name}, (k, m[k])
+    elif k.startswith(f"VFold{v.uid}.Tab") or k.startswith("Page"):
+        assert gm.name not in m[k], (k, m[k])
+# one half on its own on top of the whole: the half's own wins
+st.material_whole = False
+st.material_part = half
+bpy.ops.popup.part_material(look="GLOW")
+m = mats_on(None)
+other_half = f"VFold{v.uid}.HalfR"
+assert m[half] != {gm.name} and m[other_half] == {gm.name}, (m[half], m[other_half])
 print("v47 ok")
