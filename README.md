@@ -165,8 +165,18 @@ calls when it is installed.
   fan, but standing free of the centre crease, so it can arch across the
   scene as arches, rainbows and arcs.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
-  arch V-folds, moving arms, and the 45° mechanism (Birmingham, *Pop-Up! A
-  Manual of Paper Mechanisms*, pp. 68–69).
+  arch V-folds, moving arms.
+* **45° folds** (Birmingham, *Pop-Up! A Manual of Paper Mechanisms*,
+  mechanisms 77–83, pp. 66–69): pairs of triangles with 45° creases meeting
+  at a point, which turn a pull into a lift or a twist:
+  * the double 45° fold: arms that rise and a top piece that twists round as
+    the card closes (77);
+  * on a parallelogram or a V-fold, arms that reach out past the base's
+    edges (78, 79, the jack in the box);
+  * structural: holding up a pop-up off the centre, or pulling up a single
+    sheet rising from the spine (80, 81, the tree and the flowers);
+  * box ends filled by double 45° folds, and a box lid lifted by a strut
+    (82, 83).
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe
   route for printing.
 
