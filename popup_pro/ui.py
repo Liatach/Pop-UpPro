@@ -546,14 +546,19 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "depth", text="Leg Out From Back" if flat else "Out From Back")
             col.prop(m, "img_w")
             col.prop(m, "img_h", text="Picture Depth" if flat else "Picture Height")
-            col.label(text="Shape the picture by erasing its art (Holes and Shaping)",
+            col.label(text="Shape the picture by erasing its art (Paint, Erase)",
                       icon="INFO")
         elif m.kind == "VFOLD":
             col.prop(m, "shape")
-            col.prop(m, "height", text="Fold Length")
-            col.prop(m, "glue", text="Glue Length" if m.symmetric else "Glue Length L")
-            if not m.symmetric:
-                col.prop(m, "glue_r")
+            fan = m.shape == "FAN"
+            col.prop(m, "height", text="Radius (Fold Length)" if fan else "Fold Length")
+            if fan:
+                col.prop(m, "fan_pleats")
+                col.prop(m, "pleat", text="Concertina")
+            else:
+                col.prop(m, "glue", text="Glue Length" if m.symmetric else "Glue Length L")
+                if not m.symmetric:
+                    col.prop(m, "glue_r")
             col.prop(m, "symmetric")
             col.prop(m, "phi_l", text="Glue Angle" if m.symmetric else "Glue Angle L")
             if not m.symmetric:
@@ -675,38 +680,74 @@ def _line_fields(c, ln):
 
 
 def _draw_lines(lay, context, m):
-    box = lay.box()
-    box.label(text="Extra creases and cuts", icon="MOD_LINEART")
+    """In the mechanism's own settings: just how many creases and cuts it
+    has; they are edited in Creases, Cuts and Holes."""
+    row = lay.row()
+    n = len(m.lines)
+    txt = f"Creases and cuts: {n}" if n else "Creases and cuts: none"
+    if n and m.pleat:
+        txt += f", concertina {m.pleat:.0f}°"
+    row.label(text=txt + "  (Creases, Cuts and Holes)", icon="MOD_LINEART")
+
+
+def _mech_lines(lay, context, m):
+    """The selected mechanism's extra creases and cuts."""
     if m.kind in ("BOX", "BOXCUT"):
-        c = box.column(align=True)
+        c = lay.column(align=True)
         c.scale_y = 0.7
-        c.label(text="Doors and windows: Holes and Shaping", icon="INFO")
         c.label(text="X: from the front's top fold (- over the top, + down the front)")
         c.label(text="Y: along from the box's end; Mirror flips end to end")
-    row = box.row()
-    row.template_list("POPUP_UL_lines", "", m, "lines", m, "active_line", rows=2)
-    if m.lines:
-        r = box.row()
-        r.use_property_split = True
-        r.prop(m, "pleat", text="Concertina")
+    else:
+        c = lay.column(align=True)
+        c.scale_y = 0.7
+        c.label(text="X: across from the centre fold (left half -); Y: up it from the V")
+    row = lay.row()
+    row.template_list("POPUP_UL_lines", "", m, "lines", m, "active_line", rows=3)
     col = row.column(align=True)
     col.operator_menu_enum("popup.add_line", "preset", text="", icon="ADD")
     col.operator("popup.remove_line", text="", icon="REMOVE")
+    r = lay.row()
+    r.use_property_split = True
+    r.use_property_decorate = False
+    r.prop(m, "pleat", text="Concertina")
     if 0 <= m.active_line < len(m.lines):
         ln = m.lines[m.active_line]
-        c = box.column(align=True)
+        c = lay.column(align=True)
         c.use_property_split = True
         c.use_property_decorate = False
         _line_fields(c, ln)
-    if _drawing(context):
-        r = box.row()
-        r.alert = True
-        r.scale_y = 1.4
-        r.operator("popup.done_drawing", icon="CHECKMARK")
-    row = box.row(align=True)
-    row.operator("popup.draw_lines", text="Draw Creases", icon="GREASEPENCIL").kind = "CREASE"
-    row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"
-    box.operator("popup.take_lines", icon="CHECKMARK")
+
+
+def _card_lines(lay, context, st):
+    """The card's own creases and cuts: the background folding in, and lines."""
+    c = lay.column()
+    c.use_property_split = True
+    c.use_property_decorate = False
+    c.prop(st, "ceiling", text="Top Folds In")
+    if st.ceiling != "NONE":
+        c.prop(st, "ceiling_drop")
+        c.prop(st, "ceiling_slope")
+        if st.ceiling == "PEAK":
+            c.prop(st, "ceiling_lift")
+    c.prop(st, "floor", text="Bottom Folds In")
+    if st.floor != "NONE":
+        c.prop(st, "floor_rise")
+        c.prop(st, "floor_slope")
+        if st.floor == "PEAK":
+            c.prop(st, "floor_dip")
+    lay.label(text="X: across from the spine (left page -); Y: up from the bottom")
+    row = lay.row()
+    row.template_list("POPUP_UL_lines", "card", st, "card_lines", st, "active_card_line",
+                      rows=3)
+    col = row.column(align=True)
+    col.operator_menu_enum("popup.add_card_line", "preset", text="", icon="ADD")
+    col.operator("popup.remove_card_line", text="", icon="REMOVE")
+    if 0 <= st.active_card_line < len(st.card_lines):
+        ln = st.card_lines[st.active_card_line]
+        c = lay.column(align=True)
+        c.use_property_split = True
+        c.use_property_decorate = False
+        _line_fields(c, ln)
 
 
 def _draw_flap(self, context, col, m):
@@ -754,7 +795,10 @@ class POPUP_UL_openings(bpy.types.UIList):
 
 
 class POPUP_PT_openings(_Base, bpy.types.Panel):
-    bl_label = "Holes and Shaping"
+    """Everything that cuts or creases the paper, in one place: openings
+    (windows, doorways, door flaps), extra creases and cuts on the selected
+    mechanism or the card, and lines and holes drawn by hand"""
+    bl_label = "Creases, Cuts and Holes"
     bl_order = 3
 
     @classmethod
@@ -764,99 +808,94 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
     def draw(self, context):
         st = context.scene.popup
         lay = self.layout
-        row = lay.row()
-        row.template_list("POPUP_UL_openings", "", st, "openings", st, "active_opening", rows=3)
-        col = row.column(align=True)
-        col.operator("popup.add_opening", text="", icon="ADD")
-        col.operator("popup.remove_opening", text="", icon="REMOVE")
-        if 0 <= st.active_opening < len(st.openings):
-            o = st.openings[st.active_opening]
-            col = lay.column()
-            col.use_property_split = True
-            col.use_property_decorate = False
-            col.prop(o, "on")
-            col.prop(o, "face_pick")
-            col.prop(o, "cut", expand=True)
-            col.prop(o, "shape")
-            if o.face:
-                col.prop(o, "x", text="X (Across Face)")
-                col.prop(o, "y", text="Y (Up Face)")
-            else:
-                col.prop(o, "x")
-                col.prop(o, "y")
-            col.prop(o, "width")
-            col.prop(o, "height")
-            col.prop(o, "turn")
-            if o.cut == "DOOR":
-                col.prop(o, "hinge")
-                col.prop(o, "door_open")
-                if o.shape == "ARCH" and o.hinge == "TOP":
-                    col.label(text="An arch has no straight top: hinged on the left",
-                              icon="INFO")
-                if o.shape == "OVAL":
-                    col.label(text="An oval door is cut as a rectangle", icon="INFO")
-            else:
-                col.prop(o, "through")
-            if o.through == "NEXT" and (st.stage_master is None or
-                                        (o.on_piece or ("Card" if not o.on_uid else "")) != "Card"):
-                col.label(text="Next Stage works on a carousel stage's background",
-                          icon="ERROR")
-        box = lay.box()
-        box.label(text="The background folds in", icon="MOD_LINEART")
-        c = box.column()
-        c.use_property_split = True
-        c.use_property_decorate = False
-        c.prop(st, "ceiling")
-        if st.ceiling != "NONE":
-            c.prop(st, "ceiling_drop")
-            c.prop(st, "ceiling_slope")
-            if st.ceiling == "PEAK":
-                c.prop(st, "ceiling_lift")
-        c.separator()
-        c.prop(st, "floor")
-        if st.floor != "NONE":
-            c.prop(st, "floor_rise")
-            c.prop(st, "floor_slope")
-            if st.floor == "PEAK":
-                c.prop(st, "floor_dip")
-        head, body = box.panel("popup_card_lines", default_closed=True)
-        head.label(text="Your own creases and cuts (%d)" % len(st.card_lines))
-        if body is not None:
-            row = body.row()
-            row.template_list("POPUP_UL_lines", "card", st, "card_lines", st,
-                              "active_card_line", rows=2)
-            col = row.column(align=True)
-            col.operator_menu_enum("popup.add_card_line", "preset", text="", icon="ADD")
-            col.operator("popup.remove_card_line", text="", icon="REMOVE")
-            if 0 <= st.active_card_line < len(st.card_lines):
-                ln = st.card_lines[st.active_card_line]
-                c = body.column(align=True)
-                c.use_property_split = True
-                c.use_property_decorate = False
-                _line_fields(c, ln)
-            row = body.row(align=True)
-            row.operator("popup.draw_lines", text="Draw Creases",
-                         icon="GREASEPENCIL").kind = "CREASE"
-            row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"
-            body.operator("popup.take_lines", icon="CHECKMARK")
-        box = lay.box()
-        box.label(text="Painted: Erase while painting, then cut", icon="BRUSH_DATA")
-        row = box.row(align=True)
-        row.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
-        row.operator("popup.trace_holes", text="", icon="X").clear = True
-        box.prop(st, "auto_holes")
-        box = lay.box()
-        box.label(text="Drawn holes: closed strokes on the flat layout", icon="GREASEPENCIL")
         if _drawing(context):
-            r = box.row()
+            r = lay.row()
             r.alert = True
             r.scale_y = 1.4
             r.operator("popup.done_drawing", icon="CHECKMARK")
-        box.operator("popup.draw_holes", icon="MOD_BOOLEAN")
-        row = box.row(align=True)
-        row.operator("popup.build", text="Cut", icon="FILE_REFRESH")
-        row.operator("popup.keep_holes", text="Keep", icon="CHECKMARK").edit = False
-        row.operator("popup.keep_holes", text="Edit", icon="GREASEPENCIL").edit = True
+        # ---- openings
+        head, body = lay.panel("popup_openings", default_closed=False)
+        head.label(text=f"Openings: windows, doorways, door flaps ({len(st.openings)})",
+                   icon="MOD_BOOLEAN")
+        if body is not None:
+            _draw_openings(body, context, st)
+        # ---- creases and cuts, on the selected mechanism or the card
+        from .ops import _lined_active
+        m = _lined_active(context)
+        n = len(m.lines) if (m is not None and st.lines_on == "MECH") else len(st.card_lines)
+        head, body = lay.panel("popup_lines", default_closed=False)
+        head.label(text=f"Creases and cuts ({n})", icon="MOD_LINEART")
+        if body is not None:
+            row = body.row(align=True)
+            row.prop_enum(st, "lines_on", "MECH", text=m.label if m is not None else
+                          "Select a V-fold or box", icon="MOD_SIMPLEDEFORM")
+            row.prop_enum(st, "lines_on", "CARD", text="Card", icon="FILE_BLANK")
+            if st.lines_on == "CARD":
+                _card_lines(body, context, st)
+            elif m is not None:
+                _mech_lines(body, context, m)
+            else:
+                body.label(text="Creases and cuts go on V-folds, box folds, box layers and "
+                           "roofs", icon="INFO")
+        # ---- by hand on the flat layout
+        head, body = lay.panel("popup_drawn", default_closed=True)
+        head.label(text="Draw by hand (on the flat layout)", icon="GREASEPENCIL")
+        if body is not None:
+            row = body.row(align=True)
+            row.operator("popup.draw_lines", text="Creases", icon="GREASEPENCIL").kind = "CREASE"
+            row.operator("popup.draw_lines", text="Cuts", icon="GREASEPENCIL").kind = "CUT"
+            row.operator("popup.draw_holes", text="Holes", icon="MOD_BOOLEAN")
+            c = body.column(align=True)
+            c.operator("popup.take_lines", text="Add Drawn Creases and Cuts", icon="CHECKMARK")
+            row = c.row(align=True)
+            row.operator("popup.build", text="Cut Drawn Holes", icon="MOD_BOOLEAN")
+            row.operator("popup.keep_holes", text="Keep", icon="PINNED").edit = False
+            row.operator("popup.keep_holes", text="Edit", icon="GREASEPENCIL").edit = True
+            c = body.column(align=True)
+            c.scale_y = 0.8
+            c.label(text="Creases and cuts go onto the piece they're drawn on;")
+            c.label(text="closed outlines drawn as holes are cut out")
+
+
+
+def _draw_openings(lay, context, st):
+    row = lay.row()
+    row.template_list("POPUP_UL_openings", "", st, "openings", st, "active_opening", rows=3)
+    col = row.column(align=True)
+    col.operator("popup.add_opening", text="", icon="ADD")
+    col.operator("popup.remove_opening", text="", icon="REMOVE")
+    if 0 <= st.active_opening < len(st.openings):
+        o = st.openings[st.active_opening]
+        col = lay.column()
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(o, "on")
+        col.prop(o, "face_pick")
+        col.prop(o, "cut", expand=True)
+        col.prop(o, "shape")
+        if o.face:
+            col.prop(o, "x", text="X (Across Face)")
+            col.prop(o, "y", text="Y (Up Face)")
+        else:
+            col.prop(o, "x")
+            col.prop(o, "y")
+        col.prop(o, "width")
+        col.prop(o, "height")
+        col.prop(o, "turn")
+        if o.cut == "DOOR":
+            col.prop(o, "hinge")
+            col.prop(o, "door_open")
+            if o.shape == "ARCH" and o.hinge == "TOP":
+                col.label(text="An arch has no straight top: hinged on the left",
+                          icon="INFO")
+            if o.shape == "OVAL":
+                col.label(text="An oval door is cut as a rectangle", icon="INFO")
+        else:
+            col.prop(o, "through")
+        if o.through == "NEXT" and (st.stage_master is None or
+                                    (o.on_piece or ("Card" if not o.on_uid else "")) != "Card"):
+            col.label(text="Next Stage works on a carousel stage's background",
+                      icon="ERROR")
 
 
 class POPUP_PT_checks(_Base, bpy.types.Panel):
@@ -981,8 +1020,11 @@ def _paint_controls(lay, context, big=False):
                  depress=on).target = "TOGGLE"
     if not on:
         if big:
-            if not sc.popup.auto_holes:
-                lay.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
+            box = lay.box()
+            row = box.row(align=True)
+            row.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
+            row.operator("popup.trace_holes", text="", icon="X").clear = True
+            box.prop(sc.popup, "auto_holes")
             from .ops import PS_URL, ps_available, ps_group_node
             if ps_group_node(sc) is not None:
                 c = lay.column(align=True)
@@ -1017,8 +1059,8 @@ def _paint_controls(lay, context, big=False):
     if big:
         c = lay.column(align=True)
         c.scale_y = 0.8
-        c.label(text="Hover over the flat layout or the folded card", icon="INFO")
-        c.label(text="to paint on either")
+        c.label(text="Paint the folded card or the flat layout:", icon="INFO")
+        c.label(text="they're the same paper")
         _brush_sections(lay, context)
 
 

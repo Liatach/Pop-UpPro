@@ -41,7 +41,7 @@ belong to. Each panel gets its own layer on one object, **Pop-up Sketch**.
   on their pieces (the *sketch* layer in each SVG), in their stroke colour,
   with fills where the material has one. *Sketches* in the export options
   turns them off. Cut- and crease-only files leave them out.
-* **Holes** drawn by hand use **Draw Holes** in Holes and Shaping, not a
+* **Holes** drawn by hand use **Draw Holes** in Creases, Cuts and Holes, not a
   sketch layer.
 * **Carousels.** Sketches show in each stage's own scene, not in the
   carousel view (a collection instance can't carry bone-parented Grease

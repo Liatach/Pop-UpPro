@@ -23,7 +23,8 @@ rig_mod = st.card.modifiers["Pop-up Rig"]
 
 # v0.38: one Paint toggle on the card as it stands
 assert bpy.ops.popup.paint() == {"FINISHED"}
-assert ops.painting(bpy.context) and rig_mod.show_viewport and not st.layout.hide_get()
+# (v0.43: while painting the card shows the flat layout too; the Layout steps aside)
+assert ops.painting(bpy.context) and rig_mod.show_viewport and st.layout.hide_get()
 art = ops.paint_images(sc)[0]
 assert ops.painting_into(sc) == art
 assert bpy.ops.popup.paint() == {"FINISHED"}  # and off again
@@ -36,11 +37,12 @@ rig_mod.show_viewport = False
 sc["pop_paint_flat"] = True
 st.layout.hide_set(True)
 bpy.ops.popup.paint()
-assert rig_mod.show_viewport and not st.layout.hide_get()
+assert rig_mod.show_viewport  # folded again (the Layout steps aside while painting)
 bpy.ops.object.mode_set(mode="OBJECT")
 from popup_pro import holes  # noqa: E402
 holes._last_mode["mode"] = "PAINT_TEXTURE"
 holes._mode_changed()  # what Blender's mode notification runs
+assert not st.layout.hide_get()
 print("leaving by Blender's mode menu is fine too")
 
 # a paint layer on top (as Paint System makes): pick it, and back to the paper

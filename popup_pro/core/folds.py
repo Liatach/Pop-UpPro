@@ -319,7 +319,7 @@ class Group:
     panel or from an earlier member (a chain of creases); every other edge it
     shares is a constraint."""
 
-    def __init__(self, model, members, cons, tgrid, t_ref, pleat=0.0):
+    def __init__(self, model, members, cons, tgrid, t_ref, pleat=0.0, wheres=None):
         # members: [(parent, H (mathutils frame), Hi)]  parent: placed panel
         # name, or the index of an earlier member
         # cons: [(i, j, p)]  j: member index, or a placed panel name
@@ -338,7 +338,18 @@ class Group:
             else:
                 depth.append(depth[par] + 1)
                 chain.append(chain[par])
-        self.alt = np.array([1.0 if d % 2 == 0 else -1.0 for d in depth])
+        # mountain or valley, whichever way each crease's line happens to run:
+        # +1 if a positive turn folds the part it carries towards the
+        # printed side
+        way = []
+        for i, (_par, H, Hi) in enumerate(members):
+            c = wheres[i] if wheres is not None else None
+            if c is None:
+                way.append(1.0)
+                continue
+            loc = Hi @ Vector((c[0], c[1], 0.0))
+            way.append(1.0 if loc.x < 0 else -1.0)
+        self.alt = np.array([(1.0 if d % 2 == 0 else -1.0) * w for d, w in zip(depth, way)])
         self.chains = sorted(set(chain))
         self.chain_of = chain
         self.sgn = self.alt.copy()
@@ -365,12 +376,21 @@ class Group:
             for signs in itertools.product((1.0, -1.0), repeat=len(self.chains)):
                 sg = {c: v for c, v in zip(self.chains, signs)}
                 self.sgn = self.alt * np.array([sg[c] for c in self.chain_of])
-                x, r = self._relax(t_ref, th)
+                # from flat (which always fits), so mirrored halves stay mirrored
+                x, r = self._relax(t_ref, np.zeros(self.n), steps=60)
                 if r > 1e-3:
                     continue
                 d = x - self._target(t_ref)
-                if best is None or d @ d < best[0]:
-                    best = (d @ d, self.sgn.copy(), x)
+                score = d @ d
+                if len(self.chains) == 2:
+                    # two matching chains (the two halves of a V-fold): fold
+                    # them alike, as a mirrored pair would
+                    a = [i for i in range(self.n) if self.chain_of[i] == self.chains[0]]
+                    b = [i for i in range(self.n) if self.chain_of[i] == self.chains[1]]
+                    if len(a) == len(b):
+                        score += 10.0 * sum((abs(x[i]) - abs(x[j])) ** 2 for i, j in zip(a, b))
+                if best is None or score < best[0]:
+                    best = (score, self.sgn.copy(), x)
             if best is not None:
                 self.sgn, th = best[1], best[2]
         th, _r = self._relax(t_ref, th)
@@ -838,7 +858,8 @@ def build(model, piece, names, lab, lines, base=None, pleat=0.0):
                          f"doesn't reach a fold) is left flat")
                 progress = True
                 continue
-            G = Group(model, members, cons, model.TABLE_T, model.t_ref, pleat)
+            G = Group(model, members, cons, model.TABLE_T, model.t_ref, pleat,
+                      [regs[k].where for k in order])
             if not G.ok:
                 for k in order:
                     par = parent_of[k][0]

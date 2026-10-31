@@ -70,7 +70,8 @@ Paint flat or folded, wrap an image round a cube, then export layered SVG sheets
 ## Features
 
 **Mechanisms**
-* V-folds (panels or beaks, symmetric or asymmetric), mouths and jaws.
+* V-folds (panels, beaks or pleated fans; symmetric or asymmetric), mouths
+  and jaws.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
 * Tubes, pyramids and tents on parallel strips, with tethers and roofs.
 * Parallelogram stand-ups, pull-tab flaps.
@@ -149,8 +150,6 @@ calls when it is installed.
   * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
     Background Above and Level Ridge; floors, ceilings and the background
     folding in sit together as one "Stage" section.
-  * Holes and Shaping split into collapsible sub-panels (openings,
-    the background, painted holes, drawn holes), each closed when empty.
   * The Add menu grouped by where things go (on the spine, on a V-fold, on
     a floor or ceiling, in a stage), offering only what fits the selected
     host.

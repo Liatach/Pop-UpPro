@@ -981,11 +981,37 @@ class Model:
         shape = m.get("shape", "QUAD")
         # beak: a triangle to the crease's end; panel: a four-sided half.
         # Either side can be either (beak on one side, panel on the other)
-        if shape in ("TRI", "BEAK_L"):
+        fan_lines = []
+        if shape == "FAN":
+            # a quarter circle each half (a semicircle at right-angle piece
+            # angles), radius the fold length, glued along its straight edge
+            gs = {"L": Lc, "R": Lc}
+            GL = (Lc * uLp[0], Lc * uLp[1])
+            GR = (Lc * uRp[0], Lc * uRp[1])
+            seg = 16
+            aL0, aL1 = math.atan2(Q[1], Q[0]), math.atan2(uLp[1], uLp[0])
+            aR0, aR1 = math.atan2(uRp[1], uRp[0]), math.atan2(Q[1], Q[0])
+            halfL = [(0, 0), Q] + [(Lc * math.cos(aL0 + (aL1 - aL0) * k / seg),
+                                    Lc * math.sin(aL0 + (aL1 - aL0) * k / seg))
+                                   for k in range(1, seg)] + [GL]
+            halfR = [(0, 0), GR] + [(Lc * math.cos(aR0 + (aR1 - aR0) * k / seg),
+                                     Lc * math.sin(aR0 + (aR1 - aR0) * k / seg))
+                                    for k in range(1, seg)] + [Q]
+            # pleats fanning out from the V point, evenly between the centre
+            # fold and the glue edge, each side
+            n = max(1, int(m.get("fan_pleats", 3)))
+            for a0, a1 in ((aL0, aL1), (aR0, aR1)):
+                for k in range(1, n + 1):
+                    a = a0 + (a1 - a0) * k / (n + 1)
+                    fan_lines.append(("CREASE", [(0.0, 0.0), (1.2 * Lc * math.cos(a),
+                                                              1.2 * Lc * math.sin(a))]))
+        elif shape in ("TRI", "BEAK_L"):
             halfL = [(0, 0), Q, GL]
         else:
             halfL = [(0, 0), Q, (GL[0], GL[1] + Lc), GL]
-        if shape in ("TRI", "BEAK_R"):
+        if shape == "FAN":
+            pass
+        elif shape in ("TRI", "BEAK_R"):
             halfR = [(0, 0), GR, Q]
         else:
             halfR = [(0, 0), GR, (GR[0], GR[1] + Lc), Q]
@@ -1040,9 +1066,10 @@ class Model:
         self.line_frames[uid] = (piece, lambda q: q, None)
         halves = [f"{base}.HalfL", f"{base}.HalfR"]
         doors = self._door_lines(piece, halves, True)
-        if m.get("lines") or doors:
+        if m.get("lines") or doors or fan_lines:
             from .folds import build as fold_build, expand
-            fold_build(self, piece, halves, lab, expand(m.get("lines")) + doors, base,
+            fold_build(self, piece, halves, lab,
+                       fan_lines + expand(m.get("lines")) + doors, base,
                        float(m.get("pleat", 0.0) or 0.0))
 
         self._vfold_hosts(uid, base, host, yP, (gs["L"], gs["R"]), Lc, (uLf, uRf), (uLp, uRp))

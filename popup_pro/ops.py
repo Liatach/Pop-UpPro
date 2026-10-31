@@ -614,52 +614,51 @@ def switching(scene):
     return float(scene.get("pop_paint_switching", 0.0)) > time.time()
 
 
-class POPUP_OT_paint_hover(bpy.types.Operator):
-    """While painting: paint whichever of the folded card and the flat
-    layout is under the pointer (switched between strokes, never during)"""
-    bl_idname = "popup.paint_hover"
-    bl_label = "Paint Flat or Folded"
+PAINT_BOTH = "Pop-up Paint Both"
 
-    def invoke(self, context, event):
-        if not painting(context) or context.window is None:
-            return {"CANCELLED"}
-        self.down = False
-        context.window_manager.modal_handler_add(self)
-        return {"RUNNING_MODAL"}
 
-    def _under(self, context, event):
-        from bpy_extras import view3d_utils
-        for area in context.window.screen.areas:
-            if area.type != "VIEW_3D":
-                continue
-            for region in area.regions:
-                if region.type != "WINDOW":
-                    continue
-                x, y = event.mouse_x - region.x, event.mouse_y - region.y
-                if not (0 <= x < region.width and 0 <= y < region.height):
-                    continue
-                rv3d = area.spaces.active.region_3d
-                o = view3d_utils.region_2d_to_origin_3d(region, rv3d, (x, y))
-                d = view3d_utils.region_2d_to_vector_3d(region, rv3d, (x, y))
-                dg = context.evaluated_depsgraph_get()
-                hit, _loc, _n, _i, obj, _m = context.scene.ray_cast(dg, o, d)
-                return obj.original if hit and obj is not None else None
-        return None
-
-    def modal(self, context, event):
-        if not painting(context) and not switching(context.scene):
-            return {"FINISHED"}
-        if event.type in ("LEFTMOUSE", "PEN") :
-            self.down = event.value == "PRESS"
-        elif event.type == "MOUSEMOVE" and not self.down:
-            try:
-                obj = self._under(context, event)
-                st = context.scene.popup
-                if obj in (st.card, st.layout):
-                    paint_switch(context, obj)
-            except Exception:
-                pass  # never get in the way of painting
-        return {"PASS_THROUGH"}
+def _paint_both(scene, on):
+    """While painting, the card also shows its flat layout, as part of the
+    same object (a Geometry Nodes join of the Layout's paper): the brush
+    paints either shape, folded or flat, with no switching. The Layout
+    object itself steps aside meanwhile, as it would sit in the same place."""
+    st = scene.popup
+    card, layout = st.card, st.layout
+    if card is None or layout is None:
+        return
+    mod = card.modifiers.get(PAINT_BOTH)
+    if not on:
+        if mod is not None:
+            mod.show_viewport = False
+        return
+    name = N(scene, PAINT_BOTH)
+    ng = bpy.data.node_groups.get(name)
+    if ng is None or ng.bl_idname != "GeometryNodeTree":
+        ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
+        ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+        ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+        gi = ng.nodes.new("NodeGroupInput")
+        go = ng.nodes.new("NodeGroupOutput")
+        oi = ng.nodes.new("GeometryNodeObjectInfo")
+        oi.name = "Layout"
+        oi.transform_space = "ORIGINAL"
+        j = ng.nodes.new("GeometryNodeJoinGeometry")
+        gi.location, oi.location, j.location, go.location = (-400, 0), (-400, -200), (-150, 0), (
+            50, 0)
+        ng.links.new(gi.outputs[0], j.inputs[0])
+        ng.links.new(oi.outputs["Geometry"], j.inputs[0])
+        ng.links.new(j.outputs[0], go.inputs[0])
+    oi = ng.nodes.get("Layout")
+    if oi is not None:
+        oi.inputs[0].default_value = layout
+    if mod is None:
+        mod = card.modifiers.new(PAINT_BOTH, "NODES")
+    mod.node_group = ng
+    mod.show_render = False
+    mod.show_viewport = True
+    mod.show_in_editmode = False
+    layout.hide_set(True)
+    scene["pop_paint_flat"] = True  # the Layout comes back when painting stops
 
 
 def paint_images(scene):
@@ -767,11 +766,7 @@ class POPUP_OT_paint(bpy.types.Operator):
         _a, others = paint_images(sc)
         if not (others and ip.mode == "IMAGE" and ip.canvas in others):
             _paint_into_art(sc)  # unless a paint layer was already in use
-        if context.window is not None and not bpy.app.background:
-            try:
-                bpy.ops.popup.paint_hover("INVOKE_DEFAULT")
-            except RuntimeError:
-                pass
+        _paint_both(sc, True)
         return {"FINISHED"}
 
 
@@ -950,6 +945,7 @@ class POPUP_OT_done_painting(bpy.types.Operator):
 
 def _end_paint_view(sc):
     st = sc.popup
+    _paint_both(sc, False)
     mod = st.card.modifiers.get("Pop-up Rig") if st.card is not None else None
     if mod is not None:
         mod.show_viewport = True
@@ -1329,6 +1325,10 @@ LINE_PRESETS = [
      "turning from mountain to valley: a chomping jaw (Birmingham 9 and 10)"),
     ("PROJECTION", "Projection", "A cut starting and ending on the centre fold, on one "
      "half only: the shape juts out flat past the fold (Birmingham 6)"),
+    ("FAN", "Fan Pleats", "Three creases fanning out from the V point each side: with "
+     "Concertina they pleat like a folding fan"),
+    ("PLEATS", "Concertina Pleats", "Three creases beside the centre fold each side, "
+     "parallel to it: with Concertina they pleat like a concertina"),
 ]
 BOX_PRESETS = [
     ("NONE", "Line", "A plain line to set by numbers"),
@@ -1395,7 +1395,13 @@ class POPUP_OT_add_line(bpy.types.Operator):
                                           (-1.3 * w, 0.5 * h + 1.3 * w * t15)])],
                 "PROJECTION": [("CUT", False, [(0.0, 0.55 * h), (-0.25 * w, 0.6 * h),
                                                (-0.25 * w, 0.85 * h), (0.0, 0.9 * h)])],
+                "FAN": [("CREASE", True, [(0.0, 0.0), (-3 * h * math.sin(a), 3 * h * math.cos(a))])
+                        for a in (math.radians(m.alpha_l) * k / 4 for k in (1, 2, 3))],
+                "PLEATS": [("CREASE", True, [(-w * k / 4, -0.5 * h), (-w * k / 4, 3 * h)])
+                           for k in (1, 2, 3)],
             }.get(self.preset)
+            if self.preset in ("FAN", "PLEATS") and m.pleat <= 0:
+                m.pleat = 45.0
         else:
             a, b, w = m.height, m.depth, m.width  # front, top, along
             P = None
@@ -1656,7 +1662,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_paint_layers, POPUP_OT_paint_hover, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_paint_layers, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

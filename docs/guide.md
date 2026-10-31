@@ -284,7 +284,7 @@ move around.
 ![A three-stage carousel stage with a peaked roof over a gable-cut background,
 fully open, part open and from above](images/roof.jpg)
 
-* **The background as a roof, ceiling or floor**: in **Holes and Shaping**,
+* **The background as a roof, ceiling or floor**: in **Creases, Cuts and Holes**,
   **The background folds in** sets it with a few numbers:
   * **Ceiling → Peaked Roof**: the top of the background is cut apart at the
     spine and joined again by a **Join Tab**, a wedge along each side of the
@@ -447,6 +447,12 @@ Creases are straightened end to end, and cuts keep their shape (arrows,
 horses, trees). Then press **Add Drawn Lines**. Line ends within 1.5 mm of
 the centre fold, an edge or another line snap onto it.
 
+**Fan** (a V-fold Shape): each half is a quarter circle whose radius is the
+fold length (a semicircle when the piece angles are square), glued all
+along its straight edge, with **Pleats** creases fanning out from the V
+point each side and **Concertina** to fold them. The **+** menu's *Fan
+Pleats* and *Concertina Pleats* add the same kind of creases to any V-fold.
+
 **Concertinas and fans.** Several creases side by side (a concertina, or
 creases fanning out from the V point) leave the paper free to fold more
 than one way: nothing in a V-fold forces them to fold at all. They settle
@@ -498,7 +504,7 @@ end at score lines: a cut that leaves a fold and comes back to it makes a shape 
 * *Inset Step*: two creases and two cuts across the front-top fold. That part
   folds in.
 
-Doors and windows live in **Holes and Shaping** (an opening on the box's
+Doors and windows live in **Creases, Cuts and Holes** (an opening on the box's
 front, cut out or as a door flap); older cards keep their Doorway lines.
 
 Each preset is one shape however many lines it has, and shows in the list
@@ -532,7 +538,7 @@ to its back. **Picture** sets which way it faces:
 
 **Picture Width** and **Picture Height** (or **Depth**) size the picture, centred
 on its bridge or leg. Shape its outline by erasing the art in Texture Paint
-(Holes and Shaping), the way the family and the dog are cut out in the book.
+(Creases, Cuts and Holes), the way the family and the dog are cut out in the book.
 Stand-ups stack: with one selected, **Add** offers *Stand-up in Front*, which
 uses the picture as the background (the dog), and *Stand-up on Top*, which
 sits on a flat picture against the background (the figure on the carpet).
@@ -554,7 +560,13 @@ stand there too.
 ![Stage 1: an arched staging frame, a perforated frame and a window through
 to the background](images/stage_holes.jpg)
 
-The **Holes and Shaping** panel works the same on every piece: the card, any
+The **Creases, Cuts and Holes** panel gathers everything that cuts or creases
+the paper, in three fold-away sections: **Openings** (windows, doorways, door
+flaps), **Creases and cuts** on the selected mechanism or on the **Card**
+(the switch at the top of the section; the card's own include the
+background folding in), and **Draw by hand** (creases, cuts and holes drawn
+on the flat layout, then added or cut). Holes painted with Erase are cut
+from the Artwork panel, under Paint. Openings work the same on every piece: the card, any
 mechanism, roofs, ribs, frames, floors. Holes are cut into the paper itself,
 so they show in 3D and print as cut lines:
 
@@ -669,7 +681,7 @@ mesh, no rig). So:
   It is in the Artwork panel and the 3D view's header, for a quick touch-up.
   The paint goes into **Pop-up Art**, the paper itself (a UDIM image, one
   tile per piece, tile 1001 the card). **Erase** switches the brush to rub
-  the paper see-through, for holes and trims (see Holes and Shaping), and
+  the paper see-through, for holes and trims (see Creases, Cuts and Holes), and
   is switched back when you stop painting. The folded card and the flat
   layout are the same paper: while Paint is on, whichever is under the
   pointer is the one you paint, switching between strokes, so you can

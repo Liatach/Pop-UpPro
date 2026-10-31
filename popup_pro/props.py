@@ -495,6 +495,14 @@ def _strap(self, context):
     _changed(self, context)
 
 
+def _shape_changed(self, context):
+    if self.shape == "FAN":
+        # a semicircle when flat: square to the fold, glued all along its edge
+        if self.pleat <= 0:
+            self["pleat"] = 45.0
+    _changed(self, context)
+
+
 class PopupMech(bpy.types.PropertyGroup):
     uid: IntProperty()
     kind: EnumProperty(items=KINDS, update=_changed)
@@ -516,8 +524,13 @@ class PopupMech(bpy.types.PropertyGroup):
         ("BEAK_L", "Beak Left, Panel Right", "The left half a triangle to the crease's "
          "end, the right half a four-sided panel"),
         ("BEAK_R", "Panel Left, Beak Right", "The left half a four-sided panel, the right "
-         "half a triangle to the crease's end")],
-        update=_changed)
+         "half a triangle to the crease's end"),
+        ("FAN", "Fan", "A semicircle (a quarter circle each half, the radius the fold "
+         "length) pleated by creases fanning out from the V point: they concertina as the "
+         "card closes")],
+        update=lambda self, ctx: _shape_changed(self, ctx))
+    fan_pleats: IntProperty(name="Pleats", default=3, min=1, max=12, update=_changed,
+                            description="Creases fanning out from the V point in each half")
     # cube
     size: FloatProperty(name="Size", description="Width of each wall (mm)", default=40.0,
                         min=5.0, soft_max=150.0, update=_changed)
@@ -807,7 +820,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      phi_r=self.phi_l if self.symmetric else self.phi_r, alpha_r=ar,
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
                      glue_r=self.glue if self.symmetric or self.glue_r <= 0 else self.glue_r,
-                     shape=self.shape, cut_above=self.cut_above,
+                     shape=self.shape, cut_above=self.cut_above, fan_pleats=self.fan_pleats,
                      pleat=self.pleat,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
@@ -1159,6 +1172,11 @@ class PopupSettings(bpy.types.PropertyGroup):
     card_lines: CollectionProperty(type=PopupLine,
                                    description="Extra creases and cuts in the card itself")
     active_card_line: IntProperty(name="Card Line")
+    lines_on: EnumProperty(name="On", items=[
+        ("MECH", "Selected Mechanism", "Creases and cuts on the mechanism selected in the "
+         "list (V-folds, box folds, box layers, roofs)"),
+        ("CARD", "Card", "Creases and cuts in the card itself: the background folding in, "
+         "your own lines")], default="MECH")
     auto_holes: BoolProperty(name="Cut Automatically", default=False,
                              description="Cut whatever is painted see-through (Erase) out of "
                              "the paper by itself, each time painting stops and before every "

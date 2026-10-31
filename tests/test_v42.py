@@ -18,7 +18,20 @@ sc = bpy.context.scene
 st = sc.popup
 assert bpy.ops.popup.build() == {"FINISHED"}
 
-# ---- paint on the card, carry on on the layout and back
+# ---- painting: the card shows its flat layout too, as the same paper
+n_card = len(st.card.data.polygons)
+assert bpy.ops.popup.paint() == {"FINISHED"}
+mod = st.card.modifiers[ops.PAINT_BOTH]
+assert mod.show_viewport and not mod.show_render and st.layout.hide_get()
+dg = bpy.context.evaluated_depsgraph_get()
+dg.update()
+ev = st.card.evaluated_get(dg).data
+assert len(ev.polygons) > n_card * 2 and ev.uv_layers.active.name == "PopupArt"
+bpy.ops.popup.paint()
+assert not mod.show_viewport and not st.layout.hide_get()
+print("painting shows the flat layout on the card too: one object, both shapes")
+
+# ---- (switching objects, kept for the record) paint on the card, the layout and back
 assert bpy.ops.popup.paint() == {"FINISHED"}
 art = ops.paint_images(sc)[0]
 assert ops.painting(bpy.context) and ops.painting_into(sc) == art

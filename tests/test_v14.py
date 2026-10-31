@@ -175,7 +175,8 @@ st.active = 1
 st.mechs[1].active_line = 0
 st.mechs[1].lines[0].expanded = True  # a shape shows its lines once opened
 stub.draw(Ctx(sc))
-assert "x0" in seen and "mirror" in seen, seen
+ui._mech_lines(Lay(seen), Ctx(sc), st.mechs[1])  # (v0.43: in Creases, Cuts and Holes)
+assert "x0" in seen and "mirror" in seen and "pleat" in seen, seen
 print("lines panel draws")
 addon.unregister()
 print("V14 OK")
