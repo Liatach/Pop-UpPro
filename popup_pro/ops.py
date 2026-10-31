@@ -506,13 +506,13 @@ def _remember_view(context, painting_card=False):
         sc["pop_active_before"] = act.name
 
 
-def _restore_view(context, keep=False):
+def _restore_view(context, keep=False, active_only=False):
     """Back to the view (and, unless keep, the active object) from before."""
     from mathutils import Quaternion as Q
     sc = context.scene
     v = sc.get("pop_view_before")
     _area, rv3d = _view3d(context)
-    if v is not None and rv3d is not None:
+    if v is not None and rv3d is not None and not active_only:
         rv3d.view_rotation = Q(v["rot"])
         rv3d.view_location = Vector(v["loc"])
         rv3d.view_distance = v["dist"]
@@ -637,44 +637,15 @@ def _paint_into_other(scene, name=None):
         ip.canvas = img
 
 
-def _paint_view(context, flat):
-    """Flat or folded, without leaving Texture Paint: the card's rig is
-    switched off to show its flat shape (the print layout), and the Layout
-    object, which would sit in the same place, is hidden meanwhile."""
-    sc = context.scene
-    st = sc.popup
-    mod = st.card.modifiers.get("Pop-up Rig")
-    if mod is not None:
-        mod.show_viewport = not flat
-    if st.layout is not None:
-        st.layout.hide_set(flat)
-    sc["pop_paint_flat"] = bool(flat)
-    _area, rv3d = _view3d(context)
-    if rv3d is None:
-        return
-    if flat:
-        meta = live.meta(st.rig)
-        if meta:
-            sh = meta["sheets"][0]
-            mmu = meta["mm_per_unit"]
-            rv3d.view_rotation = Quaternion((1, 0, 0, 0))
-            rv3d.view_location = Vector(((sh["origin"][0] + sh["size"][0] / 2) / mmu,
-                                         (sh["origin"][1] + sh["size"][1] / 2) / mmu, 0))
-            rv3d.view_distance = max(sh["size"]) / mmu * 1.1
-            rv3d.view_perspective = "ORTHO"
-    else:
-        _restore_view(context, keep=True)
-
-
 class POPUP_OT_paint(bpy.types.Operator):
-    """Paint the artwork (Texture Paint on the card). Flat shows the print
-    layout, Folded the card as it stands; switch any time while painting.
-    Done Painting finishes"""
+    """Paint on or off: Texture Paint on the card just as it stands, and back.
+    Turning it off cuts any see-through areas painted on the paper"""
     bl_idname = "popup.paint"
     bl_label = "Paint"
     bl_options = {"REGISTER", "UNDO"}
-    target: EnumProperty(items=[("LAYOUT", "Flat", "Paint the flat layout"),
-                                ("CARD", "Folded", "Paint the folded card")])
+    target: EnumProperty(items=[("TOGGLE", "Toggle", ""), ("CARD", "On", ""),
+                                ("LAYOUT", "On", "(older: the same as On)"),
+                                ("OFF", "Off", "")], default="TOGGLE")
 
     @classmethod
     def poll(cls, context):
@@ -683,26 +654,77 @@ class POPUP_OT_paint(bpy.types.Operator):
     def execute(self, context):
         sc = context.scene
         st = sc.popup
-        if not painting(context):
-            if bpy.data.images.get(N(sc, art.ART_IMAGE)) is None:
-                art.add_art_texture(sc)
-            _remember_view(context, painting_card=True)
-            if context.mode != "OBJECT":
-                bpy.ops.object.mode_set(mode="OBJECT")
-            obj = st.card
-            for o in context.selected_objects:
-                o.select_set(False)
-            obj.hide_set(False)
-            obj.select_set(True)
-            context.view_layer.objects.active = obj
-            bpy.ops.object.mode_set(mode="TEXTURE_PAINT")
-            from . import colours
-            colours.enter(sc)  # (also done on any switch into Texture Paint)
-            ip = sc.tool_settings.image_paint
-            _a, others = paint_images(sc)
-            if not (others and ip.mode == "IMAGE" and ip.canvas in others):
-                _paint_into_art(sc)  # unless a paint layer was already in use
-        _paint_view(context, self.target == "LAYOUT")
+        on = painting(context)
+        if self.target == "OFF" or (self.target == "TOGGLE" and on):
+            return bpy.ops.popup.done_painting()
+        if on:
+            return {"FINISHED"}
+        if bpy.data.images.get(N(sc, art.ART_IMAGE)) is None:
+            art.add_art_texture(sc)
+        _remember_view(context, painting_card=True)
+        if context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        _end_paint_view(sc)  # (a card left flat by an older version folds again)
+        obj = st.card
+        for o in context.selected_objects:
+            o.select_set(False)
+        obj.hide_set(False)
+        obj.select_set(True)
+        context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode="TEXTURE_PAINT")
+        from . import colours
+        colours.enter(sc)  # (also done on any switch into Texture Paint)
+        ip = sc.tool_settings.image_paint
+        _a, others = paint_images(sc)
+        if not (others and ip.mode == "IMAGE" and ip.canvas in others):
+            _paint_into_art(sc)  # unless a paint layer was already in use
+        return {"FINISHED"}
+
+
+def _brush(scene):
+    ip = scene.tool_settings.image_paint
+    return getattr(ip, "brush", None)
+
+
+def erasing(scene):
+    b = _brush(scene)
+    return b is not None and b.blend == "ERASE_ALPHA"
+
+
+def _stop_erasing(scene):
+    b = _brush(scene)
+    was = scene.get("pop_brush_blend")
+    if b is not None and was and b.blend == "ERASE_ALPHA":
+        try:
+            b.blend = was
+        except TypeError:
+            pass
+    if "pop_brush_blend" in scene:
+        del scene["pop_brush_blend"]
+
+
+class POPUP_OT_paint_erase(bpy.types.Operator):
+    """Erase: the brush rubs the paper see-through instead of painting
+    colour. Cut Painted Holes then cuts what you erased out of the paper
+    (holes inside a piece, a new edge where you erase up to its outline)"""
+    bl_idname = "popup.paint_erase"
+    bl_label = "Erase"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        sc = context.scene
+        b = _brush(sc)
+        if b is None:
+            self.report({"WARNING"}, "No brush to switch")
+            return {"CANCELLED"}
+        if b.blend == "ERASE_ALPHA":
+            b.blend = sc.get("pop_brush_blend") or "MIX"
+            if "pop_brush_blend" in sc:
+                del sc["pop_brush_blend"]
+        else:
+            _paint_into_art(sc)  # holes are in the paper
+            sc["pop_brush_blend"] = b.blend
+            b.blend = "ERASE_ALPHA"
         return {"FINISHED"}
 
 
@@ -724,8 +746,8 @@ class POPUP_OT_paint_into(bpy.types.Operator):
 
 
 class POPUP_OT_done_painting(bpy.types.Operator):
-    """Finish painting: back to Object Mode, the card folded again and the
-    view you had. Painted see-through areas are cut now (Cut Painted Areas)"""
+    """Stop painting: back to Object Mode and the object you had selected.
+    See-through areas painted on the paper are cut now (Cut Painted Areas)"""
     bl_idname = "popup.done_painting"
     bl_label = "Done Painting"
     bl_options = {"REGISTER", "UNDO"}
@@ -740,8 +762,9 @@ class POPUP_OT_done_painting(bpy.types.Operator):
                 pass
         from . import colours
         colours.leave(sc)  # (also done on any switch out of Texture Paint)
+        _stop_erasing(sc)  # the brush paints again next time
         _end_paint_view(sc)
-        _restore_view(context)
+        _restore_view(context, active_only=True)
         return {"FINISHED"}
 
 
@@ -1452,7 +1475,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

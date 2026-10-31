@@ -1131,11 +1131,10 @@ class PopupSettings(bpy.types.PropertyGroup):
     card_lines: CollectionProperty(type=PopupLine,
                                    description="Extra creases and cuts in the card itself")
     active_card_line: IntProperty(name="Card Line")
-    auto_holes: BoolProperty(name="Cut Painted Areas", default=True,
-                             description="Whatever is painted see-through (Erase Alpha) is "
-                             "cut out of the paper: holes inside a piece, or a new edge where "
-                             "you erase up to its outline. Done on leaving Texture Paint and "
-                             "before every export")
+    auto_holes: BoolProperty(name="Cut Automatically", default=False,
+                             description="Cut whatever is painted see-through (Erase) out of "
+                             "the paper by itself, each time painting stops and before every "
+                             "export. Off: only when you press Cut Painted Holes")
     export_reverse: BoolProperty(name="Reverse Sides", default=True,
                                  description="For pieces with tabs glued to their back, a "
                                  "mirrored sheet of glue markers to print on the other side")

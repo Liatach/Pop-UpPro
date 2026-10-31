@@ -19,8 +19,7 @@ them.**
 4. Add mechanisms with **+** and drag their sliders; the card rebuilds as
    you go. Keep an eye on **Checks**: it turns red when something would
    tear, poke through or stick out.
-5. Paint with **Paint Folded** (switch to **Flat** while you paint, and
-   **Done Painting** when finished), or add an image with
+5. Turn **Paint** on to paint the card, and off when done, or add an image with
    **Image on a Piece**.
 6. **Export SVG Sheets**, print, cut, fold, glue.
 

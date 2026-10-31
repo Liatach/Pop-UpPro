@@ -835,11 +835,11 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
             row.operator("popup.draw_lines", text="Draw Cuts", icon="GREASEPENCIL").kind = "CUT"
             body.operator("popup.take_lines", icon="CHECKMARK")
         box = lay.box()
-        box.label(text="Painted: erase alpha to cut holes or trim edges", icon="BRUSH_DATA")
-        box.prop(st, "auto_holes")
+        box.label(text="Painted: Erase while painting, then cut", icon="BRUSH_DATA")
         row = box.row(align=True)
-        row.operator("popup.trace_holes", text="Cut Now", icon="MOD_BOOLEAN")
+        row.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
         row.operator("popup.trace_holes", text="", icon="X").clear = True
+        box.prop(st, "auto_holes")
         box = lay.box()
         box.label(text="Drawn holes: closed strokes on the flat layout", icon="GREASEPENCIL")
         if _drawing(context):
@@ -897,13 +897,7 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
         col.label(text="Paint (Texture Paint / Paint System)")
         if bpy.data.images.get(N(context.scene, "Pop-up Art")) is None:
             col.operator("popup.add_art", icon="TEXTURE")
-        if _painting(context):
-            _paint_controls(col, context, big=True)
-        else:
-            row = col.row(align=True)
-            row.scale_y = 1.3
-            row.operator("popup.paint", text="Paint Folded", icon="BRUSH_DATA").target = "CARD"
-            row.operator("popup.paint", text="Paint Flat", icon="BRUSH_DATA").target = "LAYOUT"
+        _paint_controls(col, context, big=True)
         col.prop(st, "true_colours")
         from . import images
         images.draw(lay, context)
@@ -954,33 +948,38 @@ def _painting(context):
 
 
 def _paint_controls(lay, context, big=False):
-    """While painting: Folded / Flat, what the brush paints into, Done."""
+    """Paint on/off, and (with a paint layer on the paper, like Paint
+    System's) what the brush paints into."""
     from .ops import paint_images, painting_into
     sc = context.scene
-    flat = bool(sc.get("pop_paint_flat", False))
+    on = _painting(context)
     row = lay.row(align=True)
     if big:
-        row.scale_y = 1.2
-    row.operator("popup.paint", text="Folded", icon="MOD_SIMPLEDEFORM",
-                 depress=not flat).target = "CARD"
-    row.operator("popup.paint", text="Flat", icon="MESH_PLANE", depress=flat).target = "LAYOUT"
+        row.scale_y = 1.4
+    row.operator("popup.paint", text="Painting" if on else "Paint", icon="BRUSH_DATA",
+                 depress=on).target = "TOGGLE"
+    if not on:
+        if big and not sc.popup.auto_holes:
+            lay.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
+        return
+    from .ops import erasing
     art_img, others = paint_images(sc)
     now = painting_into(sc)
-    row = lay.row(align=True)
     is_art = now is not None and now == art_img
-    row.operator("popup.paint_into", text="Paper" if not big else "Paper (holes: erase alpha)",
-                 icon="FILE_BLANK", depress=is_art).into = "ART"
+    row.operator("popup.paint_erase", text="Erase" if big else "", icon="SELECT_SUBTRACT",
+                 depress=erasing(sc))
     if others:
+        row = lay.row(align=True)
+        row.operator("popup.paint_into", text="Paper" if not big else "Paper (holes)",
+                     icon="FILE_BLANK", depress=is_art).into = "ART"
         row.operator("popup.paint_into", text=(now.name if (now and not is_art) else "Layer"),
                      icon="RENDERLAYERS", depress=not is_art).into = (
             now.name if (now is not None and not is_art) else "OTHER")
     elif not is_art:
-        row.label(text=f"into {now.name}" if now else "into nothing", icon="ERROR")
-    r = lay.row(align=True)
-    r.alert = True
-    if big:
-        r.scale_y = 1.4
-    r.operator("popup.done_painting", icon="CHECKMARK")
+        row = lay.row(align=True)
+        row.label(text=f"Painting into {now.name}" if now else "Painting into nothing",
+                  icon="ERROR")
+        row.operator("popup.paint_into", text="Paper", icon="FILE_BLANK").into = "ART"
 
 
 def _header_done(self, context):
@@ -990,7 +989,8 @@ def _header_done(self, context):
         row = self.layout.row()
         row.alert = True
         row.operator("popup.done_drawing", icon="CHECKMARK")
-    elif _painting(context):
+    elif context.scene.popup.card is not None and context.mode in ("OBJECT", "PAINT_TEXTURE"):
+        # paint on and off from the header too, for a quick touch-up
         _paint_controls(self.layout.row(align=True), context)
 
 

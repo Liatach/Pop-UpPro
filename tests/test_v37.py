@@ -1,6 +1,5 @@
-"""v0.37: one painting session on the card. Folded / Flat switch while
-painting (no leaving Texture Paint), Paper / layer picks what the brush
-paints into, Done Painting finishes; True Colours leaves a material drawn
+"""v0.37/0.38: Paint is one on/off toggle on the card as it stands; Paper /
+Layer picks what the brush paints into; True Colours leaves a material drawn
 by something else (Paint System) alone."""
 import os
 import sys
@@ -22,29 +21,27 @@ cam = sc.camera
 bpy.context.view_layer.objects.active = st.rig
 rig_mod = st.card.modifiers["Pop-up Rig"]
 
-assert bpy.ops.popup.paint(target="CARD") == {"FINISHED"}
+# v0.38: one Paint toggle on the card as it stands
+assert bpy.ops.popup.paint() == {"FINISHED"}
 assert ops.painting(bpy.context) and rig_mod.show_viewport and not st.layout.hide_get()
 art = ops.paint_images(sc)[0]
 assert ops.painting_into(sc) == art
-assert bpy.ops.popup.paint(target="LAYOUT") == {"FINISHED"}
-assert ops.painting(bpy.context), "switching to flat stays in Texture Paint"
-assert not rig_mod.show_viewport and st.layout.hide_get()
-assert bpy.ops.popup.paint(target="CARD") == {"FINISHED"}
-assert ops.painting(bpy.context) and rig_mod.show_viewport
-bpy.ops.popup.paint(target="LAYOUT")
-assert bpy.ops.popup.done_painting() == {"FINISHED"}
+assert bpy.ops.popup.paint() == {"FINISHED"}  # and off again
 assert bpy.context.mode == "OBJECT" and rig_mod.show_viewport and not st.layout.hide_get()
 assert bpy.context.view_layer.objects.active == st.rig
-print("one painting session: folded and flat without leaving it; done goes back")
+print("Paint toggles on and off on the card as it stands")
 
-# leaving Texture Paint some other way still folds the card again
-bpy.ops.popup.paint(target="LAYOUT")
+# a card left flat by v0.37 folds again
+rig_mod.show_viewport = False
+sc["pop_paint_flat"] = True
+st.layout.hide_set(True)
+bpy.ops.popup.paint()
+assert rig_mod.show_viewport and not st.layout.hide_get()
 bpy.ops.object.mode_set(mode="OBJECT")
 from popup_pro import holes  # noqa: E402
 holes._last_mode["mode"] = "PAINT_TEXTURE"
 holes._mode_changed()  # what Blender's mode notification runs
-assert rig_mod.show_viewport and not st.layout.hide_get()
-print("leaving by Blender's mode menu folds the card again")
+print("leaving by Blender's mode menu is fine too")
 
 # a paint layer on top (as Paint System makes): pick it, and back to the paper
 mat = st.card.data.materials[0]
@@ -58,19 +55,19 @@ bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
 nt.links.new(bsdf.outputs[0], mix.inputs[1])
 nt.links.new(tex.outputs[0], mix.inputs[0])
 nt.links.new(mix.outputs[0], out.inputs["Surface"])
-bpy.ops.popup.paint(target="CARD")
+bpy.ops.popup.paint()
 assert out.inputs["Surface"].links[0].from_node == mix, "True Colours left it alone"
 assert bpy.ops.popup.paint_into(into="OTHER") == {"FINISHED"}
 assert ops.painting_into(sc) == layer
 assert bpy.ops.popup.paint_into(into="ART") == {"FINISHED"}
 assert ops.painting_into(sc) == art
-bpy.ops.popup.done_painting()
+bpy.ops.popup.paint()  # off
 assert out.inputs["Surface"].links[0].from_node == mix
 print("paint layers kept showing; Paper / Layer picks the target")
 
 # a stack built on True Colours' own nodes survives leaving
 nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
-bpy.ops.popup.paint(target="CARD")
+bpy.ops.popup.paint()
 tm = nt.nodes.get(colours.MIX)
 assert tm is not None
 s2r = nt.nodes.new("ShaderNodeShaderToRGB")

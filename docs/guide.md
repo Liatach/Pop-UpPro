@@ -574,14 +574,15 @@ so they show in 3D and print as cut lines:
   * *Next Stage*: on a background page, the neighbouring stage's page that
     is glued back to back with it, so a doorway leads from one stage into
     the next.
-* **Painted**: in Texture Paint, paint with the *Erase Alpha* blend mode.
-  Erase inside a piece for a hole, or up to its edge to change its outline
-  (round a V-fold's corner, cut a jagged skyline). The see-through areas
-  show see-through on the model straight away, and with **Cut Painted
-  Areas** on (the default) they are traced into smooth cut lines when you
-  leave Texture Paint and again before every export, so what you see is
-  what prints. **Cut Now** does it by hand; ✕ drops them. This is also the
-  way to perforate a staging frame.
+* **Painted**: while painting, turn on **Erase** (next to Paint): the brush
+  rubs the paper see-through instead of painting colour. Erase inside a
+  piece for a hole, or up to its edge to change its outline (round a
+  V-fold's corner, cut a jagged skyline). The see-through areas show on the
+  model straight away; **Cut Painted Holes** traces them into smooth cut
+  lines, so what you see is what prints, and ✕ drops them. With **Cut
+  Automatically** on (off by default) that happens by itself each time you
+  stop painting and before every export. This is also the way to perforate
+  a staging frame.
 * **Drawn holes**: **Draw Holes** turns the view to look straight down on the
   flat layout and starts a red Grease Pencil layer over it. Draw closed
   outlines on any piece, across a fold if you like. They are cut at the next
@@ -652,21 +653,19 @@ Everything is one mesh, **Pop-up Card**, deformed by **Pop-up Rig**. Its rest
 shape is the print layout, which you also see as **Pop-up Layout** (same
 mesh, no rig). So:
 
-* **Paint Folded / Paint Flat** starts painting: Texture Paint on the card,
-  folded or laid out flat as it prints. While you paint, the panel (and the
-  3D view's header) shows:
-  * **Folded / Flat**: switch between them at any time without leaving
-    Texture Paint (flat, the card's rig is switched off so it lies as its
-    print layout, and the Layout object steps aside).
-  * **Paper / Layer**: what the brush paints into. *Paper* is **Pop-up
-    Art**, the paper itself (a UDIM image, one tile per piece, tile 1001 the
-    card): its colour, and erased alpha cuts holes and trims. *Layer* is a
-    paint layer on top of it, such as Paint System's: colour only. The
-    button shows the layer's name.
-  * **Done Painting**: back to Object Mode, the card folded and the view you
-    had; see-through areas painted on the paper are cut then.
-
-  Rebuilds wait while you paint, so the card never changes under the brush.
+* **Paint** turns painting on and off: Texture Paint on the card just as it
+  stands (folded, flat open, anywhere in between), and back to Object Mode.
+  It is in the Artwork panel and the 3D view's header, for a quick touch-up.
+  The paint goes into **Pop-up Art**, the paper itself (a UDIM image, one
+  tile per piece, tile 1001 the card). **Erase** switches the brush to rub
+  the paper see-through, for holes and trims (see Holes and Shaping), and
+  is switched back when you stop painting. To paint the
+  print layout instead, use **View Layout** and paint the Layout object with
+  Blender's own Texture Paint.
+  * **Paper / Layer** shows when the paper has a paint layer on top, such as
+    Paint System's: what the brush paints into. The Layer button shows the
+    layer's name; *Paper* is the one for holes.
+  * Rebuilds wait while you paint, so the card never changes under the brush.
 * **True Colours While Painting** (on by default): in Texture Paint the paper
   shows its art unlit (EEVEE and Material Preview; Solid views show flat
   texture colours) and the view transform is set to Standard. What you see
@@ -675,8 +674,7 @@ mesh, no rig). So:
   AgX view and lighting, a re-sampled colour comes back duller and darker
   each time. Your view transform and shading come back when you leave
   Texture Paint.
-* **Paint System**: paint the Card object (Paint Folded or Flat, then
-  *Layer*) and choose the **PopupArt** UV map for its layers. Holes and
+* **Paint System**: paint the Card object (Paint, then *Layer*) and choose the **PopupArt** UV map for its layers. Holes and
   trims still come from the paper: switch to *Paper* to erase them. True
   Colours leaves a material drawn by Paint System alone. Then **Bake Art for Print** flattens
   whatever the material shows into **Pop-up Print** for the export. The bake

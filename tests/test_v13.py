@@ -65,8 +65,9 @@ img.user_remap(new)
 bpy.data.images.remove(img)
 new.name = name
 
-# exporting cuts what the paint shows (Cut Painted Areas is on by default)
-assert st.auto_holes
+# exporting cuts what the paint shows, with Cut Automatically on (v0.38: off
+# by default)
+st.auto_holes = True
 path = os.path.join(OUT, "v13.svg")
 assert bpy.ops.popup.export_svg(filepath=path) == {"FINISHED"}
 assert len(holes.painted(st)[f"VFold{uid}"]) == 1
