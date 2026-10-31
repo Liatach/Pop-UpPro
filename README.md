@@ -5,7 +5,7 @@ them.**
 
 <!-- SHOT: hero. Dawn render look, card about 120° open, 3-4 mechanisms
      with painted art, camera from the default card camera. -->
-![Pop-Up Pro](docs/images/hero.png)
+![Pop-Up Pro](docs/images/popup%20hero%20.png)
 
 ## Getting started
 
