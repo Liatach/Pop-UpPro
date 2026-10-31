@@ -12,37 +12,37 @@ them.**
 1. Download `popup_pro-x.y.z.zip` from
    [Releases](https://github.com/Liatach/Pop-UpPro/releases) and install it
    in Blender 4.3 or later: **Edit → Preferences → Get Extensions → ⌄ →
-   Install from Disk**.
+   Install from Disk**. Or simply drag the zip into Blender.
 2. In the 3D view press **N** and open the **Pop-Up** tab.
-3. Pick a card size and press **Build Card**. You get a card with a cube on
-   it, a camera, lighting and a movement test: press **Play**.
+3. Pick a card size and press **Build Card**. Or **Make Carousel** You get a card with a cube on
+   it, a camera, lighting and a movement test or a 5 scene carousel: press **Play** to it animate. 
 4. Add mechanisms with **+** and drag their sliders; the card rebuilds as
    you go. Keep an eye on **Checks**: it turns red when something would
    tear, poke through or stick out.
 5. Draw on the pieces with **Sketch on Panel** (Grease Pencil:
    [how to](docs/sketching.md)), turn **Paint** on to paint the card, or add
-   an image with **Image on a Piece**.
-6. **Export SVG Sheets**, print, cut, fold, glue.
+   an image with **Image on a Piece**. Explicitly deesigned to work with the fabulous **[Paint System](https://extensions.blender.org/add-ons/paint-system/)** extension by [**natapol2547/Tawan Sunflower**](https://github.com/natapol2547/paintsystem)
+6. **Export SVG Sheets**, plus crease and cut patterns for cricut etc. print, cut, fold, glue.
 
-Every setting is explained in the [guide](docs/guide.md).
+Every setting is explained in more detail in the [guide](docs/guide.md).
 
-## Examples
+## Place holder examples
 
 <!-- SHOT: box layer + box layer on top, Battlements / Pointed Tower presets, a door flap on the front, two stand-ups (one in front of the other). Showcase look. -->
 ### Castle
-![Castle](docs/images/ex_castle.png)
-
+![Castle](docs/images/castle%20card%20sml.gif)
+castle card sml.gif
 Stacked box layers with battlements, a spire and a hinged door, and parallelogram stand-ups in front.
 
 <!-- SHOT: strap Peaks 3 with cubes in two valleys; a slanted strap; asym V-fold with a box on its crease. Showcase look, ~110° open. -->
 ### Off the centre
-![Off the centre](docs/images/ex_offcentre.png)
+![Off the centre](docs/images/cubes%20on%20an%20offset%20strap.gifex_offcentre.png)
 
 A strap with three peaks carrying cubes in its valleys, a slanted strap, and an asymmetric V-fold leaning a tower to one side.
 
 <!-- SHOT: hexagon tube with pointed roof, tent, pyramid, tethers between them; basic box (flat Dip roof + rib) with a V-fold on its roof. Dawn look. -->
 ### Village
-![Village](docs/images/ex_village.png)
+![Village](docs/images/cube%20village.gif)
 
 Tubes and pyramids on parallel strips, tied together with tethers, and a basic box whose roof is a second spine.
 
@@ -122,14 +122,14 @@ The mechanisms follow The Pop-Up Channel's video tutorials:
 * [Pop-Up Tutorial 72 - Box, type 2](https://www.youtube.com/watch?v=6FKi95a14N4)
 * [360° pop-up book](https://www.youtube.com/watch?v=HKvsssZ9W0E) (the basic box and carousels; also [on Reddit](https://www.reddit.com/r/popupbooks/comments/1xcfeks/how_to_make_360_popup_book/))
 
-Duncan Birmingham's book *Pop-Up! A Manual of Paper Mechanisms* covers them
-too, along with the mouth and jaws.
+Duncan Birmingham's splendid book *Pop-Up! A Manual of Paper Mechanisms* covers them
+too. 
 
 Paint layers come from [Paint System](https://extensions.blender.org/add-ons/paint-system/)
 by Tawan Sunflower (GPL-3.0-or-later), a separate extension that Pop-Up Pro
 calls when it is installed.
 
-## Roadmap
+## Constraints
 
 * One card (or carousel) per scene. Mechanisms sit on the spine, on box
   folds and straps (and their valleys), stand-ups, a tube's roof, a V-fold's
@@ -141,15 +141,15 @@ calls when it is installed.
   roofs and stand-up pictures don't take them yet (shape a picture by
   erasing its art). Asymmetric creases need their own matching crease on the
   other side (drawn with Mirror off).
+* Paint System with UDIM tiles is untested; Bake Art for Print is the safe
+  route for printing.
+
+## Roadmap
+
 * A debug view: look straight into a stage (or card) part open, flattened
   like a plan, with every layer drawn see-through, to check how
   mechanisms overlap in complex builds.
-* The consolidation and elegance pass over the interface, continued. Done
-  so far: one naming scheme (Stands On, Fold, Gully, Position; Length Along
-  Fold, Width Left / Right, Height; Glue Length / Angle, Piece Angle, Fold
-  Length), glue tabs folded away in every mechanism, Checks second and red
-  when there's anything to fix, the movement test and paper settings folded
-  down. Still to do:
+* The consolidation and elegance pass over the interface, continued:
   * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
     Background Above and Level Ridge; floors, ceilings and the background
     folding in sit together as one "Stage" section.
@@ -164,27 +164,22 @@ calls when it is installed.
   Side Outside) already print the art of the part they glue onto. Next:
   a Tab Side choice for box folds, straps and cubes, and inside tabs' backs
   printed on the reverse sheet.
-* A **fan**: like a large upright V-fold with extra creases, opening into a
-  fan, but standing free of the centre crease, so it can arch across the
-  scene as arches, rainbows and arcs.
+* **Concertina cont.**: opening into a
+  fan, but standing free of the centre crease, congruent concertina corners like an accordion corner, arches, rainbows and arcs.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   arch V-folds, moving arms.
-* **45° folds** (Birmingham, *Pop-Up! A Manual of Paper Mechanisms*,
-  mechanisms 77–83, pp. 66–69): pairs of triangles with 45° creases meeting
-  at a point, which turn a pull into a lift or a twist:
+* **45° folds** 
   * the double 45° fold: arms that rise and a top piece that twists round as
-    the card closes (77);
+    the card closes 
   * on a parallelogram or a V-fold, arms that reach out past the base's
-    edges (78, 79, the jack in the box);
+    edges 
   * box ends filled by double 45° folds, and a box lid lifted by a strut
-    (82, 83);
-  * 45° folds on a parallelogram (74, pp. 60–61): small double triangles
+  * 45° folds on a parallelogram; small double triangles
     on the jutting corners of a box fold, throwing out arms and legs.
-* **Multiple quadrilaterals** (Birmingham, mechanism 57, p. 49): a chain of
-  linked quadrilaterals sweeping across the spine, each with its own height
+* **Multiple quadrilaterals** 
+  a chain of   linked quadrilaterals sweeping across the spine, each with its own height
   and shape, as long as each one's front and rear crease lengths balance.
-* Paint System with UDIM tiles is untested; Bake Art for Print is the safe
-  route for printing.
+
 
 
 ## Development
@@ -195,6 +190,9 @@ Tests run with `pip install bpy`: `python tests/test_core.py`, then each
 
 ## Licence
 
-GPL-3.0-or-later. By Kim Lang / [Liatach Makes](https://shop.kim-lang.com).
+GPL-3.0-or-later. By Kim Lang / [Liatach Makes](https://kim-lang.com) with LLM coding assistance.
+Built on the shoulders of giants. This will always be free! But if you'd to support its development please consider buying me a coffee:
+<script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Buy me a coffee', '#72a4f2', 'W5S523ZBSF');kofiwidget2.draw();</script> 
+
 A companion to [Papercraft Pro](https://github.com/Liatach/papercraft-pro).
 Pop-Up Pro is not affiliated with or endorsed by the Blender Foundation.
