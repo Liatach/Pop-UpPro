@@ -568,6 +568,35 @@ the V, and *behind* stands inside the V. **Out Along Glue Line** sets where it
 sits along the half's glue line, measured from the V point. Glued boxes can
 stand there too.
 
+### 45° folds: Platform and Rising Sheet
+
+A **45° fold** (Birmingham, *Pop-Up!*, pp. 66–69) is a small V-fold whose
+glue lines are square to the fold it sits on and whose two piece angles are
+45°. As the corner it sits in opens, it unfolds, and at 90° it stands as a
+solid triangle, a gusset: the corner can't open any further. Put in a
+corner that should end up square, it props it square when the card is flat.
+Both mechanisms below put them in for you (each 45° fold is its own small
+piece, listed under the mechanism's name).
+
+* **Platform (45°)** (mechanism 80): a strip glued down along two strips
+  parallel to the fold, **Out Left** and **Out Right** from it, rising on
+  two legs (**Leg Height**) to a top that folds in a valley as the card
+  shuts. The legs stay square to the line halfway between the pages and
+  each half of the top stays parallel to its own page, so the valley rides
+  at the leg height right above the fold whatever the two Out distances:
+  with them unequal the platform stands off the centre (the book: "doesn't
+  have to be centrally placed"). **45° Folds** puts one in each leg's outer
+  corner (*One per Leg*, at the front end), at *Both Ends*, or *None*;
+  **45° Fold Size** is the length of their glue edges. Other mechanisms
+  stand on the platform's top: pick it in **Stands On** (positions along it
+  are up the card, as on a box fold).
+* **Rising Sheet (45°)** (mechanism 81): a single sheet standing on the
+  fold, half way between the pages, held up by a 45° fold on each face
+  (front left, back right). Its foot is glued down by two tabs, the front
+  half onto the left page and the back half onto the right. **Sheet
+  Height** and **Width Along Fold** size it; shape it into a tree or
+  flowers by erasing its art.
+
 ### Holes and shaping (every mechanism)
 
 ![Stage 1: an arched staging frame, a perforated frame and a window through

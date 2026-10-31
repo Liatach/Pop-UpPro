@@ -403,7 +403,7 @@ class Model:
                               f"V-folds; skipped")
                     ok = False
                 elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD",
-                                                               "CUBE")
+                                                               "CUBE", "PLATFORM")
                                         and not lid and not stage and not joint
                                         and not (parent["type"] == "TUBE" and
                                                  m.get("wall") in ("L", "R"))):
@@ -433,6 +433,8 @@ class Model:
                 fold = "WR" if m.get("wall") == "R" else "WL"  # a front wall's foot
             if h and by_uid[h]["type"] == "STAGE":
                 fold = "S"  # the stage set's back crease
+            if h and by_uid[h]["type"] == "PLATFORM":
+                fold = "A"  # the valley in its top
             if h and by_uid[h]["type"] in ("FLOOR", "CEILING"):
                 fold = "L" if m.get("side", "L") == "L" else "R"  # its join with a wall
                 if m.get("vside") == "V":
@@ -458,6 +460,10 @@ class Model:
                 self._box(m, host)
             elif m["type"] == "STANDUP":
                 self._standup(m, host)
+            elif m["type"] == "PLATFORM":
+                self._platform(m, host)
+            elif m["type"] == "RISER":
+                self._riser(m, host)
             elif m["type"] == "CUBE":
                 self._cube(m, host)
             elif m["type"] == "FLAP":
@@ -738,6 +744,220 @@ class Model:
             h.trig = host.trig
             self.hosts[(uid, key)] = h
 
+    # ------------------------------------------------------- 45 degree folds
+    def _brace(self, owner, k, host, y, size, lean, tab, lab):
+        """A 45 degree fold (Birmingham 80, 81): a small V-fold in the corner
+        between two panels, its glue lines square to their fold and its two
+        piece angles 45 degrees. It folds flat as the corner closes and
+        stands as a solid gusset when the corner reaches 90 degrees, so it
+        props the corner square: the card can't push it any further."""
+        g = float(size)
+        self._vfold(dict(uid=f"{owner}b{k}", type="VFOLD", label=lab, y=y,
+                         phi_l=90.0, phi_r=90.0, alpha_l=45.0, alpha_r=45.0, glue=g,
+                         glue_r=g, height=g * math.sqrt(2.0), tab=tab, shape="TRI",
+                         # tabs on the brace's own side of its point (its glue lines
+                         # are square to the fold, so "inside" is +Y)
+                         tab_side="IN" if lean > 0 else "OUT", pref=(0.0, lean),
+                         slot=500 + 4 * owner + k), host)
+
+    def _bisector(self, host, t):
+        """Unit direction halfway between the host's two sides, into its gap
+        (well defined from shut to flat)."""
+        S, l, r, Y, nl, nr = host.dirs(t)
+        s1, s2 = host.lift
+        b = l + r + s1 * nl + s2 * nr
+        return b.normalized()
+
+    def _platform(self, m, host):
+        """Birmingham 80, structural uses of 45 degree folds: a raised platform.
+        Two legs glued along strips parallel to the fold (B out on the left,
+        C out on the right) carry a top whose two halves meet in a valley
+        right above the fold. The legs stay square to the line halfway
+        between the pages and each half of the top parallel to its own page,
+        so the valley rides at the leg height straight above the fold and B
+        and C needn't match: it can stand off the centre. A 45 degree fold
+        in each leg's outer corner props it square when the card is flat."""
+        uid, lab = m["uid"], m["label"]
+        B = float(m["depth"])
+        C = float(m.get("depth_r", 0.0) or 0.0) or B
+        h, w, y0 = float(m["height"]), float(m["width"]), float(m["y"])
+        tb = min(float(m.get("tab", 10.0)), B, C)
+        if h < 2.0 or w < 2.0:
+            self.warn(f"{lab}: too small to fold")
+            return
+        if host.is_spine and max(B, C) + h > self.W + 1e-6:
+            self.warn(f"{lab}: out + leg height ({max(B, C) + h:.0f} mm) is deeper than the "
+                      f"page ({self.W:.0f} mm), so it sticks out when closed")
+        if y0 < -1e-6 or y0 + w > self.H + 1e-6:
+            self.warn(f"{lab}: runs past the top or bottom of the card")
+        base = f"Plat{uid}"
+        piece = base
+        self.add_piece(Piece(piece, lab, 1 + uid, (h + B, w / 2)))
+        lift1, lift2 = host.lift
+        U = [0.0, h, h + B, h + B + C, 2 * h + B + C]  # creases along the strip
+
+        def parts(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            b = self._bisector(host, t)
+            o = S + y0 * Y
+            return o, l, r, Y, nl, nr, b
+
+        def asm_leg_l(t):
+            o, l, r, Y, nl, nr, b = parts(t)
+            return frame(o + B * l, b, Y)
+
+        def asm_top_l(t):
+            o, l, r, Y, nl, nr, b = parts(t)
+            return frame(o + B * l + h * b + h * l, -l, Y)
+
+        def asm_top_r(t):
+            o, l, r, Y, nl, nr, b = parts(t)
+            return frame(o + h * b - (h + B) * r, r, Y)
+
+        def asm_leg_r(t):
+            o, l, r, Y, nl, nr, b = parts(t)
+            return frame(o + C * r + h * b + U[3] * b, -b, Y)
+
+        def asm_tab_l(t):
+            o, l, r, Y, nl, nr, b = parts(t)
+            return frame(o + B * l + lift1 * TAB_LIFT * nl, l, Y)
+
+        def asm_tab_r(t):
+            o, l, r, Y, nl, nr, b = parts(t)
+            return frame(o + C * r + U[4] * r + lift2 * TAB_LIFT * nr, -r, Y)
+
+        ch = min(0.3 * tb, 0.25 * w)
+        strip = [[(U[j], 0), (U[j + 1], 0), (U[j + 1], w), (U[j], w)] for j in range(4)]
+        tab_l = [(-tb, ch), (0, 0), (0, w), (-tb, w - ch)]
+        tab_r = [(U[4], 0), (U[4] + tb, ch), (U[4] + tb, w - ch), (U[4], w)]
+        self.add(Panel(f"{base}.TabL", piece, "tab", [tab_l], asm_tab_l, host.p1, None,
+                       f"{lab}: tab left"))
+        names = ["LegL", "TopL", "TopR", "LegR"]
+        texts = ["left leg", "top left", "top right", "right leg"]
+        asms = [asm_leg_l, asm_top_l, asm_top_r, asm_leg_r]
+        prev = None
+        for j in range(4):
+            if prev is None:
+                hg = Hinge(host.T1 @ hinge_frame_2d((-B, y0), (0, 1)),
+                           hinge_frame_2d((0, 0), (0, 1)), "TABLE")
+                par = host.p1
+            else:
+                hg = Hinge(hinge_frame_2d((U[j], 0), (0, 1)),
+                           hinge_frame_2d((U[j], 0), (0, 1)), "TABLE")
+                par = prev.name
+            prev = self.add(Panel(f"{base}.{names[j]}", piece, "panel", [strip[j]], asms[j],
+                                  par, hg, f"{lab}: {texts[j]}"))
+        self.add(Panel(f"{base}.TabR", piece, "tab", [tab_r], asm_tab_r, host.p2, None,
+                       f"{lab}: tab right"))
+        self.line_frames[uid] = (piece, lambda q: (q[0] - (h + B), q[1]), (-(h + B), h + C, 0.0, w))
+        # its top's valley: a fold opening just like the card, to stand more on
+        Tv = Matrix.Translation((h + B, -y0, 0.0))
+        hv = Host(self, f"{base}.TopL", 0.0, 0.0, f"{base}.TopR", 0.0, 0.0,
+                  f"{lab}: on top", Tv, Tv).finish()
+        hv.trig = host.trig
+        self.hosts[(uid, "A")] = hv
+        # the 45 degree props, one in each leg's outer corner
+        brace = m.get("brace", "FRONT")
+        if brace == "NONE":
+            return
+        g = float(m.get("brace_size", 15.0) or 15.0)
+        room = min(h, w - 1.0, (self.W - max(B, C)) if host.is_spine else g)
+        if g > room + 1e-6:
+            g = max(2.0, room)
+            self.warn(f"{lab}: 45° folds made {g:.0f} mm to fit the legs and pages")
+        tbb = min(float(m.get("tab", 10.0)), 0.5 * g)
+        ends = [(y0 + 0.5, 1.0)] + ([(y0 + w - 0.5, -1.0)] if brace == "BOTH" else [])
+        corners = (
+            ("L", Host(self, host.p1, 0.0, 0.0, f"{base}.LegL", 0.0, 0.0,
+                       f"{lab}: left foot", host.T1 @ Matrix.Translation((-B, 0.0, 0.0)),
+                       Matrix.Translation((0.0, -y0, 0.0)))),
+            ("R", Host(self, f"{base}.LegR", 0.0, 0.0, host.p2, 0.0, 0.0,
+                       f"{lab}: right foot", Matrix.Translation((U[4], -y0, 0.0)),
+                       host.T2 @ Matrix.Translation((C, 0.0, 0.0)))))
+        k = 0
+        for side, hf in corners:
+            hf.finish()
+            hf.trig = False
+            for yb, lean in ends:
+                n0 = len(self.order)
+                self._brace(uid, k, hf, yb, g, lean, tbb,
+                            f"{lab}: 45° fold {'left' if side == 'L' else 'right'}"
+                            f"{' back' if lean < 0 else ''}")
+                for name in self.order[n0:]:
+                    hg = self.panels[name].hinge
+                    if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
+                        hg.kind = "TABLE"
+                k += 1
+
+    def _riser(self, m, host):
+        """Birmingham 81: a single sheet rising from the fold, half way
+        between the pages, held up by a 45 degree fold on each face (each
+        props its corner square when the card is flat). Its foot is glued
+        down by two tabs, one onto each page."""
+        uid, lab = m["uid"], m["label"]
+        h, w, y0 = float(m["height"]), float(m["width"]), float(m["y"])
+        tb = float(m.get("tab", 10.0))
+        if host.is_spine and h > self.W + 1e-6:
+            self.warn(f"{lab}: taller ({h:.0f} mm) than the page is deep "
+                      f"({self.W:.0f} mm), so it sticks out when closed")
+        if y0 < -1e-6 or y0 + w > self.H + 1e-6:
+            self.warn(f"{lab}: runs past the top or bottom of the card")
+        base = f"Rise{uid}"
+        piece = base
+        self.add_piece(Piece(piece, lab, 1 + uid, (h / 2, w / 2)))
+        lift1, lift2 = host.lift
+
+        def asm_sheet(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            return frame(S + y0 * Y, self._bisector(host, t), Y)
+
+        def asm_tab_l(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            return frame(S + y0 * Y + lift1 * TAB_LIFT * nl, -l, Y)
+
+        def asm_tab_r(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            return frame(S + y0 * Y + lift2 * TAB_LIFT * nr, -r, Y)
+
+        sheet = self.add(Panel(f"{base}.Sheet", piece, "panel",
+                               [[(0, 0), (h, 0), (h, w), (0, w)]], asm_sheet, host.p1,
+                               Hinge(host.T1 @ hinge_frame_2d((0.0, y0), (0, 1)),
+                                     hinge_frame_2d((0, 0), (0, 1)), "TABLE"),
+                               f"{lab}: sheet"))
+        if sheet is None:
+            return
+        ch = min(0.3 * tb, 0.1 * w)
+        half = 0.5 * w
+        self.add(Panel(f"{base}.TabL", piece, "tab",
+                       [[(-tb, ch), (0, 0), (0, half - 0.5), (-tb, half - 0.5 - ch)]],
+                       asm_tab_l, host.p1, None, f"{lab}: tab left"))
+        self.add(Panel(f"{base}.TabR", piece, "tab",
+                       [[(-tb, half + 0.5 + ch), (0, half + 0.5), (0, w), (-tb, w - ch)]],
+                       asm_tab_r, host.p2, None, f"{lab}: tab right"))
+        self.line_frames[uid] = (piece, lambda q: (q[0], q[1]), (0.0, h, 0.0, w))
+        g = float(m.get("brace_size", 15.0) or 15.0)
+        room = min(h, 0.5 * w - 1.0, self.W if host.is_spine else g)
+        if g > room + 1e-6:
+            g = max(2.0, room)
+            self.warn(f"{lab}: 45° folds made {g:.0f} mm to fit the sheet")
+        tbb = min(tb, 0.5 * g)
+        Ty = Matrix.Translation((0.0, -y0, 0.0))
+        flip = Ty @ Matrix.Rotation(math.pi, 4, "Y")  # the sheet's other face
+        corners = (
+            (Host(self, host.p1, 0.0, 0.0, sheet.name, 0.0, 0.0, f"{lab}: left face",
+                  host.T1, Ty), y0 + 0.5, 1.0, "left"),
+            (Host(self, sheet.name, 0.0, 0.0, host.p2, 0.0, 0.0, f"{lab}: right face",
+                  flip, host.T2), y0 + w - 0.5, -1.0, "right"))
+        for k, (hf, yb, lean, txt) in enumerate(corners):
+            hf.finish()
+            hf.trig = False
+            n0 = len(self.order)
+            self._brace(uid, k, hf, yb, g, lean, tbb, f"{lab}: 45° fold {txt}")
+            for name in self.order[n0:]:
+                hg = self.panels[name].hinge
+                if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
+                    hg.kind = "TABLE"
+
     # ---------------------------------------------------- parallelogram stand-up
     def _standup(self, m, host):
         """Birmingham 38. A picture held parallel to the background by a small
@@ -960,7 +1180,7 @@ class Model:
             self.warn(f"{lab}: piece angle must be between 0 and 180 degrees")
             return
         # art tile: the V point sits low in the tile, the halves rise above it
-        self.add_piece(Piece(piece, lab, 1 + uid, (0.0, 0.3 * 297.0)))
+        self.add_piece(Piece(piece, lab, m["slot"] if "slot" in m else 1 + uid, (0.0, 0.3 * 297.0)))
         if not (0 <= yP <= H):
             self.warn(f"{lab}: the V point is off the card")
 

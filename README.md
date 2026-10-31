@@ -75,6 +75,8 @@ Paint flat or folded, wrap an image round a cube, then export layered SVG sheets
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
 * Tubes, pyramids and tents on parallel strips, with tethers and roofs.
 * Parallelogram stand-ups, pull-tab flaps.
+* 45° folds: a raised platform (on or off the centre) and a rising sheet,
+  propped square by 45° folds.
 * Carousels of 2 to 9 stages with frames, floors, ceilings and roofs, or one
   stage set standing in an ordinary card.
 
@@ -174,8 +176,6 @@ calls when it is installed.
     the card closes (77);
   * on a parallelogram or a V-fold, arms that reach out past the base's
     edges (78, 79, the jack in the box);
-  * structural: holding up a pop-up off the centre, or pulling up a single
-    sheet rising from the spine (80, 81, the tree and the flowers);
   * box ends filled by double 45° folds, and a box lid lifted by a strut
     (82, 83);
   * 45° folds on a parallelogram (74, pp. 60–61): small double triangles

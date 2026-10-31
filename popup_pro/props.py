@@ -59,6 +59,12 @@ KINDS = [
     ("ROOF", "Roof", "A peaked roof: the background is cut to a gable and a V-fold glued "
      "along its eaves rises to a ridge, level when the card or stage is fully open",
      "HOME", 14),
+    ("PLATFORM", "Platform (45°)", "A raised platform on two legs glued either side of "
+     "the fold, its top folding in a valley above the fold, propped square by 45° folds "
+     "(Birmingham 80); it can stand off the centre", "MOD_SOLIDIFY", 15),
+    ("RISER", "Rising Sheet (45°)", "A single sheet rising from the fold, held up half way "
+     "between the pages by a 45° fold on each face (Birmingham 81)", "OUTLINER_OB_FORCE_FIELD",
+     16),
 ]
 
 POINTS = [
@@ -146,6 +152,9 @@ def host_items(self, context):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
                               "MESH_CUBE" if m.kind != "STANDUP" else "OUTLINER_OB_IMAGE",
                               m.uid))
+            elif m.kind == "PLATFORM":
+                items.append((str(m.uid), m.label, f"Stand on top of {m.label}, on the "
+                              f"valley above the fold", "MOD_SOLIDIFY", m.uid))
             elif m.kind in ("FLOOR", "CEILING"):
                 items.append((str(m.uid), m.label, f"Sit in the corner where {m.label} "
                               f"meets a wall", "TRIA_DOWN_BAR" if m.kind == "FLOOR"
@@ -547,6 +556,19 @@ class PopupMech(bpy.types.PropertyGroup):
         ("R", "Right Wall", "Where the host's right (front-right) wall meets the page, "
          "outside it")],
         description="On a cube or tube: which wall's foot it stands at")
+    depth_r: FloatProperty(name="Out Right", default=0.0, min=0.0, soft_max=150.0,
+                           update=_changed,
+                           description="Platform: how far out the right leg stands from the "
+                           "fold (mm); 0 = the same as the left. Unequal, the platform stands "
+                           "off the centre (its valley stays above the fold)")
+    brace: EnumProperty(name="45° Folds", update=_changed, default="FRONT", items=[
+        ("FRONT", "One per Leg", "A 45° fold in each leg's outer corner, at the front end"),
+        ("BOTH", "Both Ends", "45° folds at both ends of each leg"),
+        ("NONE", "None", "No props: the legs flop (add your own)")],
+        description="The 45° folds that prop the legs square when the card is flat")
+    brace_size: FloatProperty(name="45° Fold Size", default=15.0, min=2.0, soft_max=60.0,
+                              update=_changed,
+                              description="Length of each 45° fold's glue edges (mm)")
     size_r: FloatProperty(name="Width Right", default=0.0, min=0.0, soft_max=150.0,
                           update=_changed,
                           description="Cube: width of the front-right (and back-left) walls "
@@ -783,6 +805,13 @@ class PopupMech(bpy.types.PropertyGroup):
                      pleat=self.pleat,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
+        elif self.kind == "PLATFORM":
+            d.update(type="PLATFORM", width=self.width, height=self.height,
+                     depth=self.depth, depth_r=self.depth_r, brace=self.brace,
+                     brace_size=self.brace_size)
+        elif self.kind == "RISER":
+            d.update(type="RISER", width=self.width, height=self.height,
+                     brace_size=self.brace_size)
         elif self.kind == "STANDUP":
             d.update(type="STANDUP", stand=self.stand, width=self.width, height=self.height,
                      depth=self.depth, img_w=self.img_w, img_h=self.img_h)
