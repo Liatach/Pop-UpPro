@@ -777,6 +777,9 @@ def _mode_changed():
         was = _last_mode["mode"]
         _last_mode["mode"] = mode
         sc = ctx.scene
+        from .ops import switching
+        if sc is not None and switching(sc):
+            return  # painting carries on, on the card's other view
         if sc is not None and mode != was:
             from . import colours
             try:

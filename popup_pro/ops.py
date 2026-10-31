@@ -201,6 +201,7 @@ class POPUP_OT_add(bpy.types.Operator):
             m.height = m.depth = 35.0
             m.width = 70.0
             m.y = round(0.5 * H - 35.0, 1)
+            m["strap"] = True
             m.label = unique_label(st.mechs, "Strap", m)
             st["live"] = was
         if self.kind == "ROOF" and self.variant == "VALLEY":
@@ -578,10 +579,87 @@ def _view3d(context):
 
 
 def painting(context):
-    """In Texture Paint on this card right now?"""
+    """In Texture Paint on this card (folded, or its flat layout) right now?"""
     st = context.scene.popup
     obj = context.view_layer.objects.active if context.view_layer else None
-    return context.mode == "PAINT_TEXTURE" and obj is not None and obj == st.card
+    return context.mode == "PAINT_TEXTURE" and obj is not None and obj in (st.card, st.layout)
+
+
+def paint_switch(context, obj):
+    """Carry on painting on the other of the card and its flat layout (they
+    are the same paper): same image, same brush, same layer."""
+    import time
+    sc = context.scene
+    st = sc.popup
+    if obj not in (st.card, st.layout) or context.view_layer.objects.active == obj:
+        return False
+    sc["pop_paint_switching"] = time.time() + 1.0  # not leaving: no cut, no colours
+    ip = sc.tool_settings.image_paint
+    keep = (ip.mode, ip.canvas)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for o in context.selected_objects:
+        o.select_set(False)
+    obj.hide_set(False)
+    obj.select_set(True)
+    context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode="TEXTURE_PAINT")
+    ip.mode = keep[0]
+    if keep[0] == "IMAGE" and keep[1] is not None:
+        ip.canvas = keep[1]
+    return True
+
+
+def switching(scene):
+    import time
+    return float(scene.get("pop_paint_switching", 0.0)) > time.time()
+
+
+class POPUP_OT_paint_hover(bpy.types.Operator):
+    """While painting: paint whichever of the folded card and the flat
+    layout is under the pointer (switched between strokes, never during)"""
+    bl_idname = "popup.paint_hover"
+    bl_label = "Paint Flat or Folded"
+
+    def invoke(self, context, event):
+        if not painting(context) or context.window is None:
+            return {"CANCELLED"}
+        self.down = False
+        context.window_manager.modal_handler_add(self)
+        return {"RUNNING_MODAL"}
+
+    def _under(self, context, event):
+        from bpy_extras import view3d_utils
+        for area in context.window.screen.areas:
+            if area.type != "VIEW_3D":
+                continue
+            for region in area.regions:
+                if region.type != "WINDOW":
+                    continue
+                x, y = event.mouse_x - region.x, event.mouse_y - region.y
+                if not (0 <= x < region.width and 0 <= y < region.height):
+                    continue
+                rv3d = area.spaces.active.region_3d
+                o = view3d_utils.region_2d_to_origin_3d(region, rv3d, (x, y))
+                d = view3d_utils.region_2d_to_vector_3d(region, rv3d, (x, y))
+                dg = context.evaluated_depsgraph_get()
+                hit, _loc, _n, _i, obj, _m = context.scene.ray_cast(dg, o, d)
+                return obj.original if hit and obj is not None else None
+        return None
+
+    def modal(self, context, event):
+        if not painting(context) and not switching(context.scene):
+            return {"FINISHED"}
+        if event.type in ("LEFTMOUSE", "PEN") :
+            self.down = event.value == "PRESS"
+        elif event.type == "MOUSEMOVE" and not self.down:
+            try:
+                obj = self._under(context, event)
+                st = context.scene.popup
+                if obj in (st.card, st.layout):
+                    paint_switch(context, obj)
+            except Exception:
+                pass  # never get in the way of painting
+        return {"PASS_THROUGH"}
 
 
 def paint_images(scene):
@@ -689,6 +767,11 @@ class POPUP_OT_paint(bpy.types.Operator):
         _a, others = paint_images(sc)
         if not (others and ip.mode == "IMAGE" and ip.canvas in others):
             _paint_into_art(sc)  # unless a paint layer was already in use
+        if context.window is not None and not bpy.app.background:
+            try:
+                bpy.ops.popup.paint_hover("INVOKE_DEFAULT")
+            except RuntimeError:
+                pass
         return {"FINISHED"}
 
 
@@ -1573,7 +1656,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_paint_layers, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_paint_layers, POPUP_OT_paint_hover, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

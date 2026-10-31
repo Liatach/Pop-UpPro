@@ -46,6 +46,11 @@ assert ops.painting(bpy.context)
 now = ops.painting_into(sc)
 assert now is not None and now != art_img and now.source == "TILED", now
 print("Paint System layers over the paper, painting into", now.name)
+from popup_pro import ui  # noqa: E402
+ext = ui._ps_module("panels.extras_panels")
+assert ext is not None and callable(ext.draw_brush_color_settings) and callable(ext.draw_brush_settings)
+assert hasattr(bpy.types, "MAT_PT_Layers") and bpy.types.MAT_PT_Layers.poll(bpy.context)
+print("its colour, brush and layer panels are found to draw in ours")
 bpy.ops.popup.paint_erase()
 assert ops.painting_into(sc) == art_img, "erasing works on the paper"
 bpy.ops.popup.paint_into(into="OTHER")

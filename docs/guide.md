@@ -355,8 +355,9 @@ go *Through* to its background.
 Most pop-ups straddle the card's spine. To stand one in the middle of a
 page, give it a fold of its own that opens just like the spine:
 
-* **Strap** (Add menu, under the box fold; [Tutorial 9](https://www.youtube.com/watch?v=AMbeFT8L7oI)):
-  a strip glued across the spine, a box fold with equal sides. Open flat,
+* **Strap** ([Tutorial 9](https://www.youtube.com/watch?v=AMbeFT8L7oI)): a box fold
+  with **Strap (lies flat)** ticked, so its two sides stay equal (one
+  **Width Each Side**). Untick it for an ordinary box fold again. Open flat,
   it lies on the pages; its two glue folds are **gullies** off the centre,
   each opening exactly as the spine does. With the strap selected, the Add
   menu offers cubes, tubes, V-folds, boxes and stand-ups **on top** (the left
@@ -669,9 +670,14 @@ mesh, no rig). So:
   The paint goes into **Pop-up Art**, the paper itself (a UDIM image, one
   tile per piece, tile 1001 the card). **Erase** switches the brush to rub
   the paper see-through, for holes and trims (see Holes and Shaping), and
-  is switched back when you stop painting. To paint the
-  print layout instead, use **View Layout** and paint the Layout object with
-  Blender's own Texture Paint.
+  is switched back when you stop painting. The folded card and the flat
+  layout are the same paper: while Paint is on, whichever is under the
+  pointer is the one you paint, switching between strokes, so you can
+  paint either without stopping.
+  * **Colour**, **Brush** and (with Paint System layers) **Layers** fold
+    out under Paint while you paint. With Paint System on they are its own
+    colour, brush and layer panels; without it, Blender's colour, size,
+    strength and blend.
   * **Paper / Layer** shows when the paper has a paint layer on top, such as
     Paint System's: what the brush paints into. The Layer button shows the
     layer's name; *Paper* is the one for holes.

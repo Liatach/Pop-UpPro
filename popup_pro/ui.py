@@ -57,7 +57,7 @@ class POPUP_MT_add(bpy.types.Menu):
 
     def draw(self, context):
         for k, name in (("VFOLD", "V-fold"), ("MOUTH", "Mouth (cut in)"),
-                        ("BOX", "Box Fold (glued strip)"),
+                        ("BOX", "Box Fold / Strap (glued strip)"),
                         ("BOXCUT", "Box Layer (cut in)"),
                         ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap"),
                         ("TUBE", "Tube (parallel strips)"), ("TETHER", "Tether"),
@@ -68,10 +68,6 @@ class POPUP_MT_add(bpy.types.Menu):
                 op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
                                           icon=KIND_ICON[k])
                 op.kind, op.variant = "VFOLD", "ASYM"
-            if k == "BOX":
-                op = self.layout.operator("popup.add", text="Strap (off-centre gullies)",
-                                          icon=KIND_ICON[k])
-                op.kind, op.variant = "BOX", "STRAP"
         st = context.scene.popup
         if st.stage_master is None:
             self.layout.operator("popup.add", text="Stage Set (V-fold)",
@@ -588,8 +584,13 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     right = right.replace("Up Wall", "Down Wall")
             else:
                 left, right = "Width Left", "Width Right"
-            col.prop(m, "height", text=left)
-            col.prop(m, "depth", text=right)
+            if m.kind == "BOX" and not joint:
+                col.prop(m, "strap")
+            if m.kind == "BOX" and m.strap and not joint:
+                col.prop(m, "height", text="Width Each Side")
+            else:
+                col.prop(m, "height", text=left)
+                col.prop(m, "depth", text=right)
             if m.kind in ("BOX", "BOXCUT"):
                 col.prop(m, "slant")
             if m.kind == "BOX":
@@ -1013,6 +1014,72 @@ def _paint_controls(lay, context, big=False):
         row.label(text=f"Painting into {now.name}" if now else "Painting into nothing",
                   icon="ERROR")
         row.operator("popup.paint_into", text="Paper", icon="FILE_BLANK").into = "ART"
+    if big:
+        c = lay.column(align=True)
+        c.scale_y = 0.8
+        c.label(text="Hover over the flat layout or the folded card", icon="INFO")
+        c.label(text="to paint on either")
+        _brush_sections(lay, context)
+
+
+def _ps_module(suffix):
+    """A module of Paint System (a separate extension), if it's on."""
+    import sys
+    for name, mod in list(sys.modules.items()):
+        if name.endswith(suffix) and "paint_system" in name.lower().replace("-", "_"):
+            return mod
+    return None
+
+
+def _brush_sections(lay, context):
+    """While painting: colour, brush and (with Paint System) layers, right
+    here; Paint System's own panels when it's on, Blender's basics if not."""
+    from .ops import ps_group_node
+    sc = context.scene
+    ext = _ps_module("panels.extras_panels")
+    ip = sc.tool_settings.image_paint
+    brush = getattr(ip, "brush", None)
+    try:
+        from bl_ui.properties_paint_common import UnifiedPaintPanel as U
+    except ImportError:
+        U = None
+    sections = [("popup_paint_colour", "Colour", "COLOR"), ("popup_paint_brush", "Brush",
+                                                             "BRUSH_DATA")]
+    if ps_group_node(sc) is not None and hasattr(bpy.types, "MAT_PT_Layers"):
+        sections.append(("popup_paint_layers", "Layers", "RENDERLAYERS"))
+    for key, title, icon in sections:
+        head, body = lay.panel(key, default_closed=key != "popup_paint_colour")
+        head.label(text=title, icon=icon)
+        if body is None:
+            continue
+        try:
+            if key == "popup_paint_colour":
+                if ext is not None and ext.poll_brush_color_settings(context):
+                    ext.draw_brush_color_settings(body, context)
+                elif U is not None and brush is not None:
+                    U.prop_unified_color_picker(body, context, brush, "color", value_slider=True)
+                    U.prop_unified_color(body, context, brush, "color", text="")
+            elif key == "popup_paint_brush":
+                if ext is not None and ext.poll_brush_settings(context):
+                    ext.draw_brush_settings(body, context)
+                elif U is not None and brush is not None:
+                    U.prop_unified(body, context, brush, "size", unified_name="use_unified_size",
+                                   pressure_name="use_pressure_size", text="Size", slider=True)
+                    U.prop_unified(body, context, brush, "strength",
+                                   unified_name="use_unified_strength",
+                                   pressure_name="use_pressure_strength", text="Strength",
+                                   slider=True)
+                    body.prop(brush, "blend", text="Blend")
+            else:
+                import types
+                P = bpy.types.MAT_PT_Layers
+                if P.poll(context):
+                    P.draw(types.SimpleNamespace(layout=body, parse_context=P.parse_context),
+                           context)
+                else:
+                    body.label(text="Select a layer group in Paint System's panel")
+        except Exception as ex:  # someone else's interface: never break ours
+            body.label(text=f"Couldn't show this here ({type(ex).__name__})", icon="ERROR")
 
 
 def _header_done(self, context):

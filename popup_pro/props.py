@@ -482,6 +482,19 @@ class PopupLine(bpy.types.PropertyGroup):
         return [(x + self.move_x, y + self.move_y) for x, y in pts]
 
 
+def _strap(self, context):
+    """Strap on: both sides the same, named a strap; off: a box fold again."""
+    import re
+    from .ops import unique_label
+    st = context.scene.popup
+    if self.strap:
+        self["depth"] = self.height
+    base, other = ("Strap", "Box fold") if self.strap else ("Box fold", "Strap")
+    if re.fullmatch(re.escape(other) + r" \d+", self.label):
+        self.label = unique_label(st.mechs, base, self)
+    _changed(self, context)
+
+
 class PopupMech(bpy.types.PropertyGroup):
     uid: IntProperty()
     kind: EnumProperty(items=KINDS, update=_changed)
@@ -651,6 +664,10 @@ class PopupMech(bpy.types.PropertyGroup):
     gully: IntProperty(name="Gully", default=1, min=1, max=5, update=lambda s, c: _fold_changed(s, c),
                        description="Which valley of a strap with several peaks, counted from "
                        "the left")
+    strap: BoolProperty(name="Strap (lies flat)", default=False, update=lambda s, c: _strap(s, c),
+                        description="Equal sides, so it lies flat on the pages when the card "
+                        "is open: its two glue folds become gullies off the centre that "
+                        "open just like the spine, for pop-ups away from it (Tutorial 9)")
     pleat: FloatProperty(name="Concertina", default=0.0, min=0.0, max=170.0,
                          update=_changed,
                          description="For extra creases that leave the paper free to fold "
@@ -796,7 +813,8 @@ class PopupMech(bpy.types.PropertyGroup):
                             for ln in self.lines])
         else:
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
-                     width=self.width, height=self.height, depth=self.depth,
+                     width=self.width, height=self.height,
+                     depth=self.height if (self.strap and self.kind == "BOX") else self.depth,
                      slant=self.slant, peaks=self.peaks if self.kind == "BOX" else 1,
                      pleat=self.pleat,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
