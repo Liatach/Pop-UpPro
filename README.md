@@ -36,7 +36,7 @@ Stacked box layers with battlements, a spire and a hinged door, and parallelogra
 
 <!-- SHOT: strap Peaks 3 with cubes in two valleys; a slanted strap; asym V-fold with a box on its crease. Showcase look, ~110° open. -->
 ### Off the centre
-![Off the centre](docs/images/cubes%20on%20an%20offset%20strap.gifex_offcentre.png)
+![Off the centre](docs/images/cubes%20on%20an%20offset%20strap.gif)
 
 A strap with three peaks carrying cubes in its valleys, a slanted strap, and an asymmetric V-fold leaning a tower to one side.
 
@@ -192,7 +192,10 @@ Tests run with `pip install bpy`: `python tests/test_core.py`, then each
 
 GPL-3.0-or-later. By Kim Lang / [Liatach Makes](https://kim-lang.com) with LLM coding assistance.
 Built on the shoulders of giants. This will always be free! But if you'd to support its development please consider buying me a coffee:
+
 <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Buy me a coffee', '#72a4f2', 'W5S523ZBSF');kofiwidget2.draw();</script> 
+
+<a href='https://ko-fi.com/W5S523ZBSF' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi6.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
 A companion to [Papercraft Pro](https://github.com/Liatach/papercraft-pro).
 Pop-Up Pro is not affiliated with or endorsed by the Blender Foundation.
