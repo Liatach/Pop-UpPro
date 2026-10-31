@@ -21,6 +21,11 @@ def schedule(scene, delay=0.15):
     _pending.add(name)
 
     def run():
+        try:
+            if bpy.context.mode == "PAINT_TEXTURE":
+                return 0.5  # never rebuild under the brush: once painting stops
+        except AttributeError:
+            pass
         _pending.discard(name)
         sc = bpy.data.scenes.get(name)
         if sc is None:

@@ -897,9 +897,13 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
         col.label(text="Paint (Texture Paint / Paint System)")
         if bpy.data.images.get(N(context.scene, "Pop-up Art")) is None:
             col.operator("popup.add_art", icon="TEXTURE")
-        row = col.row(align=True)
-        row.operator("popup.paint", text="Paint Flat", icon="BRUSH_DATA").target = "LAYOUT"
-        row.operator("popup.paint", text="Paint Folded", icon="BRUSH_DATA").target = "CARD"
+        if _painting(context):
+            _paint_controls(col, context, big=True)
+        else:
+            row = col.row(align=True)
+            row.scale_y = 1.3
+            row.operator("popup.paint", text="Paint Folded", icon="BRUSH_DATA").target = "CARD"
+            row.operator("popup.paint", text="Paint Flat", icon="BRUSH_DATA").target = "LAYOUT"
         col.prop(st, "true_colours")
         from . import images
         images.draw(lay, context)
@@ -941,12 +945,53 @@ def _drawing(context):
         return False
 
 
+def _painting(context):
+    from .ops import painting
+    try:
+        return painting(context)
+    except (AttributeError, ReferenceError):
+        return False
+
+
+def _paint_controls(lay, context, big=False):
+    """While painting: Folded / Flat, what the brush paints into, Done."""
+    from .ops import paint_images, painting_into
+    sc = context.scene
+    flat = bool(sc.get("pop_paint_flat", False))
+    row = lay.row(align=True)
+    if big:
+        row.scale_y = 1.2
+    row.operator("popup.paint", text="Folded", icon="MOD_SIMPLEDEFORM",
+                 depress=not flat).target = "CARD"
+    row.operator("popup.paint", text="Flat", icon="MESH_PLANE", depress=flat).target = "LAYOUT"
+    art_img, others = paint_images(sc)
+    now = painting_into(sc)
+    row = lay.row(align=True)
+    is_art = now is not None and now == art_img
+    row.operator("popup.paint_into", text="Paper" if not big else "Paper (holes: erase alpha)",
+                 icon="FILE_BLANK", depress=is_art).into = "ART"
+    if others:
+        row.operator("popup.paint_into", text=(now.name if (now and not is_art) else "Layer"),
+                     icon="RENDERLAYERS", depress=not is_art).into = (
+            now.name if (now is not None and not is_art) else "OTHER")
+    elif not is_art:
+        row.label(text=f"into {now.name}" if now else "into nothing", icon="ERROR")
+    r = lay.row(align=True)
+    r.alert = True
+    if big:
+        r.scale_y = 1.4
+    r.operator("popup.done_painting", icon="CHECKMARK")
+
+
 def _header_done(self, context):
-    """While drawing on the layout, a Done button in the 3D view's header."""
+    """While drawing or painting on the card, its controls and a Done button
+    in the 3D view's header."""
     if _drawing(context):
         row = self.layout.row()
         row.alert = True
         row.operator("popup.done_drawing", icon="CHECKMARK")
+    elif _painting(context):
+        _paint_controls(self.layout.row(align=True), context)
 
 
 def register():

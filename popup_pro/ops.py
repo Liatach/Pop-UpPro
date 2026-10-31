@@ -493,7 +493,7 @@ class POPUP_OT_add_art(bpy.types.Operator):
         return {"FINISHED"}
 
 
-def _remember_view(context):
+def _remember_view(context, painting_card=False):
     """Before drawing on the layout: the view and active object to go back to."""
     sc = context.scene
     _area, rv3d = _view3d(context)
@@ -502,8 +502,33 @@ def _remember_view(context):
                                      dist=rv3d.view_distance, persp=rv3d.view_perspective)
     act = context.view_layer.objects.active
     if act is not None and "pop_active_before" not in sc and not act.name.startswith(
-            "Pop-up Holes"):
+            "Pop-up Holes") and not (painting_card and act == sc.popup.card):
         sc["pop_active_before"] = act.name
+
+
+def _restore_view(context, keep=False):
+    """Back to the view (and, unless keep, the active object) from before."""
+    from mathutils import Quaternion as Q
+    sc = context.scene
+    v = sc.get("pop_view_before")
+    _area, rv3d = _view3d(context)
+    if v is not None and rv3d is not None:
+        rv3d.view_rotation = Q(v["rot"])
+        rv3d.view_location = Vector(v["loc"])
+        rv3d.view_distance = v["dist"]
+        rv3d.view_perspective = v["persp"]
+    if keep:
+        return
+    name = sc.get("pop_active_before")
+    ob = bpy.data.objects.get(name) if name else None
+    if ob is not None and ob.name in context.view_layer.objects:
+        for o in context.selected_objects:
+            o.select_set(False)
+        ob.select_set(True)
+        context.view_layer.objects.active = ob
+    for k in ("pop_view_before", "pop_active_before"):
+        if k in sc:
+            del sc[k]
 
 
 def drawing(context):
@@ -523,30 +548,12 @@ class POPUP_OT_done_drawing(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from mathutils import Quaternion as Q
-        sc = context.scene
         if context.mode != "OBJECT":
             try:
                 bpy.ops.object.mode_set(mode="OBJECT")
             except RuntimeError:
                 pass
-        v = sc.get("pop_view_before")
-        _area, rv3d = _view3d(context)
-        if v is not None and rv3d is not None:
-            rv3d.view_rotation = Q(v["rot"])
-            rv3d.view_location = Vector(v["loc"])
-            rv3d.view_distance = v["dist"]
-            rv3d.view_perspective = v["persp"]
-        name = sc.get("pop_active_before")
-        ob = bpy.data.objects.get(name) if name else None
-        for o in context.selected_objects:
-            o.select_set(False)
-        if ob is not None and ob.name in context.view_layer.objects:
-            ob.select_set(True)
-            context.view_layer.objects.active = ob
-        for k in ("pop_view_before", "pop_active_before"):
-            if k in sc:
-                del sc[k]
+        _restore_view(context)
         return {"FINISHED"}
 
 
@@ -559,13 +566,115 @@ def _view3d(context):
     return None, None
 
 
+def painting(context):
+    """In Texture Paint on this card right now?"""
+    st = context.scene.popup
+    obj = context.view_layer.objects.active if context.view_layer else None
+    return context.mode == "PAINT_TEXTURE" and obj is not None and obj == st.card
+
+
+def paint_images(scene):
+    """(the paper's art image, other images the card's material paints with,
+    e.g. Paint System layers)"""
+    st = scene.popup
+    art_img = bpy.data.images.get(N(scene, art.ART_IMAGE))
+    others, seen = [], set()
+
+    def walk(tree):
+        for n in tree.nodes:
+            if n.type == "GROUP" and n.node_tree is not None and n.node_tree.name not in seen:
+                seen.add(n.node_tree.name)
+                walk(n.node_tree)
+            elif n.type == "TEX_IMAGE" and n.image is not None and n.image != art_img \
+                    and n.image not in others:
+                others.append(n.image)
+    mat = st.card.data.materials[0] if st.card is not None and st.card.data.materials else None
+    if mat is not None and mat.use_nodes:
+        walk(mat.node_tree)
+    return art_img, others
+
+
+def painting_into(scene):
+    """The image the brush paints into now."""
+    ip = scene.tool_settings.image_paint
+    if ip.mode == "IMAGE":
+        return ip.canvas
+    st = scene.popup
+    mat = st.card.data.materials[0] if st.card is not None and st.card.data.materials else None
+    if mat is not None and mat.use_nodes:
+        n = mat.node_tree.nodes.active
+        if n is not None and n.type == "TEX_IMAGE":
+            return n.image
+    return None
+
+
+def _paint_into_art(scene):
+    """Brush into the paper itself (Pop-up Art): colour, and erased alpha
+    for holes and trims. What else was being painted is remembered."""
+    st = scene.popup
+    ip = scene.tool_settings.image_paint
+    now = painting_into(scene)
+    art_img = bpy.data.images.get(N(scene, art.ART_IMAGE))
+    if now is not None and now != art_img:
+        scene["pop_paint_other"] = now.name
+    mat = st.card.data.materials[0] if st.card.data.materials else None
+    if mat is not None and mat.use_nodes:
+        node = next((n for n in mat.node_tree.nodes if n.type == "TEX_IMAGE" and
+                     n.image == art_img), None)
+        if node is not None:
+            mat.node_tree.nodes.active = node
+    ip.mode = "MATERIAL"
+
+
+def _paint_into_other(scene, name=None):
+    ip = scene.tool_settings.image_paint
+    img = bpy.data.images.get(name or scene.get("pop_paint_other", ""))
+    if img is None:
+        _a, others = paint_images(scene)
+        img = others[0] if others else None
+    if img is not None:
+        ip.mode = "IMAGE"
+        ip.canvas = img
+
+
+def _paint_view(context, flat):
+    """Flat or folded, without leaving Texture Paint: the card's rig is
+    switched off to show its flat shape (the print layout), and the Layout
+    object, which would sit in the same place, is hidden meanwhile."""
+    sc = context.scene
+    st = sc.popup
+    mod = st.card.modifiers.get("Pop-up Rig")
+    if mod is not None:
+        mod.show_viewport = not flat
+    if st.layout is not None:
+        st.layout.hide_set(flat)
+    sc["pop_paint_flat"] = bool(flat)
+    _area, rv3d = _view3d(context)
+    if rv3d is None:
+        return
+    if flat:
+        meta = live.meta(st.rig)
+        if meta:
+            sh = meta["sheets"][0]
+            mmu = meta["mm_per_unit"]
+            rv3d.view_rotation = Quaternion((1, 0, 0, 0))
+            rv3d.view_location = Vector(((sh["origin"][0] + sh["size"][0] / 2) / mmu,
+                                         (sh["origin"][1] + sh["size"][1] / 2) / mmu, 0))
+            rv3d.view_distance = max(sh["size"]) / mmu * 1.1
+            rv3d.view_perspective = "ORTHO"
+    else:
+        _restore_view(context, keep=True)
+
+
 class POPUP_OT_paint(bpy.types.Operator):
-    """Paint the artwork in Texture Paint mode, on the flat layout or on the
-    folded card"""
+    """Paint the artwork (Texture Paint on the card). Flat shows the print
+    layout, Folded the card as it stands; switch any time while painting.
+    Done Painting finishes"""
     bl_idname = "popup.paint"
     bl_label = "Paint"
     bl_options = {"REGISTER", "UNDO"}
-    target: EnumProperty(items=[("LAYOUT", "Flat Layout", ""), ("CARD", "Folded Card", "")])
+    target: EnumProperty(items=[("LAYOUT", "Flat", "Paint the flat layout"),
+                                ("CARD", "Folded", "Paint the folded card")])
 
     @classmethod
     def poll(cls, context):
@@ -574,33 +683,80 @@ class POPUP_OT_paint(bpy.types.Operator):
     def execute(self, context):
         sc = context.scene
         st = sc.popup
-        if bpy.data.images.get(N(sc, art.ART_IMAGE)) is None:
-            art.add_art_texture(sc)
-        if context.mode != "OBJECT":
-            bpy.ops.object.mode_set(mode="OBJECT")
-        obj = st.layout if self.target == "LAYOUT" else st.card
-        for o in context.selected_objects:
-            o.select_set(False)
-        obj.hide_set(False)
-        obj.select_set(True)
-        context.view_layer.objects.active = obj
-        bpy.ops.object.mode_set(mode="TEXTURE_PAINT")
-        from . import colours
-        colours.enter(sc)  # (also done on any switch into Texture Paint)
-        ip = sc.tool_settings.image_paint
-        ip.mode = "MATERIAL"
-        if self.target == "LAYOUT":
-            area, rv3d = _view3d(context)
-            if rv3d is not None:
-                meta = live.meta(st.rig)
-                sh = meta["sheets"][0]
-                mmu = meta["mm_per_unit"]
-                rv3d.view_rotation = Quaternion((1, 0, 0, 0))
-                rv3d.view_location = Vector(((sh["origin"][0] + sh["size"][0] / 2) / mmu,
-                                             (sh["origin"][1] + sh["size"][1] / 2) / mmu, 0))
-                rv3d.view_distance = max(sh["size"]) / mmu * 1.1
-                rv3d.view_perspective = "ORTHO"
+        if not painting(context):
+            if bpy.data.images.get(N(sc, art.ART_IMAGE)) is None:
+                art.add_art_texture(sc)
+            _remember_view(context, painting_card=True)
+            if context.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+            obj = st.card
+            for o in context.selected_objects:
+                o.select_set(False)
+            obj.hide_set(False)
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
+            bpy.ops.object.mode_set(mode="TEXTURE_PAINT")
+            from . import colours
+            colours.enter(sc)  # (also done on any switch into Texture Paint)
+            ip = sc.tool_settings.image_paint
+            _a, others = paint_images(sc)
+            if not (others and ip.mode == "IMAGE" and ip.canvas in others):
+                _paint_into_art(sc)  # unless a paint layer was already in use
+        _paint_view(context, self.target == "LAYOUT")
         return {"FINISHED"}
+
+
+class POPUP_OT_paint_into(bpy.types.Operator):
+    """Choose what the brush paints into: the paper itself (its colour, and
+    erase alpha to cut holes and trims) or a paint layer on top of it (Paint
+    System's, colour only)"""
+    bl_idname = "popup.paint_into"
+    bl_label = "Paint Into"
+    bl_options = {"REGISTER", "UNDO"}
+    into: StringProperty(default="ART")
+
+    def execute(self, context):
+        if self.into == "ART":
+            _paint_into_art(context.scene)
+        else:
+            _paint_into_other(context.scene, None if self.into == "OTHER" else self.into)
+        return {"FINISHED"}
+
+
+class POPUP_OT_done_painting(bpy.types.Operator):
+    """Finish painting: back to Object Mode, the card folded again and the
+    view you had. Painted see-through areas are cut now (Cut Painted Areas)"""
+    bl_idname = "popup.done_painting"
+    bl_label = "Done Painting"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        sc = context.scene
+        st = sc.popup
+        if context.mode != "OBJECT":
+            try:
+                bpy.ops.object.mode_set(mode="OBJECT")
+            except RuntimeError:
+                pass
+        from . import colours
+        colours.leave(sc)  # (also done on any switch out of Texture Paint)
+        _end_paint_view(sc)
+        _restore_view(context)
+        return {"FINISHED"}
+
+
+def _end_paint_view(sc):
+    st = sc.popup
+    mod = st.card.modifiers.get("Pop-up Rig") if st.card is not None else None
+    if mod is not None:
+        mod.show_viewport = True
+    if st.layout is not None and sc.get("pop_paint_flat") is not None:
+        try:
+            st.layout.hide_set(False)
+        except RuntimeError:
+            pass
+    if "pop_paint_flat" in sc:
+        del sc["pop_paint_flat"]
 
 
 class POPUP_OT_sketch(bpy.types.Operator):
@@ -1296,7 +1452,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

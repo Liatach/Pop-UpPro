@@ -475,6 +475,11 @@ def schedule_cut(scene):
     _pending.add(name)
 
     def run():
+        try:
+            if bpy.context.mode == "PAINT_TEXTURE":
+                return 0.5  # not under the brush: once painting stops
+        except AttributeError:
+            pass
         _pending.discard(name)
         sc = bpy.data.scenes.get(name)
         if sc is not None and sc.popup.rig is not None:

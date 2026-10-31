@@ -784,6 +784,8 @@ def _mode_changed():
                     colours.enter(sc)
                 elif was == "PAINT_TEXTURE":
                     colours.leave(sc)
+                    from .ops import _end_paint_view
+                    _end_paint_view(sc)  # left by any route: fold the card again
             except Exception:
                 pass
         if was == "PAINT_TEXTURE" and mode != "PAINT_TEXTURE" and sc is not None \

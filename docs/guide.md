@@ -652,9 +652,21 @@ Everything is one mesh, **Pop-up Card**, deformed by **Pop-up Rig**. Its rest
 shape is the print layout, which you also see as **Pop-up Layout** (same
 mesh, no rig). So:
 
-* **Paint Flat / Paint Folded** opens Texture Paint on the layout or on the
-  folded card. The paint goes into **Pop-up Art**, a UDIM image with one
-  tile per piece (tile 1001 is the card), and shows on both.
+* **Paint Folded / Paint Flat** starts painting: Texture Paint on the card,
+  folded or laid out flat as it prints. While you paint, the panel (and the
+  3D view's header) shows:
+  * **Folded / Flat**: switch between them at any time without leaving
+    Texture Paint (flat, the card's rig is switched off so it lies as its
+    print layout, and the Layout object steps aside).
+  * **Paper / Layer**: what the brush paints into. *Paper* is **Pop-up
+    Art**, the paper itself (a UDIM image, one tile per piece, tile 1001 the
+    card): its colour, and erased alpha cuts holes and trims. *Layer* is a
+    paint layer on top of it, such as Paint System's: colour only. The
+    button shows the layer's name.
+  * **Done Painting**: back to Object Mode, the card folded and the view you
+    had; see-through areas painted on the paper are cut then.
+
+  Rebuilds wait while you paint, so the card never changes under the brush.
 * **True Colours While Painting** (on by default): in Texture Paint the paper
   shows its art unlit (EEVEE and Material Preview; Solid views show flat
   texture colours) and the view transform is set to Standard. What you see
@@ -663,8 +675,10 @@ mesh, no rig). So:
   AgX view and lighting, a re-sampled colour comes back duller and darker
   each time. Your view transform and shading come back when you leave
   Texture Paint.
-* **Paint System**: paint the Layout or Card object and choose the
-  **PopupArt** UV map for its layers. Then **Bake Art for Print** flattens
+* **Paint System**: paint the Card object (Paint Folded or Flat, then
+  *Layer*) and choose the **PopupArt** UV map for its layers. Holes and
+  trims still come from the paper: switch to *Paper* to erase them. True
+  Colours leaves a material drawn by Paint System alone. Then **Bake Art for Print** flattens
   whatever the material shows into **Pop-up Print** for the export. The bake
   works on temporary copies of the layout and its materials, so your
   materials and render settings are never changed. It guards against two

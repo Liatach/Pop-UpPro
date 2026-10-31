@@ -48,6 +48,12 @@ def _unlit(mat):
     if out is None or bsdf is None:
         return None
     was = out.inputs["Surface"].links[0].from_socket if out.inputs["Surface"].links else None
+    if was is not None and was.node != bsdf:
+        # something else draws the paper (Paint System's layers, your own
+        # nodes): leave the material alone, or its layers would vanish
+        # while painting; the flat, texture-coloured Solid view still shows
+        # true colours
+        return None
     emit = nt.nodes.get(EMIT) or nt.nodes.new("ShaderNodeEmission")
     emit.name = emit.label = EMIT
     mix = nt.nodes.get(MIX) or nt.nodes.new("ShaderNodeMixShader")
@@ -77,12 +83,25 @@ def _relit(mat, was):
     nt = mat.node_tree
     out = next((n for n in nt.nodes if n.type == "OUTPUT_MATERIAL" and n.is_active_output),
                None)
-    if out is not None and was is not None:
+    links = out.inputs["Surface"].links if out is not None else ()
+    if was is not None and links and links[0].from_node.name == MIX:
+        # only while ours still drives the output: if something else took
+        # it over meanwhile (Paint System's layers), it keeps it
         nt.links.new(was, out.inputs["Surface"])
-    for name in (EMIT, MIX, CLEAR):
-        n = nt.nodes.get(name)
-        if n is not None:
-            nt.nodes.remove(n)
+    ours = {nt.nodes.get(k) for k in (EMIT, MIX, CLEAR)} - {None}
+    # keep any that other nodes have come to rely on (a paint layer stack
+    # built while painting), and whatever of ours feeds those
+    keep = {n for n in ours if any(l.to_node not in ours and l.to_node != out
+                                   for o in n.outputs for l in o.links)}
+    grew = True
+    while grew:
+        grew = False
+        for n in ours - keep:
+            if any(l.to_node in keep for o in n.outputs for l in o.links):
+                keep.add(n)
+                grew = True
+    for n in ours - keep:
+        nt.nodes.remove(n)
 
 
 def enter(scene):
