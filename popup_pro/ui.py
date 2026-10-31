@@ -959,8 +959,21 @@ def _paint_controls(lay, context, big=False):
     row.operator("popup.paint", text="Painting" if on else "Paint", icon="BRUSH_DATA",
                  depress=on).target = "TOGGLE"
     if not on:
-        if big and not sc.popup.auto_holes:
-            lay.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
+        if big:
+            if not sc.popup.auto_holes:
+                lay.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
+            from .ops import PS_URL, ps_available, ps_group_node
+            if ps_group_node(sc) is not None:
+                c = lay.column(align=True)
+                c.scale_y = 0.8
+                c.label(text="Paint layers: Paint System", icon="RENDERLAYERS")
+                c.label(text="Add and arrange them in its panel")
+            elif ps_available():
+                lay.operator("popup.paint_layers", text="Add Paint Layers (Paint System)",
+                             icon="RENDERLAYERS")
+            else:
+                lay.operator("wm.url_open", text="Paint layers: get Paint System",
+                             icon="URL").url = PS_URL
         return
     from .ops import erasing
     art_img, others = paint_images(sc)

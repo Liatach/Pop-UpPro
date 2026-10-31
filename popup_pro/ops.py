@@ -728,6 +728,92 @@ class POPUP_OT_paint_erase(bpy.types.Operator):
         return {"FINISHED"}
 
 
+PS_URL = "https://extensions.blender.org/add-ons/paint-system/"
+
+
+def ps_available():
+    """Is Paint System (a separate extension) installed and on?"""
+    try:
+        bpy.ops.paint_system.new_group.get_rna_type()
+        return True
+    except (AttributeError, KeyError, RuntimeError):
+        return False
+
+
+def ps_group_node(scene):
+    """The Paint System layer group on the card's paper, if it has one."""
+    st = scene.popup
+    mat = st.card.data.materials[0] if st.card is not None and st.card.data.materials else None
+    if mat is None or not mat.use_nodes:
+        return None
+    return next((n for n in mat.node_tree.nodes if n.type == "GROUP" and n.node_tree is not None
+                 and n.node_tree.name.startswith("PS ")), None)
+
+
+class POPUP_OT_paint_layers(bpy.types.Operator):
+    """Add paint layers over the paper with Paint System (a separate, free
+    extension): its Paint Over setup on the card, painting through the
+    card's own UV map so layers line up with the print. Holes still come
+    from the paper"""
+    bl_idname = "popup.paint_layers"
+    bl_label = "Add Paint Layers"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.card is not None and ps_available()
+
+    def execute(self, context):
+        from . import colours
+        sc = context.scene
+        st = sc.popup
+        if ps_group_node(sc) is not None:
+            self.report({"INFO"}, "The paper already has Paint System layers")
+            return {"CANCELLED"}
+        if "EEVEE" not in sc.render.engine:
+            self.report({"ERROR"}, "Paint System's Paint Over needs EEVEE as the render "
+                        "engine (Set Up Scene sets it)")
+            return {"CANCELLED"}
+        if painting(context):
+            bpy.ops.popup.done_painting()
+        colours.leave(sc)  # the layers go over the real paper, not the unlit preview
+        if bpy.data.images.get(N(sc, art.ART_IMAGE)) is None:
+            art.add_art_texture(sc)
+        if context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        card = st.card
+        for o in context.selected_objects:
+            o.select_set(False)
+        card.hide_set(False)
+        card.select_set(True)
+        context.view_layer.objects.active = card
+        before = set(bpy.data.images)
+        try:
+            r = bpy.ops.paint_system.new_group(
+                template="PAINT_OVER", group_name="Pop-up Layers", coord_type="UV",
+                uv_map_name=build.ART_UV, use_paint_system_uv=False, checked_coord_type=True,
+                disable_show_backface=False, multiple_objects=False, add_layers=True)
+        except (RuntimeError, TypeError) as ex:
+            self.report({"ERROR"}, f"Paint System couldn't add layers: {ex}")
+            return {"CANCELLED"}
+        if "FINISHED" not in r:
+            return {"CANCELLED"}
+        # erased paper shows see-through through the layers too
+        g = ps_group_node(sc)
+        art_img = bpy.data.images.get(N(sc, art.ART_IMAGE))
+        mat = card.data.materials[0]
+        tex = next((n for n in mat.node_tree.nodes if n.type == "TEX_IMAGE" and
+                    n.image == art_img), None)
+        if g is not None and tex is not None and "Color Alpha" in g.inputs:
+            mat.node_tree.links.new(tex.outputs["Alpha"], g.inputs["Color Alpha"])
+        new = [i for i in bpy.data.images if i not in before]
+        bpy.ops.popup.paint(target="CARD")
+        if new:
+            _paint_into_other(sc, new[0].name)
+        self.report({"INFO"}, "Paint System layers added: paint, or manage them in its panel")
+        return {"FINISHED"}
+
+
 class POPUP_OT_paint_into(bpy.types.Operator):
     """Choose what the brush paints into: the paper itself (its colour, and
     erase alpha to cut holes and trims) or a paint layer on top of it (Paint
@@ -1475,7 +1561,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_paint_layers, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

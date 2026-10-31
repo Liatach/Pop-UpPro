@@ -87,8 +87,10 @@ Paint flat or folded, wrap an image round a cube, then export layered SVG sheets
 * Live checks for tearing, poking through, sticking out and overlapping glue.
 
 **Art and output**
-* Paint flat or folded, sketch with Grease Pencil, or place images that wrap
-  round cubes and tubes. Art stays on the paper as it folds.
+* Paint on the card as it folds, with optional layers through
+  [Paint System](https://extensions.blender.org/add-ons/paint-system/),
+  sketch with Grease Pencil, or place images that wrap round cubes and
+  tubes. Art stays on the paper as it folds.
 * A movement test with one Open slider, on a rig that needs no Python
   auto-run.
 * Render looks: Clean, Showcase, Dawn or your own.
@@ -117,6 +119,10 @@ The mechanisms follow The Pop-Up Channel's video tutorials:
 
 Duncan Birmingham's book *Pop-Up! A Manual of Paper Mechanisms* covers them
 too, along with the mouth and jaws.
+
+Paint layers come from [Paint System](https://extensions.blender.org/add-ons/paint-system/)
+by Tawan Sunflower (GPL-3.0-or-later), a separate extension that Pop-Up Pro
+calls when it is installed.
 
 ## Roadmap
 

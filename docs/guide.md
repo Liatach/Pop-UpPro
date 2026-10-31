@@ -674,9 +674,16 @@ mesh, no rig). So:
   AgX view and lighting, a re-sampled colour comes back duller and darker
   each time. Your view transform and shading come back when you leave
   Texture Paint.
-* **Paint System**: paint the Card object (Paint, then *Layer*) and choose the **PopupArt** UV map for its layers. Holes and
-  trims still come from the paper: switch to *Paper* to erase them. True
-  Colours leaves a material drawn by Paint System alone. Then **Bake Art for Print** flattens
+* **Paint System** (a free, separate extension: Pop-Up Pro calls it, and
+  doesn't include it): with it installed, **Add Paint Layers** under Paint
+  sets up its *Paint Over* layers on the card, painting through the
+  **PopupArt** UV map so layers line up with the print, with the paper's
+  back left showing and erased paper still see-through. Add and arrange
+  layers in Paint System's own panel; *Paper / Layer* switches the brush
+  between the paper and a layer, and holes and trims still come from the
+  paper (Erase works on it). Without Paint System, the button links to it
+  on Blender Extensions. True Colours leaves a material drawn by Paint
+  System alone. Then **Bake Art for Print** flattens
   whatever the material shows into **Pop-up Print** for the export. The bake
   works on temporary copies of the layout and its materials, so your
   materials and render settings are never changed. It guards against two
