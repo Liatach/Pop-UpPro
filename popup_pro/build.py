@@ -510,6 +510,8 @@ def rebuild(scene, force=False):
                                           "fully lifted)")
     build_rig(scene, rig, model, layout, s, t0)
     ensure_solid(card, st)
+    from . import materials
+    materials.apply(scene)
     write_meta(rig, model, layout, s)
     mesh["pop_hash"] = mesh_hash(mesh)
     st.edited = False

@@ -972,6 +972,8 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
             r.operator("popup.done_drawing", icon="CHECKMARK")
         else:
             col.operator("popup.sketch", icon="GREASEPENCIL").panel = ""
+        from . import materials
+        materials.draw(lay, context)
         col = lay.column(align=True)
         col.label(text="Print")
         col.operator("popup.view_layout", icon="VIEW_ORTHO")

@@ -95,7 +95,8 @@ Paint flat or folded, wrap an image round a cube, then export layered SVG sheets
   tubes. Art stays on the paper as it folds.
 * A movement test with one Open slider, on a rig that needs no Python
   auto-run.
-* Render looks: Clean, Showcase, Dawn or your own.
+* Render looks: Clean, Showcase, Dawn or your own, and metallic, glossy or
+  glowing parts with their art kept.
 * Layered SVG sheets, reverse sides, an assembly page, and cut-only and
   crease-only files for Cricut and other cutting machines.
 * Card sizes from A6 to A3, US Letter sizes, 5×7 in and picture-book trims.

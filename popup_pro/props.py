@@ -7,6 +7,7 @@ from bpy.props import (BoolProperty, CollectionProperty, EnumProperty,
 
 from . import live
 from .images import PopupImage
+from .materials import PopupPartMaterial
 
 
 def _changed(self, context):
@@ -1073,6 +1074,10 @@ class PopupSettings(bpy.types.PropertyGroup):
     status: StringProperty()
     edited: BoolProperty(description="The card mesh has been edited by hand")
     sketch_panel: EnumProperty(name="Panel", items=lambda s, c: live.panel_items(c.scene))
+    material_part: EnumProperty(name="Part", description="The part to give its own "
+                                "material", items=lambda s, c: live.panel_items(c.scene))
+    part_materials: CollectionProperty(type=PopupPartMaterial)
+    part_material_index: IntProperty(default=0)
     # export ------------------------------------------------------------
     export_content: EnumProperty(name="Content", items=[
         ("PRINT", "Print", "Artwork, tabs, glue guides and all lines"),
@@ -1312,7 +1317,8 @@ def card_shape_lines(W, H, tmax, ceiling="NONE", drop=40.0, slope=30.0, lift=0.0
     return shape(ceiling, drop, slope, lift, False) + shape(floor, rise, fslope, dip, True)
 
 
-classes = (PopupImage, PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupSettings)
+classes = (PopupImage, PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupPartMaterial,
+           PopupSettings)
 
 
 def register():

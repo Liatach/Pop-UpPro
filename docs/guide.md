@@ -767,6 +767,16 @@ mesh, no rig). So:
   the stroke placement to *Surface* and turns the view to face the panel.
   Strokes ride along as the card moves and survive rebuilds, and export as
   vector paths.
+* **Part Materials** (render only): pick a part and choose **Own
+  Material**: *Metallic* (foil), *Glossy*, *Glow* (lit from within, for
+  windows and stars) or *Paper* (to set up yourself). The part gets a copy
+  of the paper material, art and all, with those settings, so metallic
+  lettering keeps its colours; Metallic, Roughness, Coat and Emission show
+  right there, and the material is an ordinary one to edit in the Shader
+  Editor. The rest of the card stays paper. It's set by a Geometry Nodes
+  modifier (*Pop-up Part Materials*) between the rig and Solid Paper,
+  which finds the part by its vertex group, so rebuilding or resizing keeps
+  it. **Back to Paper** undoes it. Prints and exports are unchanged.
 * **Editing shapes**: edit the Layout object in Edit Mode (cut an arch into
   a box front, round the top of a V-fold) and the folded card follows. A
   hand-edited card stops live rebuilding; **Rebuild** resets the shapes.
