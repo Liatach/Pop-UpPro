@@ -69,6 +69,11 @@ class PopupImage(bpy.types.PropertyGroup):
     rotation: FloatProperty(name="Turn", default=0.0, subtype="ANGLE", update=_changed)
     opacity: FloatProperty(name="Opacity", default=1.0, min=0.0, max=1.0, subtype="FACTOR",
                            update=_changed)
+    metallic: FloatProperty(name="Metallic", default=0.0, min=0.0, max=1.0, subtype="FACTOR",
+                            update=_changed,
+                            description="Make the image shine like metal foil in renders "
+                            "(gold or silver lettering): only where the image is, the paper "
+                            "round it stays matt. Prints are unchanged")
     cut: BoolProperty(name="Cut Where Transparent", default=False, update=_cut_changed,
                       description="Cut the image's see-through parts out of the paper "
                       "(holes inside, or a new outline where it reaches the edge), as painted "
@@ -199,6 +204,41 @@ def _clear(nt, keep=None):
         nt.nodes.remove(n)
 
 
+SHINE = ("Metallic", "Roughness")  # BSDF inputs the metallic images drive
+
+
+def _shine(nt, bsdf, metal):
+    """Metallic images: Metallic up to 1 and Roughness down to a polish
+    where they are (metal: their coverage, or None to let go)."""
+    for name in SHINE:
+        inp = bsdf.inputs.get(name)
+        if inp is None:
+            continue
+        for ln in list(inp.links):
+            if ln.from_node.name.startswith(PREFIX + "."):
+                nt.links.remove(ln)
+    if metal is None:
+        return
+    x, y = bsdf.location.x - 260, bsdf.location.y - 300
+    mx = nt.nodes.new("ShaderNodeMath")
+    mx.name = f"{PREFIX}.metallic"
+    mx.operation = "MAXIMUM"
+    mx.location = x, y
+    nt.links.new(metal, mx.inputs[0])
+    mx.inputs[1].default_value = bsdf.inputs["Metallic"].default_value
+    nt.links.new(mx.outputs[0], bsdf.inputs["Metallic"])
+    rough = bsdf.inputs.get("Roughness")
+    if rough is not None and not rough.is_linked:
+        mr = nt.nodes.new("ShaderNodeMix")
+        mr.name = f"{PREFIX}.roughness"
+        mr.data_type = "FLOAT"
+        mr.location = x, y - 180
+        nt.links.new(metal, mr.inputs["Factor"])
+        mr.inputs["A"].default_value = rough.default_value
+        mr.inputs["B"].default_value = 0.35  # polished, but catching broad light
+        nt.links.new(mr.outputs["Result"], rough)
+
+
 def sync(scene):
     """Put every placement in the paper material (rebuilding the nodes only
     when the list changes; sliders just change values)."""
@@ -212,7 +252,8 @@ def sync(scene):
     if bsdf is None:
         return
     want = [pl for pl in st.images if pl.image is not None and pl.piece in meta["pieces"]]
-    sig = "v2;" + ";".join(f"{pl.uid}:{pl.image.name}:{pl.piece}:{pl.side}" for pl in want)
+    sig = "v3;" + ";".join(f"{pl.uid}:{pl.image.name}:{pl.piece}:{pl.side}:{pl.metallic > 0}"
+                           for pl in want)
     if nt.get("pop_images") != sig:
         _rebuild_nodes(scene, mat, bsdf, want, meta)
         nt["pop_images"] = sig
@@ -225,6 +266,7 @@ def _rebuild_nodes(scene, mat, bsdf, want, meta):
     nt = mat.node_tree
     src = _base_source(nt, bsdf)
     _clear(nt, keep=src.node)
+    _shine(nt, bsdf, None)
     if not want:
         if src.node.name == f"{PREFIX}.source":  # back to the plain value
             bsdf.inputs["Base Color"].default_value = tuple(src.default_value)
@@ -245,6 +287,7 @@ def _rebuild_nodes(scene, mat, bsdf, want, meta):
     sep.location = x0 - 1300, y0
     nt.links.new(uvn.outputs["UV"], sep.inputs[0])
     prev = src
+    metal = None
     for i, pl in enumerate(want):
         y = y0 - 260 * i
         k = f"{PREFIX}.{pl.uid}"
@@ -339,7 +382,22 @@ def _rebuild_nodes(scene, mat, bsdf, want, meta):
         nt.links.new(prev, mix.inputs["A"])
         nt.links.new(tex.outputs["Color"], mix.inputs["B"])
         prev = mix.outputs["Result"]
+        if pl.metallic > 0:
+            # metallic: as much as the image covers there, times its Metallic
+            mt = node("ShaderNodeMath", "metal", x0 - 40, operation="MULTIPLY")
+            mt.location.y -= 200
+            nt.links.new(op.outputs[0], mt.inputs[0])
+            mt.inputs[1].default_value = pl.metallic
+            if metal is None:
+                metal = mt.outputs[0]
+            else:
+                both = node("ShaderNodeMath", "metal_max", x0 + 60, operation="MAXIMUM")
+                both.location.y -= 200
+                nt.links.new(metal, both.inputs[0])
+                nt.links.new(mt.outputs[0], both.inputs[1])
+                metal = both.outputs[0]
     nt.links.new(prev, bsdf.inputs["Base Color"])
+    _shine(nt, bsdf, metal)
 
 
 def _set_values(nt, pl, meta):
@@ -356,6 +414,9 @@ def _set_values(nt, pl, meta):
     op = nt.nodes.get(f"{k}.opacity")
     if op is not None:
         op.inputs[1].default_value = pl.opacity if pl.on else 0.0
+    mt = nt.nodes.get(f"{k}.metal")
+    if mt is not None:
+        mt.inputs[1].default_value = pl.metallic
     rp = nt.nodes.get(f"{k}.rep")
     if rp is not None:
         rp.inputs[1].default_value = float(max(1, pl.repeat))
@@ -685,6 +746,7 @@ def draw(layout, context):
         c.prop(pl, "offset_y")
         c.prop(pl, "rotation")
         c.prop(pl, "opacity")
+        c.prop(pl, "metallic")
         c.prop(pl, "cut")
 
 

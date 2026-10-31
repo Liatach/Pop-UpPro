@@ -45,6 +45,10 @@ start, see the [README](../README.md).
        the sun: white paper turns warm where the low sun strikes and blue
        where only the sky reaches it (64 render samples).
      * *Your Own*: your scene's own world and lights.
+     * *Studio*: a photo studio's light (Blender's studio HDRI) and the
+       key sun: soft, even light with real reflections for metallic and
+       glossy parts (64 render samples). Lights you add yourself still
+       shine too.
    * **Paper Texture** (off by default): a fine grain as a bump, so colours
      and prints are untouched. It is one node group, *Pop-up Paper Texture*:
      put your own paper texture inside it and every card uses it.
@@ -70,7 +74,10 @@ start, see the [README](../README.md).
   through itself. The sidebar shows the angle it stops at. Turn it off for a
   card that closes to exactly 0°.
 * **Solid Paper** (on by default): gives the card real thickness (behind the printed side)
-  for renders. Modifiers you add to the card after it are kept on rebuild.
+  for renders. Panels of one piece share the vertices of the fold between
+  them, so the paper meets itself at every fold (a cube's dipped lid no
+  longer pokes out past its walls, and halves don't open a slit along their
+  crease). Modifiers you add to the card after it are kept on rebuild.
 
 ### Card sizes
 
@@ -777,6 +784,10 @@ mesh, no rig). So:
   **Opacity** adjust it like a UV transform: it shows at once on the folded
   card and while painting, and nothing is painted into your art, so you can
   keep adjusting. Change its piece from the menu beside the piece name.
+  **Metallic** makes the image shine like foil in renders (gold or silver
+  lettering) only where it is, the paper round it staying matt; it
+  catches the light best with the *Studio* render look. Prints are
+  unchanged.
   * **Front** images print with the art; the export places the original
     image at full resolution, clipped to its piece (Bake Art for Print leaves
     them out so they aren't printed twice).
@@ -804,8 +815,7 @@ mesh, no rig). So:
   right there, and the material is an ordinary one to edit in the Shader
   Editor. The rest of the card stays paper. It's set by a Geometry Nodes
   modifier (*Pop-up Part Materials*) between the rig and Solid Paper,
-  which finds the part by its vertex group, so rebuilding or resizing keeps
-  it. **Back to Paper** undoes it. Prints and exports are unchanged. With
+  so rebuilding or resizing keeps it. **Back to Paper** undoes it. Prints and exports are unchanged. With
   **Whole Mechanism** (the link button, on by default) one material goes on
   every part of the picked part's mechanism (both halves of a V-fold, every
   wall of a cube) but not its glue tabs; turn it off for a single part. A

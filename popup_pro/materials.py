@@ -1,9 +1,10 @@
 """Part materials: one part of the card (a V-fold half, a box's top, a page)
 rendered with its own material, e.g. metallic lettering or a glowing window.
 
-Each part is already its own vertex group on the card (named after the
-panel), and the names survive rebuilds. A Geometry Nodes modifier between
-the rig and Solid Paper sets each listed part's material, so nothing about
+Each face of the card carries its panel's number (pop_panel); parts are
+kept by panel name, which survives rebuilds. A Geometry Nodes modifier
+between the rig and Solid Paper sets each listed part's material (remade
+on every rebuild with the current numbers), so nothing about
 the card's mesh, art or rig changes and a rebuild keeps it. A new part
 material starts as a copy of the paper material, so the art comes with it."""
 
@@ -75,6 +76,16 @@ def _move_after_rig(card, mod):
         card.modifiers.move(i, want)
 
 
+def _int_inputs(cmp):
+    """A Compare node's integer A and B sockets (their place in the socket
+    list differs between Blender versions)."""
+    ins = {i.identifier: i for i in cmp.inputs}
+    if "A_INT" in ins:
+        return ins["A_INT"], ins["B_INT"]
+    vis = [i for i in cmp.inputs if i.enabled]
+    return vis[0], vis[1]
+
+
 def apply(scene):
     """(Re)make the modifier that sets each part's material."""
     st = scene.popup
@@ -103,21 +114,28 @@ def apply(scene):
     gi.location = (-300, 0)
     sock = gi.outputs[0]
     x = 0
+    meta = live.meta(st.rig)
+    index = {p["name"]: i for i, p in enumerate(meta["panels"])} if meta else {}
     for panel, mat in items:
+        if panel not in index:
+            continue
+        # each face knows its panel (pop_panel); vertices on a fold are
+        # shared by the panels either side, so vertex groups won't do
         na = ng.nodes.new("GeometryNodeInputNamedAttribute")
-        na.data_type = "FLOAT"
-        na.inputs["Name"].default_value = panel
+        na.data_type = "INT"
+        na.inputs["Name"].default_value = "pop_panel"
         na.location = (x - 200, -220)
         sm = ng.nodes.new("GeometryNodeSetMaterial")
         sm.inputs["Material"].default_value = mat
         sm.location = (x, 0)
         sm.label = panel
         cmp = ng.nodes.new("FunctionNodeCompare")
-        cmp.data_type = "FLOAT"
-        cmp.operation = "GREATER_THAN"
-        cmp.inputs[1].default_value = 0.5
+        cmp.data_type = "INT"
+        cmp.operation = "EQUAL"
+        a_in, b_in = _int_inputs(cmp)
+        b_in.default_value = index[panel]
         cmp.location = (x - 100, -160)
-        ng.links.new(na.outputs["Attribute"], cmp.inputs[0])
+        ng.links.new(na.outputs["Attribute"], a_in)
         ng.links.new(cmp.outputs[0], sm.inputs["Selection"])
         ng.links.new(sock, sm.inputs["Geometry"])
         sock = sm.outputs["Geometry"]
@@ -157,6 +175,11 @@ def new_material(scene, panel, look):
             nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
     if bsdf is not None:
         ins = bsdf.inputs
+        if look in ("METALLIC", "GLOSSY"):
+            # the whole part shines: not just its metallic images
+            for k in ("Metallic", "Roughness"):
+                for ln in list(ins[k].links):
+                    nt.links.remove(ln)
         if look == "METALLIC":
             ins["Metallic"].default_value = 1.0
             ins["Roughness"].default_value = 0.22

@@ -125,8 +125,11 @@ st.mechs.clear()
 bpy.ops.popup.add(kind="BOXCUT")
 host = st.mechs[-1]
 host.width = 80
+host_uid = host.uid
 for i, (kind, fold) in enumerate((("BOXCUT", "C"), ("BOXCUT", "A"), ("BOXCUT", "B"), ("BOX", "A"))):
+    host = next(m for m in st.mechs if m.uid == host_uid)  # adding can move it in memory
     bpy.ops.popup.add(kind=kind, host=host.uid, fold=fold)
+    host = next(m for m in st.mechs if m.uid == host_uid)
     k = st.mechs[-1]
     assert k.width < host.width and k.height < host.height, (kind, fold)
     k.width, k.y = 14, host.y + 3 + 20 * i  # side by side along the spine

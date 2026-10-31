@@ -203,7 +203,7 @@ def clean_render(scenes, on=True):
 
 DAWN = "Pop-up Dawn"
 SHOW = "Pop-up Showcase"
-OURS = ("Pop-up White", DAWN, SHOW)
+OURS = ("Pop-up White", DAWN, SHOW, "Pop-up Studio")
 LOOKS = [
     ("CLEAN", "Clean", "Even white light, no sun: plain, flat images of the design"),
     ("SHOWCASE", "Showcase", "White light and the sun's shadows, at 64 render samples: "
@@ -211,15 +211,19 @@ LOOKS = [
     ("DAWN", "Dawn", "Blender's sunrise light, as in Material Preview (warm where the low "
      "sun strikes, blue where the sky does) with the sun's shadows, at 64 samples"),
     ("OWN", "Your Own", "Renders use your own world and lights; the card's sun stays in the "
-     "viewport only")]
+     "viewport only"),
+    ("STUDIO", "Studio", "A photo studio's light (Blender's studio HDRI) with the sun's "
+     "shadows, at 64 samples: soft, even light with real reflections, so metallic and "
+     "glossy parts shine")]
+STUDIO = "Pop-up Studio"
 
 
-def _sunrise_path():
+def _sunrise_path(name="sunrise.exr"):
     import os
-    p = bpy.utils.system_resource("DATAFILES", path="studiolights/world/sunrise.exr")
+    p = bpy.utils.system_resource("DATAFILES", path=f"studiolights/world/{name}")
     if not p:
         p = os.path.join(bpy.utils.resource_path("LOCAL"), "datafiles", "studiolights",
-                         "world", "sunrise.exr")
+                         "world", name)
     return p if p and os.path.exists(p) else None
 
 
@@ -256,18 +260,18 @@ def _show_world():
     return w
 
 
-def _dawn_world():
-    w = bpy.data.worlds.get(DAWN)
+def _dawn_world(name=DAWN, hdri="sunrise.exr", strength=1.0):
+    w = bpy.data.worlds.get(name)
     if w is not None:
         return w
-    path = _sunrise_path()
-    w = bpy.data.worlds.new(DAWN)
+    path = _sunrise_path(hdri)
+    w = bpy.data.worlds.new(name)
     w.use_nodes = True
     nt = w.node_tree
     bg = next((n for n in nt.nodes if n.type == "BACKGROUND"), None)
     if bg is None:
         return w
-    bg.inputs["Strength"].default_value = 1.0
+    bg.inputs["Strength"].default_value = strength
     if path:
         env = nt.nodes.new("ShaderNodeTexEnvironment")
         env.image = bpy.data.images.load(path, check_existing=True)
@@ -318,12 +322,13 @@ def render_look(scenes, look="CLEAN"):
     ob = bpy.data.objects.get(SUN)
     if ob is not None:
         ob.hide_render = look != "DAWN"
-    _key(scenes, ob, look == "SHOWCASE")
-    if look in ("DAWN", "SHOWCASE"):
-        w = _dawn_world() if look == "DAWN" else _show_world()
+    _key(scenes, ob, look in ("SHOWCASE", "STUDIO"))
+    if look in ("DAWN", "SHOWCASE", "STUDIO"):
+        w = (_dawn_world() if look == "DAWN" else
+             _dawn_world(STUDIO, "studio.exr", 1.2) if look == "STUDIO" else _show_world())
         for sc in scenes:
             sc.world = w
-    if look in ("SHOWCASE", "DAWN"):
+    if look in ("SHOWCASE", "DAWN", "STUDIO"):
         for sc in scenes:
             sc.eevee.taa_render_samples = max(64, sc.eevee.taa_render_samples)
 

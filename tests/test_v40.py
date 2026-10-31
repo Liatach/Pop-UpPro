@@ -57,7 +57,8 @@ def face(panel, dg):
     me = ev.data
     attr = me.attributes["pop_panel"]
     i = names.index(panel)
-    polys = [p for p in me.polygons if attr.data[p.index].value == i]
+    n0 = len(card.data.polygons)  # Solid Paper's own faces come after the card's
+    polys = [p for p in me.polygons[:n0] if attr.data[p.index].value == i]
     big = max(polys, key=lambda p: p.area)
     n = (ev.matrix_world.to_3x3() @ big.normal).normalized()
     pb = rig.evaluated_get(dg).pose.bones[panel]

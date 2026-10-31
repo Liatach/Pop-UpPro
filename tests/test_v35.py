@@ -139,7 +139,8 @@ def below_back(t):
     worst = 0.0
     for pg in ("Page.L", "Page.R"):
         polys = [p for p in em.polygons if pn[p.index] == pg]
-        big = max(polys, key=lambda p: p.area)
+        n0 = len(card.data.polygons)  # Solid Paper's own faces come after the card's
+        big = max((p for p in polys if p.index < n0), key=lambda p: p.area)
         n = (W.to_3x3() @ big.normal).normalized()
         o = W @ em.vertices[big.vertices[0]].co
         P = [W @ em.vertices[i].co for p in polys for i in p.vertices]

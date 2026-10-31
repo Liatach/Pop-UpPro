@@ -53,7 +53,8 @@ def art_uv(model, piece, q):
     return (tu + min(max(u, 0.0), 0.999), tv + min(max(v, 0.0), 0.999))
 
 
-TILE_UV = "PopupTile"  # each piece's own place in the art (bake target, export)
+TILE_UV = "PopupTile"
+T_SHARE = 5.0  # degrees: folds checked closed from here up to full open  # each piece's own place in the art (bake target, export)
 
 
 def tab_art(model):
@@ -175,7 +176,9 @@ def ensure_solid(card, st):
         mod = card.modifiers.new("Pop-up Paper", "SOLIDIFY")
     mod.thickness = st.paper_thickness / st.mm_per_unit
     mod.offset = -1.0
-    mod.use_even_offset = True
+    # folds are shared edges now: plain offsets meet at each fold without
+    # Even Thickness's long spikes where the card shuts a fold flat
+    mod.use_even_offset = False
     mod.use_rim = True
 
 
@@ -213,10 +216,36 @@ def build_mesh(mesh, model, layout, s, holes=None):
     tile = bm.loops.layers.uv.new(TILE_UV)
     carry = tab_art(model)
     groups = {}
+    # Panels of one piece meeting along a fold share the fold's vertices, so
+    # the paper is one surface there: Solid Paper then mitres each fold (no
+    # slab poking through the panel next to it, no slit along a crease).
+    # Each shared vertex is in both panels' groups; the two bones agree on
+    # the fold line, so the rig keeps it exact. Glue tabs stay apart (they
+    # fold right back on themselves), and so does anything that doesn't
+    # keep its fold closed all the way (a sliding bend, a lifted strip).
+    shared = {}  # piece -> pattern point -> [(vertex, {panels})]
+    ok_pair = {}
+    ts = sorted({max(T_SHARE, 0.25 * model.tmax), model.t_ref, 0.75 * model.tmax,
+                 model.tmax})
+
+    def joins(a, b, q):
+        k = (a, b) if a < b else (b, a)
+        got = ok_pair.get(k)
+        if got is None:
+            pa, pb = model.panels[a], model.panels[b]
+            got = (pa.kind != "tab" and pb.kind != "tab" and abs(pa.zoff - pb.zoff) < 1e-9
+                   and frozenset(k) not in model.soft)
+            ok_pair[k] = got
+        if not got:
+            return False
+        v = Vector((q[0], q[1], 0.0))
+        return all((model.shown(a, t) @ v - model.shown(b, t) @ v).length < 2e-4 for t in ts)
+
     for pi, name in enumerate(model.order):
         p = model.panels[name]
         P = layout["prints"][p.piece]
         cache = {}
+        pool = shared.setdefault(p.piece, {})
         idx = []
         polys = []
         for poly in p.polys:
@@ -228,7 +257,14 @@ def build_mesh(mesh, model, layout, s, holes=None):
                 key = (round(q[0], 5), round(q[1], 5))
                 bv = cache.get(key)
                 if bv is None:
-                    bv = bm.verts.new((P @ Vector((q[0], q[1], p.zoff))) * s)
+                    for cand, users in pool.get(key, ()):
+                        if all(joins(u, name, q) for u in users):
+                            bv = cand
+                            users.add(name)
+                            break
+                    if bv is None:
+                        bv = bm.verts.new((P @ Vector((q[0], q[1], p.zoff))) * s)
+                        pool.setdefault(key, []).append((bv, {name}))
                     cache[key] = bv
                     idx.append(bv)
                 vs.append(bv)
@@ -541,9 +577,9 @@ def rebuild(scene, force=False):
                                           "fully lifted)")
     build_rig(scene, rig, model, layout, s, t0)
     ensure_solid(card, st)
+    write_meta(rig, model, layout, s)
     from . import materials
     materials.apply(scene)
-    write_meta(rig, model, layout, s)
     mesh["pop_hash"] = mesh_hash(mesh)
     st.edited = False
     st.warnings = "\n".join(model.warnings)

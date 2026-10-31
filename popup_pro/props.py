@@ -1205,7 +1205,10 @@ class PopupSettings(bpy.types.PropertyGroup):
                                       "shadows, 64 render samples"),
                                      ("DAWN", "Dawn", "Blender's sunrise light (warm sun, "
                                       "blue sky) and the sun's shadows, 64 render samples"),
-                                     ("OWN", "Your Own", "Your own world and lights")],
+                                     ("OWN", "Your Own", "Your own world and lights"),
+                                     ("STUDIO", "Studio", "A photo studio's light (Blender's "
+                                      "studio HDRI) and the sun's shadows, 64 render samples: "
+                                      "real reflections, so metallic and glossy parts shine")],
                               description="How finished renders are lit (painting, baking and "
                               "printing never use the lighting)")
     clean_render: BoolProperty(name="Clean White Renders", default=True,
