@@ -15,13 +15,14 @@ them.**
    Install from Disk**. Or simply drag the zip into Blender.
 2. In the 3D view press **N** and open the **Pop-Up** tab.
 3. Pick a card size and press **Build Card**. Or **Make Carousel** You get a card with a cube on
-   it, a camera, lighting and a movement test or a 5 scene carousel: press **Play** to it animate. 
+   it, a camera, lighting and a movement test or a 5 scene carousel: press **Play** to have it animate live. 
 4. Add mechanisms with **+** and drag their sliders; the card rebuilds as
    you go. Keep an eye on **Checks**: it turns red when something would
    tear, poke through or stick out.
 5. Draw on the pieces with **Sketch on Panel** (Grease Pencil:
    [how to](docs/sketching.md)), turn **Paint** on to paint the card, or add
-   an image with **Image on a Piece**. Explicitly deesigned to work with the fabulous **[Paint System](https://extensions.blender.org/add-ons/paint-system/)** extension by [**natapol2547/Tawan Sunflower**](https://github.com/natapol2547/paintsystem)
+   an image with **Image on a Piece**. Explicitly designed to work with the fabulous **[Paint System](https://extensions.blender.org/add-ons/paint-system/)** extension by [**natapol2547/Tawan Sunflower**](https://github.com/natapol2547/paintsystem) 
+   Draw holes, use standard inbuilt cut out shapes or cut transparent from image or paint layers.
 6. **Export SVG Sheets**, plus crease and cut patterns for cricut etc. print, cut, fold, glue.
 
 Every setting is explained in more detail in the [guide](docs/guide.md).
@@ -117,6 +118,7 @@ The mechanisms follow The Pop-Up Channel's video tutorials:
 * [Pop-Up Tutorial 9 - Raising Pop-Ups Off-Centre: The Strap](https://www.youtube.com/watch?v=AMbeFT8L7oI)
 * [Pop-Up Tutorial 21 - Pyramids](https://www.youtube.com/watch?v=jZDHbUhV6Ms)
 * [Pop-Up Tutorial 22 - Adding extra creases, Part 2: counter-folds](https://www.youtube.com/watch?v=Ze9shENIBf4)
+* [Pop-Up Tutorial 23 - The 45-degree Fold](https://www.youtube.com/watch?v=_-pfbpDoiV8)
 * [Pop-Up Tutorial 29 - Asymmetric V-fold, Part 2](https://www.youtube.com/watch?v=1OqP1pXhDUQ)
 * [Pop-Up Tutorial 30 - V-fold action: building a tower](https://www.youtube.com/watch?v=eCq12WLoRx4)
 * [Pop-Up Tutorial 72 - Box, type 2](https://www.youtube.com/watch?v=6FKi95a14N4)
@@ -127,7 +129,7 @@ too.
 
 Paint layers come from [Paint System](https://extensions.blender.org/add-ons/paint-system/)
 by Tawan Sunflower (GPL-3.0-or-later), a separate extension that Pop-Up Pro
-calls when it is installed.
+calls tools and menus from when it is installed.
 
 ## Constraints
 
