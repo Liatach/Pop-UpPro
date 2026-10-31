@@ -157,6 +157,10 @@ calls when it is installed.
 * **Align**: line selected mechanisms up (left, right, centre, top, bottom)
   and space them evenly along their fold.
 * Door flaps on cubes, tubes and stand-up pictures.
+* **Tabs that carry the art** (from Papercraft Pro): a glue tab printed with
+  the art of the panel it glues onto, where it lands, so a tab glued to the
+  card can sit outside (on the visible face) and blend in, like an outside
+  tab, instead of hiding underneath.
 * A **fan**: like a large upright V-fold with extra creases, opening into a
   fan, but standing free of the centre crease, so it can arch across the
   scene as arches, rainbows and arcs.
