@@ -684,6 +684,10 @@ def _draw_lines(lay, context, m):
         c.label(text="Y: along from the box's end; Mirror flips end to end")
     row = box.row()
     row.template_list("POPUP_UL_lines", "", m, "lines", m, "active_line", rows=2)
+    if m.lines:
+        r = box.row()
+        r.use_property_split = True
+        r.prop(m, "pleat", text="Concertina")
     col = row.column(align=True)
     col.operator_menu_enum("popup.add_line", "preset", text="", icon="ADD")
     col.operator("popup.remove_line", text="", icon="REMOVE")

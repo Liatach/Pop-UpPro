@@ -446,6 +446,16 @@ Creases are straightened end to end, and cuts keep their shape (arrows,
 horses, trees). Then press **Add Drawn Lines**. Line ends within 1.5 mm of
 the centre fold, an edge or another line snap onto it.
 
+**Concertinas and fans.** Several creases side by side (a concertina, or
+creases fanning out from the V point) leave the paper free to fold more
+than one way: nothing in a V-fold forces them to fold at all. They settle
+the way paper does, sharing any folding out evenly with both sides alike,
+and lie flat when the card is shut or open flat. Set **Concertina** (under
+the list, once there are lines) to pre-fold them: they pleat, alternating
+mountain and valley, most where the piece stands half open, and open out
+again with the card. Too much pleat for the piece can poke through the
+card; the checks say where.
+
 How the regions move (the same on every piece):
 
 * A region cut off by creases turns about its crease. Its part of the fold it

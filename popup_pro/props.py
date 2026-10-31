@@ -651,6 +651,13 @@ class PopupMech(bpy.types.PropertyGroup):
     gully: IntProperty(name="Gully", default=1, min=1, max=5, update=lambda s, c: _fold_changed(s, c),
                        description="Which valley of a strap with several peaks, counted from "
                        "the left")
+    pleat: FloatProperty(name="Concertina", default=0.0, min=0.0, max=170.0,
+                         update=_changed,
+                         description="For extra creases that leave the paper free to fold "
+                         "more than one way (a fan, a concertina): how far they fold when "
+                         "the card is shut (degrees), alternating mountain and valley, as if "
+                         "pre-folded. They open out flat with the card. 0: they fold only as "
+                         "far as they must")
     slant: FloatProperty(name="Slant", default=0.0, min=-60.0, max=60.0, precision=1,
                          update=_changed,
                          description="Box fold or strap: run the strip across the fold at "
@@ -737,6 +744,7 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="ROOF", phi_l=self.phi_l, alpha_l=self.alpha_l, glue=self.glue,
                      height=self.height, level=self.level, tab_side=self.tab_side,
                      valley=self.valley,
+                     pleat=self.pleat,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         elif self.kind == "STANDUP":
@@ -783,12 +791,14 @@ class PopupMech(bpy.types.PropertyGroup):
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
                      glue_r=self.glue if self.symmetric or self.glue_r <= 0 else self.glue_r,
                      shape=self.shape, cut_above=self.cut_above,
+                     pleat=self.pleat,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         else:
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
                      width=self.width, height=self.height, depth=self.depth,
                      slant=self.slant, peaks=self.peaks if self.kind == "BOX" else 1,
+                     pleat=self.pleat,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         return d

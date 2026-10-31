@@ -319,13 +319,29 @@ class Group:
     panel or from an earlier member (a chain of creases); every other edge it
     shares is a constraint."""
 
-    def __init__(self, model, members, cons, tgrid, t_ref):
+    def __init__(self, model, members, cons, tgrid, t_ref, pleat=0.0):
         # members: [(parent, H (mathutils frame), Hi)]  parent: placed panel
         # name, or the index of an earlier member
         # cons: [(i, j, p)]  j: member index, or a placed panel name
+        # pleat: degrees loose creases fold to when the card is shut (a
+        # concertina pre-folded), alternating mountain and valley
         self.m = model
         self.members = members
         self.cons = cons
+        self.pleat = math.radians(pleat or 0.0)
+        self.tmax = float(getattr(model, "tmax", 180.0))
+        depth, chain = [], []
+        for i, (par, _, _) in enumerate(members):
+            if isinstance(par, str):
+                depth.append(0)
+                chain.append(i)
+            else:
+                depth.append(depth[par] + 1)
+                chain.append(chain[par])
+        self.alt = np.array([1.0 if d % 2 == 0 else -1.0 for d in depth])
+        self.chains = sorted(set(chain))
+        self.chain_of = chain
+        self.sgn = self.alt.copy()
         self.cache = {}
         self.res = {}
         self.ok = True
@@ -341,6 +357,26 @@ class Group:
         if th is None:
             self.ok = False
             return
+        if self.pleat > 0 and len(self.chains) <= 6:
+            # which way each chain of pleats starts (mountain or valley):
+            # whichever lets them fold most nearly as pre-folded
+            import itertools
+            best = None
+            for signs in itertools.product((1.0, -1.0), repeat=len(self.chains)):
+                sg = {c: v for c, v in zip(self.chains, signs)}
+                self.sgn = self.alt * np.array([sg[c] for c in self.chain_of])
+                x, r = self._relax(t_ref, th)
+                if r > 1e-3:
+                    continue
+                d = x - self._target(t_ref)
+                if best is None or d @ d < best[0]:
+                    best = (d @ d, self.sgn.copy(), x)
+            if best is not None:
+                self.sgn, th = best[1], best[2]
+        th, _r = self._relax(t_ref, th)
+        # creases free to fold more than one way: follow the solved grid
+        # (polishing in between would wander off the even way of folding)
+        self.free = self._nullity(t_ref, th) > 0
         self.grid = {}
         T = sorted(set(tgrid) | {t_ref})
         i0 = T.index(t_ref)
@@ -350,6 +386,17 @@ class Group:
             for i in rng:
                 t = T[i]
                 x, r = self._newton(t, prev)
+                if r < 1e-3 and self.free:
+                    # a degree on from a settled pose: a few steps settle it
+                    x, r = self._relax(t, x, steps=6)
+                    if self.pleat > 0:
+                        # lying flat always fits: settling from there finds
+                        # the pleats' easy way back when the card nears shut
+                        # or flat, where carrying on can get stuck
+                        tau = self._target(t)
+                        xb, rb = self._relax(t, np.zeros(self.n), steps=8)
+                        if rb < 1e-3 and (xb - tau) @ (xb - tau) < (x - tau) @ (x - tau) - 1e-6:
+                            x, r = xb, rb
                 self.grid[t] = x
                 self.res[t] = r
                 prev = x
@@ -440,6 +487,62 @@ class Group:
                     break
         return th, math.sqrt(f)
 
+    def _nullity(self, t, th):
+        Ms, tgt = self._fixed(t)
+        _r, J = self._resid(np.array(th, dtype=np.float64), Ms, tgt, True)
+        if J.size == 0:
+            return 0
+        sv = np.linalg.svd(J, compute_uv=False)
+        tol = max(1e-6, 1e-6 * (sv[0] if sv.size else 1.0))
+        return self.n - int((sv > tol).sum())
+
+    def _target(self, t):
+        """How the loose creases would like to lie: flat, or (pleat) folded
+        the more the card is shut, alternating mountain and valley."""
+        if self.pleat <= 0:
+            return np.zeros(self.n)
+        # flat when the card is shut (the piece lies flat in it) and when
+        # it's open flat; most pleated half way, where the piece stands
+        f = math.sin(math.pi * max(0.0, min(1.0, t / max(1.0, self.tmax))))
+        return self.sgn * self.pleat * f
+
+    def _relax(self, t, th, steps=12):
+        """Creases that leave the paper free to fold more than one way (a
+        concertina, a fan) settle the way real paper does: sharing the
+        folding out evenly, with the least bending away from how they'd like
+        to lie (flat, or pre-folded pleats), while every join stays closed.
+        Lines that pin the shape exactly are left as they are. (Sequential
+        quadratic steps: each solves the joins to first order and takes the
+        rest of the freedom towards the target.)"""
+        Ms, tgt = self._fixed(t)
+        th = np.array(th, dtype=np.float64)
+        tau = self._target(t)
+        r, J = self._resid(th, Ms, tgt, True)
+        res0 = math.sqrt(r @ r)
+        best = (th, res0)
+        for _ in range(steps):
+            if J.size == 0:
+                break
+            Jp = np.linalg.pinv(J, rcond=1e-6)
+            P = np.eye(self.n) - Jp @ J  # the free directions
+            if np.abs(P).max() < 1e-9 and r @ r < 1e-18:
+                break
+            d = -Jp @ r + P @ (tau - th)
+            n_ = np.abs(d).max()
+            if n_ > 0.5:
+                d *= 0.5 / n_  # keep steps small: stay on this branch
+            th = th + d
+            r, J = self._resid(th, Ms, tgt, True)
+            if n_ < 1e-9:
+                break
+        res = math.sqrt(r @ r)
+        if res > max(1e-6, 2 * res0):
+            th2, res2 = self._newton(t, th, Ms, tgt, iters=12)
+            if res2 <= max(1e-6, 2 * res0):
+                return th2, res2
+            return best
+        return th, res
+
     def _seed(self, t):
         Ms, tgt = self._fixed(t)
         vals = [math.radians(a) for a in range(-165, 180, 30)]
@@ -484,7 +587,7 @@ class Group:
             f = 0.0 if t1 <= t0 else min(1.0, max(0.0, (t - t0) / (t1 - t0)))
             guess = (1 - f) * self.grid[t0] + f * self.grid[t1]
             th = guess
-            if not self.torn and f not in (0.0, 1.0):
+            if not self.torn and not self.free and f not in (0.0, 1.0):
                 Ms, tgt = self._fixed(t)
                 r0 = self._res_only(guess, Ms, tgt)
                 if r0 @ r0 > 1e-10 and self.budget > 0:
@@ -535,7 +638,7 @@ def _roots(model, regs, reg, tris, P, names):
     return out
 
 
-def build(model, piece, names, lab, lines, base=None):
+def build(model, piece, names, lab, lines, base=None, pleat=0.0):
     """Split a mechanism's panels (names, all on one piece) along its extra
     lines (pattern coordinates) and hang the regions."""
     from .model import Hinge, Panel
@@ -735,7 +838,7 @@ def build(model, piece, names, lab, lines, base=None):
                          f"doesn't reach a fold) is left flat")
                 progress = True
                 continue
-            G = Group(model, members, cons, model.TABLE_T, model.t_ref)
+            G = Group(model, members, cons, model.TABLE_T, model.t_ref, pleat)
             if not G.ok:
                 for k in order:
                     par = parent_of[k][0]

@@ -519,7 +519,7 @@ class Model:
         doors = self._door_lines("Card", ["Page.L", "Page.R"], True)
         if lines or doors:
             fold_build(self, "Card", ["Page.L", "Page.R"], "Card", expand(lines) + doors,
-                       "Card")
+                       "Card", float(self.card.get("pleat", 0.0) or 0.0))
         for d in self.doors:
             if d["id"] not in self.doors_done:
                 self.warn(f"Door flap on {d.get('piece') or 'Card'}: door flaps work on the "
@@ -720,7 +720,7 @@ class Model:
             if m.get("lines") or doors:
                 fold_build(self, piece, names, lab,
                            expand(m.get("lines"), to_pat, lambda p: (p[0], w - p[1])) + doors,
-                           base)
+                           base, float(m.get("pleat", 0.0) or 0.0))
         if role:
             for n in (f"{base}.AC", f"{base}.CB"):
                 if n in self.panels:
@@ -1042,7 +1042,8 @@ class Model:
         doors = self._door_lines(piece, halves, True)
         if m.get("lines") or doors:
             from .folds import build as fold_build, expand
-            fold_build(self, piece, halves, lab, expand(m.get("lines")) + doors, base)
+            fold_build(self, piece, halves, lab, expand(m.get("lines")) + doors, base,
+                       float(m.get("pleat", 0.0) or 0.0))
 
         self._vfold_hosts(uid, base, host, yP, (gs["L"], gs["R"]), Lc, (uLf, uRf), (uLp, uRp))
 
