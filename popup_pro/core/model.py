@@ -76,6 +76,7 @@ class Panel:
         self.outside = False  # lies behind the card (pull strips): skip fit checks
         self.zoff = 0.0  # mm the surface sits off its own fold lines (display only)
         self.lift = 0.0  # mm the rig raises it off its parent near flat (display only)
+        self.lift_dir = None  # which way, in the parent's pattern (None: its normal)
 
     @property
     def glue(self):
@@ -1032,6 +1033,7 @@ class Model:
                    f"{lab}: left half")
         self._half(f"{base}.HalfR", piece, [halfR], (0, 0), uRp, (0, 1), "R", base,
                    f"{lab}: right half")
+        self.match_lift(f"{base}.HalfL", f"{base}.HalfR")
         for side, poly, T, _ in tabs:
             parent, Tp = (host.p1, host.T1) if side == "L" else (host.p2, host.T2)
             pa = self.panels[parent].asm
@@ -1349,6 +1351,7 @@ class Model:
                         f"{lab}: front left")
         hc = self._half(f"{piece}.C", piece, [C], (s2, 0), (1, 0), (0, 1), "R", key,
                         f"{lab}: front right")
+        self.match_lift(f"{piece}.B", f"{piece}.C")
 
         def parts(t):
             c, uL, uR, ok, P3 = self.crease(key, t)
@@ -2918,6 +2921,7 @@ class Model:
             d = host.d1
             self._half(f"{key}L", piece, cl, P, d(*gL), d(*cp), "L", key, f"{lab}: {name} left")
             self._half(f"{key}R", piece, cr, P, d(*gR), d(*cp), "R", key, f"{lab}: {name} right")
+            self.match_lift(f"{key}L", f"{key}R")
             self.cut_panels |= {f"{key}L", f"{key}R"}
 
     # ---------------------------------------------------------------- hinges
@@ -3162,15 +3166,53 @@ class Model:
     def shown(self, name, t):
         """Where the rig shows a panel: its pose, plus the lift of anything
         it hangs from that is raised onto its tabs near flat (display only)."""
-        M = self.panels[name].asm(t)
+        return Matrix.Translation(self.lift_offset(name, t)) @ self.panels[name].asm(t)
+
+    def lift_offset(self, name, t, fraction=None):
+        """How far the rig has raised a panel (and so everything hanging
+        from it) off where it folds, at opening t (world mm)."""
+        f = self.lift_fraction(t) if fraction is None else fraction
         off = Vector((0.0, 0.0, 0.0))
-        p = self.panels[name]
+        p = self.panels.get(name)
         while p is not None:
             if p.lift and p.parent:
-                n = self.panels[p.parent].asm(t).to_3x3() @ Vector((0.0, 0.0, 1.0))
-                off += self.lift_fraction(t) * p.lift * n
+                d = p.lift_dir if p.lift_dir is not None else Vector((0.0, 0.0, 1.0))
+                off += f * p.lift * (self.panels[p.parent].asm(t).to_3x3() @ d)
             p = self.panels.get(p.parent) if p.parent else None
-        return Matrix.Translation(off) @ M
+        return off
+
+    def match_lift(self, a, b):
+        """Two panels hinged on different parents that meet along a crease
+        (a V-fold's halves): when one rides a part the rig raises near flat
+        (a strap resting on its tabs) and the other doesn't, raise the other
+        by the same, so the crease doesn't open up into a slit."""
+        if a not in self.panels or b not in self.panels:
+            return
+        pa, pb = self.panels[a], self.panels[b]
+        ts = [self.tmax - k * self.LIFT_FROM / 4.0 for k in range(5)]
+
+        def local(p, other, t):
+            """The lift p needs to sit level with other, in p's parent's frame."""
+            d = self.lift_offset(other.parent, t, 1.0) - self.lift_offset(p.parent, t, 1.0)
+            return self.panels[p.parent].asm(t).to_3x3().inverted() @ d
+
+        if (local(pa, pb, self.tmax)).length < 1e-6:
+            return
+        best = None
+        # raise the lower half to the higher one's level, or lower the raised
+        # one back down (a lift of the opposite sign): whichever needs a lift
+        # fixed in that half's own parent's frame, so the rig follows exactly
+        for p, q in ((pa, pb), (pb, pa)):
+            ds = [local(p, q, t) for t in ts]
+            spread = max((d - ds[0]).length for d in ds)
+            up = self.lift_offset(q.parent, self.tmax, 1.0).length > \
+                self.lift_offset(p.parent, self.tmax, 1.0).length
+            score = (spread > 1e-5, not up, spread)
+            if best is None or score < best[0]:
+                best = (score, p, ds[0])
+        _, p, d = best
+        p.lift = d.length
+        p.lift_dir = d.normalized()
 
     # --------------------------------------------------------- closing stop
     def close_angle(self, thickness, clearance=0.1, near_spine=8.0, cap=45.0):

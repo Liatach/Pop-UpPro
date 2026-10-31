@@ -333,11 +333,11 @@ from .core.model import Model as _M  # noqa: E402
 LIFT_FROM, LIFT_SPAN = _M.LIFT_FROM, _M.LIFT_SPAN  # degrees before full open
 
 
-def _lift_drivers(rig, pb, K, lift, tmax, t0):
+def _lift_drivers(rig, pb, K, lift, tmax, t0, d=None):
     """Raise a part off the panel it hangs from (along that panel's normal)
     as the card nears fully open: a glued strip shown resting on its tabs,
     folded down level with its hinge while the card closes."""
-    v = K.to_3x3() @ Vector((0.0, 0.0, 1.0))
+    v = K.to_3x3() @ (Vector((0.0, 0.0, 1.0)) if d is None else d)
     base = K.to_translation()
     T = open_expr(t0)
     for i in range(3):
@@ -415,7 +415,9 @@ def build_rig(scene, rig, model, layout, s, t0=0.0):
         elif p.hinge is not None:
             _driver(rig, pb, p.hinge, e.y, t0)
         if getattr(p, "lift", 0.0) and p.hinge is not None:
-            _lift_drivers(rig, pb, K, p.lift * s, model.tmax, t0)
+            _lift_drivers(rig, pb, K, p.lift * s, model.tmax, t0,
+                          None if p.lift_dir is None else
+                          p.hinge.Hp.to_3x3().inverted() @ p.lift_dir)
     rig.hide_set(hidden)
     if prev_active is not None and prev_active.name in view_layer.objects:
         view_layer.objects.active = prev_active
