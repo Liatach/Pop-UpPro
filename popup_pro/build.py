@@ -580,6 +580,11 @@ def rebuild(scene, force=False):
     write_meta(rig, model, layout, s)
     from . import materials
     materials.apply(scene)
+    from . import art as _art
+    try:
+        _art.extend_tiles(scene)  # new mechanisms get their own place to paint
+    except Exception as ex:  # never stop a rebuild over the paint texture
+        print(f"Pop-Up Pro: art tiles not extended: {ex}")
     mesh["pop_hash"] = mesh_hash(mesh)
     st.edited = False
     st.warnings = "\n".join(model.warnings)

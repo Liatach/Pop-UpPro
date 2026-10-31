@@ -119,6 +119,29 @@ def refresh_material(scene):
         nt.links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
 
 
+def extend_tiles(scene):
+    """A mechanism added after the paint texture: give its piece a (blank)
+    tile, at the same resolution as the others. A UDIM image renders a
+    missing tile magenta."""
+    meta = live.meta(scene.popup.rig)
+    img = bpy.data.images.get(N(scene, ART_IMAGE))
+    if meta is None or img is None or img.source != "TILED":
+        return None
+    have = {t.number for t in img.tiles}
+    if all(1001 + p["slot"] in have for p in meta["pieces"].values()):
+        return None
+    card = next((p for p in meta["pieces"].values() if p["is_card"]), None)
+    dpi = 150
+    if card is not None and 1001 + card["slot"] in have:
+        t = next(t for t in img.tiles if t.number == 1001 + card["slot"])
+        if t.size[0] > 0:
+            dpi = max(30, min(600, int(round(t.size[0] / (2 * meta["W"] / 25.4)))))
+    keep = img.name
+    new = make_tiled_image(keep, meta, dpi)
+    refresh_material(scene)
+    return new
+
+
 def add_art_texture(scene, dpi=150):
     meta = live.meta(scene.popup.rig)
     if meta is None:
