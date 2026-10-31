@@ -176,7 +176,12 @@ calls when it is installed.
   * structural: holding up a pop-up off the centre, or pulling up a single
     sheet rising from the spine (80, 81, the tree and the flowers);
   * box ends filled by double 45° folds, and a box lid lifted by a strut
-    (82, 83).
+    (82, 83);
+  * 45° folds on a parallelogram (74, pp. 60–61): small double triangles
+    on the jutting corners of a box fold, throwing out arms and legs.
+* **Multiple quadrilaterals** (Birmingham, mechanism 57, p. 49): a chain of
+  linked quadrilaterals sweeping across the spine, each with its own height
+  and shape, as long as each one's front and rear crease lengths balance.
 * Paint System with UDIM tiles is untested; Bake Art for Print is the safe
   route for printing.
 
