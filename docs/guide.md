@@ -720,7 +720,8 @@ mesh, no rig). So:
   For a cutting machine, export **Cut Lines Only** and **Crease Lines Only**
   (or **Cut + Crease**) with Dashed Folds off; to print with the lines, or
   with outlines only over the art, use **Print** or **Art + Cut Lines**.
-* **Sketch on Panel** (Grease Pencil): pick a panel and press the button.
+* **Sketch on Panel** (Grease Pencil; step by step in
+  [sketching.md](sketching.md)): pick a panel and press the button.
   It makes a layer on **Pop-up Sketch** parented to that panel's bone, sets
   the stroke placement to *Surface* and turns the view to face the panel.
   Strokes ride along as the card moves and survive rebuilds, and export as

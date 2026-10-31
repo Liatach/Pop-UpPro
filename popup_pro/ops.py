@@ -536,7 +536,18 @@ def drawing(context):
     from . import holes
     obj = context.view_layer.objects.active if context.view_layer else None
     return (context.mode == "PAINT_GREASE_PENCIL" and obj is not None and
-            obj == holes.hole_sketch(context.scene, create=False)[0])
+            (obj == holes.hole_sketch(context.scene, create=False)[0] or sketching(context)))
+
+
+def sketching(context):
+    """Sketching on a panel (Grease Pencil) right now? The panel's name, or ''."""
+    vl = getattr(context, "view_layer", None)
+    obj = vl.objects.active if vl else None
+    if getattr(context, "mode", "") != "PAINT_GREASE_PENCIL" or obj is None or \
+            obj.name != N(context.scene, art.SKETCH):
+        return ""
+    layer = obj.data.layers.active
+    return layer.parent_bone if layer is not None and layer.parent is not None else ""
 
 
 class POPUP_OT_done_drawing(bpy.types.Operator):
@@ -890,6 +901,7 @@ class POPUP_OT_sketch(bpy.types.Operator):
         if panel not in st.rig.pose.bones:
             self.report({"ERROR"}, "Pick a panel (build the card first)")
             return {"CANCELLED"}
+        _remember_view(context)
         if context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
         obj, layer = art.sketch_layer(sc, panel, cut=self.cut)

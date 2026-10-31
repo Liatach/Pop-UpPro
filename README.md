@@ -19,8 +19,9 @@ them.**
 4. Add mechanisms with **+** and drag their sliders; the card rebuilds as
    you go. Keep an eye on **Checks**: it turns red when something would
    tear, poke through or stick out.
-5. Turn **Paint** on to paint the card, and off when done, or add an image with
-   **Image on a Piece**.
+5. Draw on the pieces with **Sketch on Panel** (Grease Pencil:
+   [how to](docs/sketching.md)), turn **Paint** on to paint the card, or add
+   an image with **Image on a Piece**.
 6. **Export SVG Sheets**, print, cut, fold, glue.
 
 Every setting is explained in the [guide](docs/guide.md).

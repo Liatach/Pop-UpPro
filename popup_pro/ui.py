@@ -904,7 +904,23 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
         col = lay.column(align=True)
         col.label(text="Sketch (Grease Pencil)")
         col.prop(st, "sketch_panel", text="")
-        col.operator("popup.sketch", icon="GREASEPENCIL").panel = ""
+        from .ops import sketching
+        on = sketching(context)
+        if on:
+            meta = live.meta(st.rig)
+            lab = next((p["label"] for p in meta["panels"] if p["name"] == on), on) \
+                if meta else on
+            col.operator("popup.sketch", text="Sketch on This Panel Instead",
+                         icon="GREASEPENCIL").panel = ""
+            c = col.column(align=True)
+            c.scale_y = 0.8
+            c.label(text=f"Sketching on {lab}", icon="CHECKMARK")
+            r = col.row()
+            r.alert = True
+            r.scale_y = 1.3
+            r.operator("popup.done_drawing", icon="CHECKMARK")
+        else:
+            col.operator("popup.sketch", icon="GREASEPENCIL").panel = ""
         col = lay.column(align=True)
         col.label(text="Print")
         col.operator("popup.view_layout", icon="VIEW_ORTHO")
