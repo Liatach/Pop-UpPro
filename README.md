@@ -54,10 +54,11 @@ Tubes and pyramids on parallel strips, tied together with tethers, and a basic b
 Five stages opening right round, with frames, windows cut through every layer, floors and a peaked roof.
 
 <!-- SHOT: a mouth, two Jaw V-folds facing each other, a beak V-fold, a flap mid-pull. Could be a GIF. -->
-### Creatures
-![Creatures](docs/images/ex_creatures.png)
+### Creatures & Characters
+![The Sneeze](docs/images/the%20sneeze.gif)
+![A talkative Bird](docs/images/birdface.gif)
 
-Mouths, jaws and beaks that chomp as the card opens, and a lift-the-flap worked by a pull tab.
+Mouths, jaws and beaks that chomp as the card opens, eyes that move and more.
 
 <!-- SHOT: split image: left the painted card with an image wrapped round a cube; right its card sheet + assembly page. -->
 ### From paint to print
