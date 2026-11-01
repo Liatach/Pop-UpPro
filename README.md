@@ -14,25 +14,31 @@ them.**
    in Blender 4.3 or later: **Edit → Preferences → Get Extensions → ⌄ →
    Install from Disk**. Or simply drag the zip into Blender.
 2. In the 3D view press **N** and open the **Pop-Up** tab.
-3. Pick a card size and press **Build Card**. Or **Make Carousel** You get a card with a cube on
-   it, a camera, lighting and a movement test or a 5 scene carousel: press **Play** to have it animate live. 
+3. Pick a card size and press **Build Card**, or **Make Carousel** for a
+   5-stage carousel. You get a card with a cube on it (or the carousel's
+   stages), a camera, lighting and a movement test: press **Play** to watch
+   it open and close.
 4. Add mechanisms with **+** and drag their sliders; the card rebuilds as
    you go. Keep an eye on **Checks**: it turns red when something would
    tear, poke through or stick out.
 5. Draw on the pieces with **Sketch on Panel** (Grease Pencil:
    [how to](docs/sketching.md)), turn **Paint** on to paint the card, or add
-   an image with **Image on a Piece**. Explicitly designed to work with the fabulous **[Paint System](https://extensions.blender.org/add-ons/paint-system/)** extension by [**natapol2547/Tawan Sunflower**](https://github.com/natapol2547/paintsystem) 
-   Draw holes, use standard inbuilt cut out shapes or cut transparent from image or paint layers.
-6. **Export SVG Sheets**, plus crease and cut patterns for cricut etc. print, cut, fold, glue.
+   an image with **Image on a Piece**. Designed to work with the fabulous
+   **[Paint System](https://extensions.blender.org/add-ons/paint-system/)**
+   extension by [**natapol2547 / Tawan Sunflower**](https://github.com/natapol2547/paintsystem)
+   for paint layers. Draw holes, use the built-in cut-out shapes, or cut
+   away what's transparent in an image or your paint.
+6. **Export SVG Sheets**, plus crease and cut patterns for Cricut and other
+   cutting machines: print, cut, fold, glue.
 
 Every setting is explained in more detail in the [guide](docs/guide.md).
 
-## Place holder examples
+## Examples
 
 <!-- SHOT: box layer + box layer on top, Battlements / Pointed Tower presets, a door flap on the front, two stand-ups (one in front of the other). Showcase look. -->
 ### Castle
 ![Castle](docs/images/castle%20card%20sml.gif)
-castle card sml.gif
+
 Stacked box layers with battlements, a spire and a hinged door, and parallelogram stand-ups in front.
 
 <!-- SHOT: strap Peaks 3 with cubes in two valleys; a slanted strap; asym V-fold with a box on its crease. Showcase look, ~110° open. -->
@@ -40,6 +46,11 @@ Stacked box layers with battlements, a spire and a hinged door, and parallelogra
 ![Off the centre](docs/images/cubes%20on%20an%20offset%20strap.gif)
 
 A strap with three peaks carrying cubes in its valleys, a slanted strap, and an asymmetric V-fold leaning a tower to one side.
+
+### Stacking
+![Stacked boxes and insets](docs/images/stacked%20boxes%20and%20insets%20sml.gif)
+
+Box layers stacked on box layers, glued boxes on top and insets pushed into their corners.
 
 <!-- SHOT: hexagon tube with pointed roof, tent, pyramid, tethers between them; basic box (flat Dip roof + rib) with a V-fold on its roof. Dawn look. -->
 ### Village
@@ -96,10 +107,13 @@ Paint flat or folded, import and position images or simply textures, then export
   [Paint System](https://extensions.blender.org/add-ons/paint-system/),
   sketch with Grease Pencil, or place images that wrap round cubes and
   tubes. Art stays on the paper as it folds.
+* Outside glue tabs print the art of the part they glue onto, so they
+  disappear into the picture.
 * A movement test with one Open slider, on a rig that needs no Python
   auto-run.
-* Render looks: Clean, Showcase, Dawn or your own, and metallic, glossy or
-  glowing parts with their art kept.
+* Render looks: Clean, Showcase, Dawn, Studio or your own; metallic, glossy
+  or glowing parts with their art kept, and metallic images (foil
+  lettering on matt paper); the print layout in or out of renders.
 * Layered SVG sheets, reverse sides, an assembly page, and cut-only and
   crease-only files for Cricut and other cutting machines.
 * Card sizes from A6 to A3, US Letter sizes, 5×7 in and picture-book trims.
@@ -178,9 +192,9 @@ calls tools and menus from when it is installed.
   * box ends filled by double 45° folds, and a box lid lifted by a strut
   * 45° folds on a parallelogram; small double triangles
     on the jutting corners of a box fold, throwing out arms and legs.
-* **Multiple quadrilaterals** 
-  a chain of   linked quadrilaterals sweeping across the spine, each with its own height
-  and shape, as long as each one's front and rear crease lengths balance.
+* **Multiple quadrilaterals**: a chain of linked quadrilaterals sweeping
+  across the spine, each with its own height and shape, as long as each
+  one's front and rear crease lengths balance.
 
 
 
@@ -195,9 +209,7 @@ Tests run with `pip install bpy`: `python tests/test_core.py`, then each
 GPL-3.0-or-later. By Kim Lang / [Liatach Makes](https://kim-lang.com) with LLM coding assistance.
 Built on the shoulders of giants.
 This will always be free! 
-But if you'd to support its development please consider buying me a coffee:
-
-<script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Buy me a coffee', '#72a4f2', 'W5S523ZBSF');kofiwidget2.draw();</script> 
+But if you'd like to support its development, please consider buying me a coffee:
 
 <a href='https://ko-fi.com/W5S523ZBSF' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi6.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
