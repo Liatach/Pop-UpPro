@@ -5,7 +5,7 @@ them.**
 
 <!-- SHOT: hero. Dawn render look, card about 120° open, 3-4 mechanisms
      with painted art, camera from the default card camera. -->
-![Pop-Up Pro](docs/images/popup%20hero%20.png)
+![Pop-Up Pro](docs/images/popup%20hero%20better.pngpopup%20hero%20.pngpopup%20hero%20.png)
 
 ## Getting started
 
@@ -62,9 +62,10 @@ Mouths, jaws and beaks that chomp as the card opens, eyes that move and more.
 
 <!-- SHOT: split image: left the painted card with an image wrapped round a cube; right its card sheet + assembly page. -->
 ### From paint to print
-![From paint to print](docs/images/ex_artwork.png)
+![Paint flat or folded](docs/images/sneeeze%20layout.png)
+![From paint to print](docs/images/the%20sneeze_printlayout.png)
 
-Paint flat or folded, wrap an image round a cube, then export layered SVG sheets with an assembly page.
+Paint flat or folded, import and position images or simply textures, then export layered SVG sheets with an assembly page.
 
 
 ## Features
