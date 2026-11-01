@@ -49,7 +49,7 @@ Tubes and pyramids on parallel strips, tied together with tethers, and a basic b
 
 <!-- SHOT: 5-stage carousel at ~300°, staging frame with an arch, window Through Everything Behind, a floor with a V-fold on its crease, peaked-roof background. Dawn look. -->
 ### Carousel
-![Carousel](docs/images/ex_carousel.png)
+![Carousel](docs/images/carousel%20example.gif)
 
 Five stages opening right round, with frames, windows cut through every layer, floors and a peaked roof.
 
@@ -65,8 +65,6 @@ Mouths, jaws and beaks that chomp as the card opens, and a lift-the-flap worked 
 
 Paint flat or folded, wrap an image round a cube, then export layered SVG sheets with an assembly page.
 
-<!-- SHOT: movement GIF, open and close loop -->
-![Movement test](docs/images/movement.gif)
 
 ## Features
 
