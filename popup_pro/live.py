@@ -21,11 +21,8 @@ def schedule(scene, delay=0.15):
     _pending.add(name)
 
     def run():
-        try:
-            if bpy.context.mode == "PAINT_TEXTURE":
-                return 0.5  # never rebuild under the brush: once painting stops
-        except AttributeError:
-            pass
+        # (while painting too: a change to a mechanism comes from the panel,
+        # never mid-stroke, and the rebuild puts you back in Texture Paint)
         _pending.discard(name)
         sc = bpy.data.scenes.get(name)
         if sc is None:
