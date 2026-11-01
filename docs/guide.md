@@ -722,6 +722,42 @@ have height + depth within the page width; nothing may stick out of the
 closed card or poke through a page; glue tabs and cut-outs on the same paper
 must not overlap; and a tab must not land on a hole.
 
+### Align
+
+Tick the box beside each mechanism in the list to pick it (**Same Fold**,
+**All** and **None** pick quickly); the active one is always included, and
+is what the others line up with. Open **Align** under the list:
+
+* **Along Fold** lines up mechanisms that share a fold: their **Start**,
+  **Centre** or **End** along it, or **Distribute** them with equal gaps.
+  Picked mechanisms on different folds line up with the others on their own
+  fold. Extents come from the built card (where each one's paper actually
+  lies along its fold, part open), so any kind lines up with any other.
+* **Whole Card** lines them up the card (**Bottom**, **Middle**, **Top**,
+  **Up** to distribute), and flaps across their pages, measured out from the
+  spine, so a flap on the left page lines up as the mirror image of one on
+  the right.
+* **To** picks the reference: the **Active** mechanism, the span of the
+  **Selection**, or the **Fold / Card** itself (the ends of the fold, or the
+  card's edges and spine; Distribute then leaves the same gap at the ends).
+
+Things riding on a mechanism that moves go with it. Frames, floors,
+ceilings, roofs and tethers stay where what they stand in puts them.
+Anything that would run off its fold or the card is reported. One undo
+step, one rebuild.
+
+### Plan View
+
+**Plan View** (under Checks) looks straight into the card part open, down
+the line halfway between the pages, with everything squashed flat along
+that line and drawn see-through, each mechanism in its own colour (or each
+panel). Where pieces overlap the colours stack up darker, which makes it
+plain what lies in front of what in a busy build, a stage set especially.
+**Open** sets the angle (or follow the card's own Open slider), **Depth**
+how much depth is kept, **See-through** the X-ray opacity. It works on a
+carousel stage too. It is for the viewport only: renders and exports never
+see it, and turning it off puts your view, shading and opening back.
+
 ## Artwork that stays on the paper
 
 Everything is one mesh, **Pop-up Card**, deformed by **Pop-up Rig**. Its rest

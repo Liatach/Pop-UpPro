@@ -142,8 +142,9 @@ assert bpy.ops.popup.add(kind="STANDUP", host=su.uid, fold="B") == {"FINISHED"}
 assert bpy.ops.popup.add(kind="VFOLD") == {"FINISHED"}
 vf = st.mechs[-1]
 vf.y, vf.glue, vf.height = 172, 30, 26
-assert bpy.ops.popup.add(kind="STANDUP", host=vf.uid, fold="FR") == {"FINISHED"}
-assert st.mechs[-1].vside == "FR" and st.mechs[-1].host_uid == vf.uid
+vf_uid = vf.uid  # (adding moves the list in memory: vf goes stale)
+assert bpy.ops.popup.add(kind="STANDUP", host=vf_uid, fold="FR") == {"FINISHED"}
+assert st.mechs[-1].vside == "FR" and st.mechs[-1].host_uid == vf_uid
 st.keep_open = False
 model = build.rebuild(sc, force=True)
 assert not st.warnings, st.warnings

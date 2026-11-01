@@ -221,6 +221,7 @@ def build_mesh(mesh, model, layout, s, holes=None):
     holes = holes or {}
     bm = bmesh.new()
     lay = bm.faces.layers.int.new("pop_panel")
+    mlay = bm.faces.layers.int.new("pop_mech")  # its mechanism's uid (0: the card)
     uvl = bm.loops.layers.uv.new(ART_UV)
     tile = bm.loops.layers.uv.new(TILE_UV)
     carry = tab_art(model)
@@ -250,8 +251,10 @@ def build_mesh(mesh, model, layout, s, holes=None):
         v = Vector((q[0], q[1], 0.0))
         return all((model.shown(a, t) @ v - model.shown(b, t) @ v).length < 2e-4 for t in ts)
 
+    from .core.align import uid_of
     for pi, name in enumerate(model.order):
         p = model.panels[name]
+        mech_uid = uid_of(name) or 0
         P = layout["prints"][p.piece]
         cache = {}
         pool = shared.setdefault(p.piece, {})
@@ -284,6 +287,7 @@ def build_mesh(mesh, model, layout, s, holes=None):
             except ValueError:
                 continue
             f[lay] = pi
+            f[mlay] = mech_uid
             to_host = carry.get(name)
             for loop, q in zip(f.loops, poly):
                 own = art_uv(model, p.piece, q)
@@ -610,4 +614,6 @@ def rebuild(scene, force=False):
     if stage:
         from . import carousel
         carousel.link_stage(scene)
+    from . import debug
+    debug.on_rebuild(scene)  # the plan view stays last on the card
     return model

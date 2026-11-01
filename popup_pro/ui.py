@@ -49,7 +49,9 @@ def draw_export(layout, st):
 
 class POPUP_UL_mechs(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_prop, index=0):
-        layout.prop(item, "label", text="", emboss=False, icon=KIND_ICON[item.kind])
+        row = layout.row(align=True)
+        row.prop(item, "selected", text="")
+        row.prop(item, "label", text="", emboss=False, icon=KIND_ICON[item.kind])
 
 
 class POPUP_MT_add(bpy.types.Menu):
@@ -373,6 +375,44 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
         _paper(box, st, None)
 
 
+def _align(lay, st):
+    """Align: shown once more than one mechanism is picked (or to put one
+    against its fold's ends or the card's edges)."""
+    n = sum(1 for i, m in enumerate(st.mechs) if m.selected or i == st.active)
+    head, box = lay.panel("popup_align", default_closed=True)
+    head.label(text=f"Align ({n})" if n > 1 else "Align", icon="ALIGN_CENTER")
+    if box is None:
+        return
+    row = box.row(align=True)
+    row.label(text="Pick:")
+    for a, txt in (("FOLD", "Same Fold"), ("ALL", "All"), ("NONE", "None")):
+        row.operator("popup.select_mechs", text=txt).action = a
+    box = box.column()
+    box.active = n > 1 or st.align_to == "HOST"
+    row = box.row(align=True)
+    row.prop(st, "align_scope", expand=True)
+    box.prop(st, "align_to", text="To")
+    row = box.row(align=True)
+    if st.align_scope == "FOLD":
+        for h, ic in (("START", "ALIGN_LEFT"), ("CENTRE", "ALIGN_CENTER"),
+                      ("END", "ALIGN_RIGHT")):
+            op = row.operator("popup.align", text="", icon=ic)
+            op.how = h
+        row.separator()
+        row.operator("popup.align", text="Distribute", icon="ALIGN_JUSTIFY").how = "DISTRIBUTE"
+    else:
+        for h, ic in (("BOTTOM", "ANCHOR_BOTTOM"), ("VCENTRE", "ALIGN_MIDDLE"),
+                      ("TOP", "ANCHOR_TOP")):
+            row.operator("popup.align", text="", icon=ic).how = h
+        row.operator("popup.align", text="Up", icon="ALIGN_JUSTIFY").how = "DIST_V"
+        row = box.row(align=True)
+        row.label(text="Flaps (from spine):")
+        for h, ic in (("INNER", "ANCHOR_LEFT"), ("HCENTRE", "ANCHOR_CENTER"),
+                      ("OUTER", "ANCHOR_RIGHT")):
+            row.operator("popup.align", text="", icon=ic).how = h
+        row.operator("popup.align", text="Across", icon="ALIGN_JUSTIFY").how = "DIST_H"
+
+
 class POPUP_PT_mechs(_Base, bpy.types.Panel):
     bl_label = "Mechanisms"
     bl_order = 2
@@ -394,6 +434,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(st, "highlight", text="", icon="RESTRICT_SELECT_OFF")
         if not st.mechs or st.active >= len(st.mechs):
             return
+        _align(lay, st)
         m = st.mechs[st.active]
         col = lay.column()
         col.use_property_split = True
@@ -941,14 +982,36 @@ class POPUP_PT_checks(_Base, bpy.types.Panel):
                   icon="ERROR" if n else "CHECKMARK")
 
     def draw(self, context):
-        ws = context.scene.popup.warnings.splitlines()
+        st = context.scene.popup
+        ws = st.warnings.splitlines()
         if not ws:
             self.layout.label(text="Folds flat, opens flat, no collisions found")
-            return
-        col = self.layout.column(align=True)
-        col.alert = True
-        for w in ws:
-            col.label(text=w, icon="ERROR")
+        else:
+            col = self.layout.column(align=True)
+            col.alert = True
+            for w in ws:
+                col.label(text=w, icon="ERROR")
+        _plan_view(self.layout, st)
+
+
+def _plan_view(lay, st):
+    """Plan view: the card squashed flat along the view, see-through."""
+    box = lay.box()
+    row = box.row(align=True)
+    row.prop(st, "plan_view", text="Plan View (see overlaps)", icon="XRAY", toggle=True)
+    if not st.plan_view:
+        return
+    col = box.column()
+    col.use_property_split = True
+    col.use_property_decorate = False
+    row = col.row(align=True)
+    sub = row.row(align=True)
+    sub.active = not st.plan_use_open
+    sub.prop(st, "plan_angle", slider=True)
+    row.prop(st, "plan_use_open", text="", icon="LINKED")
+    col.prop(st, "plan_colour", expand=True)
+    col.prop(st, "plan_depth", slider=True)
+    col.prop(st, "plan_alpha", slider=True)
 
 
 class POPUP_PT_art(_Base, bpy.types.Panel):

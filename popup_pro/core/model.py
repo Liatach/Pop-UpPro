@@ -234,6 +234,7 @@ class Model:
         self._branch = {}
         self.joints = {}
         self.hosts = {}
+        self.placed = {}  # mechanism uid -> the Host it was built on
         self.cut_panels = set()
         self.pull = {}  # flap uid -> pull 0..1 (the Pull slider)
         self.soft = set()  # panel pairs joined by a sliding bend, not a fold
@@ -449,6 +450,7 @@ class Model:
             if host is None:
                 self.warn(f"{m['label']}: its host was skipped; skipped too")
                 continue
+            self.placed[m["uid"]] = host  # the fold it stands on (Align measures along it)
             n0 = len(self.order)
             if m["type"] == "VFOLD":
                 if m.get("cut_above"):
@@ -2997,6 +2999,9 @@ class Model:
                     tt = (edge - S3[axis]) / dv
                     if tt > 0:
                         dists.append((tt, axis, edge))
+        if not dists:  # the slit is off the page already
+            self.warn(f"{lab}: its pull slit lands off the page; skipped")
+            return
         tt, axis, edge = min(dists)
         if axis == 0 and abs(edge) < 1e-9:
             self.warn(f"{lab}: the pull strip would run across the spine; turn the flap "

@@ -313,7 +313,7 @@ class POPUP_OT_duplicate(bpy.types.Operator):
             m = _add(st, src.kind)
             uid = m.uid
             src = st.mechs[i_src]  # the collection may have moved in memory
-            _copy_props(src, m, skip=("uid", "label", "lines"))
+            _copy_props(src, m, skip=("uid", "label", "lines", "selected"))
             m.uid = uid
             for ln in src.lines:
                 n = m.lines.add()

@@ -67,6 +67,9 @@ def draw():
         return  # keep the colours true while painting
     uid = st.mechs[st.active].uid
     want = _panels(sc, uid)
+    for m in st.mechs:  # picked for Align too
+        if m.selected and m.uid != uid:
+            want |= _panels(sc, m.uid)
     if not want:
         return
     dg = ctx.evaluated_depsgraph_get()

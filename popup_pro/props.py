@@ -35,6 +35,11 @@ def _redraw(self, context):
                 area.tag_redraw()
 
 
+def _plan(self, context, fn):
+    from . import debug
+    getattr(debug, fn)(self, context)
+
+
 def _sym(self, context):
     if self.symmetric:
         self["phi_r"] = self.phi_l
@@ -531,6 +536,9 @@ class PopupMech(bpy.types.PropertyGroup):
                      "from its point; out along a glue line from the V point; along a box "
                      "fold, strap, cube or tube wall from its end", default=70.0, min=0.0, soft_max=300.0,
                      update=_changed)
+    selected: BoolProperty(name="Select", default=False, update=_redraw,
+                           description="Pick it to line up with the active mechanism "
+                           "(Align); the active one is always included")
     host_uid: IntProperty(default=0)
     host: EnumProperty(name="Host", description="Fold this mechanism sits on",
                        items=host_items, get=_host_get, set=_host_set)
@@ -1103,6 +1111,41 @@ class PopupSettings(bpy.types.PropertyGroup):
                                min=0.01, soft_max=1000.0, update=_changed)
     mechs: CollectionProperty(type=PopupMech)
     active: IntProperty(name="Mechanism", update=_redraw)
+    align_scope: EnumProperty(name="Align", default="FOLD", items=[
+        ("FOLD", "Along Fold", "Line up mechanisms that share a fold, along that fold "
+         "(each fold's own mechanisms on their own)", "SNAP_MIDPOINT", 0),
+        ("CARD", "Whole Card", "Line up across the whole card: up and down the spine, and "
+         "flaps across their pages", "FILE_IMAGE", 1)])
+    align_to: EnumProperty(name="Relative To", default="ACTIVE", items=[
+        ("ACTIVE", "Active", "The active mechanism stays put; the others line up with it",
+         "PIVOT_ACTIVE", 0),
+        ("SELECTION", "Selection", "The span of everything selected", "PIVOT_BOUNDBOX", 1),
+        ("HOST", "Fold / Card", "The ends of the fold they stand on (Along Fold), or the "
+         "card's edges and spine (Whole Card)", "SNAP_EDGE", 2)])
+    plan_view: BoolProperty(name="Plan View", default=False,
+                            update=lambda s, c: _plan(s, c, "switched"),
+                            description="Look straight into the card part open, everything "
+                            "squashed flat along the view and see-through, each mechanism its "
+                            "own colour: overlaps show as darker patches. Viewport only; "
+                            "turning it off puts your view back")
+    plan_angle: FloatProperty(name="Open", default=60.0, min=1.0, max=180.0,
+                              update=lambda s, c: _plan(s, c, "changed"),
+                              description="How far open to look at it (degrees)")
+    plan_use_open: BoolProperty(name="Follow Open", default=False,
+                                update=lambda s, c: _plan(s, c, "changed"),
+                                description="Use the card's own Open slider (and turn with "
+                                "it) instead of a fixed angle")
+    plan_colour: EnumProperty(name="Colours", default="MECH",
+                              update=lambda s, c: _plan(s, c, "changed"), items=[
+                                  ("MECH", "Mechanism", "Each mechanism its own colour"),
+                                  ("PANEL", "Panel", "Each panel its own colour")])
+    plan_depth: FloatProperty(name="Depth", default=0.02, min=0.0, max=1.0, precision=3,
+                              update=lambda s, c: _plan(s, c, "changed"),
+                              description="How much depth is kept (0 completely flat, 1 "
+                              "not squashed)")
+    plan_alpha: FloatProperty(name="See-through", default=0.5, min=0.05, max=1.0,
+                              update=lambda s, c: _plan(s, c, "changed"),
+                              description="X-ray opacity: lower shows overlaps more plainly")
     highlight: BoolProperty(name="Highlight Selected", default=True, update=_redraw,
                             description="Tint the panels of the mechanism selected in the "
                             "list, on the folded card and the layout (viewport only, never "
