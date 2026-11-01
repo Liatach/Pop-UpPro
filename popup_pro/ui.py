@@ -1131,6 +1131,9 @@ def _brush_sections(lay, context):
                 elif U is not None and brush is not None:
                     U.prop_unified_color_picker(body, context, brush, "color", value_slider=True)
                     U.prop_unified_color(body, context, brush, "color", text="")
+                    if sc.popup.colour_history is not None:
+                        body.label(text="Colour History")
+                        body.template_palette(sc.popup, "colour_history", color=True)
             elif key == "popup_paint_brush":
                 if ext is not None and ext.poll_brush_settings(context):
                     ext.draw_brush_settings(body, context)

@@ -1103,6 +1103,9 @@ class PopupSettings(bpy.types.PropertyGroup):
     status: StringProperty()
     edited: BoolProperty(description="The card mesh has been edited by hand")
     sketch_panel: EnumProperty(name="Panel", items=lambda s, c: live.panel_items(c.scene))
+    colour_history: PointerProperty(type=bpy.types.Palette, name="Colour History",
+                                    description="Colours you've painted the card with, "
+                                    "newest first (Paint System keeps its own)")
     material_part: EnumProperty(name="Part", description="The part to give its own "
                                 "material", items=lambda s, c: live.panel_items(c.scene))
     material_whole: BoolProperty(name="Whole Mechanism", default=True,

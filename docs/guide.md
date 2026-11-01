@@ -739,6 +739,10 @@ mesh, no rig). So:
     out under Paint while you paint. With Paint System on they are its own
     colour, brush and layer panels; without it, Blender's colour, size,
     strength and blend.
+  * **Colour history**: every colour you paint the card with is noted,
+    newest first: in Paint System's Color History when it's installed
+    (strokes on the paper as well as on its layers), otherwise under
+    **Colour**. Click one to paint with it again.
   * **Paper / Layer** shows when the paper has a paint layer on top, such as
     Paint System's: what the brush paints into. The Layer button shows the
     layer's name; *Paper* is the one for holes.

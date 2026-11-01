@@ -4,7 +4,7 @@ that animates the open angle, art that stays on the paper, and print SVGs."""
 
 import bpy
 
-from . import highlight, holes, images, materials, ops, props, scene_setup, ui
+from . import highlight, history, holes, images, materials, ops, props, scene_setup, ui
 
 
 def register():
@@ -15,6 +15,7 @@ def register():
     images.register()
     ui.register()
     highlight.register()
+    history.register()
     holes.subscribe()
     if holes.subscribe not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(holes.subscribe)
@@ -22,6 +23,7 @@ def register():
 
 def unregister():
     highlight.unregister()
+    history.unregister()
     holes.unsubscribe()
     if holes.subscribe in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(holes.subscribe)
