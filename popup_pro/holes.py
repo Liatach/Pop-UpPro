@@ -816,6 +816,14 @@ def subscribe(*_args):
     bpy.msgbus.clear_by_owner(_owner)
     bpy.msgbus.subscribe_rna(key=(bpy.types.Object, "mode"), owner=_owner, args=(),
                              notify=_mode_changed)
+    if _args:  # a file just opened: no painting preview left in its paper
+        from . import colours
+        for sc in bpy.data.scenes:
+            try:
+                if getattr(sc, "popup", None) is not None and sc.popup.card is not None:
+                    colours.heal(sc)
+            except Exception as ex:  # never stop a file opening
+                print(f"Pop-Up Pro: {ex}")
 
 
 def unsubscribe():

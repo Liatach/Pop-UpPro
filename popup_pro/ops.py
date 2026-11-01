@@ -863,10 +863,6 @@ class POPUP_OT_paint_layers(bpy.types.Operator):
         if ps_group_node(sc) is not None:
             self.report({"INFO"}, "The paper already has Paint System layers")
             return {"CANCELLED"}
-        if "EEVEE" not in sc.render.engine:
-            self.report({"ERROR"}, "Paint System's Paint Over needs EEVEE as the render "
-                        "engine (Set Up Scene sets it)")
-            return {"CANCELLED"}
         if painting(context):
             bpy.ops.popup.done_painting()
         colours.leave(sc)  # the layers go over the real paper, not the unlit preview
@@ -882,10 +878,15 @@ class POPUP_OT_paint_layers(bpy.types.Operator):
         context.view_layer.objects.active = card
         before = set(bpy.data.images)
         try:
+            # PBR, colour only: the layers go into the paper's Base Color over
+            # its art, so they're lit like the paper (Paint Over would paint
+            # them flat over the shaded result, and only in EEVEE)
             r = bpy.ops.paint_system.new_group(
-                template="PAINT_OVER", group_name="Pop-up Layers", coord_type="UV",
+                template="PBR", group_name="Pop-up Layers", coord_type="UV",
                 uv_map_name=build.ART_UV, use_paint_system_uv=False, checked_coord_type=True,
-                disable_show_backface=False, multiple_objects=False, add_layers=True)
+                disable_show_backface=False, multiple_objects=False, add_layers=True,
+                pbr_add_color=True, pbr_add_metallic=False, pbr_add_roughness=False,
+                pbr_add_normal=False)
         except (RuntimeError, TypeError) as ex:
             self.report({"ERROR"}, f"Paint System couldn't add layers: {ex}")
             return {"CANCELLED"}
@@ -904,6 +905,83 @@ class POPUP_OT_paint_layers(bpy.types.Operator):
         if new:
             _paint_into_other(sc, new[0].name)
         self.report({"INFO"}, "Paint System layers added: paint, or manage them in its panel")
+        return {"FINISHED"}
+
+
+def ps_flat_setup(mat):
+    """Paint System's Paint Over on the paper: its layers fed by the shaded
+    paper (Shader to RGB) and mixed over it as flat colour. Returns (group
+    node, shader to RGB, mix shader, output) or None."""
+    if mat is None or not mat.use_nodes:
+        return None
+    nt = mat.node_tree
+    out = next((n for n in nt.nodes if n.type == "OUTPUT_MATERIAL" and n.is_active_output),
+               None)
+    if out is None or not out.inputs["Surface"].links:
+        return None
+    mix = out.inputs["Surface"].links[0].from_node
+    if mix.type != "MIX_SHADER":
+        return None
+    for g in nt.nodes:
+        if g.type != "GROUP" or "Color" not in g.inputs or not g.inputs["Color"].links:
+            continue
+        s2r = g.inputs["Color"].links[0].from_node
+        if s2r.bl_idname == "ShaderNodeShaderToRGB" and any(l.to_node == mix for o in g.outputs
+                                                for l in o.links):
+            return g, s2r, mix, out
+    return None
+
+
+def ps_light(mat):
+    """Turn a Paint Over layer stack into one in the paper's Base Color: the
+    layers go over the art and are lit like the paper (and render in Cycles
+    too). The layers and their images are untouched."""
+    got = ps_flat_setup(mat)
+    if got is None:
+        return False
+    g, s2r, mix, out = got
+    nt = mat.node_tree
+    bsdf = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if bsdf is None:
+        return False
+    base = bsdf.inputs["Base Color"]
+    src = base.links[0].from_socket if base.links else None
+    if src is not None:
+        nt.links.new(src, g.inputs["Color"])
+    else:
+        for ln in list(g.inputs["Color"].links):
+            nt.links.remove(ln)
+        g.inputs["Color"].default_value = base.default_value
+    nt.links.new(g.outputs["Color"], base)
+    if "Color Alpha" in g.outputs and bsdf.inputs.get("Alpha") is not None:
+        a = bsdf.inputs["Alpha"]
+        if a.links and "Color Alpha" in g.inputs:
+            nt.links.new(a.links[0].from_socket, g.inputs["Color Alpha"])
+        nt.links.new(g.outputs["Color Alpha"], a)
+    nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
+    gone = [s2r, mix] + [ln.from_node for i in mix.inputs for ln in i.links
+                         if ln.from_node.bl_idname == "ShaderNodeBsdfTransparent"]
+    for n in gone:
+        if n.name in nt.nodes:
+            nt.nodes.remove(n)
+    return True
+
+
+class POPUP_OT_light_layers(bpy.types.Operator):
+    """Your Paint System layers are set up as Paint Over: they show as flat,
+    unlit colour on top of the shaded paper (and only in EEVEE). Put them into
+    the paper's colour instead, so they're lit like the paper. Layers and
+    images stay as they are"""
+    bl_idname = "popup.light_layers"
+    bl_label = "Light the Paint Layers"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        st = context.scene.popup
+        mat = st.card.data.materials[0] if st.card and st.card.data.materials else None
+        if not ps_light(mat):
+            self.report({"INFO"}, "The paint layers are already lit like the paper")
+            return {"CANCELLED"}
         return {"FINISHED"}
 
 
@@ -1666,7 +1744,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_paint_layers, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_paint_layers, POPUP_OT_light_layers, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

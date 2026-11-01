@@ -1050,12 +1050,17 @@ def _paint_controls(lay, context, big=False):
             row.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
             row.operator("popup.trace_holes", text="", icon="X").clear = True
             box.prop(sc.popup, "auto_holes")
-            from .ops import PS_URL, ps_available, ps_group_node
+            from .ops import PS_URL, ps_available, ps_flat_setup, ps_group_node
             if ps_group_node(sc) is not None:
                 c = lay.column(align=True)
                 c.scale_y = 0.8
                 c.label(text="Paint layers: Paint System", icon="RENDERLAYERS")
                 c.label(text="Add and arrange them in its panel")
+                mat = sc.popup.card.data.materials[0] if sc.popup.card.data.materials else None
+                if ps_flat_setup(mat) is not None:
+                    r = lay.row()
+                    r.alert = True
+                    r.operator("popup.light_layers", icon="LIGHT")
             elif ps_available():
                 lay.operator("popup.paint_layers", text="Add Paint Layers (Paint System)",
                              icon="RENDERLAYERS")

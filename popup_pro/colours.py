@@ -84,24 +84,36 @@ def _relit(mat, was):
     out = next((n for n in nt.nodes if n.type == "OUTPUT_MATERIAL" and n.is_active_output),
                None)
     links = out.inputs["Surface"].links if out is not None else ()
-    if was is not None and links and links[0].from_node.name == MIX:
-        # only while ours still drives the output: if something else took
-        # it over meanwhile (Paint System's layers), it keeps it
-        nt.links.new(was, out.inputs["Surface"])
+    bsdf = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    lit = was if was is not None else (bsdf.outputs[0] if bsdf is not None else None)
+    if lit is not None and links and links[0].from_node.name == MIX:
+        nt.links.new(lit, out.inputs["Surface"])
     ours = {nt.nodes.get(k) for k in (EMIT, MIX, CLEAR)} - {None}
-    # keep any that other nodes have come to rely on (a paint layer stack
-    # built while painting), and whatever of ours feeds those
-    keep = {n for n in ours if any(l.to_node not in ours and l.to_node != out
-                                   for o in n.outputs for l in o.links)}
-    grew = True
-    while grew:
-        grew = False
-        for n in ours - keep:
-            if any(l.to_node in keep for o in n.outputs for l in o.links):
-                keep.add(n)
-                grew = True
-    for n in ours - keep:
+    # Anything else that came to take the unlit preview as its paper (a
+    # Paint System layer stack set up while painting) gets the real, lit
+    # paper instead: the flat colours are only ever a painting preview.
+    for n in ours:
+        for o in n.outputs:
+            for ln in list(o.links):
+                if ln.to_node not in ours and ln.to_node != out and lit is not None:
+                    nt.links.new(lit, ln.to_socket)
+    for n in ours:
         nt.nodes.remove(n)
+
+
+def heal(scene):
+    """Not painting, yet the unlit preview is still in the paper (left by a
+    session that ended oddly, or caught up in a layer stack): put the lit
+    paper back."""
+    if KEY in scene:
+        return False
+    mat = _paper(scene)
+    if mat is None or mat.node_tree is None:
+        return False
+    if not any(mat.node_tree.nodes.get(k) for k in (EMIT, MIX, CLEAR)):
+        return False
+    _relit(mat, None)
+    return True
 
 
 def enter(scene):

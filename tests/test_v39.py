@@ -37,8 +37,13 @@ assert g is not None
 mat = st.card.data.materials[0]
 nt = mat.node_tree
 out = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL" and n.is_active_output)
-assert out.inputs["Surface"].links[0].from_node.type == "MIX_SHADER"
-assert not any(n.name.startswith("Pop-up True") for n in nt.nodes), "no unlit preview inside"
+bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+# the layers go into the paper's colour (lit like the paper), over its art
+assert bsdf.inputs["Base Color"].links[0].from_node == g
+assert g.inputs["Color"].links and g.inputs["Color"].links[0].from_node.name == "Pop-up Back"
+assert ops.ps_flat_setup(mat) is None
+# and no unlit preview inside the stack (it's only ever on the output)
+assert not any(ln.from_node.name.startswith("Pop-up True") for i in g.inputs for ln in i.links)
 assert not mat.use_backface_culling, "the paper's back still shows"
 art_img = ops.paint_images(sc)[0]
 assert g.inputs["Color Alpha"].links and g.inputs["Color Alpha"].links[0].from_node.image == art_img
@@ -56,6 +61,32 @@ assert ops.painting_into(sc) == art_img, "erasing works on the paper"
 bpy.ops.popup.paint_into(into="OTHER")
 assert ops.painting_into(sc) == now
 bpy.ops.popup.paint()  # off
-assert out.inputs["Surface"].links[0].from_node.type == "MIX_SHADER"
+assert out.inputs["Surface"].links[0].from_node == bsdf
+assert not any(n.name.startswith("Pop-up True") for n in nt.nodes), "flat colours gone"
 assert bpy.ops.popup.paint_layers() == {"CANCELLED"}  # only once
+
+# an older Paint Over stack (flat layers over the shaded paper) is lit again
+mat2 = mat.copy()
+n2 = mat2.node_tree
+b2 = next(n for n in n2.nodes if n.type == "BSDF_PRINCIPLED")
+g2 = next(n for n in n2.nodes if n.type == "GROUP" and n.node_tree == g.node_tree)
+o2 = next(n for n in n2.nodes if n.type == "OUTPUT_MATERIAL" and n.is_active_output)
+s2r = n2.nodes.new("ShaderNodeShaderToRGB")
+mix = n2.nodes.new("ShaderNodeMixShader")
+clear = n2.nodes.new("ShaderNodeBsdfTransparent")
+n2.links.new(b2.inputs["Base Color"].links[0].from_socket, b2.inputs["Base Color"])
+n2.links.new(n2.nodes["Pop-up Back"].outputs["Result"], b2.inputs["Base Color"])
+n2.links.new(b2.outputs[0], s2r.inputs[0])
+n2.links.new(s2r.outputs[0], g2.inputs["Color"])
+n2.links.new(g2.outputs["Color Alpha"], mix.inputs[0])
+n2.links.new(clear.outputs[0], mix.inputs[1])
+n2.links.new(g2.outputs["Color"], mix.inputs[2])
+n2.links.new(mix.outputs[0], o2.inputs["Surface"])
+assert ops.ps_flat_setup(mat2) is not None
+assert ops.ps_light(mat2)
+assert ops.ps_flat_setup(mat2) is None
+assert o2.inputs["Surface"].links[0].from_node == b2
+assert b2.inputs["Base Color"].links[0].from_node == g2
+assert g2.inputs["Color"].links[0].from_node.name == "Pop-up Back"
+print("a Paint Over stack is lit like the paper")
 print("all v39 checks pass")

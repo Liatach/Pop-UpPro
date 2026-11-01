@@ -67,7 +67,8 @@ bpy.ops.popup.paint()  # off
 assert out.inputs["Surface"].links[0].from_node == mix
 print("paint layers kept showing; Paper / Layer picks the target")
 
-# a stack built on True Colours' own nodes survives leaving
+# a stack built on True Colours' own nodes keeps its output, but gets the
+# lit paper in place of the flat preview when painting ends
 nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
 bpy.ops.popup.paint()
 tm = nt.nodes.get(colours.MIX)
@@ -78,6 +79,7 @@ nt.links.new(s2r.outputs[0], mix.inputs[1])
 nt.links.new(mix.outputs[0], out.inputs["Surface"])
 bpy.ops.popup.done_painting()
 assert out.inputs["Surface"].links[0].from_node == mix
-assert nt.nodes.get(colours.MIX) and nt.nodes.get(colours.EMIT) and nt.nodes.get(colours.CLEAR)
-print("a stack built while painting keeps its inputs and its output")
+assert not any(nt.nodes.get(k) for k in (colours.MIX, colours.EMIT, colours.CLEAR))
+assert s2r.inputs[0].links[0].from_node == bsdf
+print("a stack built while painting keeps its output, over the lit paper")
 print("all v37 checks pass")

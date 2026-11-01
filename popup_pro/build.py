@@ -580,7 +580,8 @@ def rebuild(scene, force=False):
     write_meta(rig, model, layout, s)
     from . import materials
     materials.apply(scene)
-    from . import art as _art
+    from . import art as _art, colours as _colours
+    _colours.heal(scene)  # flat painting colours never outlast painting
     try:
         _art.extend_tiles(scene)  # new mechanisms get their own place to paint
     except Exception as ex:  # never stop a rebuild over the paint texture

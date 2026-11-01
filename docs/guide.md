@@ -753,14 +753,19 @@ mesh, no rig). So:
   Texture Paint.
 * **Paint System** (a free, separate extension: Pop-Up Pro calls it, and
   doesn't include it): with it installed, **Add Paint Layers** under Paint
-  sets up its *Paint Over* layers on the card, painting through the
-  **PopupArt** UV map so layers line up with the print, with the paper's
-  back left showing and erased paper still see-through. Add and arrange
+  sets up its layers in the paper's colour (its *PBR* setup, colour only),
+  over the art, so they're lit like the paper and render in Cycles too,
+  painting through the **PopupArt** UV map so layers line up with the
+  print, with the paper's back left showing and erased paper still
+  see-through. Layers set up as *Paint Over* by an earlier version show as
+  flat, unlit colour: **Light the Paint Layers** (under Paint) puts them in
+  the paper's colour, keeping every layer and image. The flat colours of
+  True Colours only ever show while painting; one left behind is put back
+  to the lit paper when the card rebuilds or the file opens. Add and arrange
   layers in Paint System's own panel; *Paper / Layer* switches the brush
   between the paper and a layer, and holes and trims still come from the
   paper (Erase works on it). Without Paint System, the button links to it
-  on Blender Extensions. True Colours leaves a material drawn by Paint
-  System alone. Then **Bake Art for Print** flattens
+  on Blender Extensions. Then **Bake Art for Print** flattens
   whatever the material shows into **Pop-up Print** for the export. The bake
   works on temporary copies of the layout and its materials, so your
   materials and render settings are never changed. It guards against two
