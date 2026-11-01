@@ -193,7 +193,9 @@ Tests run with `pip install bpy`: `python tests/test_core.py`, then each
 ## Licence
 
 GPL-3.0-or-later. By Kim Lang / [Liatach Makes](https://kim-lang.com) with LLM coding assistance.
-Built on the shoulders of giants. This will always be free! But if you'd to support its development please consider buying me a coffee:
+Built on the shoulders of giants.
+This will always be free! 
+But if you'd to support its development please consider buying me a coffee:
 
 <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Buy me a coffee', '#72a4f2', 'W5S523ZBSF');kofiwidget2.draw();</script> 
 
