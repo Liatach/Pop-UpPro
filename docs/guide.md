@@ -49,6 +49,9 @@ start, see the [README](../README.md).
        key sun: soft, even light with real reflections for metallic and
        glossy parts (64 render samples). Lights you add yourself still
        shine too.
+   * **Print Layout in Renders** (the grid button beside the Render Look,
+     off by default): show the flat print layout in renders as well as the
+     folded card. On a carousel the button sets every stage.
    * **Paper Texture** (off by default): a fine grain as a bump, so colours
      and prints are untouched. It is one node group, *Pop-up Paper Texture*:
      put your own paper texture inside it and every card uses it.

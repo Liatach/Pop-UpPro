@@ -1025,6 +1025,28 @@ class POPUP_OT_done_painting(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def stale_paint_view(sc):
+    """Painting's view (the flat layout joined onto the card, the Layout
+    object hidden) left on with the card no longer painted: a session that
+    ended by switching scenes, say. Put it back; True if it was."""
+    st = sc.popup
+    card = st.card
+    if card is None:
+        return False
+    mod = card.modifiers.get(PAINT_BOTH)
+    left = (mod is not None and mod.show_viewport) or sc.get("pop_paint_flat") is not None
+    try:
+        here = bpy.context.scene == sc
+    except AttributeError:
+        here = False
+    # a card only paints in the scene on screen (a stage left in Texture
+    # Paint keeps that mode on its object, but isn't being painted)
+    if not left or (card.mode == "TEXTURE_PAINT" and here):
+        return False
+    _end_paint_view(sc)
+    return True
+
+
 def _end_paint_view(sc):
     st = sc.popup
     _paint_both(sc, False)
@@ -1033,9 +1055,13 @@ def _end_paint_view(sc):
         mod.show_viewport = True
     if st.layout is not None and sc.get("pop_paint_flat") is not None:
         try:
-            st.layout.hide_set(False)
-        except RuntimeError:
-            pass
+            for vl in sc.view_layers:  # this scene's own, wherever we are
+                st.layout.hide_set(False, view_layer=vl)
+        except (RuntimeError, TypeError):
+            try:
+                st.layout.hide_set(False)
+            except RuntimeError:
+                pass
     if "pop_paint_flat" in sc:
         del sc["pop_paint_flat"]
 

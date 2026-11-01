@@ -261,6 +261,12 @@ def _sync():
 
 
 def goto(context, scene):
+    from .ops import painting, stale_paint_view
+    try:
+        if painting(context):  # finish painting here before leaving the stage
+            bpy.ops.popup.done_painting()
+    except (RuntimeError, AttributeError):
+        pass
     if context.window is not None:
         context.window.scene = scene
     live.schedule(scene)

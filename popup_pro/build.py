@@ -128,6 +128,14 @@ def _link(obj, coll):
         coll.objects.link(obj)
 
 
+def layout_in_renders(scene):
+    """Does the flat print layout show in renders (a carousel's stages follow
+    the carousel's own setting)?"""
+    st = scene.popup
+    src = st.stage_master.popup if st.stage_master is not None else st
+    return bool(src.layout_in_render)
+
+
 def ensure_objects(scene):
     st = scene.popup
     coll = _collection(scene)
@@ -152,6 +160,7 @@ def ensure_objects(scene):
     _place(st.layout, coll, scene)
     if st.layout.data != st.card.data:
         st.layout.data = st.card.data
+    st.layout.hide_render = not layout_in_renders(scene)
     mod = st.card.modifiers.get("Pop-up Rig")
     if mod is None:
         mod = st.card.modifiers.new("Pop-up Rig", "ARMATURE")
@@ -581,7 +590,9 @@ def rebuild(scene, force=False):
     from . import materials
     materials.apply(scene)
     from . import art as _art, colours as _colours
+    from .ops import stale_paint_view
     _colours.heal(scene)  # flat painting colours never outlast painting
+    stale_paint_view(scene)  # nor does painting's flat layout on the card
     try:
         _art.extend_tiles(scene)  # new mechanisms get their own place to paint
     except Exception as ex:  # never stop a rebuild over the paint texture

@@ -14,6 +14,19 @@ def _changed(self, context):
     live.schedule(context.scene)
 
 
+def _layout_render(self, context):
+    sc = self.id_data
+    scenes = [sc]
+    if self.is_carousel:
+        from . import carousel
+        scenes += carousel.stages(sc)
+    from .build import layout_in_renders
+    for s in scenes:
+        lay = s.popup.layout
+        if lay is not None:
+            lay.hide_render = not layout_in_renders(s)
+
+
 def _redraw(self, context):
     wm = getattr(context, "window_manager", None) if context else None
     for win in (wm.windows if wm else []):
@@ -1202,6 +1215,12 @@ class PopupSettings(bpy.types.PropertyGroup):
     images: CollectionProperty(type=PopupImage,
                                description="Images placed on pieces, front or back")
     active_image: IntProperty(name="Image")
+    layout_in_render: BoolProperty(
+        name="Print Layout in Renders", default=False,
+        update=lambda self, ctx: _layout_render(self, ctx),
+        description="Show the flat print layout (the pieces laid out on their sheets) in "
+        "renders as well as the folded card; off, renders show only the card (a carousel: "
+        "every stage)")
     render_look: EnumProperty(name="Render Look", update=lambda self, ctx: _look(self, ctx),
                               items=[("CLEAN", "Clean", "Even white light, no sun"),
                                      ("SHOWCASE", "Showcase", "White light and the sun's "

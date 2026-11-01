@@ -816,14 +816,24 @@ def subscribe(*_args):
     bpy.msgbus.clear_by_owner(_owner)
     bpy.msgbus.subscribe_rna(key=(bpy.types.Object, "mode"), owner=_owner, args=(),
                              notify=_mode_changed)
-    if _args:  # a file just opened: no painting preview left in its paper
-        from . import colours
-        for sc in bpy.data.scenes:
-            try:
-                if getattr(sc, "popup", None) is not None and sc.popup.card is not None:
-                    colours.heal(sc)
-            except Exception as ex:  # never stop a file opening
-                print(f"Pop-Up Pro: {ex}")
+    # a file just opened: no painting preview left in its paper, nor
+    # painting's flat layout on a card no longer painted
+    from . import colours
+    from .ops import stale_paint_view
+    try:
+        scenes = list(bpy.data.scenes)
+    except AttributeError:  # registering, before any file: nothing to tidy
+        scenes = []
+    for sc in scenes:
+        try:
+            if getattr(sc, "popup", None) is not None and sc.popup.card is not None:
+                colours.heal(sc)
+                stale_paint_view(sc)
+                if sc.popup.layout is not None:
+                    from .build import layout_in_renders
+                    sc.popup.layout.hide_render = not layout_in_renders(sc)
+        except Exception as ex:  # never stop a file opening
+            print(f"Pop-Up Pro: {ex}")
 
 
 def unsubscribe():
