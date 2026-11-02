@@ -590,7 +590,19 @@ def drawing(context):
     from . import holes
     obj = context.view_layer.objects.active if context.view_layer else None
     return (context.mode == "PAINT_GREASE_PENCIL" and obj is not None and
-            (obj == holes.hole_sketch(context.scene, create=False)[0] or sketching(context)))
+            (obj == holes.hole_sketch(context.scene, create=False)[0] or sketching(context)
+             or drawing_anywhere(context)))
+
+
+def drawing_anywhere(context):
+    """Drawing on the Draw Anywhere layer right now?"""
+    vl = getattr(context, "view_layer", None)
+    obj = vl.objects.active if vl else None
+    if getattr(context, "mode", "") != "PAINT_GREASE_PENCIL" or obj is None or \
+            obj.name != N(context.scene, art.SKETCH):
+        return False
+    layer = obj.data.layers.active
+    return layer is not None and layer.name == art.FREE
 
 
 def sketching(context):
@@ -619,6 +631,64 @@ class POPUP_OT_done_drawing(bpy.types.Operator):
             except RuntimeError:
                 pass
         _restore_view(context)
+        _place_drawn(self, context.scene)
+        return {"FINISHED"}
+
+
+def _place_drawn(op, scene):
+    """Strokes drawn anywhere: onto their panels."""
+    if scene.popup.rig is None:
+        return
+    try:
+        made, dropped = art.place_free(scene)
+    except Exception as ex:  # keep the strokes where they are; say so
+        op.report({"WARNING"}, f"Couldn't place the strokes drawn anywhere: {ex}")
+        return
+    if made:
+        op.report({"INFO"}, f"Placed {made} stroke{'s' if made != 1 else ''} on the paper" +
+                  (f"; {dropped} point(s) off the paper left out" if dropped else ""))
+    elif dropped:
+        op.report({"WARNING"}, f"{dropped} point(s) drawn off the paper left out")
+
+
+class POPUP_OT_draw_anywhere(bpy.types.Operator):
+    """Draw with Grease Pencil anywhere on the card, folded or flat, across
+    folds, with any brush. When you're done, each stroke is put on the
+    panel(s) it was drawn on: cut where it crosses a fold, so it bends with
+    the card, rides with its panels and prints on their pieces"""
+    bl_idname = "popup.draw_anywhere"
+    bl_label = "Draw Anywhere"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def execute(self, context):
+        sc = context.scene
+        st = sc.popup
+        if st.plan_view:
+            st.plan_view = False  # it squashes the card: draw on the real one
+        _remember_view(context)
+        if context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        _place_drawn(self, sc)  # anything left from last time
+        obj, layer = art.free_layer(sc)
+        obj.data.layers.active = layer
+        if obj.data.materials:
+            obj.active_material_index = 0
+        for o in context.selected_objects:
+            o.select_set(False)
+        obj.hide_set(False)
+        obj.select_set(True)
+        context.view_layer.objects.active = obj
+        ts = sc.tool_settings
+        ts.gpencil_stroke_placement_view3d = "SURFACE"
+        ts.gpencil_surface_offset = art.OFFSET_MM / st.mm_per_unit
+        try:
+            bpy.ops.object.mode_set(mode="PAINT_GREASE_PENCIL")
+        except (RuntimeError, TypeError):
+            pass
         return {"FINISHED"}
 
 
@@ -1732,7 +1802,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_light_layers, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_draw_anywhere, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_light_layers, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

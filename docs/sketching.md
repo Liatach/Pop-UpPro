@@ -1,10 +1,32 @@
 # Sketching on the pieces with Grease Pencil
 
-Grease Pencil strokes drawn on a panel ride on that panel as the card opens
-and closes, survive rebuilds, and print as vector lines on the piece they
-belong to. Each panel gets its own layer on one object, **Pop-up Sketch**.
+Grease Pencil strokes drawn on the card ride on their panels as the card
+opens and closes, survive rebuilds, and print as vector lines on the pieces
+they belong to. Each panel gets its own layer on one object, **Pop-up
+Sketch**.
 
-## Get started
+## Draw Anywhere
+
+1. **Build the card** and open it as far as you like.
+2. In the **Artwork** panel, under **Sketch (Grease Pencil)**, press **Draw
+   Anywhere**. Blender switches to Grease Pencil **Draw** mode, with strokes
+   set to land on the paper's surface. Nothing turns: draw from wherever
+   you're looking.
+3. **Draw** with any Grease Pencil brush, colour or material, on the folded
+   card or on the flat layout (they're the same paper), across folds, from
+   page to page. You can change the opening between strokes.
+4. **Done Drawing** puts every stroke on the panel(s) it was drawn on. Each
+   point goes onto the paper under it, and a stroke that crosses a fold is
+   cut exactly on the fold, each part on its own panel's layer, so it bends
+   with the card. Points off the paper are left out (the report says how
+   many).
+
+A stroke that runs from one piece of paper onto another (from a page onto a
+V-fold standing on it, say) becomes two strokes, which part as the card
+moves: they're on different paper. A filled shape drawn across a fold
+becomes one fill on each side.
+
+## Sketch on one panel
 
 1. **Build the card** and open it part way, so the panel you want to draw
    on faces you (the **Open** slider, or the 0–180° buttons).
@@ -12,7 +34,7 @@ belong to. Each panel gets its own layer on one object, **Pop-up Sketch**.
    panel from the list. Panels are named after their mechanism and side,
    such as *V-fold 1: left half*, *Box fold 1: front* or *Cube 1: front
    left*. The card's own pages are *Left page* and *Right page*.
-3. Press **Sketch on Panel**. The view turns to face the panel, Blender
+3. Press **On a Panel** (Sketch on Panel). The view turns to face the panel, Blender
    switches to Grease Pencil **Draw** mode, and strokes are set to land on
    the paper's surface. A layer named after the panel is made and selected
    (or picked up again if it already exists).
@@ -27,9 +49,9 @@ belong to. Each panel gets its own layer on one object, **Pop-up Sketch**.
 
 ## Good to know
 
-* **One panel per stroke.** A stroke belongs to the panel its layer is on,
-  so a line drawn across a fold won't bend with it. Draw each side on its
-  own panel; the ends meet again as the card opens.
+* **One panel per stroke.** With Sketch on Panel a stroke belongs to the
+  panel its layer is on, so a line drawn across a fold won't bend with it.
+  Use **Draw Anywhere** for that: it cuts strokes on the folds for you.
 * **Layers.** The layers are listed in Pop-up Sketch's Object Data
   properties. You can hide, lock, reorder or change their opacity there.
   Keep their names and parents as they are: that is what keeps each layer

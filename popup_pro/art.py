@@ -363,3 +363,232 @@ def release_orphans(scene, keep=None):
             layer.hide = True
             if not layer.name.endswith("(removed)"):
                 layer.name = f"{name} (removed)"
+
+
+# ------------------------------------------------------ draw anywhere
+FREE = "Draw Anywhere"  # a layer of loose strokes, sorted onto panels when done
+OFFSET_MM = 0.25  # how far sketch strokes sit off the paper (as Sketch on Panel)
+REACH_MM = 4.0  # further than this from any paper: not on the card, dropped
+
+
+def free_layer(scene, create=True):
+    """The loose layer drawn on anywhere: on the folded card or the flat
+    layout, across folds, with any Grease Pencil tool."""
+    obj = ensure_sketch(scene) if create else bpy.data.objects.get(N(scene, SKETCH))
+    if obj is None or obj.type != "GREASEPENCIL":
+        return None, None
+    gp = obj.data
+    layer = next((l for l in gp.layers if l.name == FREE), None)
+    if layer is None:
+        if not create:
+            return obj, None
+        layer = gp.layers.new(FREE)
+        layer.frames.new(scene.frame_start)
+    layer.parent = None
+    layer.use_lights = False
+    return obj, layer
+
+
+def _drawing_of(layer, scene):
+    fr = layer.current_frame()
+    if fr is None:
+        fr = layer.frames[0] if len(layer.frames) else layer.frames.new(scene.frame_start)
+    return fr.drawing
+
+
+def _panel_layer(scene, obj, panel):
+    """A panel's sketch layer (as Sketch on Panel makes it), quietly."""
+    gp = obj.data
+    layer = next((l for l in gp.layers if l.name == panel), None)
+    if layer is None:
+        layer = gp.layers.new(panel)
+        layer.frames.new(scene.frame_start)
+    layer.parent = scene.popup.rig
+    layer.parent_bone = panel
+    layer.use_lights = False
+    return layer
+
+
+class _Paper:
+    """Where the paper is: the flat rest shape (the card's own mesh, which
+    is the print layout) and the card as it stands now, with each face's
+    panel, so a point drawn on either can be put on its panel."""
+
+    def __init__(self, scene):
+        from mathutils.bvhtree import BVHTree
+        st = scene.popup
+        self.st = st
+        self.rig = st.rig
+        meta = live.meta(st.rig)
+        self.names = [p["name"] for p in meta["panels"]]
+        self.piece = [p["piece"] for p in meta["panels"]]
+        me = st.card.data
+        at = me.attributes["pop_panel"]
+        self.rest_panel = [0] * len(me.polygons)
+        at.data.foreach_get("value", self.rest_panel)
+        self.rest_normal = [p.normal.copy() for p in me.polygons]
+        self.rest = BVHTree.FromPolygons([v.co.copy() for v in me.vertices],
+                                         [tuple(p.vertices) for p in me.polygons])
+        dg = bpy.context.evaluated_depsgraph_get()
+        self.rig_ev = st.rig.evaluated_get(dg)
+        ev = st.card.evaluated_get(dg)
+        m2 = ev.to_mesh()
+        try:
+            a2 = m2.attributes.get("pop_panel")
+            self.now_panel = [0] * len(m2.polygons)
+            if a2 is not None and a2.domain == "FACE":
+                a2.data.foreach_get("value", self.now_panel)
+            Mw = st.card.matrix_world
+            self.now = BVHTree.FromPolygons([Mw @ v.co for v in m2.vertices],
+                                            [tuple(p.vertices) for p in m2.polygons])
+        finally:
+            ev.to_mesh_clear()
+        # card mesh space -> armature space (the bones' rest frames)
+        self.R = st.rig.matrix_world.inverted() @ st.card.matrix_world
+        self.Ri = self.R.inverted()
+        self.lay = st.layout if st.layout is not None and st.layout.visible_get() else None
+        self.unit = 1.0 / st.mm_per_unit  # one mm in model units
+
+    def panel_at(self, r):
+        """(panel index, point on the paper, its printed normal) nearest a
+        rest point."""
+        loc, n, i, d = self.rest.find_nearest(r)
+        if i is None:
+            return None, r, Vector((0, 0, 1))
+        return self.rest_panel[i], loc, self.rest_normal[i]
+
+    def to_rest(self, w):
+        """A world point drawn on the folded card or the flat layout -> (rest
+        point, panel index), or (None, None) if it's off the paper."""
+        best = None
+        loc, n, i, d = self.now.find_nearest(w)
+        if i is not None:
+            best = (d, "CARD", self.now_panel[i])
+        if self.lay is not None:
+            Li = self.lay.matrix_world.inverted()
+            loc2, n2, i2, d2 = self.rest.find_nearest(Li @ w)
+            if i2 is not None:
+                d2w = (self.lay.matrix_world @ loc2 - w).length
+                if best is None or d2w < best[0]:
+                    best = (d2w, "LAYOUT", self.rest_panel[i2])
+        scale = self.st.card.matrix_world.to_scale()[0]
+        if best is None or best[0] > REACH_MM * self.unit * scale:
+            return None, None
+        if best[1] == "LAYOUT":
+            r = self.lay.matrix_world.inverted() @ w
+        else:
+            name = self.names[best[2]]
+            pb = self.rig_ev.pose.bones.get(name)
+            if pb is None:
+                return None, None
+            bone = self.rig.data.bones[name]
+            arm = bone.matrix_local @ pb.matrix.inverted() @ self.rig.matrix_world.inverted() @ w
+            r = self.Ri @ arm
+        k, on, nrm = self.panel_at(r)
+        if k is None:
+            return None, None
+        return on + nrm * (OFFSET_MM * self.unit), k
+
+    def boundary(self, a, b, ka, steps=14):
+        """Walking from rest point a (on panel ka) towards b: where it leaves
+        ka, as (fraction along, point there, the next panel)."""
+        lo, hi = 0.0, 1.0
+        kb = self.panel_at(b)[0]
+        for _ in range(steps):
+            mid = 0.5 * (lo + hi)
+            if self.panel_at(a.lerp(b, mid))[0] == ka:
+                lo = mid
+            else:
+                hi = mid
+        k2, on, nrm = self.panel_at(a.lerp(b, hi))
+        # right on the fold (not lifted off either side), so the two parts
+        # meet there whatever the angle between them
+        return hi, on, (k2 if k2 is not None else kb)
+
+
+_STROKE_ATTRS = ("material_index", "softness", "start_cap", "end_cap", "aspect_ratio",
+                 "fill_color", "fill_opacity", "hide_stroke")
+
+
+def place_free(scene):
+    """Put every stroke on the Draw Anywhere layer onto the panel(s) it was
+    drawn on: each point onto the paper under it (folded card or flat
+    layout), each stroke cut where it crosses a fold, each part moved to its
+    panel's sketch layer so it rides with the panel and prints on its piece.
+    Points off the paper are dropped. Returns (strokes made, points dropped)."""
+    st = scene.popup
+    obj, free = free_layer(scene, create=False)
+    if free is None or st.rig is None or st.card is None or live.meta(st.rig) is None:
+        return 0, 0
+    src = _drawing_of(free, scene)
+    if src is None or not len(src.strokes):
+        return 0, 0
+    paper = _Paper(scene)
+    W = obj.matrix_world @ free.matrix_local
+    made, dropped = 0, 0
+    out = {}  # panel index -> [(points [(rest, radius, opacity, colour)], stroke attrs, cyclic)]
+    for s in src.strokes:
+        attrs = {k: getattr(s, k) for k in _STROKE_ATTRS if hasattr(s, k)}
+        for k in ("fill_color",):
+            if k in attrs:
+                attrs[k] = tuple(attrs[k])
+        segs = []  # [(panel, [points])]
+        prev = None  # (rest, panel, point data)
+        for p in s.points:
+            r, k = paper.to_rest(W @ Vector(p.position))
+            if r is None:
+                dropped += 1
+                prev = None
+                continue
+            data = (p.radius, p.opacity, tuple(p.vertex_color))
+            if prev is None:
+                segs.append([k, [(r, *data)]])
+            elif k == prev[1]:
+                segs[-1][1].append((r, *data))
+            elif paper.piece[k] != paper.piece[prev[1]]:
+                segs.append([k, [(r, *data)]])  # onto another piece of paper: a new stroke
+            else:  # across a fold: cut it there, the cut point on both sides
+                a, ka, pd = prev
+                for _ in range(8):  # (it may cross more than one fold)
+                    f, b, kn = paper.boundary(a, r, ka)
+                    mix = tuple(x + (y - x) * f for x, y in zip(pd[:2], data[:2]))
+                    col = tuple(x + (y - x) * f for x, y in zip(pd[2], data[2]))
+                    bd = (b, mix[0], mix[1], col)
+                    segs[-1][1].append(bd)
+                    segs.append([kn, [bd]])
+                    if kn == k or kn is None or paper.piece[kn] != paper.piece[k]:
+                        break
+                    a, ka, pd = b, kn, (mix[0], mix[1], col)
+                segs[-1][1].append((r, *data))
+            prev = (r, k, data)
+        whole = len(segs) == 1
+        for k, pts in segs:
+            if len(pts) >= 1:
+                out.setdefault(k, []).append((pts, attrs, bool(s.cyclic) and whole))
+    rig = st.rig
+    for k, strokes in out.items():
+        name = paper.names[k]
+        bone = rig.data.bones.get(name)
+        if bone is None:
+            dropped += sum(len(p) for p, _a, _c in strokes)
+            continue
+        layer = _panel_layer(scene, obj, name)
+        T = (bone.matrix_local @ layer.matrix_parent_inverse @ layer.matrix_local).inverted()
+        dr = _drawing_of(layer, scene)
+        for pts, attrs, cyc in strokes:
+            dr.add_strokes([len(pts)])
+            ns = dr.strokes[len(dr.strokes) - 1]
+            for q, (r, rad, op, col) in zip(ns.points, pts):
+                q.position = T @ (paper.R @ r)
+                q.radius = rad
+                q.opacity = op
+                q.vertex_color = col
+            for a, v in attrs.items():
+                try:
+                    setattr(ns, a, v)
+                except (AttributeError, TypeError, ValueError):
+                    pass
+            ns.cyclic = cyc
+            made += 1
+    src.remove_strokes()
+    return made, dropped

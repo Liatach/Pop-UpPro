@@ -1024,7 +1024,12 @@ def _plan_view(lay, st):
     """Plan view: the card squashed flat along the view, see-through."""
     box = lay.box()
     row = box.row(align=True)
-    row.prop(st, "plan_view", text="Plan View (see overlaps)", icon="XRAY", toggle=True)
+    if st.plan_view:  # on: hard to miss, and plainly how to get back
+        row.alert = True
+        row.scale_y = 1.4
+        row.prop(st, "plan_view", text="Turn Off Plan View", icon="CANCEL", toggle=True)
+    else:
+        row.prop(st, "plan_view", text="Plan View (see overlaps)", icon="XRAY", toggle=True)
     if not st.plan_view:
         return
     col = box.column()
@@ -1062,9 +1067,18 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
         col = lay.column(align=True)
         col.label(text="Sketch (Grease Pencil)")
         col.prop(st, "sketch_panel", text="")
-        from .ops import sketching
+        from .ops import drawing_anywhere, sketching
         on = sketching(context)
-        if on:
+        if drawing_anywhere(context):
+            c = col.column(align=True)
+            c.scale_y = 0.8
+            c.label(text="Drawing anywhere on the card", icon="CHECKMARK")
+            c.label(text="Folded or flat; strokes go on their panels when done")
+            r = col.row()
+            r.alert = True
+            r.scale_y = 1.3
+            r.operator("popup.done_drawing", icon="CHECKMARK")
+        elif on:
             meta = live.meta(st.rig)
             lab = next((p["label"] for p in meta["panels"] if p["name"] == on), on) \
                 if meta else on
@@ -1078,7 +1092,9 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
             r.scale_y = 1.3
             r.operator("popup.done_drawing", icon="CHECKMARK")
         else:
-            col.operator("popup.sketch", icon="GREASEPENCIL").panel = ""
+            row = col.row(align=True)
+            row.operator("popup.draw_anywhere", icon="OUTLINER_OB_GREASEPENCIL")
+            row.operator("popup.sketch", text="On a Panel", icon="GREASEPENCIL").panel = ""
         from . import materials
         materials.draw(lay, context)
         col = lay.column(align=True)
@@ -1214,6 +1230,11 @@ def _brush_sections(lay, context):
 def _header_done(self, context):
     """While drawing or painting on the card, its controls and a Done button
     in the 3D view's header."""
+    st = context.scene.popup
+    if getattr(st, "plan_view", False):  # in the header too, while it's on
+        row = self.layout.row()
+        row.alert = True
+        row.prop(st, "plan_view", text="Turn Off Plan View", icon="CANCEL", toggle=True)
     if _drawing(context):
         row = self.layout.row()
         row.alert = True

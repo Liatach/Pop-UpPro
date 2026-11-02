@@ -882,8 +882,17 @@ mesh, no rig). So:
   For a cutting machine, export **Cut Lines Only** and **Crease Lines Only**
   (or **Cut + Crease**) with Dashed Folds off; to print with the lines, or
   with outlines only over the art, use **Print** or **Art + Cut Lines**.
-* **Sketch on Panel** (Grease Pencil; step by step in
-  [sketching.md](sketching.md)): pick a panel and press the button.
+* **Draw Anywhere** (Grease Pencil; step by step in
+  [sketching.md](sketching.md)): draw with any Grease Pencil brush on the
+  folded card at any opening or on the flat layout, across folds. **Done
+  Drawing** puts each stroke on the panel(s) it was drawn on: every point
+  onto the paper under it, each stroke cut exactly where it crosses a fold,
+  each part on its panel's layer, so it bends with the card, survives
+  rebuilds and prints on its piece. A stroke that runs from one piece of
+  paper onto another (a page onto a V-fold, say) becomes two, which part as
+  the card moves; points off the paper are left out.
+* **Sketch on Panel** (**On a Panel** beside it): pick a panel and press the
+  button.
   It makes a layer on **Pop-up Sketch** parented to that panel's bone, sets
   the stroke placement to *Surface* and turns the view to face the panel.
   Strokes ride along as the card moves and survive rebuilds, and export as
