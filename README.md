@@ -23,11 +23,8 @@ them.**
    tear, poke through or stick out.
 5. Draw on the pieces with **Sketch on Panel** (Grease Pencil:
    [how to](docs/sketching.md)), turn **Paint** on to paint the card, or add
-   an image with **Image on a Piece**. Designed to work with the fabulous
-   **[Paint System](https://extensions.blender.org/add-ons/paint-system/)**
-   extension by [**natapol2547 / Tawan Sunflower**](https://github.com/natapol2547/paintsystem)
-   for paint layers. Draw holes, use the built-in cut-out shapes, or cut
-   away what's transparent in an image or your paint.
+   an image with **Image on a Piece**. Draw holes, use the built-in cut-out
+   shapes, or cut away what's transparent in an image or your paint.
 6. **Export SVG Sheets**, plus crease and cut patterns for Cricut and other
    cutting machines: print, cut, fold, glue.
 
@@ -109,10 +106,10 @@ Paint flat or folded, import and position images or simply textures, then export
   mechanism, so overlaps in a busy build show plainly.
 
 **Art and output**
-* Paint on the card as it folds, with optional layers through
-  [Paint System](https://extensions.blender.org/add-ons/paint-system/),
-  sketch with Grease Pencil, or place images that wrap round cubes and
-  tubes. Art stays on the paper as it folds.
+* Paint on the card as it folds or on the flat layout (they're the same
+  paper), into the paper or a paint layer of your own, sketch with Grease
+  Pencil, or place images that wrap round cubes and tubes. Art stays on the
+  paper as it folds.
 * Outside glue tabs print the art of the part they glue onto, so they
   disappear into the picture.
 * A movement test with one Open slider, on a rig that needs no Python
@@ -147,9 +144,10 @@ The mechanisms follow The Pop-Up Channel's video tutorials:
 Duncan Birmingham's splendid book *Pop-Up! A Manual of Paper Mechanisms* covers them
 too. 
 
-Paint layers come from [Paint System](https://extensions.blender.org/add-ons/paint-system/)
-by Tawan Sunflower (GPL-3.0-or-later), a separate extension that Pop-Up Pro
-calls tools and menus from when it is installed.
+Pop-Up Pro is self-contained. Paint layers you set up yourself on the
+card's paper work alongside it: the fabulous
+[Paint System](https://github.com/natapol2547/paintsystem) by Tawan
+Sunflower is a good way to make them.
 
 ## Constraints
 
@@ -164,8 +162,8 @@ calls tools and menus from when it is installed.
   roofs and stand-up pictures don't take them yet (shape a picture by
   erasing its art). Asymmetric creases need their own matching crease on the
   other side (drawn with Mirror off).
-* Paint System with UDIM tiles is untested; Bake Art for Print is the safe
-  route for printing.
+* Paint layers of your own on UDIM tiles are untested; Bake Art for Print is
+  the safe route for printing.
 
 ## Roadmap
 

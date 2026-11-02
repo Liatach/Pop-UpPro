@@ -1,15 +1,11 @@
 """Colour history while painting the card.
 
-Paint System keeps a colour history, but only notes a colour when its own
-active layer's image changes; painting the paper itself (Paper / Layer set
-to Paper, or erasing) never reaches it, so its history filled in only now
-and then. This notes the brush colour whenever a stroke lands on the card's
-paper: into Paint System's history when it's installed, otherwise into our
-own palette shown under Colour."""
+Notes the brush colour whenever a stroke lands on the card's paper (or a
+paint layer on it), newest first, each colour once, in a palette shown under
+Colour while painting."""
 
 import bpy
 
-from .naming import N
 
 OWN = "Pop-up Colour History"
 KEEP = 20
@@ -26,15 +22,7 @@ def _brush_color(context):
 
 
 def palette(scene, create=True):
-    """Where colours are noted: Paint System's history, or our own."""
-    ps = getattr(scene, "ps_scene_data", None)
-    if ps is not None and hasattr(ps, "color_history_palette"):
-        pal = ps.color_history_palette
-        if pal is None and create:
-            pal = bpy.data.palettes.get("Paint System History") or \
-                bpy.data.palettes.new("Paint System History")
-            ps.color_history_palette = pal
-        return pal
+    """Where colours are noted."""
     pal = bpy.data.palettes.get(OWN)
     if pal is None and create:
         pal = bpy.data.palettes.new(OWN)
@@ -74,14 +62,11 @@ def _on_update(scene, depsgraph=None):
             return
         sc = context.scene
         img = painting_into(sc)
-        art_img = bpy.data.images.get(N(sc, "Pop-up Art"))
         if img is None or not img.is_dirty:
             return
         brush = context.tool_settings.image_paint.brush
         if brush is not None and getattr(brush, "blend", "") in ("ERASE_ALPHA", "ADD_ALPHA"):
             return  # erasing or restoring paper: no colour
-        if getattr(sc, "ps_scene_data", None) is not None and img != art_img:
-            return  # a Paint System layer: its own history notes it
         note(sc, _brush_color(context))
     except Exception as ex:  # never get in the way of painting
         print(f"Pop-Up Pro: colour history: {ex}")

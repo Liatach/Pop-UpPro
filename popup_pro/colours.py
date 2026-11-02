@@ -49,8 +49,7 @@ def _unlit(mat):
         return None
     was = out.inputs["Surface"].links[0].from_socket if out.inputs["Surface"].links else None
     if was is not None and was.node != bsdf:
-        # something else draws the paper (Paint System's layers, your own
-        # nodes): leave the material alone, or its layers would vanish
+        # something else draws the paper (paint layers, your own nodes): leave the material alone, or its layers would vanish
         # while painting; the flat, texture-coloured Solid view still shows
         # true colours
         return None
@@ -90,7 +89,7 @@ def _relit(mat, was):
         nt.links.new(lit, out.inputs["Surface"])
     ours = {nt.nodes.get(k) for k in (EMIT, MIX, CLEAR)} - {None}
     # Anything else that came to take the unlit preview as its paper (a
-    # Paint System layer stack set up while painting) gets the real, lit
+    # paint layer stack set up while painting) gets the real, lit
     # paper instead: the flat colours are only ever a painting preview.
     for n in ours:
         for o in n.outputs:

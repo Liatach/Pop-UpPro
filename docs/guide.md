@@ -811,17 +811,14 @@ mesh, no rig). So:
   layout are the same paper: while Paint is on, whichever is under the
   pointer is the one you paint, switching between strokes, so you can
   paint either without stopping.
-  * **Colour**, **Brush** and (with Paint System layers) **Layers** fold
-    out under Paint while you paint. With Paint System on they are its own
-    colour, brush and layer panels; without it, Blender's colour, size,
-    strength and blend.
+  * **Colour** and **Brush** fold out under Paint while you paint:
+    Blender's colour, size, strength and blend.
   * **Colour history**: every colour you paint the card with is noted,
-    newest first: in Paint System's Color History when it's installed
-    (strokes on the paper as well as on its layers), otherwise under
-    **Colour**. Click one to paint with it again.
-  * **Paper / Layer** shows when the paper has a paint layer on top, such as
-    Paint System's: what the brush paints into. The Layer button shows the
-    layer's name; *Paper* is the one for holes.
+    newest first, under **Colour**. Click one to paint with it again.
+  * **Paper / Layer** shows when the paper's material has another image on
+    it, such as a paint layer you've set up yourself: what the brush paints
+    into. The Layer button shows the layer's name; *Paper* is the one for
+    holes.
   * Rebuilds wait while you paint, so the card never changes under the brush.
 * **True Colours While Painting** (on by default): in Texture Paint the paper
   shows its art unlit (EEVEE and Material Preview; Solid views show flat
@@ -831,21 +828,20 @@ mesh, no rig). So:
   AgX view and lighting, a re-sampled colour comes back duller and darker
   each time. Your view transform and shading come back when you leave
   Texture Paint.
-* **Paint System** (a free, separate extension: Pop-Up Pro calls it, and
-  doesn't include it): with it installed, **Add Paint Layers** under Paint
-  sets up its layers in the paper's colour (its *PBR* setup, colour only),
-  over the art, so they're lit like the paper and render in Cycles too,
-  painting through the **PopupArt** UV map so layers line up with the
-  print, with the paper's back left showing and erased paper still
-  see-through. Layers set up as *Paint Over* by an earlier version show as
-  flat, unlit colour: **Light the Paint Layers** (under Paint) puts them in
-  the paper's colour, keeping every layer and image. The flat colours of
+* **Paint layers of your own.** Pop-Up Pro is self-contained and calls no
+  other extension, but any layer setup you make on the paper's material
+  works with it: paint through the **PopupArt** UV map so layers line up
+  with the print, and put them into the paper's colour, over its art, so
+  they're lit like the paper and render in Cycles too. The brush finds the
+  layers' images (inside node groups as well) for *Paper / Layer*, and
+  painting the folded card or the flat layout reaches them either way.
+  Holes and trims still come from the paper (Erase works on it). A layer
+  stack set up as flat *paint over* colour on top of the shaded paper shows
+  unlit (and only in EEVEE): **Light the Paint Layers** (under Paint) puts it
+  in the paper's colour, keeping every layer and image. The flat colours of
   True Colours only ever show while painting; one left behind is put back
-  to the lit paper when the card rebuilds or the file opens. Add and arrange
-  layers in Paint System's own panel; *Paper / Layer* switches the brush
-  between the paper and a layer, and holes and trims still come from the
-  paper (Erase works on it). Without Paint System, the button links to it
-  on Blender Extensions. Then **Bake Art for Print** flattens
+  to the lit paper when the card rebuilds or the file opens.
+  Then **Bake Art for Print** flattens
   whatever the material shows into **Pop-up Print** for the export. The bake
   works on temporary copies of the layout and its materials, so your
   materials and render settings are never changed. It guards against two
@@ -853,8 +849,8 @@ mesh, no rig). So:
   * Some Blender builds skip decoding sRGB image textures in Cycles, so
     painted art bakes pale while the viewport shows it right. Each bake
     checks, and on such a build bakes from linear copies of the paint.
-  * Materials that colour through an emission path (Paint System often
-    does) bake black as a base colour; the bake then takes the emission.
+  * Materials that colour through an emission path (layer setups often
+    do) bake black as a base colour; the bake then takes the emission.
 
   The bake never uses the lighting, and neither does painting (True
   Colours) or the export: the scene's sun and shadows only show in the

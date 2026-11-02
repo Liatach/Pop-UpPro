@@ -1052,7 +1052,7 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
         st = context.scene.popup
         lay = self.layout
         col = lay.column(align=True)
-        col.label(text="Paint (Texture Paint / Paint System)")
+        col.label(text="Paint (Texture Paint)")
         if bpy.data.images.get(N(context.scene, "Pop-up Art")) is None:
             col.operator("popup.add_art", icon="TEXTURE")
         _paint_controls(col, context, big=True)
@@ -1141,23 +1141,12 @@ def _paint_controls(lay, context, big=False):
             row.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
             row.operator("popup.trace_holes", text="", icon="X").clear = True
             box.prop(sc.popup, "auto_holes")
-            from .ops import PS_URL, ps_available, ps_flat_setup, ps_group_node
-            if ps_group_node(sc) is not None:
-                c = lay.column(align=True)
-                c.scale_y = 0.8
-                c.label(text="Paint layers: Paint System", icon="RENDERLAYERS")
-                c.label(text="Add and arrange them in its panel")
-                mat = sc.popup.card.data.materials[0] if sc.popup.card.data.materials else None
-                if ps_flat_setup(mat) is not None:
-                    r = lay.row()
-                    r.alert = True
-                    r.operator("popup.light_layers", icon="LIGHT")
-            elif ps_available():
-                lay.operator("popup.paint_layers", text="Add Paint Layers (Paint System)",
-                             icon="RENDERLAYERS")
-            else:
-                lay.operator("wm.url_open", text="Paint layers: get Paint System",
-                             icon="URL").url = PS_URL
+            from .ops import flat_layers
+            mat = sc.popup.card.data.materials[0] if sc.popup.card.data.materials else None
+            if flat_layers(mat) is not None:  # layers painting flat over the paper
+                r = lay.row()
+                r.alert = True
+                r.operator("popup.light_layers", icon="LIGHT")
         return
     from .ops import erasing
     art_img, others = paint_images(sc)
@@ -1185,21 +1174,9 @@ def _paint_controls(lay, context, big=False):
         _brush_sections(lay, context)
 
 
-def _ps_module(suffix):
-    """A module of Paint System (a separate extension), if it's on."""
-    import sys
-    for name, mod in list(sys.modules.items()):
-        if name.endswith(suffix) and "paint_system" in name.lower().replace("-", "_"):
-            return mod
-    return None
-
-
 def _brush_sections(lay, context):
-    """While painting: colour, brush and (with Paint System) layers, right
-    here; Paint System's own panels when it's on, Blender's basics if not."""
-    from .ops import ps_group_node
+    """While painting: Blender's colour and brush settings, right here."""
     sc = context.scene
-    ext = _ps_module("panels.extras_panels")
     ip = sc.tool_settings.image_paint
     brush = getattr(ip, "brush", None)
     try:
@@ -1208,8 +1185,6 @@ def _brush_sections(lay, context):
         U = None
     sections = [("popup_paint_colour", "Colour", "COLOR"), ("popup_paint_brush", "Brush",
                                                              "BRUSH_DATA")]
-    if ps_group_node(sc) is not None and hasattr(bpy.types, "MAT_PT_Layers"):
-        sections.append(("popup_paint_layers", "Layers", "RENDERLAYERS"))
     for key, title, icon in sections:
         head, body = lay.panel(key, default_closed=key != "popup_paint_colour")
         head.label(text=title, icon=icon)
@@ -1217,18 +1192,14 @@ def _brush_sections(lay, context):
             continue
         try:
             if key == "popup_paint_colour":
-                if ext is not None and ext.poll_brush_color_settings(context):
-                    ext.draw_brush_color_settings(body, context)
-                elif U is not None and brush is not None:
+                if U is not None and brush is not None:
                     U.prop_unified_color_picker(body, context, brush, "color", value_slider=True)
                     U.prop_unified_color(body, context, brush, "color", text="")
                     if sc.popup.colour_history is not None:
                         body.label(text="Colour History")
                         body.template_palette(sc.popup, "colour_history", color=True)
             elif key == "popup_paint_brush":
-                if ext is not None and ext.poll_brush_settings(context):
-                    ext.draw_brush_settings(body, context)
-                elif U is not None and brush is not None:
+                if U is not None and brush is not None:
                     U.prop_unified(body, context, brush, "size", unified_name="use_unified_size",
                                    pressure_name="use_pressure_size", text="Size", slider=True)
                     U.prop_unified(body, context, brush, "strength",
@@ -1236,15 +1207,7 @@ def _brush_sections(lay, context):
                                    pressure_name="use_pressure_strength", text="Strength",
                                    slider=True)
                     body.prop(brush, "blend", text="Blend")
-            else:
-                import types
-                P = bpy.types.MAT_PT_Layers
-                if P.poll(context):
-                    P.draw(types.SimpleNamespace(layout=body, parse_context=P.parse_context),
-                           context)
-                else:
-                    body.label(text="Select a layer group in Paint System's panel")
-        except Exception as ex:  # someone else's interface: never break ours
+        except Exception as ex:  # never break the panel
             body.label(text=f"Couldn't show this here ({type(ex).__name__})", icon="ERROR")
 
 

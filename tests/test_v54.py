@@ -1,13 +1,9 @@
-"""v0.54: colour history notes the colours painted onto the card's paper
-(Paint System's history only noted strokes on its own layers)."""
+"""v0.54: colour history notes the colours painted onto the card's paper."""
 import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-PS = os.environ.get("PAINT_SYSTEM_DIR")
-if PS:
-    sys.path.insert(0, PS)
 
 import bpy  # noqa: E402
 
@@ -43,11 +39,4 @@ history._on_update(sc, None)
 assert tuple(round(x, 3) for x in pal.colors[0].color) == (0.2, 0.4, 0.6), pal.colors[0].color[:]
 print("a stroke on the paper notes its colour")
 bpy.ops.popup.paint()
-if PS:
-    import paint_system  # noqa: E402
-    paint_system.register()
-    history.note(sc, (0, 0, 1))
-    assert sc.ps_scene_data.color_history_palette is not None
-    assert tuple(sc.ps_scene_data.color_history_palette.colors[0].color) == (0, 0, 1)
-    print("with Paint System: into its history")
 print("v54 ok")

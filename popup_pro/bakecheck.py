@@ -6,8 +6,8 @@
   texture of the same grey to find out; linearize_textures() then points the
   bake's material copies at linear copies of their images (node groups
   copied too, the originals untouched).
-* Materials that colour through an emission path (common in paint add-ons
-  such as Paint System) bake black in a Base Colour bake: bake_colour()
+* Materials that colour through an emission path (common in paint layer
+  setups) bake black in a Base Colour bake: bake_colour()
   tries Base Colour and falls back to Emission.
 """
 import bpy

@@ -2,8 +2,8 @@
 
 * Paint texture: a UDIM image ("Pop-up Art") on the PopupArt UV map, one
   tile per piece (tile 1001 is the card). Paint it on the flat Layout or the
-  folded card in Texture Paint mode, or point Paint System layers at the
-  PopupArt UV map. "Bake Art" flattens any material into "Pop-up Print" for
+  folded card in Texture Paint mode, or point paint layers of your own at
+  the PopupArt UV map. "Bake Art" flattens any material into "Pop-up Print" for
   export.
 * Sketch layers: one Grease Pencil object ("Pop-up Sketch") with a layer per
   panel, each layer parented to that panel's bone, so strokes ride along.
@@ -154,7 +154,7 @@ def add_art_texture(scene, dpi=150):
 # ------------------------------------------------------------------- bake
 def bake_art(scene, dpi=150):
     """Bake the card's material colour into the Pop-up Print UDIM image on the
-    PopupArt UV map (works with any material, e.g. Paint System layers).
+    PopupArt UV map (works with any material, layers and all).
 
     The bake runs on a temporary copy of the flat layout with temporary
     copies of its materials, so your own materials, their active nodes and

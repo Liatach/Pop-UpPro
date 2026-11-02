@@ -527,7 +527,7 @@ class POPUP_OT_animate_pull(bpy.types.Operator):
 
 class POPUP_OT_add_art(bpy.types.Operator):
     """Add a paint texture (one UDIM tile per piece on the PopupArt UV map)
-    to the paper material, ready for Texture Paint or Paint System"""
+    to the paper material, ready for Texture Paint"""
     bl_idname = "popup.add_art"
     bl_label = "Add Paint Texture"
     bl_options = {"REGISTER", "UNDO"}
@@ -716,7 +716,7 @@ def _paint_both(scene, on):
 
 def paint_images(scene):
     """(the paper's art image, other images the card's material paints with,
-    e.g. Paint System layers)"""
+    e.g. paint layers of your own)"""
     st = scene.popup
     art_img = bpy.data.images.get(N(scene, art.ART_IMAGE))
     others, seen = [], set()
@@ -870,96 +870,9 @@ class POPUP_OT_paint_erase(bpy.types.Operator):
         return {"FINISHED"}
 
 
-PS_URL = "https://extensions.blender.org/add-ons/paint-system/"
-
-
-def ps_available():
-    """Is Paint System (a separate extension) installed and on?"""
-    try:
-        bpy.ops.paint_system.new_group.get_rna_type()
-        return True
-    except (AttributeError, KeyError, RuntimeError):
-        return False
-
-
-def ps_group_node(scene):
-    """The Paint System layer group on the card's paper, if it has one."""
-    st = scene.popup
-    mat = st.card.data.materials[0] if st.card is not None and st.card.data.materials else None
-    if mat is None or not mat.use_nodes:
-        return None
-    return next((n for n in mat.node_tree.nodes if n.type == "GROUP" and n.node_tree is not None
-                 and n.node_tree.name.startswith("PS ")), None)
-
-
-class POPUP_OT_paint_layers(bpy.types.Operator):
-    """Add paint layers over the paper with Paint System (a separate, free
-    extension): its Paint Over setup on the card, painting through the
-    card's own UV map so layers line up with the print. Holes still come
-    from the paper"""
-    bl_idname = "popup.paint_layers"
-    bl_label = "Add Paint Layers"
-    bl_options = {"REGISTER", "UNDO"}
-
-    @classmethod
-    def poll(cls, context):
-        return context.scene.popup.card is not None and ps_available()
-
-    def execute(self, context):
-        from . import colours
-        sc = context.scene
-        st = sc.popup
-        if ps_group_node(sc) is not None:
-            self.report({"INFO"}, "The paper already has Paint System layers")
-            return {"CANCELLED"}
-        if painting(context):
-            bpy.ops.popup.done_painting()
-        colours.leave(sc)  # the layers go over the real paper, not the unlit preview
-        if bpy.data.images.get(N(sc, art.ART_IMAGE)) is None:
-            art.add_art_texture(sc)
-        if context.mode != "OBJECT":
-            bpy.ops.object.mode_set(mode="OBJECT")
-        card = st.card
-        for o in context.selected_objects:
-            o.select_set(False)
-        card.hide_set(False)
-        card.select_set(True)
-        context.view_layer.objects.active = card
-        before = set(bpy.data.images)
-        try:
-            # PBR, colour only: the layers go into the paper's Base Color over
-            # its art, so they're lit like the paper (Paint Over would paint
-            # them flat over the shaded result, and only in EEVEE)
-            r = bpy.ops.paint_system.new_group(
-                template="PBR", group_name="Pop-up Layers", coord_type="UV",
-                uv_map_name=build.ART_UV, use_paint_system_uv=False, checked_coord_type=True,
-                disable_show_backface=False, multiple_objects=False, add_layers=True,
-                pbr_add_color=True, pbr_add_metallic=False, pbr_add_roughness=False,
-                pbr_add_normal=False)
-        except (RuntimeError, TypeError) as ex:
-            self.report({"ERROR"}, f"Paint System couldn't add layers: {ex}")
-            return {"CANCELLED"}
-        if "FINISHED" not in r:
-            return {"CANCELLED"}
-        # erased paper shows see-through through the layers too
-        g = ps_group_node(sc)
-        art_img = bpy.data.images.get(N(sc, art.ART_IMAGE))
-        mat = card.data.materials[0]
-        tex = next((n for n in mat.node_tree.nodes if n.type == "TEX_IMAGE" and
-                    n.image == art_img), None)
-        if g is not None and tex is not None and "Color Alpha" in g.inputs:
-            mat.node_tree.links.new(tex.outputs["Alpha"], g.inputs["Color Alpha"])
-        new = [i for i in bpy.data.images if i not in before]
-        bpy.ops.popup.paint(target="CARD")
-        if new:
-            _paint_into_other(sc, new[0].name)
-        self.report({"INFO"}, "Paint System layers added: paint, or manage them in its panel")
-        return {"FINISHED"}
-
-
-def ps_flat_setup(mat):
-    """Paint System's Paint Over on the paper: its layers fed by the shaded
-    paper (Shader to RGB) and mixed over it as flat colour. Returns (group
+def flat_layers(mat):
+    """A layer stack set up as "paint over" on the paper: a node group fed by
+    the shaded paper (Shader to RGB) and mixed over it as flat colour. Returns (group
     node, shader to RGB, mix shader, output) or None."""
     if mat is None or not mat.use_nodes:
         return None
@@ -981,11 +894,11 @@ def ps_flat_setup(mat):
     return None
 
 
-def ps_light(mat):
+def light_layers(mat):
     """Turn a Paint Over layer stack into one in the paper's Base Color: the
     layers go over the art and are lit like the paper (and render in Cycles
     too). The layers and their images are untouched."""
-    got = ps_flat_setup(mat)
+    got = flat_layers(mat)
     if got is None:
         return False
     g, s2r, mix, out = got
@@ -1017,7 +930,7 @@ def ps_light(mat):
 
 
 class POPUP_OT_light_layers(bpy.types.Operator):
-    """Your Paint System layers are set up as Paint Over: they show as flat,
+    """Paint layers on the paper are set up as paint over: they show as flat,
     unlit colour on top of the shaded paper (and only in EEVEE). Put them into
     the paper's colour instead, so they're lit like the paper. Layers and
     images stay as they are"""
@@ -1028,7 +941,7 @@ class POPUP_OT_light_layers(bpy.types.Operator):
     def execute(self, context):
         st = context.scene.popup
         mat = st.card.data.materials[0] if st.card and st.card.data.materials else None
-        if not ps_light(mat):
+        if not light_layers(mat):
             self.report({"INFO"}, "The paint layers are already lit like the paper")
             return {"CANCELLED"}
         return {"FINISHED"}
@@ -1165,7 +1078,7 @@ class POPUP_OT_sketch(bpy.types.Operator):
 
 
 class POPUP_OT_bake(bpy.types.Operator):
-    """Bake the card's material colour (Texture Paint, Paint System or any
+    """Bake the card's material colour (Texture Paint, layers or any
     shader) into the Pop-up Print image used by the SVG export. Uses Cycles"""
     bl_idname = "popup.bake"
     bl_label = "Bake Art for Print"
@@ -1819,7 +1732,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_paint_layers, POPUP_OT_light_layers, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_light_layers, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 
