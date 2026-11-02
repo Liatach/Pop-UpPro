@@ -100,7 +100,11 @@ Paint flat or folded, import and position images or simply textures, then export
 * Windows, arches, holes and hinged door flaps on any face, turned to any
   angle, painted or sketched, lined up through every layer behind.
 * Duplicate a mechanism with everything on it.
-* Live checks for tearing, poking through, sticking out and overlapping glue.
+* Align: line mechanisms up along the fold they share or across the whole
+  card, or space them evenly; flaps on opposite pages mirror each other.
+* Live checks for tearing, poking through, sticking out and overlapping glue,
+  and a Plan View that squashes the card flat and see-through, a colour per
+  mechanism, so overlaps in a busy build show plainly.
 
 **Art and output**
 * Paint on the card as it folds, with optional layers through
@@ -151,7 +155,7 @@ calls tools and menus from when it is installed.
   folds and straps (and their valleys), stand-ups, a tube's roof, a V-fold's
   crease or glue folds, or outside a cube's or tube's walls.
 * The checks look at paper footprints, but not at 3D collisions between
-  separate mechanisms.
+  separate mechanisms (the Plan View helps you spot them by eye).
 * Extra creases and cuts work on the card itself, V-folds, box folds and box
   layers; tubes,
   roofs and stand-up pictures don't take them yet (shape a picture by
@@ -162,9 +166,7 @@ calls tools and menus from when it is installed.
 
 ## Roadmap
 
-* A debug view: look straight into a stage (or card) part open, flattened
-  like a plan, with every layer drawn see-through, to check how
-  mechanisms overlap in complex builds.
+* Plan View, continued: highlight where two pieces actually meet in 3D.
 * The consolidation and elegance pass over the interface, continued:
   * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
     Background Above and Level Ridge; floors, ceilings and the background
@@ -173,8 +175,6 @@ calls tools and menus from when it is installed.
     a floor or ceiling, in a stage), offering only what fits the selected
     host.
   * Clicking a warning in Checks selects the mechanism it's about.
-* **Align**: line selected mechanisms up (left, right, centre, top, bottom)
-  and space them evenly along their fold.
 * Door flaps on cubes, tubes and stand-up pictures.
 * **Tabs that carry the art**, continued: outside tabs (V-folds with Tab
   Side Outside) already print the art of the part they glue onto. Next:

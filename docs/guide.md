@@ -14,7 +14,9 @@ start, see the [README](../README.md).
    along it so the whole card shows as it unfurls, and keys a movement test:
    press **Play**, or drag the timeline.
 3. **Mechanisms**: add, remove and tune them. With **Live Rebuild** on (the
-   clock icon) the card updates as you drag values.
+   clock icon) the card updates as you drag values. Tick the box beside a
+   mechanism to pick it as well as the active one, then use **Align** (under
+   the list) to line them up or space them evenly ([Align](#align)).
 4. **Set Up Scene** (runs by itself the first time you build a card or make a
    carousel in a file; press it again any time): settings chosen to make
    folds easy to read and to stay light on modest graphics cards.
@@ -66,7 +68,8 @@ start, see the [README](../README.md).
 6. **Checks** sits right under the card panel. Its header says *all clear*,
    or turns red with how many things to fix: paper that would tear, panels
    poking through a page, pieces sticking out of the closed card, pieces
-   too big for the sheet.
+   too big for the sheet. **Plan View** at its foot shows the card squashed
+   flat and see-through, to see what overlaps what ([Plan View](#plan-view)).
 7. **Export SVG Sheets** writes one SVG per sheet.
 
 ### Closing and paper thickness
@@ -954,4 +957,13 @@ on, and what its tabs glue to.
   auto-run. The formulas are checked against the solved geometry at every
   build.
 * The open angle is the `pop_open` property on the rig (degrees).
+* Align (`core/align.py`) measures each mechanism from the solved model, not
+  its sliders: its panels at the set-up angle, mapped into its host's
+  spine-style frame, give where it starts and ends along its fold. It moves
+  Position (and a flap's From Spine), solves again and measures again until
+  everything sits where it should, then rebuilds the card once.
+* Plan View is a Geometry Nodes modifier, last on the card and off in
+  renders: every vertex moves along the line halfway between the pages until
+  only a sliver of depth is left, and each face takes a colour from its
+  mechanism (the `pop_mech` face attribute) or panel (`pop_panel`).
 
