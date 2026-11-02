@@ -1,7 +1,6 @@
 import bpy
 
 from . import live
-from .naming import N
 
 KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FACE",
              "MOUTH": "MOD_SIMPLEDEFORM", "CUBE": "CUBE", "FLAP": "MOD_CLOTH",
@@ -1057,44 +1056,52 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
         st = context.scene.popup
         lay = self.layout
         col = lay.column(align=True)
-        col.label(text="Paint (Texture Paint)")
-        if bpy.data.images.get(N(context.scene, "Pop-up Art")) is None:
-            col.operator("popup.add_art", icon="TEXTURE")
-        _paint_controls(col, context, big=True)
-        col.prop(st, "true_colours")
-        from . import images
-        images.draw(lay, context)
-        col = lay.column(align=True)
-        col.label(text="Sketch (Grease Pencil)")
-        col.prop(st, "sketch_panel", text="")
+        col.label(text="Draw (Grease Pencil)")
         from .ops import drawing_anywhere, sketching
         on = sketching(context)
         if drawing_anywhere(context):
             c = col.column(align=True)
             c.scale_y = 0.8
-            c.label(text="Drawing anywhere on the card", icon="CHECKMARK")
-            c.label(text="Folded or flat; strokes go on their panels when done")
-            r = col.row()
+            c.label(text="Drawing on the card, folded or flat", icon="CHECKMARK")
+            c.label(text="Strokes go onto the paper when you're done")
+            _ink_colour(lay, context)
+            row = lay.row(align=True)
+            row.scale_y = 1.3
+            row.operator("popup.ink_paper", icon="TEXTURE")
+            r = row.row(align=True)
             r.alert = True
-            r.scale_y = 1.3
             r.operator("popup.done_drawing", icon="CHECKMARK")
         elif on:
             meta = live.meta(st.rig)
             lab = next((p["label"] for p in meta["panels"] if p["name"] == on), on) \
                 if meta else on
+            col.prop(st, "sketch_panel", text="")
             col.operator("popup.sketch", text="Sketch on This Panel Instead",
                          icon="GREASEPENCIL").panel = ""
             c = col.column(align=True)
             c.scale_y = 0.8
-            c.label(text=f"Sketching on {lab}", icon="CHECKMARK")
-            r = col.row()
+            c.label(text=f"Sketching lines on {lab}", icon="CHECKMARK")
+            _ink_colour(lay, context)
+            r = lay.row()
             r.alert = True
             r.scale_y = 1.3
             r.operator("popup.done_drawing", icon="CHECKMARK")
         else:
-            row = col.row(align=True)
-            row.operator("popup.draw_anywhere", icon="OUTLINER_OB_GREASEPENCIL")
-            row.operator("popup.sketch", text="On a Panel", icon="GREASEPENCIL").panel = ""
+            r = col.row()
+            r.scale_y = 1.4
+            r.operator("popup.draw_anywhere", icon="OUTLINER_OB_GREASEPENCIL")
+            head, body = lay.panel("popup_sketch_lines", default_closed=True)
+            head.label(text="Lines on One Panel (vector)")
+            if body is not None:
+                body.prop(st, "sketch_panel", text="")
+                body.operator("popup.sketch", text="Sketch on Panel",
+                              icon="GREASEPENCIL").panel = ""
+        if _painting(context):  # (Texture Paint, left on from before)
+            r = lay.row()
+            r.alert = True
+            r.operator("popup.done_painting", icon="CHECKMARK")
+        from . import images
+        images.draw(lay, context)
         from . import materials
         materials.draw(lay, context)
         col = lay.column(align=True)
@@ -1227,6 +1234,53 @@ def _brush_sections(lay, context):
             body.label(text=f"Couldn't show this here ({type(ex).__name__})", icon="ERROR")
 
 
+def _ink_colour(lay, context):
+    """While drawing: what colour the strokes are, right here. A colour of
+    their own (Colour) or one of the inks (materials) on Pop-up Sketch."""
+    ts = context.tool_settings
+    gpp = getattr(ts, "gpencil_paint", None)
+    obj = context.view_layer.objects.active if context.view_layer else None
+    if gpp is None or obj is None or obj.type != "GREASEPENCIL":
+        return
+    box = lay.box()
+    try:
+        from bl_ui.properties_paint_common import UnifiedPaintPanel as U
+    except ImportError:
+        U = None
+    row = box.row(align=True)
+    row.prop(gpp, "color_mode", expand=True)
+    brush = gpp.brush
+    if gpp.color_mode == "VERTEXCOLOR":
+        if brush is not None:
+            try:
+                U.prop_unified_color_picker(box, context, brush, "color", value_slider=True)
+                U.prop_unified_color(box, context, brush, "color", text="")
+            except Exception:  # (no colour wheel here: a plain swatch)
+                box.prop(brush, "color", text="")
+    else:
+        row = box.row()
+        row.template_list("GPENCIL_UL_matslots", "", obj, "material_slots", obj,
+                          "active_material_index", rows=3)
+        row.operator("popup.ink_new", text="", icon="ADD")
+        ma = obj.active_material
+        g = getattr(ma, "grease_pencil", None) if ma is not None else None
+        if g is not None:
+            r = box.row(align=True)
+            r.prop(g, "color", text="Line")
+            r.prop(g, "show_fill", text="", icon="SNAP_FACE")
+            if g.show_fill:
+                r.prop(g, "fill_color", text="")
+    if U is not None and brush is not None:
+        try:
+            U.prop_unified(box, context, brush, "size", unified_name="use_unified_size",
+                           pressure_name="use_pressure_size", text="Size", slider=True)
+            U.prop_unified(box, context, brush, "strength",
+                           unified_name="use_unified_strength",
+                           pressure_name="use_pressure_strength", text="Strength", slider=True)
+        except Exception:  # (brush settings differ between versions: never break the panel)
+            pass
+
+
 def _header_done(self, context):
     """While drawing or painting on the card, its controls and a Done button
     in the 3D view's header."""
@@ -1236,12 +1290,17 @@ def _header_done(self, context):
         row.alert = True
         row.prop(st, "plan_view", text="Turn Off Plan View", icon="CANCEL", toggle=True)
     if _drawing(context):
+        row = self.layout.row(align=True)
+        from .ops import drawing_anywhere
+        if drawing_anywhere(context):
+            row.operator("popup.ink_paper", text="", icon="TEXTURE")
+        r = row.row(align=True)
+        r.alert = True
+        r.operator("popup.done_drawing", icon="CHECKMARK")
+    elif _painting(context):  # (Texture Paint, left on from before)
         row = self.layout.row()
         row.alert = True
-        row.operator("popup.done_drawing", icon="CHECKMARK")
-    elif context.scene.popup.card is not None and context.mode in ("OBJECT", "PAINT_TEXTURE"):
-        # paint on and off from the header too, for a quick touch-up
-        _paint_controls(self.layout.row(align=True), context)
+        row.operator("popup.done_painting", icon="CHECKMARK")
 
 
 def register():

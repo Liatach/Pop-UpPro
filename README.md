@@ -21,8 +21,8 @@ them.**
 4. Add mechanisms with **+** and drag their sliders; the card rebuilds as
    you go. Keep an eye on **Checks**: it turns red when something would
    tear, poke through or stick out.
-5. Draw on the card with **Draw Anywhere** (Grease Pencil, folded or flat,
-   across folds: [how to](docs/sketching.md)), turn **Paint** on to paint the card, or add
+5. Draw on the card with **Draw Anywhere** (any Grease Pencil brush, folded
+   or flat, across folds, painted into the paper: [how to](docs/sketching.md)), or add
    an image with **Image on a Piece**. Draw holes, use the built-in cut-out
    shapes, or cut away what's transparent in an image or your paint.
 6. **Export SVG Sheets**, plus crease and cut patterns for Cricut and other
@@ -106,10 +106,10 @@ Paint flat or folded, import and position images or simply textures, then export
   mechanism, so overlaps in a busy build show plainly.
 
 **Art and output**
-* Paint on the card as it folds or on the flat layout (they're the same
-  paper), into the paper or a paint layer of your own, draw on it with
-  Grease Pencil (across folds, folded or flat), or place images that wrap round cubes and tubes. Art stays on the
-  paper as it folds.
+* Draw on the card with any Grease Pencil brush, folded or on the flat
+  layout (they're the same paper), across folds: it's painted into the
+  paper, flat on every fold. Or place images that wrap round cubes and
+  tubes. Art stays on the paper as it folds.
 * Outside glue tabs print the art of the part they glue onto, so they
   disappear into the picture.
 * A movement test with one Open slider, on a rig that needs no Python

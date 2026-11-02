@@ -636,26 +636,61 @@ class POPUP_OT_done_drawing(bpy.types.Operator):
 
 
 def _place_drawn(op, scene):
-    """Strokes drawn anywhere: onto their panels."""
+    """Strokes drawn anywhere: painted onto the paper."""
     if scene.popup.rig is None:
         return
     try:
-        made, dropped = art.place_free(scene)
+        made, dropped = art.paint_free(scene)
     except Exception as ex:  # keep the strokes where they are; say so
-        op.report({"WARNING"}, f"Couldn't place the strokes drawn anywhere: {ex}")
+        op.report({"WARNING"}, f"Couldn't put the strokes on the paper: {ex}")
         return
     if made:
-        op.report({"INFO"}, f"Placed {made} stroke{'s' if made != 1 else ''} on the paper" +
+        op.report({"INFO"}, f"{made} stroke{'s' if made != 1 else ''} on the paper" +
                   (f"; {dropped} point(s) off the paper left out" if dropped else ""))
     elif dropped:
         op.report({"WARNING"}, f"{dropped} point(s) drawn off the paper left out")
 
 
+class POPUP_OT_ink_paper(bpy.types.Operator):
+    """Put what you've drawn on the paper now (painted into the card's art,
+    flat on each piece, folded and flat alike) and carry on drawing"""
+    bl_idname = "popup.ink_paper"
+    bl_label = "Put on the Paper"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def execute(self, context):
+        _place_drawn(self, context.scene)
+        return {"FINISHED"}
+
+
+class POPUP_OT_ink_new(bpy.types.Operator):
+    """A new ink (Grease Pencil material) to draw with"""
+    bl_idname = "popup.ink_new"
+    bl_label = "New Ink"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        obj = art.ensure_sketch(context.scene)
+        n = sum(1 for m in obj.data.materials if m and m.name.startswith(art.INK))
+        mat = bpy.data.materials.new(f"{art.INK} {n + 1}")
+        bpy.data.materials.create_gpencil_data(mat)
+        mat.grease_pencil.color = (0.8, 0.15, 0.1, 1.0)
+        mat.grease_pencil.show_stroke = True
+        mat.grease_pencil.show_fill = False
+        obj.data.materials.append(mat)
+        obj.active_material_index = len(obj.data.materials) - 1
+        return {"FINISHED"}
+
+
 class POPUP_OT_draw_anywhere(bpy.types.Operator):
     """Draw with Grease Pencil anywhere on the card, folded or flat, across
-    folds, with any brush. When you're done, each stroke is put on the
-    panel(s) it was drawn on: cut where it crosses a fold, so it bends with
-    the card, rides with its panels and prints on their pieces"""
+    folds, with any brush. When you're done (or press Put on the Paper) the
+    strokes are painted into the paper itself, flat on each piece: they show
+    on the folded card and the flat layout alike and print with the art"""
     bl_idname = "popup.draw_anywhere"
     bl_label = "Draw Anywhere"
     bl_options = {"REGISTER", "UNDO"}
@@ -1802,7 +1837,7 @@ classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_draw_anywhere, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_light_layers, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_draw_anywhere, POPUP_OT_ink_paper, POPUP_OT_ink_new, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_light_layers, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

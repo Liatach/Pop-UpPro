@@ -8,25 +8,36 @@ Sketch**.
 ## Draw Anywhere
 
 1. **Build the card** and open it as far as you like.
-2. In the **Artwork** panel, under **Sketch (Grease Pencil)**, press **Draw
+2. In the **Artwork** panel, under **Draw (Grease Pencil)**, press **Draw
    Anywhere**. Blender switches to Grease Pencil **Draw** mode, with strokes
    set to land on the paper's surface. Nothing turns: draw from wherever
    you're looking.
-3. **Draw** with any Grease Pencil brush, colour or material, on the folded
-   card or on the flat layout (they're the same paper), across folds, from
-   page to page. You can change the opening between strokes.
-4. **Done Drawing** puts every stroke on the panel(s) it was drawn on. Each
-   point goes onto the paper under it, and a stroke that crosses a fold is
-   cut exactly on the fold, each part on its own panel's layer, so it bends
-   with the card. Points off the paper are left out (the report says how
-   many).
+3. **Draw** with any Grease Pencil brush on the folded card or on the flat
+   layout (they're the same paper), across folds, from page to page. You can
+   change the opening between strokes.
+4. **Colour**, right under the buttons while you draw: **Material** draws
+   with one of the inks (pick one, **+** for a new one, and set its Line
+   colour, and Fill if it fills), **Color Attribute** with a colour of your
+   own from the wheel. **Size** and **Strength** are the brush's.
+5. **Put on the Paper** (or **Done Drawing**, which also ends drawing) paints
+   what you've drawn into the paper itself: each point onto the paper under
+   it, then each piece's strokes laid flat on it, brush textures and all, in
+   the card's art. From then on they're part of the paper: on the folded
+   card and the flat layout alike, flat on every fold, and printed with the
+   art.
 
-A stroke that runs from one piece of paper onto another (from a page onto a
-V-fold standing on it, say) becomes two strokes, which part as the card
-moves: they're on different paper. A filled shape drawn across a fold
-becomes one fill on each side.
+Until you put them on the paper, strokes are Grease Pencil: they float a
+little and turn to face you. Strokes on the paper can't be edited as
+strokes any more (they're paint); Ctrl Z takes them off again. A stroke
+that runs from one piece of paper onto another (a page onto a V-fold, say)
+is painted on each. Points off the paper are left out (the report says how
+many).
 
-## Sketch on one panel
+## Lines on one panel (vector)
+
+Sketch on Panel keeps strokes as Grease Pencil lines riding on one panel,
+printed as vector paths. It's under **Lines on One Panel (vector)** below
+Draw Anywhere.
 
 1. **Build the card** and open it part way, so the panel you want to draw
    on faces you (the **Open** slider, or the 0–180° buttons).
@@ -51,7 +62,7 @@ becomes one fill on each side.
 
 * **One panel per stroke.** With Sketch on Panel a stroke belongs to the
   panel its layer is on, so a line drawn across a fold won't bend with it.
-  Use **Draw Anywhere** for that: it cuts strokes on the folds for you.
+  Use **Draw Anywhere** for that.
 * **Layers.** The layers are listed in Pop-up Sketch's Object Data
   properties. You can hide, lock, reorder or change their opacity there.
   Keep their names and parents as they are: that is what keeps each layer

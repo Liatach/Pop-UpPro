@@ -884,15 +884,16 @@ mesh, no rig). So:
   with outlines only over the art, use **Print** or **Art + Cut Lines**.
 * **Draw Anywhere** (Grease Pencil; step by step in
   [sketching.md](sketching.md)): draw with any Grease Pencil brush on the
-  folded card at any opening or on the flat layout, across folds. **Done
-  Drawing** puts each stroke on the panel(s) it was drawn on: every point
-  onto the paper under it, each stroke cut exactly where it crosses a fold,
-  each part on its panel's layer, so it bends with the card, survives
-  rebuilds and prints on its piece. A stroke that runs from one piece of
-  paper onto another (a page onto a V-fold, say) becomes two, which part as
-  the card moves; points off the paper are left out.
-* **Sketch on Panel** (**On a Panel** beside it): pick a panel and press the
-  button.
+  folded card at any opening or on the flat layout, across folds, with the
+  colour (an ink, or a colour of your own), size and strength right in the
+  panel. **Put on the Paper** or **Done Drawing** paints the strokes into
+  the paper itself: every point onto the paper under it, then each piece's
+  strokes rendered flat, straight down, into its tile of the art. They show
+  on the folded card and the flat layout alike, lie flat on every fold and
+  print with the art. Points off the paper are left out. (Texture Paint is
+  hidden from the panels for now: Grease Pencil is the way to paint.)
+* **Sketch on Panel** (under **Lines on One Panel**): pick a panel and press
+  the button.
   It makes a layer on **Pop-up Sketch** parented to that panel's bone, sets
   the stroke placement to *Surface* and turns the view to face the panel.
   Strokes ride along as the card moves and survive rebuilds, and export as

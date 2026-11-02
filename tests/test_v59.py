@@ -1,10 +1,12 @@
-"""v0.59: Draw Anywhere. Grease Pencil strokes drawn freely on the folded card
-or the flat layout, across folds, are put on the panels they were drawn on
-when you're done: cut where they cross a fold, so each part rides with its
-panel (and prints on its piece)."""
+"""v0.59 (reworked in v0.60): Draw Anywhere. Grease Pencil strokes drawn
+freely on the folded card or the flat layout, across folds, are painted into
+the paper itself when you're done: flat on each piece, so they show folded
+and flat alike and print with the art."""
 import os
 import sys
 import tempfile
+
+import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -104,76 +106,126 @@ def off_paper(pts):
     return max(bvh.find_nearest(w)[3] for w in pts) / mm
 
 
-# ---- across the spine, on the folded card part open
+
+
+def art_px():
+    """{tile: pixels (h, w, 4)} of the paper's art, read from saved tiles."""
+    img = bpy.data.images.get("Pop-up Art")
+    if img is None:
+        return {}
+    d = tempfile.mkdtemp()
+    img.filepath_raw = os.path.join(d, "a.<UDIM>.png")
+    img.file_format = "PNG"
+    img.save()
+    out = {}
+    for t in img.tiles:
+        fn = os.path.join(d, f"a.{t.number}.png")
+        im = bpy.data.images.load(fn)
+        out[t.number] = np.array(im.pixels[:]).reshape(im.size[1], im.size[0], 4)
+        bpy.data.images.remove(im)
+    img.filepath = ""
+    return out
+
+
+def inked(before, after):
+    """Tiles whose pixels got darker, and how many pixels."""
+    got = {}
+    for n, a in after.items():
+        b = before.get(n)
+        if b is None:
+            b = np.ones_like(a)
+        dark = (b[..., :3].mean(-1) - a[..., :3].mean(-1)) > 0.2
+        if dark.any():
+            got[n] = int(dark.sum())
+    return got
+
+
+ink = bpy.data.materials.get("Pop-up Ink")
+
+# ---- across the spine, on the folded card part open: painted on the card's tile
 set_open(90.0)
-path = across("Page.L", "Page.R")
-obj = draw(path)
-made, dropped = art.place_free(sc)
-assert made == 2 and dropped == 0, (made, dropped)
-(sl, ll), (sr, lr) = strokes_on(obj, "Page.L"), strokes_on(obj, "Page.R")
-assert len(sl) == 1 and len(sr) == 1
-wl, wr = world_of(obj, ll, sl[0]), world_of(obj, lr, sr[0])
-assert (wl[-1] - wr[0]).length < 0.05 * mm, "the two halves meet on the fold"
-assert (wl[0] - path[0]).length < 0.05 * mm and (wr[-1] - path[-1]).length < 0.05 * mm
+bpy.ops.popup.add_art()
+before = art_px()
+obj = draw(across("Page.L", "Page.R"))
+made, dropped = art.paint_free(sc)
+assert made == 1 and dropped == 0, (made, dropped)  # the pages are one piece: one stroke
+after = art_px()
+got = inked(before, after)
+card_tile = 1001 + live.meta(rig)["pieces"]["Card"]["slot"]
+assert list(got) == [card_tile] and got[card_tile] > 50, got
 assert not len(art._drawing_of(art.free_layer(sc)[1], sc).strokes), "the loose layer is emptied"
-print("across the spine: cut on the fold, each half on its page")
+# no sketch layers made: it's in the paper now
+assert not any(l.parent is not None for l in obj.data.layers)
+print("across the spine: painted into the card's own art")
 
-# it bends with the card: at other openings every point is still on the paper
-for t in (30.0, 150.0, 179.0):
-    set_open(t)
-    for (ss, ly) in (strokes_on(obj, "Page.L"), strokes_on(obj, "Page.R")):
-        d = off_paper(world_of(obj, ly, ss[0]))
-        assert d < 0.5, (t, d)
-print("it bends with the card as it opens")
+# where on the tile: around the spine (the middle), at the height drawn
+px = after[card_tile]
+dark = (before[card_tile][..., :3].mean(-1) - px[..., :3].mean(-1)) > 0.2
+ys, xs = np.nonzero(dark)
+h, w = dark.shape
+H = st.card_dict()["H"]
+y_mm = (ys.mean() + 0.5) / h * H
+assert abs(xs.mean() / w - 0.5) < 0.15, xs.mean() / w
+assert abs(y_mm - 105.0) < 20.0, y_mm  # (the face centres the path runs through)
+print("in the right place on the tile")
 
-# ---- across a V-fold's crease
+# ---- across a V-fold's crease: on the V-fold's own tile
 set_open(100.0)
-vfl, vfr = "VFold1.HalfL", "VFold1.HalfR"
-obj = draw(across(vfl, vfr))
-made, dropped = art.place_free(sc)
-assert made == 2 and dropped == 0, (made, dropped)
-assert len(strokes_on(obj, vfl)[0]) == 1 and len(strokes_on(obj, vfr)[0]) == 1
-for t in (40.0, 160.0):
-    set_open(t)
-    for p in (vfl, vfr):
-        ss, ly = strokes_on(obj, p)
-        assert off_paper(world_of(obj, ly, ss[0])) < 0.5
-print("across a V-fold's crease, and it stays on its halves")
+before = after
+obj = draw(across("VFold1.HalfL", "VFold1.HalfR"))
+made, dropped = art.paint_free(sc)
+assert made == 1 and dropped == 0, (made, dropped)
+after = art_px()
+vf_tile = 1001 + live.meta(rig)["pieces"]["VFold1"]["slot"]
+got = inked(before, after)
+assert list(got) == [vf_tile], got
+print("across a V-fold's crease: painted on the V-fold")
 
-# ---- on the flat layout: it lands on the folded card too
+# ---- from a page onto the V-fold: two pieces of paper, painted on both
+before = after
+obj = draw(across("Page.R", "VFold1.HalfR") if False else
+           across("VFold1.HalfL", "VFold1.HalfR")[:6] + across("Page.L", "Page.R")[-6:])
+made, dropped = art.paint_free(sc)
+assert made == 2, made
+print("onto another piece of paper: painted on each")
+
+# ---- on the flat layout: painted the same way
 set_open(90.0)
 lay = st.layout
 lme = lay.data
 vals = [0] * len(lme.polygons)
 lme.attributes["pop_panel"].data.foreach_get("value", vals)
-fi = next(i for i, v in enumerate(vals) if names[v] == "Page.R")
+fi = max((i for i, v in enumerate(vals) if names[v] == "Page.R"),
+         key=lambda i: lme.polygons[i].area)
 f = lme.polygons[fi]
 c = lay.matrix_world @ f.center
 n = (lay.matrix_world.to_3x3() @ f.normal).normalized()
-pts = [c + Vector((0.0, k * 2.0 * mm, 0.0)) + n * 0.25 * mm for k in range(-3, 4)]
-before = len(strokes_on(obj, "Page.R")[0])
+pts = [c + Vector((k * 2.0 * mm, 0.0, 0.0)) + n * 0.25 * mm for k in range(-5, 6)]
+before = art_px()
 obj = draw(pts)
-made, dropped = art.place_free(sc)
+made, dropped = art.paint_free(sc)
 assert made == 1 and dropped == 0, (made, dropped)
-ss, ly = strokes_on(obj, "Page.R")
-assert len(ss) == before + 1
-assert off_paper(world_of(obj, ly, ss[-1])) < 0.5
-print("drawn on the flat layout, it's on the folded card")
+assert list(inked(before, art_px())) == [card_tile]
+print("drawn on the flat layout: painted on the card")
 
-# ---- points off the paper are left out; a stroke wholly off it vanishes
+# ---- points off the paper are left out
 far = [Vector((500.0, 500.0, 500.0)) * mm + Vector((k, 0, 0)) * mm for k in range(5)]
 obj = draw(far)
-made, dropped = art.place_free(sc)
+made, dropped = art.paint_free(sc)
 assert made == 0 and dropped == 5, (made, dropped)
 print("off the paper: left out")
 
-# ---- Done Drawing places them; they print
+# ---- Put on the Paper and Done Drawing do it; a new ink to draw with
+before = art_px()
+obj = draw([w + Vector((0.0, 30.0 * mm, 0.0)) for w in across("Page.L", "Page.R")])
+assert bpy.ops.popup.ink_paper() == {"FINISHED"}
+assert inked(before, art_px())
 obj = draw(across("Page.L", "Page.R"))
 assert bpy.ops.popup.done_drawing() == {"FINISHED"}
 assert not len(art._drawing_of(art.free_layer(sc)[1], sc).strokes)
-out = os.path.join(tempfile.mkdtemp(), "card.svg")
-files = export_svg.export(sc, out)
-svg = open(files[0]).read()
-assert "sketch" in svg
+k = len(obj.data.materials)
+assert bpy.ops.popup.ink_new() == {"FINISHED"} and len(obj.data.materials) == k + 1
 assert bpy.ops.popup.draw_anywhere() == {"FINISHED"}
-print("v0.59 OK")
+out = os.path.join(tempfile.mkdtemp(), "card.svg")
+export_svg.export(sc, out)
+print("v0.60 OK")

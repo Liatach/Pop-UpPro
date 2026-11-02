@@ -9,6 +9,7 @@
   panel, each layer parented to that panel's bone, so strokes ride along.
 """
 
+import math
 import os
 import tempfile
 
@@ -396,19 +397,6 @@ def _drawing_of(layer, scene):
     return fr.drawing
 
 
-def _panel_layer(scene, obj, panel):
-    """A panel's sketch layer (as Sketch on Panel makes it), quietly."""
-    gp = obj.data
-    layer = next((l for l in gp.layers if l.name == panel), None)
-    if layer is None:
-        layer = gp.layers.new(panel)
-        layer.frames.new(scene.frame_start)
-    layer.parent = scene.popup.rig
-    layer.parent_bone = panel
-    layer.use_lights = False
-    return layer
-
-
 class _Paper:
     """Where the paper is: the flat rest shape (the card's own mesh, which
     is the print layout) and the card as it stands now, with each face's
@@ -489,33 +477,197 @@ class _Paper:
             return None, None
         return on + nrm * (OFFSET_MM * self.unit), k
 
-    def boundary(self, a, b, ka, steps=14):
-        """Walking from rest point a (on panel ka) towards b: where it leaves
-        ka, as (fraction along, point there, the next panel)."""
-        lo, hi = 0.0, 1.0
-        kb = self.panel_at(b)[0]
-        for _ in range(steps):
-            mid = 0.5 * (lo + hi)
-            if self.panel_at(a.lerp(b, mid))[0] == ka:
-                lo = mid
-            else:
-                hi = mid
-        k2, on, nrm = self.panel_at(a.lerp(b, hi))
-        # right on the fold (not lifted off either side), so the two parts
-        # meet there whatever the angle between them
-        return hi, on, (k2 if k2 is not None else kb)
-
 
 _STROKE_ATTRS = ("material_index", "softness", "start_cap", "end_cap", "aspect_ratio",
                  "fill_color", "fill_opacity", "hide_stroke")
 
 
-def place_free(scene):
-    """Put every stroke on the Draw Anywhere layer onto the panel(s) it was
-    drawn on: each point onto the paper under it (folded card or flat
-    layout), each stroke cut where it crosses a fold, each part moved to its
-    panel's sketch layer so it rides with the panel and prints on its piece.
-    Points off the paper are dropped. Returns (strokes made, points dropped)."""
+def _tile_frames(scene):
+    """{piece name: (tile number, origin, u edge, v edge)} in the card mesh's
+    rest space: where each piece's art tile lies on the flat layout, exactly
+    as art_uv lays it (from the piece's print placement)."""
+    meta = live.meta(scene.popup.rig)
+    if meta is None or "prints" not in meta:
+        return {}
+    s = 1.0 / scene.popup.mm_per_unit
+    W, H = meta["W"], meta["H"]
+    out = {}
+    for pc, info in meta["pieces"].items():
+        flat = meta["prints"].get(pc)
+        if flat is None:
+            continue
+        P = Matrix([flat[0:4], flat[4:8], flat[8:12], flat[12:16]])
+        if info["is_card"]:
+            o, du, dv = (-W, 0.0), (2 * W, 0.0), (0.0, H)
+        else:
+            ax, ay = info["anchor"]
+            o, du, dv = (ax - TILE_MM / 2, ay - TILE_MM / 2), (TILE_MM, 0.0), (0.0, TILE_MM)
+        R = P.to_3x3()
+        out[pc] = (1001 + info["slot"], (P @ Vector((o[0], o[1], 0.0))) * s,
+                   (R @ Vector((du[0], du[1], 0.0))) * s, (R @ Vector((dv[0], dv[1], 0.0))) * s)
+    return out
+
+
+def _render_strokes(scene, strokes, frame, size, gp_src, layer_src):
+    """Render strokes (rest space) flat, straight down onto one art tile,
+    only over the patch they cover: (x0, y0, RGBA pixels (h, w, 4), straight
+    alpha), or None."""
+    import numpy as np
+    num, o, eu, ev = frame
+    W_, H_ = size
+    # the patch: the strokes' bounds on the tile, with room for the brush
+    Lu, Lv = eu.length, ev.length
+    us, vs, rad = [], [], 0.0
+    for pts, _a, _c in strokes:
+        for r, rd, _op, _col in pts:
+            d = r - o
+            us.append(d.dot(eu) / (Lu * Lu))
+            vs.append(d.dot(ev) / (Lv * Lv))
+            rad = max(rad, rd)
+    pad_u = (4.0 * rad + 0.02 * Lu) / Lu
+    pad_v = (4.0 * rad + 0.02 * Lv) / Lv
+    x0 = max(0, int(math.floor((min(us) - pad_u) * W_)))
+    x1 = min(W_, int(math.ceil((max(us) + pad_u) * W_)))
+    y0 = max(0, int(math.floor((min(vs) - pad_v) * H_)))
+    y1 = min(H_, int(math.ceil((max(vs) + pad_v) * H_)))
+    if x1 - x0 < 2 or y1 - y0 < 2:
+        return None
+    w, h = x1 - x0, y1 - y0
+    tmp = bpy.data.scenes.new("_pop_ink")
+    gp = bpy.data.grease_pencils.new("_pop_ink")
+    ob = bpy.data.objects.new("_pop_ink", gp)
+    cd = bpy.data.cameras.new("_pop_ink")
+    cam = bpy.data.objects.new("_pop_ink", cd)
+    path = os.path.join(tempfile.mkdtemp(prefix="popup_ink_"), "ink.png")
+    try:
+        tmp.collection.objects.link(ob)
+        tmp.collection.objects.link(cam)
+        for m in gp_src.materials:
+            gp.materials.append(m)
+        lay = gp.layers.new("ink")
+        lay.use_lights = False
+        for k in ("opacity", "tint_color", "tint_factor", "radius_offset", "blend_mode"):
+            try:
+                setattr(lay, k, getattr(layer_src, k))
+            except (AttributeError, TypeError, ValueError):
+                pass
+        dr = lay.frames.new(tmp.frame_current).drawing
+        for pts, attrs, cyc in strokes:
+            dr.add_strokes([len(pts)])
+            ns = dr.strokes[len(dr.strokes) - 1]
+            for q, (r, rad, op, col) in zip(ns.points, pts):
+                q.position = r
+                q.radius = rad
+                q.opacity = op
+                q.vertex_color = col
+            for a_, v in attrs.items():
+                try:
+                    setattr(ns, a_, v)
+                except (AttributeError, TypeError, ValueError):
+                    pass
+            ns.cyclic = cyc
+        # an orthographic camera straight down onto the patch
+        x = eu.normalized()
+        zc = Vector((0.0, 0.0, 1.0))
+        y = zc.cross(x)
+        flip = y.dot(ev) < 0  # a mirrored piece: flip the picture back
+        cu, cv = 0.5 * (x0 + x1) / W_, 0.5 * (y0 + y1) / H_
+        cen = o + cu * eu + cv * ev
+        cam.matrix_world = Matrix.Translation(cen + zc * 100.0) @ \
+            Matrix((x, y, zc)).transposed().to_4x4()
+        cd.type = "ORTHO"
+        cd.ortho_scale = max(w / W_ * Lu, h / H_ * Lv)
+        cd.clip_start, cd.clip_end = 0.001, 1000.0
+        tmp.camera = cam
+        r = tmp.render
+        r.engine = "BLENDER_WORKBENCH"
+        r.resolution_x, r.resolution_y, r.resolution_percentage = w, h, 100
+        r.film_transparent = True
+        r.image_settings.file_format = "PNG"
+        r.image_settings.color_mode = "RGBA"
+        r.image_settings.color_depth = "8"
+        tmp.view_settings.view_transform = "Standard"
+        tmp.view_settings.look = "None"
+        tmp.view_settings.exposure, tmp.view_settings.gamma = 0.0, 1.0
+        r.filepath = path
+        bpy.ops.render.render(write_still=True, scene=tmp.name)
+        img = bpy.data.images.load(path)
+        try:
+            a = np.empty(img.size[0] * img.size[1] * 4, dtype=np.float32)
+            img.pixels.foreach_get(a)
+            a = a.reshape(img.size[1], img.size[0], 4)
+        finally:
+            bpy.data.images.remove(img)
+        if flip:  # the patch, and where it sits, mirrored top to bottom
+            return x0, H_ - y1, np.ascontiguousarray(a[::-1])
+        return x0, y0, a
+    finally:
+        bpy.data.objects.remove(cam)
+        bpy.data.cameras.remove(cd)
+        bpy.data.objects.remove(ob)
+        bpy.data.grease_pencils.remove(gp)
+        bpy.data.scenes.remove(tmp)
+
+
+def _paint_tiles(img, layers):
+    """Lay RGBA patches over tiles of a packed UDIM image: {tile: [(x0, y0,
+    (h, w, 4))]} (straight alpha; the paper's own alpha, holes and all, is
+    kept)."""
+    import numpy as np
+    tmpd = tempfile.mkdtemp(prefix="popup_art_")
+    base = os.path.join(tmpd, "art")
+    img.filepath_raw = base + ".<UDIM>.png"
+    img.file_format = "PNG"
+    img.save()
+    for num, src in layers.items():
+        fn = f"{base}.{num}.png"
+        if not os.path.exists(fn):
+            continue
+        t = bpy.data.images.load(fn)
+        try:
+            w, h = t.size
+            dst = np.empty(w * h * 4, dtype=np.float32)
+            t.pixels.foreach_get(dst)
+            dst = dst.reshape(h, w, 4)
+            for x0, y0, px in src:
+                ph, pw = px.shape[:2]
+                ph, pw = min(ph, h - y0), min(pw, w - x0)
+                if ph <= 0 or pw <= 0:
+                    continue
+                d = dst[y0:y0 + ph, x0:x0 + pw]
+                a = px[:ph, :pw, 3:4]
+                d[..., :3] = px[:ph, :pw, :3] * a + d[..., :3] * (1.0 - a)
+            t.pixels.foreach_set(dst.ravel())
+            t.filepath_raw = fn
+            t.file_format = "PNG"
+            t.save()
+        finally:
+            bpy.data.images.remove(t)
+    # a packed image reloads its packed copy: load the files as a new image
+    # and put it in the old one's place (materials, paint slots and all)
+    nums = sorted(t.number for t in img.tiles)
+    new = bpy.data.images.load(f"{base}.{nums[0]}.png")
+    new.source = "TILED"
+    new.filepath = base + ".<UDIM>.png"
+    new.reload()
+    new.pack()
+    new.filepath = ""
+    name = img.name
+    img.user_remap(new)
+    bpy.data.images.remove(img)
+    new.name = name
+    return new
+
+
+def paint_free(scene):
+    """Paint every stroke on the Draw Anywhere layer onto the paper itself:
+    each point onto the paper under it (folded card or flat layout), then
+    each piece's strokes rendered flat, straight down, into its tile of the
+    art (brushes, textures and colours as drawn), so they show on the
+    folded card and the flat layout alike and print with the art. Strokes
+    are split where they run onto another piece of paper; points off the
+    paper are left out. The loose layer is emptied. Returns (strokes
+    painted, points dropped)."""
     st = scene.popup
     obj, free = free_layer(scene, create=False)
     if free is None or st.rig is None or st.card is None or live.meta(st.rig) is None:
@@ -523,72 +675,46 @@ def place_free(scene):
     src = _drawing_of(free, scene)
     if src is None or not len(src.strokes):
         return 0, 0
+    if bpy.data.images.get(N(scene, ART_IMAGE)) is None:
+        add_art_texture(scene)
+    img = bpy.data.images.get(N(scene, ART_IMAGE))
     paper = _Paper(scene)
     W = obj.matrix_world @ free.matrix_local
-    made, dropped = 0, 0
-    out = {}  # panel index -> [(points [(rest, radius, opacity, colour)], stroke attrs, cyclic)]
+    dropped = 0
+    by_piece = {}  # piece -> [(points, attrs, cyclic)]
     for s in src.strokes:
         attrs = {k: getattr(s, k) for k in _STROKE_ATTRS if hasattr(s, k)}
-        for k in ("fill_color",):
-            if k in attrs:
-                attrs[k] = tuple(attrs[k])
-        segs = []  # [(panel, [points])]
-        prev = None  # (rest, panel, point data)
+        if "fill_color" in attrs:
+            attrs["fill_color"] = tuple(attrs["fill_color"])
+        segs, prev = [], None
         for p in s.points:
             r, k = paper.to_rest(W @ Vector(p.position))
             if r is None:
                 dropped += 1
                 prev = None
                 continue
-            data = (p.radius, p.opacity, tuple(p.vertex_color))
-            if prev is None:
-                segs.append([k, [(r, *data)]])
-            elif k == prev[1]:
-                segs[-1][1].append((r, *data))
-            elif paper.piece[k] != paper.piece[prev[1]]:
-                segs.append([k, [(r, *data)]])  # onto another piece of paper: a new stroke
-            else:  # across a fold: cut it there, the cut point on both sides
-                a, ka, pd = prev
-                for _ in range(8):  # (it may cross more than one fold)
-                    f, b, kn = paper.boundary(a, r, ka)
-                    mix = tuple(x + (y - x) * f for x, y in zip(pd[:2], data[:2]))
-                    col = tuple(x + (y - x) * f for x, y in zip(pd[2], data[2]))
-                    bd = (b, mix[0], mix[1], col)
-                    segs[-1][1].append(bd)
-                    segs.append([kn, [bd]])
-                    if kn == k or kn is None or paper.piece[kn] != paper.piece[k]:
-                        break
-                    a, ka, pd = b, kn, (mix[0], mix[1], col)
-                segs[-1][1].append((r, *data))
-            prev = (r, k, data)
-        whole = len(segs) == 1
-        for k, pts in segs:
-            if len(pts) >= 1:
-                out.setdefault(k, []).append((pts, attrs, bool(s.cyclic) and whole))
-    rig = st.rig
-    for k, strokes in out.items():
-        name = paper.names[k]
-        bone = rig.data.bones.get(name)
-        if bone is None:
+            pc = paper.piece[k]
+            if prev != pc:
+                segs.append([pc, []])
+            segs[-1][1].append((r, p.radius, p.opacity, tuple(p.vertex_color)))
+            prev = pc
+        for pc, pts in segs:
+            by_piece.setdefault(pc, []).append((pts, attrs, bool(s.cyclic) and len(segs) == 1))
+    frames = _tile_frames(scene)
+    sizes = {t.number: tuple(t.size) for t in img.tiles}
+    layers, made = {}, 0
+    for pc, strokes in by_piece.items():
+        fr = frames.get(pc)
+        if fr is None or fr[0] not in sizes:
             dropped += sum(len(p) for p, _a, _c in strokes)
             continue
-        layer = _panel_layer(scene, obj, name)
-        T = (bone.matrix_local @ layer.matrix_parent_inverse @ layer.matrix_local).inverted()
-        dr = _drawing_of(layer, scene)
-        for pts, attrs, cyc in strokes:
-            dr.add_strokes([len(pts)])
-            ns = dr.strokes[len(dr.strokes) - 1]
-            for q, (r, rad, op, col) in zip(ns.points, pts):
-                q.position = T @ (paper.R @ r)
-                q.radius = rad
-                q.opacity = op
-                q.vertex_color = col
-            for a, v in attrs.items():
-                try:
-                    setattr(ns, a, v)
-                except (AttributeError, TypeError, ValueError):
-                    pass
-            ns.cyclic = cyc
-            made += 1
+        got = _render_strokes(scene, strokes, fr, sizes[fr[0]], obj.data, free)
+        if got is None:
+            continue
+        layers.setdefault(fr[0], []).append(got)
+        made += len(strokes)
+    if layers:
+        _paint_tiles(img, layers)
+        refresh_material(scene)
     src.remove_strokes()
     return made, dropped

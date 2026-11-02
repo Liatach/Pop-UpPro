@@ -46,7 +46,10 @@ def art_uv(model, piece, q):
     tu, tv = k % 10, k // 10
     if pc.is_card:
         W, H = model.W, model.H
-        return (tu + (q[0] + W) / (2 * W), tv + q[1] / H)
+        # (kept inside the tile: its right and top edges would land on the
+        # next tile, which a UDIM image shows magenta)
+        return (tu + min(max((q[0] + W) / (2 * W), 0.0), 0.999),
+                tv + min(max(q[1] / H, 0.0), 0.999))
     ax, ay = pc.anchor
     u = 0.5 + (q[0] - ax) / TILE_MM
     v = 0.5 + (q[1] - ay) / TILE_MM
