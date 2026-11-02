@@ -85,7 +85,9 @@ Paint flat or folded, import and position images or simply textures, then export
 * V-folds (panels, beaks or pleated fans; symmetric or asymmetric), mouths
   and jaws.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
-* Tubes, pyramids and tents on parallel strips, with tethers and roofs.
+* Tubes, pyramids and tents on parallel strips, with tethers and roofs, and
+  castles: towers up a tube's inside corners with pyramid roofs that still
+  fold flat.
 * Parallelogram stand-ups, pull-tab flaps.
 * 45° folds: a raised platform (on or off the centre) and a rising sheet,
   propped square by 45° folds.
@@ -153,7 +155,8 @@ calls tools and menus from when it is installed.
 
 * One card (or carousel) per scene. Mechanisms sit on the spine, on box
   folds and straps (and their valleys), stand-ups, a tube's roof, a V-fold's
-  crease or glue folds, or outside a cube's or tube's walls.
+  crease or glue folds, outside a cube's or tube's walls, or (towers) up a
+  tube's inside corners.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms (the Plan View helps you spot them by eye).
 * Extra creases and cuts work on the card itself, V-folds, box folds and box

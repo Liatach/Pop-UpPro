@@ -158,6 +158,40 @@ Their fold angles are solved when the card is built and stored in the rig as
 driver curves (sampled every degree, more finely where needed), so the rig
 still needs no scripts.
 
+### Castle towers (towers in a tube's corners)
+
+Birmingham's parallel castle: a box-shaped tube (front and back as wide as
+the strip distance) with a tower standing up each inside corner. **Add →
+Castle** makes one with a roofed tower in all four corners; with a tube
+selected, the **+** menu adds a **Tower in Every Inside Corner** or one in a
+corner you pick. Any glued box fold can stand there: set **Stands On** to the
+tube and **Fold** to an *Inside Corner*.
+
+* Seen from inside the castle, each corner is square when the card is open
+  flat and opens out to 180° as it shuts. A tower is a box fold on that
+  corner: its two outer faces are the castle walls themselves, which rise to
+  the tower's top over its width; its two inner faces are a strip folded
+  into an L whose tabs glue inside the walls (**Along Wall** left and right,
+  **Tower Height**, **Position** up the corner). It squashes into a diamond
+  and lies flat with the walls.
+* **Roof: Pointed** gives a square tower a pyramid roof, **Roof Height**
+  above the walls. A gable can't do it: as the tower shears into a diamond
+  its eaves slide past each other, so a ridge glued between them tears or
+  sticks out. The pyramid is two V-folds, one in each corner where the L
+  meets a wall, hinged on the two top edges that meet there, with their
+  creases rising to the apex. Those corners close to 0° as the card shuts,
+  which is just what V-folds fold flat at. Open flat the four faces meet in
+  a pyramid; part-way they part along two hips; shut, they lie flat inside
+  the walls. The roof needs a square tower (the same distance along both
+  walls) and square corners when the card is open, so a hexagon tube's
+  towers stay open-topped; Checks says why.
+* The tower's tabs stop short of the roof's tabs, which glue inside the top
+  of the walls. At the back left corner they lie over the tube's own closing
+  tab: glue on glue is fine there.
+* The whole castle wall is one strip, so it must fit on one print sheet (the
+  Castle preset does on A4); make the tube shorter or narrower if Checks
+  says it's bigger than the sheet.
+
 ### Pyramids, tents and roofs
 
 See The Pop-Up Channel's [Tutorial 21](https://www.youtube.com/watch?v=jZDHbUhV6Ms).

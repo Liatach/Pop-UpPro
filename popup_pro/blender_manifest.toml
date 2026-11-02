@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "popup_pro"
-version = "0.56.0"
+version = "0.57.0"
 name = "Pop-Up Pro"
 tagline = "Design pop-up cards and books, test the movement, print"
 maintainer = "Kim Lang (Liatach Makes)"

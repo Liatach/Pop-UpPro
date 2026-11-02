@@ -215,6 +215,30 @@ class POPUP_OT_add(bpy.types.Operator):
             m.y = round(0.3 * st.card_dict()["H"], 1)
             m.label = unique_label(st.mechs, "Valley floor", m)
             st["live"] = was
+        if self.kind == "BOX" and self.variant == "TOWERS" and self.host:
+            # a tower up every inside corner of the tube (the castle's corners)
+            _remove_new(st, uid)
+            for fold in ("KFL", "KFR", "KBR", "KBL"):
+                _tower(st, self.host, fold)
+            _rebuild(self, context, force=st.rig is not None and not st.edited)
+            return {"FINISHED"}
+        if self.kind == "TUBE" and self.variant == "CASTLE":
+            # Birmingham's parallel castle: a box-shaped tube (front and back as
+            # wide as the strips are apart) with a roofed tower in each corner
+            was = st.live
+            st["live"] = False
+            H = st.card_dict()["H"]
+            # (one strip round all six walls: kept within an A4 sheet)
+            m.x = m.front = m.back = 34.0
+            m.depth, m.height, m.roof = 64.0, 40.0, "NONE"
+            m.y = round(0.5 * H - 32.0, 1)
+            m.label = unique_label(st.mechs, "Castle", m)
+            st["live"] = was
+            for fold in ("KFL", "KFR", "KBR", "KBL"):
+                _tower(st, uid, fold)
+            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
+            _rebuild(self, context, force=st.rig is not None and not st.edited)
+            return {"FINISHED"}
         if self.host:
             if self.side:
                 next(x for x in st.mechs if x.uid == uid)["side"] = 1 if self.side == "L" else 0
@@ -225,6 +249,29 @@ class POPUP_OT_add(bpy.types.Operator):
             st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
         _rebuild(self, context, force=st.rig is not None and not st.edited)
         return {"FINISHED"}
+
+
+def _remove_new(st, uid):
+    i = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
+    st.mechs.remove(i)
+
+
+def _tower(st, host, fold):
+    """A roofed tower (a glued box fold) up one inside corner of a tube."""
+    t = _add(st, "BOX")
+    uid = t.uid
+    _put_on(st, uid, host, fold)
+    was = st.live
+    st["live"] = False
+    t = next(x for x in st.mechs if x.uid == uid)
+    where = {"KFL": "front left", "KFR": "front right", "KBR": "back right",
+             "KBL": "back left"}[fold]
+    h = next(x for x in st.mechs if x.uid == host)
+    t.label = f"{h.label}: {where} tower"
+    t.roof = "POINTED"
+    t.roof_height = round(0.9 * t.height, 1)
+    st["live"] = was
+    return uid
 
 
 def _put_on(st, uid, host, fold="A"):
@@ -239,6 +286,8 @@ def _put_on(st, uid, host, fold="A"):
         m["on_crease"] = fold == "V"  # (a floor's or ceiling's crease)
     elif fold in ("WL", "WR"):  # outside a cube's or tube's wall
         m["wall"] = 1 if fold == "WL" else 2
+    elif fold in ("KFL", "KFR", "KBR", "KBL"):  # up a tube's inside corner (a tower)
+        m["wall"] = 3 + ("KFL", "KFR", "KBR", "KBL").index(fold)
     elif fold == "VAL":  # a strap's valley between two peaks
         m["fold"] = 3
     else:

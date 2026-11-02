@@ -280,6 +280,19 @@ def fit_to_host(m, st):
         finally:
             st["live"] = was
         return
+    if host is not None and host.kind == "TUBE" and m.wall.startswith("K"):
+        # a tower up the inside corner: square, a little taller than the walls
+        was = st.live
+        st["live"] = False
+        try:
+            k = round(min(0.3 * host.depth, 0.4 * max(host.front, host.x), 25.0), 1)
+            m.height = m.depth = k
+            m.width = round(1.4 * host.height, 1)
+            m.y = 0.0
+            m.tab = min(m.tab, round(0.6 * k, 1))
+        finally:
+            st["live"] = was
+        return
     if host is not None and host.kind in ("CUBE", "TUBE") and not (
             host.kind == "TUBE" and m.wall == "NONE" and host.roof == "FLAT"
             and host.roof_fold == "DIP"):
@@ -575,7 +588,15 @@ class PopupMech(bpy.types.PropertyGroup):
         ("L", "Left Wall", "Where the host's left (front-left) wall meets the page, "
          "outside it: the wall as the background"),
         ("R", "Right Wall", "Where the host's right (front-right) wall meets the page, "
-         "outside it")],
+         "outside it"),
+        ("KFL", "Inside Corner, Front Left", "On a tube: up its inside corner where the "
+         "left side meets the front, a tower (box folds only)"),
+        ("KFR", "Inside Corner, Front Right", "On a tube: up its inside corner where the "
+         "front meets the right side, a tower (box folds only)"),
+        ("KBR", "Inside Corner, Back Right", "On a tube: up its inside corner where the "
+         "right side meets the back, a tower (box folds only)"),
+        ("KBL", "Inside Corner, Back Left", "On a tube: up its inside corner where the "
+         "back meets the left side, a tower (box folds only)")],
         description="On a cube or tube: which wall's foot it stands at")
     depth_r: FloatProperty(name="Out Right", default=0.0, min=0.0, soft_max=150.0,
                            update=_changed,
@@ -883,6 +904,7 @@ class PopupMech(bpy.types.PropertyGroup):
                             for ln in self.lines])
         else:
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
+                     roof=self.roof, roof_height=self.roof_height,
                      width=self.width, height=self.height,
                      depth=self.height if (self.strap and self.kind == "BOX") else self.depth,
                      slant=self.slant, peaks=self.peaks if self.kind == "BOX" else 1,

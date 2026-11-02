@@ -63,11 +63,17 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("BOX", "Box Fold / Strap (glued strip)"),
                         ("BOXCUT", "Box Layer (cut in)"),
                         ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap"),
-                        ("TUBE", "Tube (parallel strips)"), ("TETHER", "Tether"),
+                        ("TUBE", "Tube (parallel strips)"), ("CASTLE", None),
+                        ("TETHER", "Tether"),
                         ("PYRAMID", "Pyramid / Tent (parallel strips)"),
                         ("STANDUP", "Stand-up (parallelogram)"),
                         ("PLATFORM", "Platform (45° folds)"),
                         ("RISER", "Rising Sheet (45° folds)")):
+            if k == "CASTLE":  # a tube with a tower in each inside corner
+                op = self.layout.operator("popup.add", text="Castle (tube with corner towers)",
+                                          icon=KIND_ICON["TUBE"])
+                op.kind, op.variant = "TUBE", "CASTLE"
+                continue
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
             if k == "VFOLD":
                 op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
@@ -146,6 +152,16 @@ class POPUP_MT_add(bpy.types.Menu):
                     op = self.layout.operator("popup.add", text=f"{name}, {where}",
                                               icon=KIND_ICON[kind])
                     op.kind, op.host, op.fold = kind, h.uid, "W" + wall
+            if h.kind == "TUBE":
+                self.layout.label(text=f"Towers in the corners of {h.label}:")
+                op = self.layout.operator("popup.add", text="Tower in Every Inside Corner",
+                                          icon=KIND_ICON["BOX"])
+                op.kind, op.host, op.variant = "BOX", h.uid, "TOWERS"
+                for fold, where in (("KFL", "front left"), ("KFR", "front right"),
+                                    ("KBR", "back right"), ("KBL", "back left")):
+                    op = self.layout.operator("popup.add", text=f"Tower, {where} corner",
+                                              icon=KIND_ICON["BOX"])
+                    op.kind, op.host, op.fold = "BOX", h.uid, fold
         if st.mechs and st.active < len(st.mechs):
             h = st.mechs[st.active]
             if h.kind in ("BOX", "BOXCUT", "STANDUP"):
@@ -644,7 +660,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             _tabs(self.layout, m)
             _draw_lines(self.layout, context, m)
         else:
-            col.prop(m, "width", text="Length Along Fold")
+            tower = m.kind == "BOX" and hm is not None and hm.kind == "TUBE" and \
+                m.wall.startswith("K")
+            col.prop(m, "width", text="Tower Height" if tower else "Length Along Fold")
             if joint:
                 # which side of the joint each width lies on
                 flat = "Along Floor" if hm.kind == "FLOOR" else "Along Ceiling"
@@ -653,18 +671,26 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 if hm.kind == "CEILING":
                     left = left.replace("Up Wall", "Down Wall")
                     right = right.replace("Up Wall", "Down Wall")
+            elif tower:  # along each wall from the corner
+                left, right = "Along Wall (left)", "Along Wall (right)"
             else:
                 left, right = "Width Left", "Width Right"
-            if m.kind == "BOX" and not joint:
+            if m.kind == "BOX" and not joint and not tower:
                 col.prop(m, "strap")
             if m.kind == "BOX" and m.strap and not joint:
                 col.prop(m, "height", text="Width Each Side")
             else:
                 col.prop(m, "height", text=left)
                 col.prop(m, "depth", text=right)
-            if m.kind in ("BOX", "BOXCUT"):
+            if tower:  # up a tube's inside corner
+                col.prop(m, "roof", text="Roof")
+                if m.roof == "POINTED":
+                    col.prop(m, "roof_height")
+                elif m.roof == "FLAT":
+                    col.label(text="A tower's roof is Pointed or None", icon="INFO")
+            if m.kind in ("BOX", "BOXCUT") and not tower:
                 col.prop(m, "slant")
-            if m.kind == "BOX":
+            if m.kind == "BOX" and not tower:
                 col.prop(m, "peaks")
         if m.kind in ("CUBE", "STANDUP", "BOX", "PLATFORM", "RISER"):
             _tabs(self.layout, m, side=m.kind == "CUBE")
