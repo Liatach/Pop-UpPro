@@ -158,15 +158,29 @@ Sunflower is a good way to make them.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms (the Plan View helps you spot them by eye).
 * Extra creases and cuts work on the card itself, V-folds, box folds and box
-  layers; tubes,
-  roofs and stand-up pictures don't take them yet (shape a picture by
-  erasing its art). Asymmetric creases need their own matching crease on the
-  other side (drawn with Mirror off).
+  layers; tubes (so castle walls: no battlements or drawbridge yet), roofs
+  and stand-up pictures don't take them yet. Asymmetric creases need their
+  own matching crease on the other side (drawn with Mirror off).
+* A castle's wall is one strip of paper round all its walls, so it must fit
+  on one print sheet.
+* Draw Anywhere strokes become paint when they go on the paper: they can't
+  be edited as strokes afterwards (Ctrl Z takes them off), and a stroke
+  that runs from one piece of paper onto another is painted on each.
+* Texture Paint (and with it Erase, painted holes and erasing a stand-up
+  picture's outline) is hidden from the panels for now: Draw Anywhere is
+  the way to paint.
 * Paint layers of your own on UDIM tiles are untested; Bake Art for Print is
   the safe route for printing.
 
 ## Roadmap
 
+* **Ink layers and editable strokes**: Draw Anywhere strokes kept as Grease
+  Pencil lying on the flat layout, editable any time, in layers you can
+  hide, reorder and fade, with the paper redrawn from them (**Update
+  Paper**), so nothing is baked in for good. Strokes that keep to the piece
+  they're on near folds and edges.
+* **Castle, continued**: battlements and a drawbridge in the tube's walls, a
+  castle wall in two strips (as Birmingham's), and towers on other folds.
 * Plan View, continued: highlight where two pieces actually meet in 3D.
 * The consolidation and elegance pass over the interface, continued:
   * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
@@ -197,7 +211,30 @@ Sunflower is a good way to make them.
   across the spine, each with its own height and shape, as long as each
   one's front and rear crease lengths balance.
 
+## Version history
 
+* **0.56–0.60**: Align (along a fold or across the card) and a see-through
+  Plan View; castle towers in a tube's corners with pyramid roofs that fold
+  flat; self-contained for Blender Extensions; Draw Anywhere with Grease
+  Pencil, across folds, painted into the paper.
+* **0.46–0.55**: 45° folds (Platform, Rising Sheet); part materials (metallic,
+  glossy, glow) and metallic images; outside tabs that carry the art; folds
+  that share vertices; the Studio look; colour history; painting tidied up.
+* **0.40–0.45**: Grease Pencil sketching end to end; concertinas and fans;
+  painting the card flat or folded without stopping.
+* **0.32–0.39**: render looks; openings on any face, turned; crease and cut
+  shapes you can flip, turn and move; door flaps; Duplicate; sheets sized to
+  fit; painting sessions with Erase and painted holes.
+* **0.24–0.31**: Set Up Scene; bake guards; images on pieces; picture-book
+  sizes; off-centre pop-ups (straps, V-fold glue folds), slanted straps and
+  peaks; images that wrap round cubes; the card camera.
+* **0.17–0.23**: asymmetric V-folds and mechanisms on a V-fold's crease;
+  floors and ceilings from card creases; peaked roofs; Solid Paper.
+* **0.10–0.16**: carousels and stage sets; openings and holes; extra creases
+  and cuts on V-folds and boxes; parallelogram stand-ups; True Colours.
+* **0.3–0.9**: Pop-up Mechanics becomes Pop-Up Pro; the closing stop and export
+  options; the 180° cube and pull-tab flaps; tubes and tethers; pyramids,
+  tents and roofs; reverse sides and the assembly page; the basic box.
 
 ## Development
 

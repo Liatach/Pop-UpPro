@@ -70,7 +70,11 @@ start, see the [README](../README.md).
    poking through a page, pieces sticking out of the closed card, pieces
    too big for the sheet. **Plan View** at its foot shows the card squashed
    flat and see-through, to see what overlaps what ([Plan View](#plan-view)).
-7. **Export SVG Sheets** writes one SVG per sheet.
+7. **Artwork**: **Draw Anywhere** draws on the card with Grease Pencil, folded
+   or flat, across folds, and puts it on the paper ([Artwork that stays on
+   the paper](#artwork-that-stays-on-the-paper)); **Image on a Piece** places
+   pictures.
+8. **Export SVG Sheets** writes one SVG per sheet.
 
 ### Closing and paper thickness
 
@@ -598,7 +602,8 @@ to its back. **Picture** sets which way it faces:
 
 **Picture Width** and **Picture Height** (or **Depth**) size the picture, centred
 on its bridge or leg. Shape its outline by erasing the art in Texture Paint
-(Creases, Cuts and Holes), the way the family and the dog are cut out in the book.
+(Creases, Cuts and Holes), the way the family and the dog are cut out in the book
+(Texture Paint is hidden for now, since v0.60).
 Stand-ups stack: with one selected, **Add** offers *Stand-up in Front*, which
 uses the picture as the background (the dog), and *Stand-up on Top*, which
 sits on a flat picture against the background (the figure on the carpet).
@@ -686,7 +691,8 @@ so they show in 3D and print as cut lines:
   * *Next Stage*: on a background page, the neighbouring stage's page that
     is glued back to back with it, so a doorway leads from one stage into
     the next.
-* **Painted**: while painting, turn on **Erase** (next to Paint): the brush
+* **Painted** (*hidden for now, with Texture Paint: use Openings or Drawn
+  holes*): while painting, turn on **Erase** (next to Paint): the brush
   rubs the paper see-through instead of painting colour. Erase inside a
   piece for a hole, or up to its edge to change its outline (round a
   V-fold's corner, cut a jagged skyline). The see-through areas show on the
@@ -801,6 +807,11 @@ Everything is one mesh, **Pop-up Card**, deformed by **Pop-up Rig**. Its rest
 shape is the print layout, which you also see as **Pop-up Layout** (same
 mesh, no rig). So:
 
+* **Draw Anywhere** (Grease Pencil, below) is the way to paint the card for
+  now: what you draw is painted into the paper. *The Texture Paint controls
+  described next (Paint, Erase, Cut Painted Holes, Paper / Layer) are hidden
+  from the panels since v0.60, to keep one way of painting; they're
+  described here for files painted before, and for when they come back.*
 * **Paint** turns painting on and off: Texture Paint on the card just as it
   stands (folded, flat open, anywhere in between), and back to Object Mode.
   It is in the Artwork panel and the 3D view's header, for a quick touch-up.
