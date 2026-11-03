@@ -285,7 +285,14 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
                 if ov is None:
                     continue
                 lo, hi = ov
-                if o.panel == s.panel or frozenset((names[s.panel], names[o.panel])) in model.soft:
+                pair = frozenset((names[s.panel], names[o.panel]))
+                forced = model.fold_kind.get(pair)
+                if forced not in (None, "skip"):  # a fold however it's shown (a bend's crease)
+                    olo, ohi = _interval_other(s, o, lo, hi)
+                    s.marks.append((lo, hi, ("fold", forced)))
+                    o.marks.append((olo, ohi, ("skip",)))
+                    continue
+                if o.panel == s.panel or pair in model.soft or forced == "skip":
                     # split inside one panel, or a strip sliding through a slit: no line
                     olo, ohi = _interval_other(s, o, lo, hi)
                     s.marks.append((lo, hi, ("skip",)))

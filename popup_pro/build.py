@@ -251,8 +251,7 @@ def build_mesh(mesh, model, layout, s, holes=None):
             ok_pair[k] = got
         if not got:
             return False
-        v = Vector((q[0], q[1], 0.0))
-        return all((model.shown(a, t) @ v - model.shown(b, t) @ v).length < 2e-4 for t in ts)
+        return all((model.point(a, q, t) - model.point(b, q, t)).length < 2e-4 for t in ts)
 
     from .core.align import uid_of
     for pi, name in enumerate(model.order):
@@ -281,7 +280,13 @@ def build_mesh(mesh, model, layout, s, holes=None):
                         bv = bm.verts.new((P @ Vector((q[0], q[1], p.zoff))) * s)
                         pool.setdefault(key, []).append((bv, {name}))
                     cache[key] = bv
-                    idx.append(bv)
+                    if name in model.blend:
+                        # a bending panel: shown between its two stiff ones
+                        a_, b_ = model.blend[name][:2]
+                        u = model.blend_weight(name, q)
+                        idx += [(bv, a_, 1.0 - u), (bv, b_, u)]
+                    else:
+                        idx.append((bv, name, 1.0))
                 vs.append(bv)
             if len(set(vs)) < 3:
                 continue
@@ -291,6 +296,8 @@ def build_mesh(mesh, model, layout, s, holes=None):
                 continue
             f[lay] = pi
             f[mlay] = mech_uid
+            if name in model.blend:
+                f.smooth = True  # bent paper, not facets
             to_host = carry.get(name)
             for loop, q in zip(f.loops, poly):
                 own = art_uv(model, p.piece, q)
@@ -301,8 +308,19 @@ def build_mesh(mesh, model, layout, s, holes=None):
                 else:
                     loop[uvl].uv = own
         groups[name] = idx
+    if model.fold_kind:
+        # a crease between bent panels stays sharp
+        for e in bm.edges:
+            if len(e.link_faces) == 2:
+                pa, pb = (model.order[f[lay]] for f in e.link_faces)
+                if model.fold_kind.get(frozenset((pa, pb)), "skip") != "skip":
+                    e.smooth = False
     bm.verts.index_update()
-    order = {name: [v.index for v in vs] for name, vs in groups.items()}
+    order = {}  # bone -> [(vertex index, weight)]
+    for vs in groups.values():
+        for bv, bone, w in vs:
+            if w > 1e-6:
+                order.setdefault(bone, []).append((bv.index, w))
     bm.to_mesh(mesh)
     bm.free()
     mesh.uv_layers.active = mesh.uv_layers[ART_UV]
@@ -393,6 +411,36 @@ def _driver(rig, pb, hinge, const, t0=0.0):
         raise RuntimeError(f"driver for {pb.name} is too long ({len(full)} characters)")
     d.expression = full
     return d
+
+
+def _free_drivers(rig, pb, model, name, rest, pp, pf, s, t0):
+    """A part glued to nothing (a bending strip's far end): its whole pose,
+    position and turn, tabulated every degree as six driver curves."""
+    keys = []
+    prev = None
+    ri = rest.inverted()
+    for tt in model.TABLE_T:
+        K = scaled(ri @ pp @ model.rel(name, tt) @ pf, s)
+        e = K.to_euler("YZX") if prev is None else K.to_euler("YZX", prev)
+        prev = e
+        keys.append((tt, K.to_translation(), e))
+    for path, k_ in (("location", 1), ("rotation_euler", 2)):
+        for i in range(3):
+            d = _fresh(pb.driver_add(path, i))
+            _var(d, "t", "OBJECT", rig, '["pop_open"]')
+            d.expression = open_expr(t0)
+            fc = rig.animation_data.drivers.find(f'pose.bones["{pb.name}"].{path}', index=i)
+            kps = fc.keyframe_points
+            n = len(keys)
+            if len(kps) < n:
+                kps.add(n - len(kps))
+            while len(kps) > n:
+                kps.remove(kps[len(kps) - 1], fast=True)
+            for kp, key in zip(kps, keys):
+                kp.co = (key[0], key[k_][i])
+                kp.interpolation = "LINEAR"
+            fc.extrapolation = "CONSTANT"
+            fc.update()
 
 
 def pull_prop(uid):
@@ -493,7 +541,9 @@ def build_rig(scene, rig, model, layout, s, t0=0.0):
         e = K.to_euler("YZX")
         pb.location = K.to_translation()
         pb.rotation_euler = e
-        if p.hinge is not None and p.hinge.kind == "SLIDE":
+        if getattr(p, "free", False):
+            _free_drivers(rig, pb, model, name, rest, pp, panel_frame(p), s, t0)
+        elif p.hinge is not None and p.hinge.kind == "SLIDE":
             _slide_drivers(rig, pb, p.hinge, K, s)
         elif p.hinge is not None:
             _driver(rig, pb, p.hinge, e.y, t0)
@@ -574,8 +624,11 @@ def rebuild(scene, force=False):
         obj.vertex_groups.clear()
         for name in model.order:
             vg = obj.vertex_groups.new(name=name)
-            if groups.get(name):
-                vg.add(groups[name], 1.0, "REPLACE")
+            by_w = {}
+            for i, w in groups.get(name, ()):
+                by_w.setdefault(round(w, 6), []).append(i)
+            for w, ids in by_w.items():
+                vg.add(ids, w, "REPLACE")
     from . import art
     art.release_orphans(scene, set(model.order))
     stage = st.stage_master is not None

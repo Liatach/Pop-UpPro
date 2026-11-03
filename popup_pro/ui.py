@@ -8,7 +8,8 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "PYRAMID": "CONE", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
              "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND",
              "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME", "PLATFORM": "MOD_SOLIDIFY",
-             "RISER": "OUTLINER_OB_FORCE_FIELD"}
+             "RISER": "OUTLINER_OB_FORCE_FIELD", "DOUBLE45": "ORIENTATION_GIMBAL",
+             "JACK": "OUTLINER_OB_ARMATURE"}
 
 
 def draw_export(layout, st):
@@ -67,7 +68,9 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("PYRAMID", "Pyramid / Tent (parallel strips)"),
                         ("STANDUP", "Stand-up (parallelogram)"),
                         ("PLATFORM", "Platform (45° folds)"),
-                        ("RISER", "Rising Sheet (45° folds)")):
+                        ("RISER", "Rising Sheet (45° folds)"),
+                        ("DOUBLE45", "Double 45° Fold (twisting top)"),
+                        ("JACK", "Jack in the Box (on a V-fold)")):
             if k == "CASTLE":  # a tube with a tower in each inside corner
                 op = self.layout.operator("popup.add", text="Castle (tube with corner towers)",
                                           icon=KIND_ICON["TUBE"])
@@ -613,6 +616,15 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "height", text="Sheet Height")
             col.prop(m, "brace_size")
             col.label(text="Shape the sheet by erasing its art (Paint, Erase)", icon="INFO")
+        elif m.kind == "JACK":
+            col.prop(m, "height", text="Fold Spacing (G)")
+            col.prop(m, "depth", text="Arm Reach")
+            col.label(text="Draw the figure; erase its art to shape it", icon="INFO")
+        elif m.kind == "DOUBLE45":
+            col.prop(m, "width", text="Arm Width")
+            col.prop(m, "height", text="Arm Length")
+            col.prop(m, "depth", text="Top Piece Length")
+            col.label(text="Top piece longer than both arms together", icon="INFO")
         elif m.kind == "STANDUP":
             flat = m.stand == "FLAT"
             col.prop(m, "stand")
@@ -692,7 +704,11 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "slant")
             if m.kind == "BOX" and not tower:
                 col.prop(m, "peaks")
-        if m.kind in ("CUBE", "STANDUP", "BOX", "PLATFORM", "RISER"):
+            if m.kind in ("BOX", "BOXCUT") and not tower and not joint:
+                col.prop(m, "tri45")
+                if m.tri45 != "NONE":
+                    col.prop(m, "tri_size")
+        if m.kind in ("CUBE", "STANDUP", "BOX", "PLATFORM", "RISER", "DOUBLE45"):
             _tabs(self.layout, m, side=m.kind == "CUBE")
         if m.kind in ("BOX", "BOXCUT"):
             _draw_lines(self.layout, context, m)

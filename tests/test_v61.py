@@ -28,6 +28,12 @@ n = len(st.mechs)
 assert bpy.ops.popup.add(kind="TUBE") == {"FINISHED"}
 assert len(st.mechs) == n + 1 and st.mechs[-1].label.startswith("Tube")
 print("a plain tube after a castle is a plain tube")
+# a host that's gone (removed since): the new mechanism goes on the card
+gone = max(m.uid for m in st.mechs) + 50
+assert bpy.ops.popup.add(kind="STAGE", host=gone) == {"FINISHED"}
+stage = next(m for m in st.mechs if m.kind == "STAGE")
+assert stage.host_uid == 0
+print("a host that's gone: on the card instead")
 while st.mechs:
     st.active = 0
     bpy.ops.popup.remove()

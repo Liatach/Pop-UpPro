@@ -84,6 +84,8 @@ DEFAULTS = {
     "PLATFORM": dict(y=70.0, width=60.0, height=35.0, depth=30.0, tab=10.0,
                      brace_size=15.0),
     "RISER": dict(y=60.0, width=70.0, height=80.0, tab=12.0, brace_size=20.0),
+    "DOUBLE45": dict(y=105.0, width=30.0, height=45.0, depth=104.0, tab=10.0),
+    "JACK": dict(y=30.0, width=60.0, height=25.0, depth=25.0, tab=10.0),
     "ROOF": dict(phi_l=100.0, alpha_l=70.0, glue=150.0, height=60.0, tab=8.0,
                  tab_side="IN"),
 }
@@ -91,7 +93,8 @@ NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
          "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
          "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof",
-         "PLATFORM": "Platform", "RISER": "Rising sheet"}
+         "PLATFORM": "Platform", "RISER": "Rising sheet", "DOUBLE45": "Double 45",
+         "JACK": "Jack in the box"}
 
 
 def unique_label(items, base, skip=None):
@@ -170,6 +173,8 @@ class POPUP_OT_add(bpy.types.Operator):
 
     def execute(self, context):
         st = context.scene.popup
+        if self.host and not any(x.uid == self.host for x in st.mechs):
+            self.host = 0  # (a host that's gone: on the card, not skipped)
         if self.kind in ("FRAME", "FLOOR", "CEILING"):
             if st.stage_master is None and not self.host:
                 stages = [x for x in st.mechs if x.kind == "STAGE"]
@@ -226,6 +231,19 @@ class POPUP_OT_add(bpy.types.Operator):
             _remove_new(st, uid)
             for fold in ("KFL", "KFR", "KBR", "KBL"):
                 _tower(st, self.host, fold)
+            _rebuild(self, context, force=st.rig is not None and not st.edited)
+            return {"FINISHED"}
+        if self.kind == "JACK" and not self.host:
+            # Birmingham 79: a V-fold for its body, the jack on its crease
+            was = st.live
+            st["live"] = False
+            vf = _add(st, "VFOLD")
+            vf.phi_l, vf.alpha_l, vf.glue, vf.height = 60.0, 90.0, 40.0, 60.0
+            vf.y = round(0.4 * st.card_dict()["H"], 1)
+            vf.label = unique_label(st.mechs, "Jack's body", vf)
+            st["live"] = was
+            _put_on(st, uid, vf.uid, "V")
+            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
             _rebuild(self, context, force=st.rig is not None and not st.edited)
             return {"FINISHED"}
         if self.kind == "TUBE" and self.variant == "CASTLE":

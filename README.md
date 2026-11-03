@@ -87,7 +87,9 @@ Paint flat or folded, import and position images or simply textures, then export
   fold flat.
 * Parallelogram stand-ups, pull-tab flaps.
 * 45° folds: a raised platform (on or off the centre) and a rising sheet,
-  propped square by 45° folds.
+  propped square by 45° folds; the double 45° fold, its top piece twisting
+  round; a jack in the box on a V-fold; triangles that leap out of a box's
+  corners.
 * Carousels of 2 to 9 stages with frames, floors, ceilings and roofs, or one
   stage set standing in an ordinary card.
 
@@ -200,19 +202,18 @@ Sunflower is a good way to make them.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   arch V-folds, moving arms.
 * **45° folds** 
-  * the double 45° fold: arms that rise and a top piece that twists round as
-    the card closes 
-  * on a parallelogram or a V-fold, arms that reach out past the base's
-    edges 
+  * the jack in the box on a parallelogram, arms that reach out past the
+    base's edges 
   * box ends filled by double 45° folds, and a box lid lifted by a strut
-  * 45° folds on a parallelogram; small double triangles
-    on the jutting corners of a box fold, throwing out arms and legs.
 * **Multiple quadrilaterals**: a chain of linked quadrilaterals sweeping
   across the spine, each with its own height and shape, as long as each
   one's front and rear crease lengths balance.
 
 ## Version history
 
+* **0.62**: the double 45° fold, its top piece bending and twisting on
+  screen; the jack in the box on a V-fold; 45° triangles in a box fold's
+  corners; a stage set added to an emptied card works again.
 * **0.61**: pyramids stand on other folds, like tubes; a plain tube after a
   castle is a plain tube again.
 * **0.56–0.60**: Align (along a fold or across the card) and a see-through

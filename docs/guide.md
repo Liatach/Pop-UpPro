@@ -625,7 +625,7 @@ the V, and *behind* stands inside the V. **Out Along Glue Line** sets where it
 sits along the half's glue line, measured from the V point. Glued boxes can
 stand there too.
 
-### 45° folds: Platform and Rising Sheet
+### 45° folds: Platform, Rising Sheet, Double 45°, Jack in the Box, triangles
 
 A **45° fold** (Birmingham, *Pop-Up!*, pp. 66–69) is a small V-fold whose
 glue lines are square to the fold it sits on and whose two piece angles are
@@ -653,6 +653,41 @@ piece, listed under the mechanism's name).
   half onto the left page and the back half onto the right. **Sheet
   Height** and **Width Along Fold** size it; shape it into a tree or
   flowers by erasing its art.
+
+The rest use the other kind of 45° fold: one whose glue angle and piece
+angle are both 45°. It lies flat while its host is flat and its crease
+rises off the host's fold as the host closes, so it moves the most when
+the card is nearly shut.
+
+* **Double 45° Fold** (mechanism 77): an arms piece glued down by the two
+  triangles either side of its centre (the hole there keeps the shut card
+  thin), with a 45° fold above the centre and one below: as the card closes
+  both arms rise, one leaning up the card and one down it. A **top piece**
+  joins their tips, glued on diagonally (the upper arm's right half, the
+  lower arm's left), and twists round as they rise. **Arm Width**, **Arm
+  Length** (centre to tip) and **Top Piece Length** (F to H) size it; the
+  top piece must be longer than both arms together, or it can't arch over
+  them. Open flat, the top piece is an exact tent over the arms. Stiff paper
+  can't do the twist, so on screen each half of the top piece bends and
+  twists from its tip to its centre fold G; it prints as the one piece with
+  the fold at G.
+* **Jack in the Box** (mechanism 79): a figure on two pairs of 45° folds cut
+  into a V-fold's crease, the V-fold its body. Add puts in a V-fold and the
+  figure on its crease. As the card closes the chest leans back into the V,
+  the arms (out past the chest's sides) swing round in front of it and the
+  head rises off the chest. **Fold Spacing** (Birmingham's G) is the
+  distance between all its parallel lines: from the crease to each side,
+  between the two folds' points, and from the arms' bottom edge to their
+  top; **Arm Reach** is how far the arms run past the sides; **Position**
+  is how far up the crease the arms start. Draw the figure, and erase its
+  art to shape it. The book's version on a strap (78) isn't here yet: its
+  arms reach past the strips it's glued by, which stiff paper can't do.
+* **45° Triangles** on a box fold or box layer (mechanism 74): a pair of
+  small triangles cut into the corner where the box's top meets its front,
+  at its **Top**, **Bottom** or **Both** ends; they swing up out of the box
+  as the card closes. **Triangle Size** is how far down the crease (and out
+  along the edge) they reach. Stick moving pictures on them: fish leaping,
+  arms and legs thrown out.
 
 ### Holes and shaping (every mechanism)
 

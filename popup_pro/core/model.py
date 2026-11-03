@@ -18,6 +18,7 @@ that uses only functions Blender's simple-expression evaluator understands,
 so the rig works without enabling Python scripts.
 """
 
+import bisect
 import math
 
 from mathutils import Matrix, Vector
@@ -75,6 +76,7 @@ class Panel:
         self.hinge = hinge
         self.label = label or name
         self.outside = False  # lies behind the card (pull strips): skip fit checks
+        self.free = False  # glued to nothing: its pose is tabulated, opening by opening
         self.zoff = 0.0  # mm the surface sits off its own fold lines (display only)
         self.lift = 0.0  # mm the rig raises it off its parent near flat (display only)
         self.lift_dir = None  # which way, in the parent's pattern (None: its normal)
@@ -239,6 +241,8 @@ class Model:
         self.cut_panels = set()
         self.pull = {}  # flap uid -> pull 0..1 (the Pull slider)
         self.soft = set()  # panel pairs joined by a sliding bend, not a fold
+        self.blend = {}  # bent panel -> (stiff a, stiff b, y at a, y at b): shown between
+        self.fold_kind = {}  # panel pairs drawn as this fold however they're shown
         self.flaps = {}  # flap uid -> info for the UI and checks
         self.tubes = {}  # tube uid -> plan geometry for tethers
         self.tethers = {}
@@ -395,7 +399,7 @@ class Model:
                     ok = False
                 elif parent is not None and parent["type"] == "VFOLD" and (
                         m["type"] not in ("STANDUP", "BOX", "VFOLD", "MOUTH", "CUBE",
-                                          "TUBE", "PYRAMID") or
+                                          "TUBE", "PYRAMID", "JACK") or
                         (m.get("vside", "FL") != "V" and
                          (m["type"] not in ("STANDUP", "BOX", "CUBE", "TUBE", "VFOLD",
                                             "PYRAMID")
@@ -474,6 +478,10 @@ class Model:
                 self._platform(m, host)
             elif m["type"] == "RISER":
                 self._riser(m, host)
+            elif m["type"] == "DOUBLE45":
+                self._double45(m, host)
+            elif m["type"] == "JACK":
+                self._jack(m, host, bool(h) and by_uid[h]["type"] == "VFOLD")
             elif m["type"] == "CUBE":
                 self._cube(m, host)
             elif m["type"] == "FLAP":
@@ -753,6 +761,9 @@ class Model:
             h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0, f"{lab}: {txt}", T1, T2).finish()
             h.trig = host.trig
             self.hosts[(uid, key)] = h
+        tri = m.get("tri45", "NONE") or "NONE"
+        if tri != "NONE" and (uid, "C") in self.hosts:
+            self._tri45(m, self.hosts[(uid, "C")], tri, y0, w, a, b, k, base, lab)
         if getattr(host, "tower_top", None) is not None and m.get("style") != "CUT":
             # a tower in a tube's corner: the walls are its outer faces. Its
             # tabs may lie over the tube's closing tab (glue on glue is fine)
@@ -981,6 +992,353 @@ class Model:
                 if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
                     hg.kind = "TABLE"
 
+    def _tri45(self, m, hc, which, y0, w, a, b, k, base, lab):
+        """Birmingham 74: a pair of small triangles cut into the corner of a
+        box fold (where its top meets its front) at its top or bottom edge,
+        on a 45 degree fold: they swing up out of the box as the card
+        closes, carrying the pictures stuck on them."""
+        h = float(m.get("tri_size", 12.0) or 12.0)
+        if abs(k) > 1e-9:
+            self.warn(f"{lab}: 45° triangles need a box that isn't slanted; left out")
+            return
+        if h > min(a, b) - 0.5 or 2.0 * h > w + 1e-6:
+            h = max(2.0, min(min(a, b) - 0.5, 0.5 * w))
+            self.warn(f"{lab}: 45° triangles made {h:.0f} mm to fit the box")
+        piece = self.panels[hc.p1].piece
+        v, d = hc.v1, hc.d1
+        s2 = math.sqrt(0.5)
+        q45 = math.radians(45.0)
+        ends = []
+        if which in ("TOP", "BOTH"):
+            ends.append(("T", y0 + w - h, 1.0, "top"))
+        if which in ("BOTTOM", "BOTH"):
+            ends.append(("B", y0 + h, -1.0, "bottom"))
+        for tag, yp, sy, txt in ends:
+            ye = yp + sy * h
+            cells = {}
+            for side, sx, pn in (("L", -1.0, hc.p1), ("R", 1.0, hc.p2)):
+                got = self.carve(piece, [v(0.0, yp), v(sx * h, ye), v(0.0, ye)], {pn}, lab)
+                if got is None:
+                    return
+                cells[side] = got
+            key = f"{base}.Tri{tag}"
+            self.joints[key] = dict(host=hc, y=yp, uL=(-s2, sy * s2), uR=(s2, sy * s2),
+                                    aL=q45, aR=q45, rise=True)
+            P = v(0.0, yp)
+            for side, sx in (("L", -1.0), ("R", 1.0)):
+                self._half(f"{key}{side}", piece, cells[side], P, d(sx * s2, sy * s2),
+                           d(0.0, sy), side, key, f"{lab}: {txt} triangle "
+                           f"{'left' if side == 'L' else 'right'}")
+            self.match_lift(f"{key}L", f"{key}R")
+            self.cut_panels |= {f"{key}L", f"{key}R"}
+            if any(not self.crease(key, s_)[3] for s_ in self.samples):
+                self.warn(f"{lab}: its 45° triangles tear on this host")
+
+    # ------------------------------------------------------- jack in the box
+    def _jack(self, m, host, cut_in):
+        """Birmingham 78 and 79: a figure on two pairs of 45 degree folds. Its
+        body is a strap (a box fold with equal sides, 78), or the V-fold it
+        is cut into (79). On the body's centre crease a 45 degree fold makes
+        the chest rise forward as the card closes, its arms (out past the
+        body's sides) reaching round; on the chest's crease a second one
+        lifts the head. G (Height) is the same between all the parallel
+        lines: from the centre to each side, between the two folds' points
+        (F - G and F) and from F up to the arms' top edge (E)."""
+        uid, lab = m["uid"], m["label"]
+        G, R = float(m["height"]), float(m.get("depth", 30.0))
+        hh = 0.7 * G  # the head above E
+        s2 = math.sqrt(0.5)
+        q45 = math.radians(45.0)
+        if cut_in:  # on a V-fold's crease: F up the crease from its point
+            if not host.cut_ok or host.key is None or host.key[1] != "V":
+                self.warn(f"{lab}: goes on a V-fold's crease; skipped")
+                return
+            F = float(m["y"])
+            body = host
+        else:
+            # 78 (on a strap) needs arms that bend: they reach past the strips
+            # it is glued down by, where stiff paper would go through the page
+            self.warn(f"{lab}: stands on a V-fold's crease (Birmingham 79); skipped")
+            return
+        E = F + G
+        if host.is_spine and E + hh > self.H + 1e-6:
+            self.warn(f"{lab}: the head runs past the top of the card")
+        piece = self.panels[body.p1].piece
+        v = body.v1
+        # the figure is cut free of the body: above the lower V and line F
+        big = E + hh + 1.0
+        for side, sg in ((("L", -1.0), ("R", 1.0)) if cut_in else ()):
+            pn = body.p1 if side == "L" else body.p2
+            for reg in ([(0, F - G), (sg * G, F), (sg * G, big), (0, big)],
+                        [(sg * G, F), (sg * (G + R + 1.0), F), (sg * (G + R + 1.0), big),
+                         (sg * G, big)]):
+                hps = halfplanes(ccw([v(*q) for q in reg]))
+                p = self.panels[pn]
+                outs = []
+                for poly in p.polys:
+                    outs += split_convex(poly, hps)[0]
+                p.polys = [ccw(q) for q in outs]
+        names = {}
+        k1, k2 = f"Jack{uid}.C", f"Jack{uid}.H"
+        self.joints[k1] = dict(host=body, y=F - G, uL=(-s2, s2), uR=(s2, s2), aL=q45, aR=q45,
+                               rise=True)
+        d = body.d1
+        n0 = len(self.order)
+        for side, sg in (("L", -1.0), ("R", 1.0)):
+            chest = [[v(0, F - G), v(sg * G, F), v(sg * G, E), v(0, F)],
+                     [v(sg * G, F), v(sg * (G + R), F), v(sg * (G + R), E), v(sg * G, E)]]
+            g = (sg * s2, s2)
+            names[side] = self._half(f"Jack{uid}.Chest{side}", piece, chest, v(0, F - G),
+                                     d(*g), d(0, 1), side, k1,
+                                     f"{lab}: chest and {'left' if side == 'L' else 'right'} "
+                                     f"arm").name
+        self.match_lift(names["L"], names["R"])
+        T = body.T1
+        h2 = Host(self, names["L"], 0.0, 0.0, names["R"], 0.0, 0.0, f"{lab}: chest", T,
+                  body.T2).finish()
+        h2.trig = False
+        self.joints[k2] = dict(host=h2, y=F, uL=(-s2, s2), uR=(s2, s2), aL=q45, aR=q45,
+                               rise=True)
+        hw = 0.6 * G
+        for side, sg in (("L", -1.0), ("R", 1.0)):
+            head = [[v(0, F), v(sg * G, E), v(0, E)],
+                    [v(sg * hw, E), v(0, E), v(0, E + hh), v(sg * 0.6 * hw, E + hh)]]
+            g = (sg * s2, s2)
+            self._half(f"Jack{uid}.Head{side}", piece, head, v(0, F), d(*g), d(0, 1), side,
+                       k2, f"{lab}: head {'left' if side == 'L' else 'right'}")
+        self.match_lift(f"Jack{uid}.HeadL", f"Jack{uid}.HeadR")
+        for name in self.order[n0:]:
+            hg = self.panels[name].hinge
+            if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
+                hg.kind = "TABLE"  # on folds that don't open evenly with the card
+        self.cut_panels |= {n for n in self.order[n0:]}
+        for k in (k1, k2):
+            if any(not self.crease(k, s)[3] for s in self.samples):
+                self.warn(f"{lab}: its 45° folds tear on this host")
+                break
+
+    # ------------------------------------------------------- double 45 fold
+    def _double45(self, m, host):
+        """Birmingham 77, the double 45 degree fold. An arms piece glued to
+        both pages by the two triangles either side of its centre point C
+        (D and E), with four 45 degree valley folds from C to its edges:
+        above C and below C a 45 degree fold each, so both arms rise as the
+        card closes, one leaning up the card and one down it. A top piece
+        joins the arm tips, glued on diagonally (the upper right half's tip
+        and the lower left half's): as the arms rise it twists round.
+
+        The arms are exact. The top piece can't be exact with stiff paper
+        (its two hinge lines aren't parallel as it turns), so on screen each
+        half is stiff out to a narrow band either side of its centre fold G,
+        and the band bends and twists between them; it prints as the one
+        piece Birmingham draws."""
+        uid, lab = m["uid"], m["label"]
+        w, La = float(m["width"]), float(m["height"])
+        Lt = 0.5 * float(m["depth"])
+        y0, tb = float(m["y"]), float(m.get("tab", 10.0))
+        hw = 0.5 * w
+        if La < hw + 2.0:
+            self.warn(f"{lab}: arms must be longer than half their width (the 45° folds "
+                      f"reach the edges at {hw:.0f} mm)")
+            return
+        if Lt <= La + 0.5:
+            self.warn(f"{lab}: the top piece must be longer than the arms "
+                      f"(more than {2 * La:.0f} mm), or it can't arch over them")
+            return
+        if y0 - La - tb < -1e-6 or y0 + La + tb > self.H + 1e-6:
+            self.warn(f"{lab}: runs past the top or bottom of the card")
+        base = f"D45{uid}"
+        piece, tpiece = base, f"{base}T"
+        self.add_piece(Piece(piece, lab, 1 + uid, (0.0, 0.0)))
+        self.add_piece(Piece(tpiece, f"{lab} top", 700 + uid, (0.0, 0.0)))
+        r = min(3.0, 0.15 * w)  # the hole round C (fewer layers there when shut)
+        q45 = math.radians(45.0)
+        s2 = math.sqrt(0.5)
+
+        def cut(poly, *dirs):
+            n = unit2(sum(d[0] for d in dirs), sum(d[1] for d in dirs))
+            return clip_halfplane(poly, n, r)
+
+        U, D = f"{base}.U", f"{base}.D"
+        self.joints[U] = dict(host=host, y=y0, uL=(-s2, s2), uR=(s2, s2), aL=q45, aR=q45)
+        self.joints[D] = dict(host=host, y=y0, uL=(-s2, -s2), uR=(s2, -s2), aL=q45, aR=q45)
+        halves = (
+            ("UL", U, "L", [(0, 0), (0, La), (-hw, La), (-hw, hw)], (-s2, s2), (0, 1),
+             "upper arm left"),
+            ("UR", U, "R", [(0, 0), (hw, hw), (hw, La), (0, La)], (s2, s2), (0, 1),
+             "upper arm right"),
+            ("LL", D, "L", [(0, 0), (-hw, -hw), (-hw, -La), (0, -La)], (-s2, -s2), (0, -1),
+             "lower arm left"),
+            ("LR", D, "R", [(0, 0), (0, -La), (hw, -La), (hw, -hw)], (s2, -s2), (0, -1),
+             "lower arm right"))
+        for nm, key, side, poly, g, c, txt in halves:
+            self._half(f"{base}.{nm}", piece, [cut(poly, g, c)], (0, 0), g, c, side, key,
+                       f"{lab}: {txt}")
+        self.match_lift(f"{base}.UL", f"{base}.UR")
+        self.match_lift(f"{base}.LL", f"{base}.LR")
+        # D and E: glued flat, the piece's own way up
+        lift1, lift2 = host.lift
+        for nm, poly, n, parent, V, lift in (
+                ("D", [(0, 0), (-hw, -hw), (-hw, hw)], (-1, 0), host.p1, host.T1, lift1),
+                ("E", [(0, 0), (hw, hw), (hw, -hw)], (1, 0), host.p2, host.T2, lift2)):
+            pa = self.panels[parent].asm
+            T = V @ Matrix.Translation((0.0, y0, lift * TAB_LIFT))
+            self.add(Panel(f"{base}.Glue{nm}", piece, "tab", [clip_halfplane(poly, n, r)],
+                           (lambda t, pa=pa, T=T: pa(t) @ T), parent, None,
+                           f"{lab}: glue {nm}"))
+        if any(not self.crease(k, s)[3] for k in (U, D) for s in self.samples):
+            self.warn(f"{lab}: its 45° folds tear on this host")
+
+        # ---- the top piece: F (y = Lt) on the upper right tip, H (y = -Lt)
+        # on the lower left one, G (y = 0) its centre fold. The whole piece is
+        # symmetric about the turn axis through C halfway between the pages
+        # (half a turn about it swaps the halves), so G lies on that axis, a
+        # half's length from each tip. Each half is shown as a strip twisting
+        # from its tip's edge to G: its rows blend from where the half's hinge
+        # on the tip puts them to where a frame at G does.
+        UR, LL = self.panels[f"{base}.UR"], self.panels[f"{base}.LL"]
+        Hu, Fu = hinge_frame_2d((0.0, La), (1, 0)), hinge_frame_2d((0.0, Lt), (1, 0))
+        Hd, Fd = hinge_frame_2d((0.0, -La), (-1, 0)), hinge_frame_2d((0.0, -Lt), (-1, 0))
+        Fui, Fdi = Fu.inverted(), Fd.inverted()
+        O = Vector((0.0, 0.0, 0.0))
+        cache = {}
+
+        def geo(t):
+            """(G, its fold's direction, the way to F from it, the turn about
+            the axis) at opening t."""
+            got = cache.get(t)
+            if got is None:
+                S, l, rr, Y, nl, nr = host.dirs(t)
+                C = S + y0 * Y
+                b = self._bisector(host, t)
+                A = UR.asm(t)
+                tip = A @ Vector((0.0, La, 0.0))
+                e1 = (A.to_3x3() @ Vector((1.0, 0.0, 0.0))).normalized()
+                d = tip - C
+                db = d.dot(b)
+                G = C + b * (db + math.sqrt(max(db * db - d.length_squared + Lt * Lt, 0.0)))
+                # G's fold: square to the axis (half a turn about it maps it
+                # onto itself), turned so the half's two edges stay as long as
+                # each other (pure twist, no shear): (tip - G) . dG = (tip - G) . e1
+                a = tip - G
+                ap = a - b * a.dot(b)
+                k = a.dot(e1)
+                if ap.length < 1e-9:
+                    dG = (e1 - b * e1.dot(b)).normalized()
+                else:
+                    ah = ap.normalized()
+                    side = b.cross(ah)
+                    al = max(-1.0, min(1.0, k / ap.length))
+                    be = math.sqrt(1.0 - al * al)
+                    dG = ah * al + side * (be if e1.dot(side) >= 0 else -be)
+                nB = tip - G
+                nB = (nB - dG * nB.dot(dG)).normalized()
+                Rb = (Matrix.Translation(C) @ Matrix.Rotation(math.pi, 4, b) @
+                      Matrix.Translation(-C))
+                got = cache[t] = (G, dG, nB, Rb, tip)
+                if len(cache) > 4096:
+                    cache.clear()
+            return got
+
+        def gap(t, psi):
+            return (UR.asm(t) @ Hu @ rot_y(psi) @ Fui @ O - geo(t)[0]).length
+
+        def best(t, lo, hi, n=24):
+            for _ in range(5):
+                xs = [lo + (hi - lo) * k / n for k in range(n + 1)]
+                k = min(range(n + 1), key=lambda k: gap(t, xs[k]))
+                step = (hi - lo) / n
+                lo, hi = xs[k] - step, xs[k] + step
+            return 0.5 * (lo + hi)
+
+        Ts = sorted(self.TABLE_T, reverse=True)
+        # fully open: arched over the arms, printed side out
+        psi = best(Ts[0], -math.pi + 1e-3, -1e-3, 180)
+        table = {}
+        for t in Ts:
+            psi = best(t, psi - 0.15, psi + 0.15, 12)
+            table[t] = psi
+        Tk = sorted(table)
+
+        def psi_at(t):
+            t = min(max(t, Tk[0]), Tk[-1])
+            i = max(0, min(len(Tk) - 2, bisect.bisect_right(Tk, t) - 1))
+            t0_, t1_ = Tk[i], Tk[i + 1]
+            f = (t - t0_) / (t1_ - t0_)
+            return table[t0_] + f * (table[t1_] - table[t0_])
+
+        def asm_up(t):
+            return UR.asm(t) @ Hu @ rot_y(psi_at(t)) @ Fui
+
+        def asm_dn(t):
+            return LL.asm(t) @ Hd @ rot_y(psi_at(t)) @ Fdi
+
+        def asm_gf(t):
+            G, dG, nB, Rb, tip = geo(t)
+            return frame(G, dG, nB)
+
+        flipz = Matrix.Rotation(math.pi, 4, "Z")
+
+        def asm_gh(t):
+            return geo(t)[3] @ asm_gf(t) @ flipz
+
+        rows = 8
+
+        def strip(y_a, y_b):
+            return [[(-hw, y_a + (y_b - y_a) * k / rows), (hw, y_a + (y_b - y_a) * k / rows),
+                     (hw, y_a + (y_b - y_a) * (k + 1) / rows),
+                     (-hw, y_a + (y_b - y_a) * (k + 1) / rows)] for k in range(rows)]
+
+        h2 = 0.5 * Lt
+        up = self.add(Panel(f"{base}.TopF", tpiece, "panel", strip(h2, Lt), asm_up, UR.name,
+                            Hinge(Hu, Fu, "TABLE"), f"{lab}: top piece, F half"))
+        dn = self.add(Panel(f"{base}.TopH", tpiece, "panel", strip(-Lt, -h2), asm_dn,
+                            LL.name, Hinge(Hd, Fd, "TABLE"), f"{lab}: top piece, H half"))
+        gf = self.add(Panel(f"{base}.GF", tpiece, "panel", strip(0.0, h2), asm_gf, up.name,
+                            None, f"{lab}: top piece, F half at G"))
+        gh = self.add(Panel(f"{base}.GH", tpiece, "panel", strip(-h2, 0.0), asm_gh, dn.name,
+                            None, f"{lab}: top piece, H half at G"))
+        gf.free = gh.free = True  # not fixed to anything: posed opening by opening
+        # stiff with its hinge as far as the tab glued under it reaches
+        ya = Lt - min(tb, 0.3 * Lt)
+        for p_, a_, b_, ya in ((up, up, gf, ya), (gf, up, gf, ya), (dn, dn, gh, -ya),
+                               (gh, dn, gh, -ya)):
+            self.blend[p_.name] = (a_.name, b_.name, ya, 0.0)
+        # on paper: one piece, its only fold G
+        self.fold_kind[frozenset((up.name, gf.name))] = "skip"
+        self.fold_kind[frozenset((dn.name, gh.name))] = "skip"
+        self.fold_kind[frozenset((gf.name, gh.name))] = "mountain"
+        # how far a half has to twist (between its tip's edge and G)
+        worst = max(math.degrees(math.acos(max(-1.0, min(1.0, geo(t)[1].dot(
+            (UR.asm(t).to_3x3() @ Vector((1.0, 0.0, 0.0))).normalized()))))) for t in Tk)
+        # tabs I (upper right tip) and K (lower left), folded back under the
+        # top piece's ends and glued there: J and L
+        ch = min(0.3 * tb, 0.2 * hw)
+        flipx = Matrix.Rotation(math.pi, 4, "X")
+        for nm, poly, parent, pasm, M in (
+                ("I", [(0.5, La), (hw, La), (hw - ch, La + tb), (0.5 + ch, La + tb)], up,
+                 asm_up, Matrix.Translation((0.0, La + Lt, -TAB_LIFT)) @ flipx),
+                ("K", [(-hw, -La), (-0.5, -La), (-0.5 - ch, -La - tb), (-hw + ch, -La - tb)],
+                 dn, asm_dn, Matrix.Translation((0.0, -La - Lt, -TAB_LIFT)) @ flipx)):
+            self.add(Panel(f"{base}.Tab{nm}", piece, "tab", [poly],
+                           (lambda t, pasm=pasm, M=M: pasm(t) @ M), parent.name, None,
+                           f"{lab}: tab {nm}"))
+        self.line_frames[uid] = (piece, lambda q: q, None)
+        self.d45_twist = getattr(self, "d45_twist", {})
+        self.d45_twist[uid] = worst
+        if host.is_spine:
+            reach = 0.0
+            for nm in (f"{base}.TopF", f"{base}.TopH"):
+                p = self.panels[nm]
+                for t in (T_MIN, 10.0, 30.0):
+                    S, l, rr, Y, nl, nr = host.dirs(t)
+                    b = self._bisector(host, t)
+                    for q in p.polys[0]:
+                        reach = max(reach, (p.asm(t) @ v3(q) - S).dot(b))
+            if reach > self.W + 1e-6:
+                self.warn(f"{lab}: reaches {reach:.0f} mm from the fold when shut, past "
+                          f"the page ({self.W:.0f} mm)")
+
     # ---------------------------------------------------- parallelogram stand-up
     def _standup(self, m, host):
         """Birmingham 38. A picture held parallel to the background by a small
@@ -1142,6 +1500,13 @@ class Model:
             base, k, n, nl, nr, *_ = self._crease_parts(J, tr)
             want = J["host"].L(tr).to_3x3() @ Vector((J["pref"][0], J["pref"][1], 0.0))
             sgn = max((1.0, -1.0), key=lambda s: (base + s * k * n).normalized().dot(want))
+            self._branch[key] = sgn
+        if sgn is None and J.get("rise"):
+            # a 45 degree fold's crease either lies along its host's fold (the
+            # paper flat on the host) or rises off it: take the one that rises
+            base, k, n, nl, nr, *_ = self._crease_parts(J, self.t_ref)
+            Yh = J["host"].dirs(self.t_ref)[3]
+            sgn = min((1.0, -1.0), key=lambda s: abs((base + s * k * n).normalized().dot(Yh)))
             self._branch[key] = sgn
         if sgn is None:
             base, k, n, nl, nr, *_ = self._crease_parts(J, self.t_ref)
@@ -3522,6 +3887,22 @@ class Model:
         """Where the rig shows a panel: its pose, plus the lift of anything
         it hangs from that is raised onto its tabs near flat (display only)."""
         return Matrix.Translation(self.lift_offset(name, t)) @ self.panels[name].asm(t)
+
+    def point(self, name, q, t):
+        """Where the rig shows pattern point q of a panel at opening t: as
+        shown(), or for a panel that bends (blend) a mix of where the two
+        stiff panels either side of it would put it."""
+        v = Vector((q[0], q[1], 0.0))
+        b = self.blend.get(name)
+        if b is None:
+            return self.shown(name, t) @ v
+        u = self.blend_weight(name, q)
+        return (1.0 - u) * (self.shown(b[0], t) @ v) + u * (self.shown(b[1], t) @ v)
+
+    def blend_weight(self, name, q):
+        a, b, ya, yb = self.blend[name]
+        s = max(0.0, min(1.0, (q[1] - ya) / (yb - ya)))
+        return s * s * (3.0 - 2.0 * s)  # (eases in at each end: flat at the tip and at G)
 
     def lift_offset(self, name, t, fraction=None):
         """How far the rig has raised a panel (and so everything hanging

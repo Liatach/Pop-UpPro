@@ -83,6 +83,13 @@ KINDS = [
     ("RISER", "Rising Sheet (45°)", "A single sheet rising from the fold, held up half way "
      "between the pages by a 45° fold on each face (Birmingham 81)", "OUTLINER_OB_FORCE_FIELD",
      16),
+    ("DOUBLE45", "Double 45° Fold", "Two arms rising from one point on the fold, one up the "
+     "card and one down it, while the top piece joining their tips twists round "
+     "(Birmingham 77)", "ORIENTATION_GIMBAL", 17),
+    ("JACK", "Jack in the Box", "A figure on two pairs of 45° folds cut into a V-fold's "
+     "crease, the V-fold its body: the chest leans back into the V as the card closes, "
+     "the arms swing forward round it and the head rises (Birmingham 79)",
+     "OUTLINER_OB_ARMATURE", 18),
 ]
 
 POINTS = [
@@ -163,7 +170,8 @@ def host_items(self, context):
                                   "IMAGE_BACKGROUND", m.uid))
                 continue
             if m.kind == "VFOLD" and self.kind in ("STANDUP", "BOX", "BOXCUT", "VFOLD",
-                                                   "MOUTH", "CUBE", "TUBE", "PYRAMID"):
+                                                   "MOUTH", "CUBE", "TUBE", "PYRAMID",
+                                                   "JACK"):
                 items.append((str(m.uid), m.label, f"On {m.label}: its crease, or in "
                               f"front of or behind a half", "MOD_TRIANGULATE", m.uid))
             elif m.kind in ("BOX", "BOXCUT", "STANDUP"):
@@ -237,6 +245,10 @@ def fit_to_host(m, st):
                     m.height, m.depth, m.width = 0.6 * k, 0.6 * k, 0.2 * L
                     m.img_w, m.img_h = 0.4 * L, 1.2 * k
                     m.y = 0.4 * L
+                elif m.kind == "JACK":  # the V-fold is its body: chest at its top
+                    m.height = round(min(0.7 * g, 0.4 * L), 1)
+                    m.depth = m.height
+                    m.y = round(L, 1)
                 elif m.kind == "MOUTH":
                     m.jaw = 0.6 * k
                     m.upper = m.lower = 0.15 * L
@@ -748,6 +760,18 @@ class PopupMech(bpy.types.PropertyGroup):
     gully: IntProperty(name="Gully", default=1, min=1, max=5, update=lambda s, c: _fold_changed(s, c),
                        description="Which valley of a strap with several peaks, counted from "
                        "the left")
+    tri45: EnumProperty(name="45° Triangles", default="NONE", update=_changed, items=[
+        ("NONE", "None", "No triangles"),
+        ("TOP", "Top", "A pair at the top end of the fold between top and front"),
+        ("BOTTOM", "Bottom", "A pair at the bottom end"),
+        ("BOTH", "Both", "A pair at each end")],
+        description="Two small triangles cut into the corner where the box's top meets its "
+        "front, at its top or bottom edge, on a 45° fold: as the card closes they swing "
+        "up out of the box. Stick moving pictures on them (Birmingham 74)")
+    tri_size: FloatProperty(name="Triangle Size", default=12.0, min=2.0, soft_max=60.0,
+                            update=_changed,
+                            description="How far down the crease (and out along the edge) "
+                            "each pair of 45° triangles reaches (mm)")
     strap: BoolProperty(name="Strap (lies flat)", default=False, update=lambda s, c: _strap(s, c),
                         description="Equal sides, so it lies flat on the pages when the card "
                         "is open: its two glue folds become gullies off the centre that "
@@ -855,6 +879,11 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "RISER":
             d.update(type="RISER", width=self.width, height=self.height,
                      brace_size=self.brace_size)
+        elif self.kind == "JACK":
+            d.update(type="JACK", height=self.height, depth=self.depth)
+        elif self.kind == "DOUBLE45":
+            d.update(type="DOUBLE45", width=self.width, height=self.height,
+                     depth=self.depth)
         elif self.kind == "STANDUP":
             d.update(type="STANDUP", stand=self.stand, width=self.width, height=self.height,
                      depth=self.depth, img_w=self.img_w, img_h=self.img_h)
@@ -909,7 +938,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      width=self.width, height=self.height,
                      depth=self.height if (self.strap and self.kind == "BOX") else self.depth,
                      slant=self.slant, peaks=self.peaks if self.kind == "BOX" else 1,
-                     pleat=self.pleat,
+                     pleat=self.pleat, tri45=self.tri45, tri_size=self.tri_size,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         return d
