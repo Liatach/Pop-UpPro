@@ -213,6 +213,8 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.61**: pyramids stand on other folds, like tubes; a plain tube after a
+  castle is a plain tube again.
 * **0.56–0.60**: Align (along a fold or across the card) and a see-through
   Plan View; castle towers in a tube's corners with pyramid roofs that fold
   flat; self-contained for Blender Extensions; Draw Anywhere with Grease

@@ -155,12 +155,18 @@ class POPUP_OT_add(bpy.types.Operator):
     bl_label = "Add Mechanism"
     bl_options = {"REGISTER", "UNDO"}
     kind: EnumProperty(items=[(k, NAMES[k], "") for k in NAMES])
-    host: IntProperty(default=0, description="Mechanism id of the host box (0 = spine)")
-    fold: StringProperty(default="A")
-    side: StringProperty(default="", description="Wall, for a corner of a floor or ceiling")
+    # (never remembered between uses: a plain Add after Add Castle, or after
+    # adding onto a host, must not come out a castle or on that host)
+    host: IntProperty(default=0, description="Mechanism id of the host box (0 = spine)",
+                      options={"SKIP_SAVE"})
+    fold: StringProperty(default="A", options={"SKIP_SAVE"})
+    side: StringProperty(default="", description="Wall, for a corner of a floor or ceiling",
+                         options={"SKIP_SAVE"})
     variant: StringProperty(default="", description="ASYM: an asymmetric V-fold; "
                            "VALLEY: a roof upside down; STRAP: a box fold with equal sides "
-                           "(gullies off the centre)")
+                           "(gullies off the centre); CASTLE: a tube with towers; TOWERS: "
+                           "a tower in every inside corner of a tube",
+                           options={"SKIP_SAVE"})
 
     def execute(self, context):
         st = context.scene.popup

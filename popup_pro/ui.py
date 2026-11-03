@@ -514,6 +514,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             self.draw_warnings(context, m)
             return
         if m.kind == "PYRAMID":
+            _where(col, st, m)
             col.prop(m, "y", text="Position")
             col.prop(m, "x", text="Strip Distance")
             col.prop(m, "depth", text="Length Along Fold")

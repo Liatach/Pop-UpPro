@@ -30,7 +30,7 @@ TAB_LIFT = 0.15  # mm a glued tab floats above the page (avoids z-fighting)
 SAMPLES = [0.5, 5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
 
 IN = 25.4
-NO_HOST = ("FLAP", "TETHER", "PYRAMID", "ROOF")
+NO_HOST = ("FLAP", "TETHER", "ROOF")
 CORNERS = ("KFL", "KFR", "KBR", "KBL")  # a tube's inside corners (towers stand there)
 
 
@@ -395,9 +395,10 @@ class Model:
                     ok = False
                 elif parent is not None and parent["type"] == "VFOLD" and (
                         m["type"] not in ("STANDUP", "BOX", "VFOLD", "MOUTH", "CUBE",
-                                          "TUBE") or
+                                          "TUBE", "PYRAMID") or
                         (m.get("vside", "FL") != "V" and
-                         (m["type"] not in ("STANDUP", "BOX", "CUBE", "TUBE", "VFOLD")
+                         (m["type"] not in ("STANDUP", "BOX", "CUBE", "TUBE", "VFOLD",
+                                            "PYRAMID")
                           or m.get("style") == "CUT"))):
                     self.warn(f"{m['label']}: on a V-fold's crease go boxes, box layers, "
                               f"V-folds, mouths, cubes, tubes and stand-ups; in front of or "
@@ -2216,8 +2217,6 @@ class Model:
         or at a ridge above the fold; the ends are creased down the middle
         above the fold and float free at the bottom."""
         uid, lab = m["uid"], m["label"]
-        if not host.is_spine:
-            self.warn(f"{lab}: pyramids stand on the card spine for now")
         a, y0 = float(m["x"]), float(m["y"])
         D = float(m["depth"])
         wf, wb = max(float(m["front"]), a), max(float(m["back"]), a)

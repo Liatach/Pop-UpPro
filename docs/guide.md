@@ -214,6 +214,11 @@ tube: as wide as the strip distance gives a flat end, wider points it out
 either way as the card starts to close; Pointed Out sends the crease
 outwards, Pointed In tucks it under.
 
+Like a tube, a pyramid can stand on more than the card spine: set **Stands
+On** and **Fold** to put it on a box fold (on top, in front or inset), up a
+V-fold's crease or in front of one of its halves, or outside a cube's or
+tube's wall. It is sized to fit when you pick the fold.
+
 A tube can wear the same roof: set its **Roof** to *Pointed* and choose
 **Roof Height** and **Ridge**. The roof is a separate piece whose tabs glue
 inside the top of the side walls. Lying flat, a roof adds its slope length to

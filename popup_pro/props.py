@@ -155,7 +155,7 @@ def host_items(self, context):
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
-            if self.kind in ("FLAP", "TETHER", "PYRAMID", "ROOF") or m.uid in bad:
+            if self.kind in ("FLAP", "TETHER", "ROOF") or m.uid in bad:
                 continue
             if self.kind in ("FRAME", "FLOOR", "CEILING"):
                 if m.kind == "STAGE":
@@ -163,7 +163,7 @@ def host_items(self, context):
                                   "IMAGE_BACKGROUND", m.uid))
                 continue
             if m.kind == "VFOLD" and self.kind in ("STANDUP", "BOX", "BOXCUT", "VFOLD",
-                                                   "MOUTH", "CUBE", "TUBE"):
+                                                   "MOUTH", "CUBE", "TUBE", "PYRAMID"):
                 items.append((str(m.uid), m.label, f"On {m.label}: its crease, or in "
                               f"front of or behind a half", "MOD_TRIANGULATE", m.uid))
             elif m.kind in ("BOX", "BOXCUT", "STANDUP"):
@@ -178,7 +178,7 @@ def host_items(self, context):
                               f"meets a wall", "TRIA_DOWN_BAR" if m.kind == "FLOOR"
                               else "TRIA_UP_BAR", m.uid))
             elif m.kind in ("CUBE", "TUBE") and self.kind in ("STANDUP", "BOX", "CUBE",
-                                                               "TUBE", "VFOLD"):
+                                                               "TUBE", "VFOLD", "PYRAMID"):
                 items.append((str(m.uid), m.label, f"Stand outside a wall of {m.label}, "
                               f"where it meets the page" + (", or on its roof's crease"
                                                             if m.kind == "TUBE" else ""),
@@ -244,7 +244,7 @@ def fit_to_host(m, st):
                 elif m.kind == "CUBE":  # in the V, up the crease, clear of the page
                     m.size = m.height = 0.7 * k
                     m.y = 0.4 * L
-                elif m.kind == "TUBE":
+                elif m.kind in ("TUBE", "PYRAMID"):
                     m.x, m.height = 0.25 * k, 0.7 * k
                     m.depth = 0.4 * L
                     m.front = m.back = 0.35 * k
@@ -257,7 +257,7 @@ def fit_to_host(m, st):
                 m.size = m.height = s_
                 m.y = 0.2 * g
                 return
-            if m.kind == "TUBE":
+            if m.kind in ("TUBE", "PYRAMID"):
                 m.x, m.depth, m.height = 0.1 * g, 0.35 * g, 0.25 * L
                 m.front = m.back = 0.15 * g
                 m.y = 0.15 * g
@@ -318,7 +318,7 @@ def fit_to_host(m, st):
                 m.img_w, m.img_h = 0.5 * ww, 1.4 * k
             elif m.kind == "VFOLD":
                 m.glue = m.height = k
-            elif m.kind == "TUBE":
+            elif m.kind in ("TUBE", "PYRAMID"):
                 _fit_tube(m, k, ww, 0.0)
             m.y = 0.3 * ww
         finally:
@@ -388,14 +388,15 @@ def fit_to_host(m, st):
         elif m.kind == "CUBE":
             m.size = m.height = 0.6 * k
             m.y = hy + 0.25 * w
-        elif m.kind == "TUBE":
+        elif m.kind in ("TUBE", "PYRAMID"):
             _fit_tube(m, k, w, hy)
     finally:
         st["live"] = was
 
 
 def _fit_tube(m, k, w, y0):
-    """A tube sized to a host's fold: strips a little either side of it."""
+    """A tube (or pyramid) sized to a host's fold: strips a little either
+    side of it."""
     m.x = 0.35 * k
     m.height = 0.8 * k
     m.depth = 0.45 * w
