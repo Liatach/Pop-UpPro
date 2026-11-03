@@ -667,13 +667,16 @@ the card is nearly shut.
   lower arm's left), and twists round as they rise. **Arm Width**, **Arm
   Length** (centre to tip) and **Top Piece Length** (F to H) size it; the
   top piece must be longer than both arms together, or it can't arch over
-  them. Open flat, the top piece is an exact tent over the arms. Stiff paper
+  them. Open flat, the top piece is an exact tent over the arms, and its
+  fold at G stays a ridge all the way shut. Stiff paper
   can't do the twist, so on screen each half of the top piece bends and
   twists from its tip to its centre fold G; it prints as the one piece with
   the fold at G.
 * **Jack in the Box** (mechanism 79): a figure on two pairs of 45° folds cut
-  into a V-fold's crease, the V-fold its body. Add puts in a V-fold and the
-  figure on its crease. As the card closes the chest leans back into the V,
+  into the top of a V-fold's crease, the V-fold its body. With a V-fold
+  selected, Add puts the figure on top of it, as big as its halves allow;
+  otherwise it puts in a V-fold for it too. (Or pick the V-fold in **Stands
+  On**.) If its chest's folds would run off the V-fold, Checks says so. As the card closes the chest leans back into the V,
   the arms (out past the chest's sides) swing round in front of it and the
   head rises off the chest. **Fold Spacing** (Birmingham's G) is the
   distance between all its parallel lines: from the crease to each side,

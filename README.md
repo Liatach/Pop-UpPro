@@ -183,6 +183,10 @@ Sunflower is a good way to make them.
   they're on near folds and edges.
 * **Castle, continued**: battlements and a drawbridge in the tube's walls, a
   castle wall in two strips (as Birmingham's), and towers on other folds.
+  Gabled roofs, and roofs that overhang the walls, on towers and tubes;
+  balconies with railings; crenellations along more kinds of edge.
+* **Visibility per mechanism**: Normal, Wire or Hidden, to see past parts
+  while working on what's behind them, and to paint through a wire one.
 * Plan View, continued: highlight where two pieces actually meet in 3D.
 * The consolidation and elegance pass over the interface, continued:
   * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
@@ -211,6 +215,9 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.63**: the double 45°'s top piece no longer passes through itself on
+  the way open; a jack in the box goes on top of any V-fold (Add with a
+  V-fold selected), sized to fit.
 * **0.62**: the double 45° fold, its top piece bending and twisting on
   screen; the jack in the box on a V-fold; 45° triangles in a box fold's
   corners; a stage set added to an emptied card works again.

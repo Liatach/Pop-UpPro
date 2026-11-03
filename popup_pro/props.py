@@ -226,6 +226,15 @@ def fit_to_host(m, st):
         finally:
             st["live"] = was
         return
+    if host is not None and host.kind == "VFOLD" and m.kind == "JACK":
+        was = st.live
+        st["live"] = False
+        try:
+            m["on_crease"] = True  # a jack is cut into the top of the crease
+            _fit_jack(m, host)
+        finally:
+            st["live"] = was
+        return
     if host is not None and host.kind == "VFOLD":
         # on a half's glue line: the half is the background, the page the floor
         was = st.live
@@ -246,9 +255,7 @@ def fit_to_host(m, st):
                     m.img_w, m.img_h = 0.4 * L, 1.2 * k
                     m.y = 0.4 * L
                 elif m.kind == "JACK":  # the V-fold is its body: chest at its top
-                    m.height = round(min(0.7 * g, 0.4 * L), 1)
-                    m.depth = m.height
-                    m.y = round(L, 1)
+                    _fit_jack(m, host)
                 elif m.kind == "MOUTH":
                     m.jaw = 0.6 * k
                     m.upper = m.lower = 0.15 * L
@@ -404,6 +411,22 @@ def fit_to_host(m, st):
             _fit_tube(m, k, w, hy)
     finally:
         st["live"] = was
+
+
+def _fit_jack(m, host):
+    """A jack at the top of a V-fold's crease, as big as its halves allow:
+    its chest's folds (G out each side, G down the crease) on the paper."""
+    d = host.to_dict()
+    L = host.height
+    sides = [(d["alpha_l"], d["glue"]), (d["alpha_r"], d.get("glue_r", d["glue"]))]
+    G = min(0.4 * L, min(0.7 * g * math.sin(math.radians(a)) for a, g in sides))
+    G = max(2.0, G)
+    # a half's top edge runs parallel to its glue edge: where it slopes down
+    # outwards, start the arms lower so the chest's corners stay on it
+    drop = max([0.0] + [-G * math.cos(math.radians(a)) / max(math.sin(math.radians(a)), 1e-3)
+                        for a, g in sides])
+    m.height = m.depth = round(G, 1)
+    m.y = round(max(G + 1.0, L - drop - 0.5), 1)
 
 
 def _fit_tube(m, k, w, y0):
@@ -879,8 +902,8 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "RISER":
             d.update(type="RISER", width=self.width, height=self.height,
                      brace_size=self.brace_size)
-        elif self.kind == "JACK":
-            d.update(type="JACK", height=self.height, depth=self.depth)
+        elif self.kind == "JACK":  # always on its V-fold's crease
+            d.update(type="JACK", height=self.height, depth=self.depth, vside="V")
         elif self.kind == "DOUBLE45":
             d.update(type="DOUBLE45", width=self.width, height=self.height,
                      depth=self.depth)

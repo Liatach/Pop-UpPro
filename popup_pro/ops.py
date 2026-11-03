@@ -196,6 +196,8 @@ class POPUP_OT_add(bpy.types.Operator):
             if self.kind in ("FLOOR", "CEILING") and same:
                 self.report({"ERROR"}, f"This stage already has a {self.kind.lower()}")
                 return {"CANCELLED"}
+        # (by uid: adding to the list can move its items in memory)
+        was_active = st.mechs[st.active].uid if 0 <= st.active < len(st.mechs) else None
         m = _add(st, self.kind)
         uid = m.uid
         if self.kind == "VFOLD" and self.variant == "ASYM":
@@ -234,7 +236,15 @@ class POPUP_OT_add(bpy.types.Operator):
             _rebuild(self, context, force=st.rig is not None and not st.edited)
             return {"FINISHED"}
         if self.kind == "JACK" and not self.host:
-            # Birmingham 79: a V-fold for its body, the jack on its crease
+            # on the selected V-fold's crease, or (Birmingham 79) a new V-fold
+            # for its body
+            act = next((x for x in st.mechs if x.uid == was_active), None)
+            if act is not None and act.kind == "VFOLD" and not any(
+                    x.kind == "JACK" and x.host_uid == act.uid for x in st.mechs):
+                _put_on(st, uid, act.uid, "V")
+                st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
+                _rebuild(self, context, force=st.rig is not None and not st.edited)
+                return {"FINISHED"}
             was = st.live
             st["live"] = False
             vf = _add(st, "VFOLD")

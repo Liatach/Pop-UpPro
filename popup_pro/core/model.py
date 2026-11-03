@@ -1036,12 +1036,12 @@ class Model:
 
     # ------------------------------------------------------- jack in the box
     def _jack(self, m, host, cut_in):
-        """Birmingham 78 and 79: a figure on two pairs of 45 degree folds. Its
-        body is a strap (a box fold with equal sides, 78), or the V-fold it
-        is cut into (79). On the body's centre crease a 45 degree fold makes
-        the chest rise forward as the card closes, its arms (out past the
-        body's sides) reaching round; on the chest's crease a second one
-        lifts the head. G (Height) is the same between all the parallel
+        """Birmingham 79: a figure on two pairs of 45 degree folds cut into
+        the top of any V-fold's crease (the V-fold its body; 78's strap body
+        isn't built: its arms would go through the pages). On the crease a
+        45 degree fold leans the chest back into the V as the card closes,
+        its arms (out past the chest's sides) swinging round in front; on
+        the chest's crease a second one lifts the head. G (Height) is the same between all the parallel
         lines: from the centre to each side, between the two folds' points
         (F - G and F) and from F up to the arms' top edge (E)."""
         uid, lab = m["uid"], m["label"]
@@ -1065,6 +1065,18 @@ class Model:
             self.warn(f"{lab}: the head runs past the top of the card")
         piece = self.panels[body.p1].piece
         v = body.v1
+
+        def on_paper(pn, q):
+            return any(all(n[0] * q[0] + n[1] * q[1] >= d - 1e-6 for n, d in halfplanes(poly))
+                       for poly in self.panels[pn].polys)
+
+        # the chest's folds must lie on the V-fold's halves, or it hangs free
+        for pn, sg in ((body.p1, -1.0), (body.p2, 1.0)):
+            if not all(on_paper(pn, v(sg * G * f, F - G + G * f))
+                       for f in (0.02, 0.25, 0.5, 0.75, 0.98)):
+                self.warn(f"{lab}: its chest's folds run off the V-fold (lower it down the "
+                          f"crease, or make Fold Spacing smaller); skipped")
+                return
         # the figure is cut free of the body: above the lower V and line F
         big = E + hh + 1.0
         for side, sg in ((("L", -1.0), ("R", 1.0)) if cut_in else ()):
@@ -1228,7 +1240,16 @@ class Model:
                 else:
                     ah = ap.normalized()
                     side = b.cross(ah)
-                    al = max(-1.0, min(1.0, k / ap.length))
+                    # where no turn keeps them equal (near shut) a hard limit
+                    # would pinch the fold at G shut, the halves crossing: ease
+                    # off instead, keeping G open
+                    # (shut, there's no room between the pages for it open:
+                    # the limit eases back to the pinch as the host closes)
+                    op = math.degrees(l.angle(rr))
+                    ramp = max(0.0, min(1.0, op / 60.0))
+                    cap = math.cos(math.radians(40.0 * ramp * ramp * (3 - 2 * ramp)))
+                    r_ = k / ap.length
+                    al = r_ / (1.0 + abs(r_ / cap) ** 6) ** (1.0 / 6.0)
                     be = math.sqrt(1.0 - al * al)
                     dG = ah * al + side * (be if e1.dot(side) >= 0 else -be)
                 nB = tip - G
