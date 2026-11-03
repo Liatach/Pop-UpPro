@@ -185,6 +185,10 @@ Sunflower is a good way to make them.
   castle wall in two strips (as Birmingham's), and towers on other folds.
   Gabled roofs, and roofs that overhang the walls, on towers and tubes;
   balconies with railings; crenellations along more kinds of edge.
+* **Rising Sheet, continued**: 45° supports you can slide along the sheet,
+  and slotted sheets: a second sheet slotted through the first, its slot
+  locked to the page so the top piece tethers the other to it, the slot at
+  least three paper thicknesses wide to leave room to move.
 * **Visibility per mechanism**: Normal, Wire or Hidden, to see past parts
   while working on what's behind them, and to paint through a wire one.
 * Plan View, continued: highlight where two pieces actually meet in 3D.
