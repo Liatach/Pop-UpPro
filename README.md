@@ -185,6 +185,9 @@ Sunflower is a good way to make them.
   castle wall in two strips (as Birmingham's), and towers on other folds.
   Gabled roofs, and roofs that overhang the walls, on towers and tubes;
   balconies with railings; crenellations along more kinds of edge.
+* **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
+  for cards that stand part open), everything flat or square at that angle
+  instead of at 180°, which lets floors and ceilings go in a plain card.
 * **Rising Sheet, continued**: 45° supports you can slide along the sheet,
   and slotted sheets: a second sheet slotted through the first, its slot
   locked to the page so the top piece tethers the other to it, the slot at
