@@ -36,7 +36,7 @@ def _piece_of(model, uid):
         tail = name.rstrip("0123456789")
         if name != "Card" and name[len(tail):] == str(uid) and tail in (
                 "Frame", "Box", "VFold", "Tube", "Pyramid", "Roof", "Cube", "Tether", "Flap",
-                "Stand", "Bridge", "Plat", "Rise"):
+                "Stand", "Bridge", "Plat", "Rise", "Pic", "Jack"):
             return name
     return None
 

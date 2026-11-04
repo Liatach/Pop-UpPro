@@ -18,7 +18,7 @@ from mathutils import Vector
 from .geom import v3
 
 # placed by what they stand in or join: never moved by Align
-FIXED = ("TETHER", "ROOF", "FRAME", "FLOOR", "CEILING")
+FIXED = ("TETHER", "ROOF", "FRAME", "FLOOR", "CEILING", "PICTURE")
 _UID = re.compile(r"^(?:D45|[A-Za-z]+?)(\d+)[.a-z]")  # (D45: the double 45 fold)
 
 SLIT_MARGIN = 2.0  # mm of page kept past a flap's pull slit

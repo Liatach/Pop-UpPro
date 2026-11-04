@@ -86,6 +86,7 @@ DEFAULTS = {
     "RISER": dict(y=60.0, width=70.0, height=80.0, tab=12.0, brace_size=20.0),
     "DOUBLE45": dict(y=105.0, width=30.0, height=45.0, depth=104.0, tab=10.0),
     "JACK": dict(y=30.0, width=60.0, height=25.0, depth=25.0, tab=10.0),
+    "PICTURE": dict(y=0.0, x=0.0, img_w=30.0, img_h=40.0),
     "ROOF": dict(phi_l=100.0, alpha_l=70.0, glue=150.0, height=60.0, tab=8.0,
                  tab_side="IN"),
 }
@@ -94,7 +95,7 @@ NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "
          "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
          "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof",
          "PLATFORM": "Platform", "RISER": "Rising sheet", "DOUBLE45": "Double 45",
-         "JACK": "Jack in the box"}
+         "JACK": "Jack in the box", "PICTURE": "Picture"}
 
 
 def unique_label(items, base, skip=None):
@@ -251,6 +252,28 @@ class POPUP_OT_add(bpy.types.Operator):
                 _tower(st, self.host, fold)
             _rebuild(self, context, force=st.rig is not None and not st.edited)
             return {"FINISHED"}
+        if self.kind == "PICTURE":
+            # on the selected mechanism's first face (or the right page)
+            from .props import pic_faces
+            act = next((x for x in st.mechs if x.uid == was_active and x.uid != uid
+                        and x.kind != "PICTURE"), None)
+            on = self.host or (act.uid if act is not None else 0)
+            was = st.live
+            st["live"] = False
+            m.host_uid = on
+            faces = pic_faces(st, on)
+            if self.side:
+                m.face = self.side
+            elif faces:
+                m.face = faces[0][0] if on else "Page.R"
+            else:
+                m.face = "Page.R"
+            if not on:
+                m.x, m.y = 0.0, 20.0
+            st["live"] = was
+            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
+            _rebuild(self, context, force=st.rig is not None and not st.edited)
+            return {"FINISHED"}
         if self.kind == "JACK" and not self.host:
             # on the selected V-fold's crease, or (Birmingham 79) a new V-fold
             # for its body
@@ -289,7 +312,7 @@ class POPUP_OT_add(bpy.types.Operator):
             st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
             _rebuild(self, context, force=st.rig is not None and not st.edited)
             return {"FINISHED"}
-        if self.host:
+        if self.host and self.kind != "PICTURE":
             if self.side:
                 next(x for x in st.mechs if x.uid == uid)["side"] = 1 if self.side == "L" else 0
             _put_on(st, uid, self.host, self.fold)
@@ -1882,6 +1905,51 @@ class POPUP_OT_trace_holes(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class POPUP_OT_tri_pictures(bpy.types.Operator):
+    """Glue a picture on the box's 45° triangles: the left, the right or both
+    of each pair, pointing out of the box (turn and size them after)"""
+    bl_idname = "popup.tri_pictures"
+    bl_label = "Pictures on Triangles"
+    bl_options = {"REGISTER", "UNDO"}
+    uid: IntProperty(options={"SKIP_SAVE"})
+    which: EnumProperty(items=[("LEFT", "Left", ""), ("RIGHT", "Right", ""),
+                               ("BOTH", "Both", "")], default="BOTH", options={"SKIP_SAVE"})
+
+    def execute(self, context):
+        st = context.scene.popup
+        bx = next((x for x in st.mechs if x.uid == self.uid), None)
+        if bx is None or bx.tri45 == "NONE":
+            self.report({"ERROR"}, "Turn on the box's 45° triangles first")
+            return {"CANCELLED"}
+        ends = {"TOP": "T", "BOTTOM": "B", "BOTH": "TB"}[bx.tri45]
+        sides = {"LEFT": "L", "RIGHT": "R", "BOTH": "LR"}[self.which]
+        done = {x.face for x in st.mechs if x.kind == "PICTURE" and x.host_uid == bx.uid}
+        was = st.live
+        st["live"] = False
+        k = bx.tri_size
+        made = 0
+        for e in ends:
+            for sd in sides:
+                face = f"Box{bx.uid}.Tri{e}{sd}"
+                if face in done:
+                    continue
+                m = _add(st, "PICTURE")
+                m.host_uid, m.face = bx.uid, face
+                m.img_w, m.img_h = round(1.5 * k, 1), round(2.5 * k, 1)
+                # anchored on the triangle, pointing out past the box's edge
+                m.x = 0.0
+                m.y = 0.0 if e == "T" else round(k, 1)
+                m.pic_turn = 0.0 if e == "T" else 180.0
+                m.label = unique_label(st.mechs, f"{bx.label} picture", m)
+                made += 1
+        st["live"] = was
+        if not made:
+            self.report({"INFO"}, "Those triangles have pictures already")
+            return {"CANCELLED"}
+        _rebuild(self, context, force=st.rig is not None and not st.edited)
+        return {"FINISHED"}
+
+
 class POPUP_OT_visibility(bpy.types.Operator):
     """How mechanisms show in the viewport: Normal, Wire (outline only) or
     Hidden. Draw Anywhere paints through wire and hidden ones onto the paper
@@ -1922,7 +1990,7 @@ class POPUP_OT_visibility(bpy.types.Operator):
         return {"FINISHED"}
 
 
-classes = (POPUP_OT_visibility, POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
+classes = (POPUP_OT_visibility, POPUP_OT_tri_pictures, POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_remove_line, POPUP_OT_draw_lines,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,

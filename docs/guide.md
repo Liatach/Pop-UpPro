@@ -604,6 +604,12 @@ to its back. **Picture** sets which way it faces:
   to the floor. **Bridge Height** is where the bridge meets the background and
   the back of the picture (the book's A). **Out From Back** is the bridge's
   length (B).
+* *Upright, Rolled Tail*: picture and bridge in one piece, easier to fit when
+  it's small or in a tight space. The picture's paper runs on below it: back
+  along the floor to the corner (glued down), up the background to **Bridge
+  Height** (glued), out again as the bridge (**Out From Back**) and down onto
+  the picture's back as a tab. It rolls up into a small box behind the
+  picture's foot. **Tail Width** is how wide the tail is.
 * *Flat*: the picture lies parallel to the floor (the flying carpet), glued to
   the background along its back edge and held up by a leg. **Height Above
   Floor** is E and **Leg Out From Back** is F.
@@ -694,6 +700,24 @@ the card is nearly shut.
   as the card closes. **Triangle Size** is how far down the crease (and out
   along the edge) they reach. Stick moving pictures on them: fish leaping,
   arms and legs thrown out.
+
+### Pictures (glued on any face)
+
+**Add > Picture** glues a piece of card flat onto one face of anything: with
+a mechanism selected, onto it; otherwise onto a page. **Glued On** and
+**Face** pick the face (a box's top or front, a V-fold half, a cube's wall,
+a 45° triangle, a page; build once first so the faces are listed), **Side**
+the front or back of it. **X** runs across the face from its centre and
+**Y** up from its bottom edge; **Width** and **Height** size it; **Turn**
+turns it about the middle of its bottom edge. It can reach past the face's
+edges: on a box fold's front it stands up with it, a stand-up with no
+bridge of its own. On the double 45°'s top piece it bends and twists with
+the paper. It prints as its own piece; draw on it, or erase its art to shape
+it.
+
+On a box with **45° Triangles**, **Pictures on them: Left / Right / Both**
+glues one on each triangle of each pair, pointing out past the box's edge
+(the leaping fish). Near flat they rest on the page, which Checks may note.
 
 ### Holes and shaping (every mechanism)
 

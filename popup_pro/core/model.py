@@ -31,7 +31,7 @@ TAB_LIFT = 0.15  # mm a glued tab floats above the page (avoids z-fighting)
 SAMPLES = [0.5, 5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
 
 IN = 25.4
-NO_HOST = ("FLAP", "TETHER", "ROOF")
+NO_HOST = ("FLAP", "TETHER", "ROOF", "PICTURE")
 CORNERS = ("KFL", "KFR", "KBR", "KBL")  # a tube's inside corners (towers stand there)
 
 
@@ -287,7 +287,7 @@ class Model:
         return piece
 
     def add(self, panel):
-        if not panel.polys:
+        if not panel.polys and not getattr(panel, "helper", False):
             return None
         self.panels[panel.name] = panel
         self.pieces[panel.piece].panels.append(panel.name)
@@ -370,6 +370,13 @@ class Model:
             state[m["uid"]] = 1
             h = m.get("host", 0) if m["type"] not in NO_HOST else 0
             ok = True
+            if m["type"] == "PICTURE" and m.get("host"):
+                d_ = by_uid.get(m["host"])
+                if d_ is None:
+                    self.warn(f"{m['label']}: what it's glued on is missing; skipped")
+                    ok = False
+                elif not visit(d_):
+                    ok = False
             if m["type"] == "TETHER":
                 deps = [m.get("from_uid", 0)]
                 if m.get("to") == "TUBE":
@@ -438,6 +445,9 @@ class Model:
         for m in order:
             h = m.get("host", 0) if m["type"] not in NO_HOST else 0
             fold = m.get("fold", "A")
+            if m["type"] == "PICTURE":
+                self._picture(m)
+                continue
             if h and by_uid[h]["type"] == "TUBE":
                 # a side wall's foot, or the roof's centre crease
                 w_ = m.get("wall", "NONE")
@@ -1360,6 +1370,64 @@ class Model:
                 self.warn(f"{lab}: reaches {reach:.0f} mm from the fold when shut, past "
                           f"the page ({self.W:.0f} mm)")
 
+    # ---------------------------------------------------------------- picture
+    def _picture(self, m):
+        """A piece of card glued flat onto one face of anything (a box's top
+        or front, a V-fold half, a 45 degree triangle, a page): Width by
+        Height, X across the face from its centre and Y up from its bottom
+        edge, turned about its bottom centre. It may reach past the face's
+        edges: on a box's front it stands up as a stand-up does."""
+        from .openings import face_frame
+        uid, lab = m["uid"], m["label"]
+        face = m.get("face") or ""
+        if face not in self.panels:
+            self.warn(f"{lab}: pick the face it's glued on; skipped")
+            return
+        fr = face_frame(self, face)
+        if fr is None:
+            self.warn(f"{lab}: its face has no paper; skipped")
+            return
+        origin, across, up, _ = fr
+        w, h = float(m.get("img_w", 30.0)), float(m.get("img_h", 30.0))
+        x0, y0 = float(m.get("x", 0.0)), float(m.get("y", 0.0))
+        turn = math.radians(float(m.get("turn", 0.0)))
+        back = m.get("pic_side") == "BACK"
+        c, s_ = math.cos(turn), math.sin(turn)
+        # picture pattern (x across, y up from its bottom centre) -> face pattern
+        ax = (c * across[0] + s_ * up[0], c * across[1] + s_ * up[1])
+        ay = (-s_ * across[0] + c * up[0], -s_ * across[1] + c * up[1])
+        o = (origin[0] + x0 * across[0] + y0 * up[0], origin[1] + x0 * across[1] + y0 * up[1])
+        sgn = -1.0 if back else 1.0  # on the back: seen from behind, not mirrored
+        M = Matrix(((sgn * ax[0], ay[0], 0.0, o[0]), (sgn * ax[1], ay[1], 0.0, o[1]),
+                    (0.0, 0.0, sgn, sgn * 2.0 * TAB_LIFT), (0.0, 0.0, 0.0, 1.0)))
+        host = self.panels[face]
+        piece = f"Pic{uid}"
+        self.add_piece(Piece(piece, lab, 1 + uid, (0.0, 0.5 * h)))
+        rect = [[(-0.5 * w, 0.0), (0.5 * w, 0.0), (0.5 * w, h), (-0.5 * w, h)]]
+        bl = self.blend.get(face)
+        if bl is not None:
+            # on paper that bends (the double 45's top piece): it bends with
+            # it, a mix of where the face's two stiff ends would put it
+            a_, b_, ya, yb = bl[:4]
+            pa, pb = self.panels[a_].asm, self.panels[b_].asm
+            rows = 12
+            ys_ = [h * k / rows for k in range(rows + 1)]
+            polys = [[(-0.5 * w, ys_[k]), (0.5 * w, ys_[k]), (0.5 * w, ys_[k + 1]),
+                      (-0.5 * w, ys_[k + 1])] for k in range(rows)]
+            main = self.add(Panel(f"{piece}.Face", piece, "panel", polys,
+                                  (lambda t, pa=pa, M=M: pa(t) @ M), a_, None,
+                                  f"{lab}: picture"))
+            helper = Panel(f"{piece}.Bend", piece, "panel", [],
+                           (lambda t, pb=pb, M=M: pb(t) @ M), b_, None, f"{lab}: bend")
+            helper.helper = True
+            self.add(helper)
+            self.blend[main.name] = (main.name, helper.name, ya, yb, M)
+        else:
+            pa = host.asm
+            self.add(Panel(f"{piece}.Face", piece, "panel", rect,
+                           (lambda t, pa=pa, M=M: pa(t) @ M), face, None, f"{lab}: picture"))
+        self.stack_ok.add(frozenset((lab, host.label.split(":")[0])))
+
     # ---------------------------------------------------- parallelogram stand-up
     def _standup(self, m, host):
         """Birmingham 38. A picture held parallel to the background by a small
@@ -1394,8 +1462,9 @@ class Model:
         img = self.add_piece(Piece(base, lab, 1 + uid, (0.0, 0.5 * Hi)))
         img.upright = True
         strip = f"Bridge{uid}"
-        self.add_piece(Piece(strip, f"{lab} {'leg' if flat else 'bridge'}", 700 + uid,
-                             (0.5 * (a + b), vc)))
+        if m.get("stand") != "TAIL":
+            self.add_piece(Piece(strip, f"{lab} {'leg' if flat else 'bridge'}", 700 + uid,
+                                 (0.5 * (a + b), vc)))
 
         def asm_tabA(t):
             S, l, r, Y, nl, nr = host.dirs(t)
@@ -1415,7 +1484,58 @@ class Model:
 
         under = Matrix.Translation((0.0, 0.0, -TAB_LIFT))
         hw = 0.5 * Wi
-        if not flat:
+        tail = m.get("stand") == "TAIL"
+        if tail:
+            # one piece: the picture's paper runs on below it along the floor
+            # to the corner (glued), up the background (glued), out again as
+            # the bridge and down onto the picture's back (a tab): a small box
+            # rolled up behind it. Pattern: x along the fold, y up the picture
+            M = Matrix(((0, -1, 0, a + b), (1, 0, 0, vc), (0, 0, 1, 0), (0, 0, 0, 1)))
+            hb = 0.5 * w
+            tc = min(t_, a)
+            chc = min(0.3 * tc, 0.25 * w)
+            gap = 0.4  # (each glued face stops short of the folds either side)
+            self.add(Panel(CB, base, "panel", [[(-hw, 0), (hw, 0), (hw, Hi), (-hw, Hi)]],
+                           lambda t: asm_cb(t) @ M, host.p2,
+                           Hinge(host.T2 @ hinge_frame_2d((b, y0 + vc), (0, 1)),
+                                 hinge_frame_2d((0, 0), (1, 0))), f"{lab}: picture"))
+
+            def asm_floor(t):
+                S, l, r, Y, nl, nr = host.dirs(t)
+                return frame(S + b * r + (y0 + vc) * Y + lift2 * TAB_LIFT * nr, Y, r)
+
+            def asm_wall(t):
+                S, l, r, Y, nl, nr = host.dirs(t)
+                return frame(S - b * l + (y0 + vc) * Y + lift1 * TAB_LIFT * nl, Y, -l)
+
+            def asm_top(t):
+                S, l, r, Y, nl, nr = host.dirs(t)
+                return frame(S + a * l - (a + b) * r + (y0 + vc) * Y, Y, -r)
+
+            self.add(Panel(f"{base}.Foot", base, "tab",
+                           [[(-hb, -b + gap), (hb, -b + gap), (hb, 0), (-hb, 0)]],
+                           asm_floor, host.p2, None, f"{lab}: tail on the floor"))
+            self.add(Panel(f"{base}.TabA", base, "tab",
+                           [[(-hb, -b - a), (hb, -b - a), (hb, -b - gap), (-hb, -b - gap)]],
+                           asm_wall, host.p1, None, f"{lab}: tail on the background"))
+            self.add(Panel(AC, base, "panel",
+                           [[(-hb, -2 * b - a), (hb, -2 * b - a), (hb, -b - a), (-hb, -b - a)]],
+                           asm_top, host.p1,
+                           Hinge(host.T1 @ hinge_frame_2d((-a, y0), (0, 1)),
+                                 hinge_frame_2d((-vc, -b - a), (1, 0))), f"{lab}: bridge"))
+            yc = -2 * b - a
+            self.add(Panel(f"{base}.TabC", base, "tab",
+                           [[(-hb + chc, yc - tc), (hb - chc, yc - tc), (hb, yc), (-hb, yc)]],
+                           (lambda t: asm_cb(t) @ M @
+                            Matrix.Translation((0.0, 2 * a + 2 * b, -TAB_LIFT))), CB, None,
+                           f"{lab}: tail tab on the picture's back"))
+            Mi = M.inverted()
+            K = Matrix(((0, 1, 0, -vc), (-1, 0, 0, -a - b), (0, 0, 1, 0), (0, 0, 0, 1)))
+            TA = K @ Matrix.Translation((0.0, -y0, 0.0))
+            TC1 = K @ Matrix.Translation((b, -y0, 0.0))
+            TC2 = Mi @ Matrix.Translation((b, -y0, 0.0))
+            TB = Mi @ Matrix.Translation((a + b, -y0, 0.0))
+        elif not flat:
             # picture pattern: x along the fold, y up from the floor
             M = Matrix(((0, -1, 0, a + b), (1, 0, 0, vc), (0, 0, 1, 0), (0, 0, 0, 1)))
             tf = min(t_, b)
@@ -3921,8 +4041,10 @@ class Model:
         return (1.0 - u) * (self.shown(b[0], t) @ v) + u * (self.shown(b[1], t) @ v)
 
     def blend_weight(self, name, q):
-        a, b, ya, yb = self.blend[name]
-        s = max(0.0, min(1.0, (q[1] - ya) / (yb - ya)))
+        a, b, ya, yb = self.blend[name][:4]
+        Mw = self.blend[name][4] if len(self.blend[name]) > 4 else None
+        y = q[1] if Mw is None else (Mw @ Vector((q[0], q[1], 0.0))).y
+        s = max(0.0, min(1.0, (y - ya) / (yb - ya)))
         return s * s * (3.0 - 2.0 * s)  # (eases in at each end: flat at the tip and at G)
 
     def lift_offset(self, name, t, fraction=None):

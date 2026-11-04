@@ -85,7 +85,8 @@ Paint flat or folded, import and position images or simply textures, then export
 * Tubes, pyramids and tents on parallel strips, with tethers and roofs, and
   castles: towers up a tube's inside corners with pyramid roofs that still
   fold flat.
-* Parallelogram stand-ups, pull-tab flaps.
+* Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
+  pictures glued on any face, pull-tab flaps.
 * 45° folds: a raised platform (on or off the centre) and a rising sheet,
   propped square by 45° folds; the double 45° fold, its top piece twisting
   round; a jack in the box on a V-fold; triangles that leap out of a box's
@@ -219,6 +220,9 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.65**: pictures glued on any face (a stand-up on a box's front, on the
+  45° triangles, bending with the double 45°'s top piece); the stand-up's
+  rolled tail, picture and bridge in one piece.
 * **0.64**: visibility per mechanism (Normal, Wire, Hidden), with Draw
   Anywhere painting through; the Plan View shows where pieces of paper pass
   through each other; frames across an ordinary card's fold.

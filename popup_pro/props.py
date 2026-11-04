@@ -95,6 +95,9 @@ KINDS = [
      "crease, the V-fold its body: the chest leans back into the V as the card closes, "
      "the arms swing forward round it and the head rises (Birmingham 79)",
      "OUTLINER_OB_ARMATURE", 18),
+    ("PICTURE", "Picture", "A piece of card glued flat on any face: a box's top or front "
+     "(a stand-up), a V-fold half, a 45° triangle, a page. It can reach past the face's "
+     "edges", "IMAGE_DATA", 19),
 ]
 
 POINTS = [
@@ -167,7 +170,7 @@ def host_items(self, context):
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         for m in st.mechs:
-            if self.kind in ("FLAP", "TETHER", "ROOF") or m.uid in bad:
+            if self.kind in ("FLAP", "TETHER", "ROOF", "PICTURE") or m.uid in bad:
                 continue
             if self.kind in ("FRAME", "FLOOR", "CEILING"):
                 if m.kind == "STAGE":
@@ -581,6 +584,77 @@ def _shape_changed(self, context):
     _changed(self, context)
 
 
+_pic_on_items = []
+_pic_face_items = []
+
+
+def pic_on_items(self, context):
+    """What a picture can be glued on: the card, or any other mechanism."""
+    global _pic_on_items
+    items = [("0", "Card", "A page of the card", "FILE_BLANK", 0)]
+    st = context.scene.popup if context and context.scene else None
+    if st is not None:
+        for m in st.mechs:
+            if m.uid != self.uid and m.kind != "PICTURE":
+                items.append((str(m.uid), m.label, f"A face of {m.label}", "MESH_PLANE", m.uid))
+    _pic_on_items = items
+    return _pic_on_items
+
+
+def _pic_on_get(self):
+    return self.host_uid
+
+
+def _pic_on_set(self, v):
+    self.host_uid = v
+    faces = [it[0] for it in pic_face_items(self, bpy.context) if it[0] != "NONE"]
+    if faces and self.face not in faces:
+        self.face = faces[0]
+    live.schedule(bpy.context.scene)
+
+
+def pic_faces(st, uid):
+    """(panel name, label) of the faces a picture can go on, of one
+    mechanism (uid 0: the card's pages), from the last build."""
+    meta = live.meta(st.rig) if st is not None and st.rig is not None else None
+    out = []
+    if not meta:
+        return out
+    from .core.align import uid_of
+    for p in meta["panels"]:
+        if p["kind"] == "tab":
+            continue
+        u = uid_of(p["name"]) or 0
+        if (uid == 0 and p["kind"] == "page") or (uid and u == uid and p["kind"] != "page"):
+            label = p["label"].split(": ", 1)[-1]
+            out.append((p["name"], label[:1].upper() + label[1:]))
+    return out
+
+
+def pic_face_items(self, context):
+    global _pic_face_items
+    st = context.scene.popup if context and context.scene else None
+    items = [(n, lab, "", "MESH_PLANE", i + 1)
+             for i, (n, lab) in enumerate(pic_faces(st, self.host_uid))]
+    _pic_face_items = items or [("NONE", "(build first)", "", "ERROR", 0)]
+    return _pic_face_items
+
+
+def _pic_face_get(self):
+    for it in pic_face_items(self, bpy.context):
+        if it[0] == self.face:
+            return it[4]
+    return 0
+
+
+def _pic_face_set(self, v):
+    for it in pic_face_items(self, bpy.context):
+        if it[4] == v and it[0] != "NONE":
+            self.face = it[0]
+            break
+    live.schedule(bpy.context.scene)
+
+
 class PopupMech(bpy.types.PropertyGroup):
     uid: IntProperty()
     kind: EnumProperty(items=KINDS, update=_changed)
@@ -877,9 +951,25 @@ class PopupMech(bpy.types.PropertyGroup):
                             "instead of in a corner. Only V-folds can: from the stage side "
                             "the crease is a mountain fold")
     # stand-up
+    pic_on: EnumProperty(name="Glued On", items=pic_on_items, get=_pic_on_get,
+                         set=_pic_on_set, description="What the picture is glued on")
+    face: StringProperty(description="The face (panel) a picture is glued on")
+    pic_face: EnumProperty(name="Face", items=pic_face_items, get=_pic_face_get,
+                           set=_pic_face_set, description="Which face it is glued on: X "
+                           "runs across it from its centre, Y up from its bottom edge")
+    pic_side: EnumProperty(name="Side", default="FRONT", update=_changed, items=[
+        ("FRONT", "Front", "On the printed side of the face"),
+        ("BACK", "Back", "On the back of the face")])
+    pic_turn: FloatProperty(name="Turn", default=0.0, min=-360.0, max=360.0, update=_changed,
+                            description="Turns the picture about the middle of its bottom "
+                            "edge (degrees)")
     stand: EnumProperty(name="Picture", items=[
         ("UPRIGHT", "Upright", "The picture stands parallel to the background, held by a "
          "bridge from the background to its back"),
+        ("TAIL", "Upright, Rolled Tail", "One piece: the picture's paper runs on below it "
+         "along the floor to the corner, up the background, and out again as the bridge "
+         "onto its own back, a small box rolled up behind it. Easier to fit small or in a "
+         "tight space"),
         ("FLAT", "Flat", "The picture lies parallel to the floor (a flying carpet), glued to "
          "the background and held up by a leg")], update=_changed)
     img_w: FloatProperty(name="Picture Width", description="Width of the picture along "
@@ -917,6 +1007,9 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "RISER":
             d.update(type="RISER", width=self.width, height=self.height,
                      brace_size=self.brace_size)
+        elif self.kind == "PICTURE":
+            d.update(type="PICTURE", face=self.face, x=self.x, img_w=self.img_w,
+                     img_h=self.img_h, turn=self.pic_turn, pic_side=self.pic_side)
         elif self.kind == "JACK":  # always on its V-fold's crease
             d.update(type="JACK", height=self.height, depth=self.depth, vside="V")
         elif self.kind == "DOUBLE45":
@@ -1056,8 +1149,6 @@ def _on_set(self, v):
 
 
 _face_items = []
-
-
 def face_items(self, context):
     """The faces of the piece an opening is cut in (folded panels: a box's
     top and front, a cube's walls, a page)."""

@@ -84,6 +84,8 @@ def panel_frame(panel):
     an axis-aligned frame at the first corner."""
     if panel.hinge is not None:
         return panel.hinge.Fc
+    if not panel.polys:  # (a helper bone with no paper of its own)
+        return Matrix.Identity(4)
     q = panel.polys[0][0]
     return frame(v3(q), (1, 0, 0), (0, 1, 0))
 

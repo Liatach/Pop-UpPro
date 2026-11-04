@@ -9,7 +9,7 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND",
              "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME", "PLATFORM": "MOD_SOLIDIFY",
              "RISER": "OUTLINER_OB_FORCE_FIELD", "DOUBLE45": "ORIENTATION_GIMBAL",
-             "JACK": "OUTLINER_OB_ARMATURE"}
+             "JACK": "OUTLINER_OB_ARMATURE", "PICTURE": "IMAGE_DATA"}
 
 
 def draw_export(layout, st):
@@ -89,7 +89,8 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("PLATFORM", "Platform (45° folds)"),
                         ("RISER", "Rising Sheet (45° folds)"),
                         ("DOUBLE45", "Double 45° Fold (twisting top)"),
-                        ("JACK", "Jack in the Box (on a V-fold)")):
+                        ("JACK", "Jack in the Box (on a V-fold)"),
+                        ("PICTURE", "Picture (glued on a face)")):
             if k == "CASTLE":  # a tube with a tower in each inside corner
                 op = self.layout.operator("popup.add", text="Castle (tube with corner towers)",
                                           icon=KIND_ICON["TUBE"])
@@ -505,6 +506,18 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             _tabs(self.layout, m)
             self.draw_warnings(context, m)
             return
+        if m.kind == "PICTURE":
+            col.prop(m, "pic_on")
+            col.prop(m, "pic_face")
+            col.prop(m, "pic_side")
+            col.prop(m, "x", text="X (across the face)")
+            col.prop(m, "y", text="Y (up the face)")
+            col.prop(m, "img_w", text="Width")
+            col.prop(m, "img_h", text="Height")
+            col.prop(m, "pic_turn")
+            col.label(text="Draw on it, or erase its art to shape it", icon="INFO")
+            self.draw_warnings(context, m)
+            return
         if m.kind == "STAGE":
             col.prop(m, "y", text="Position")
             col.prop(m, "phi_l", text="Glue Angle")
@@ -650,7 +663,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         elif m.kind == "STANDUP":
             flat = m.stand == "FLAT"
             col.prop(m, "stand")
-            col.prop(m, "width", text="Leg Width" if flat else "Bridge Width")
+            col.prop(m, "width", text="Leg Width" if flat else (
+                "Tail Width" if m.stand == "TAIL" else "Bridge Width"))
             col.prop(m, "height", text="Height Above Floor" if flat else "Bridge Height")
             col.prop(m, "depth", text="Leg Out From Back" if flat else "Out From Back")
             col.prop(m, "img_w")
@@ -730,6 +744,11 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "tri45")
                 if m.tri45 != "NONE":
                     col.prop(m, "tri_size")
+                    row = col.row(align=True)
+                    row.label(text="Pictures on them")
+                    for w_, t_ in (("LEFT", "Left"), ("RIGHT", "Right"), ("BOTH", "Both")):
+                        op = row.operator("popup.tri_pictures", text=t_)
+                        op.uid, op.which = m.uid, w_
         if m.kind in ("CUBE", "STANDUP", "BOX", "PLATFORM", "RISER", "DOUBLE45"):
             _tabs(self.layout, m, side=m.kind == "CUBE")
         if m.kind in ("BOX", "BOXCUT"):
