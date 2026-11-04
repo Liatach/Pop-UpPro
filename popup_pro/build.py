@@ -671,5 +671,7 @@ def rebuild(scene, force=False):
         from . import carousel
         carousel.link_stage(scene)
     from . import debug
+    from . import visibility
+    visibility.refresh(scene)  # (wire and hidden mechanisms)
     debug.on_rebuild(scene)  # the plan view stays last on the card
     return model

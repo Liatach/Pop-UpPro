@@ -52,6 +52,25 @@ class POPUP_UL_mechs(bpy.types.UIList):
         row = layout.row(align=True)
         row.prop(item, "selected", text="")
         row.prop(item, "label", text="", emboss=False, icon=KIND_ICON[item.kind])
+        icon = {"NORMAL": "HIDE_OFF", "WIRE": "SHADING_WIRE", "HIDDEN": "HIDE_ON"}[
+            item.visibility]
+        op = row.operator("popup.visibility", text="", icon=icon, emboss=False)
+        op.action, op.uid = "CYCLE", item.uid
+
+
+class POPUP_MT_visibility(bpy.types.Menu):
+    bl_label = "Visibility"
+    bl_idname = "POPUP_MT_visibility"
+
+    def draw(self, context):
+        lay = self.layout
+        lay.operator("popup.visibility", text="Show All", icon="HIDE_OFF").action = "ALL"
+        lay.operator("popup.visibility", text="Isolate Selected (others hidden)",
+                     icon="HIDE_ON").action = "ISOLATE"
+        lay.operator("popup.visibility", text="Others as Wire",
+                     icon="SHADING_WIRE").action = "WIRE_OTHERS"
+        lay.separator()
+        lay.label(text="Click the eye in a row to cycle it")
 
 
 class POPUP_MT_add(bpy.types.Menu):
@@ -83,6 +102,8 @@ class POPUP_MT_add(bpy.types.Menu):
                 op.kind, op.variant = "VFOLD", "ASYM"
         st = context.scene.popup
         if st.stage_master is None:
+            self.layout.operator("popup.add", text="Frame (across the fold, pulls flat)",
+                                 icon=KIND_ICON["FRAME"]).kind = "FRAME"
             self.layout.operator("popup.add", text="Stage Set (V-fold)",
                                  icon=KIND_ICON["STAGE"]).kind = "STAGE"
         if st.stage_master is not None:
@@ -450,6 +471,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.operator("popup.duplicate", text="", icon="DUPLICATE")
         col.separator()
         col.prop(st, "highlight", text="", icon="RESTRICT_SELECT_OFF")
+        col.menu("POPUP_MT_visibility", text="", icon="HIDE_OFF")
         if not st.mechs or st.active >= len(st.mechs):
             return
         _align(lay, st)
@@ -1059,6 +1081,15 @@ def _plan_view(lay, st):
     col.prop(st, "plan_colour", expand=True)
     col.prop(st, "plan_depth", slider=True)
     col.prop(st, "plan_alpha", slider=True)
+    col.prop(st, "plan_clashes")
+    if st.plan_clashes:
+        found = list(st.id_data.get("pop_clashes", []))
+        if not found:
+            col.label(text="No clashes at this opening", icon="CHECKMARK")
+        for txt in found[:6]:
+            col.label(text=txt, icon="ERROR")
+        if len(found) > 6:
+            col.label(text=f"and {len(found) - 6} more")
 
 
 class POPUP_PT_art(_Base, bpy.types.Panel):
@@ -1141,7 +1172,8 @@ class POPUP_PT_export(_Base, bpy.types.Panel):
         self.layout.operator("popup.export_svg", icon="EXPORT")
 
 
-classes = (POPUP_UL_lines, POPUP_UL_mechs, POPUP_UL_openings, POPUP_MT_add, POPUP_PT_card,
+classes = (POPUP_UL_lines, POPUP_UL_mechs, POPUP_UL_openings, POPUP_MT_add,
+           POPUP_MT_visibility, POPUP_PT_card,
            POPUP_PT_mechs,
            POPUP_PT_openings, POPUP_PT_checks,
            POPUP_PT_art, POPUP_PT_export)

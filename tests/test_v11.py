@@ -31,7 +31,7 @@ def refused(**kw):
         return True
 
 
-assert refused(kind="FRAME")  # no stage to stand in yet
+assert refused(kind="FLOOR")  # no stage to stand in yet (frames go on a plain card, v0.64)
 assert bpy.ops.popup.add(kind="STAGE") == {"FINISHED"}
 assert [m.kind for m in st.mechs] == ["STAGE", "FRAME", "FRAME"], [m.kind for m in st.mechs]
 stage = st.mechs[0]

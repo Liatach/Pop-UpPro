@@ -27,6 +27,11 @@ def _layout_render(self, context):
             lay.hide_render = not layout_in_renders(s)
 
 
+def _visibility(self, context):
+    from . import visibility
+    visibility.refresh(self.id_data)
+
+
 def _redraw(self, context):
     wm = getattr(context, "window_manager", None) if context else None
     for win in (wm.windows if wm else []):
@@ -585,6 +590,16 @@ class PopupMech(bpy.types.PropertyGroup):
                      "from its point; out along a glue line from the V point; along a box "
                      "fold, strap, cube or tube wall from its end", default=70.0, min=0.0, soft_max=300.0,
                      update=_changed)
+    visibility: EnumProperty(name="Visibility", default="NORMAL", update=_visibility,
+                             items=[("NORMAL", "Normal", "Shown as usual", "HIDE_OFF", 0),
+                                    ("WIRE", "Wire", "Outline only, in the viewport: see "
+                                     "past it, and Draw Anywhere paints through it onto the "
+                                     "paper behind", "SHADING_WIRE", 1),
+                                    ("HIDDEN", "Hidden", "Not shown in the viewport: see past "
+                                     "it, and Draw Anywhere paints through it onto the paper "
+                                     "behind", "HIDE_ON", 2)],
+                             description="How it shows in the viewport (renders, prints and "
+                             "exports always show it)")
     selected: BoolProperty(name="Select", default=False, update=_redraw,
                            description="Pick it to line up with the active mechanism "
                            "(Align); the active one is always included")
@@ -1218,6 +1233,10 @@ class PopupSettings(bpy.types.PropertyGroup):
                               update=lambda s, c: _plan(s, c, "changed"),
                               description="How much depth is kept (0 completely flat, 1 "
                               "not squashed)")
+    plan_clashes: BoolProperty(name="Show Clashes", default=True,
+                               update=lambda s, c: _plan(s, c, "changed"),
+                               description="Draw bright lines where two pieces of paper pass "
+                               "through each other at this opening, and list them")
     plan_alpha: FloatProperty(name="See-through", default=0.5, min=0.05, max=1.0,
                               update=lambda s, c: _plan(s, c, "changed"),
                               description="X-ray opacity: lower shows overlaps more plainly")

@@ -189,9 +189,6 @@ Sunflower is a good way to make them.
   and slotted sheets: a second sheet slotted through the first, its slot
   locked to the page so the top piece tethers the other to it, the slot at
   least three paper thicknesses wide to leave room to move.
-* **Visibility per mechanism**: Normal, Wire or Hidden, to see past parts
-  while working on what's behind them, and to paint through a wire one.
-* Plan View, continued: highlight where two pieces actually meet in 3D.
 * The consolidation and elegance pass over the interface, continued:
   * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
     Background Above and Level Ridge; floors, ceilings and the background
@@ -219,6 +216,9 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.64**: visibility per mechanism (Normal, Wire, Hidden), with Draw
+  Anywhere painting through; the Plan View shows where pieces of paper pass
+  through each other; frames across an ordinary card's fold.
 * **0.63**: the double 45°'s top piece no longer passes through itself on
   the way open; a jack in the box goes on top of any V-fold (Add with a
   V-fold selected), sized to fit.

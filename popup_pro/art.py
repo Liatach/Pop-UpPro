@@ -412,11 +412,21 @@ class _Paper:
         self.piece = [p["piece"] for p in meta["panels"]]
         me = st.card.data
         at = me.attributes["pop_panel"]
-        self.rest_panel = [0] * len(me.polygons)
-        at.data.foreach_get("value", self.rest_panel)
-        self.rest_normal = [p.normal.copy() for p in me.polygons]
+        panel = [0] * len(me.polygons)
+        at.data.foreach_get("value", panel)
+        # mechanisms drawn as wire or hidden: painted through, onto what's behind
+        from .visibility import see_through
+        skip = see_through(st)
+        keep = list(range(len(me.polygons)))
+        am = me.attributes.get("pop_mech")
+        if skip and am is not None:
+            mech = [0] * len(me.polygons)
+            am.data.foreach_get("value", mech)
+            keep = [i for i in keep if mech[i] not in skip]
+        self.rest_panel = [panel[i] for i in keep]
+        self.rest_normal = [me.polygons[i].normal.copy() for i in keep]
         self.rest = BVHTree.FromPolygons([v.co.copy() for v in me.vertices],
-                                         [tuple(p.vertices) for p in me.polygons])
+                                         [tuple(me.polygons[i].vertices) for i in keep])
         dg = bpy.context.evaluated_depsgraph_get()
         self.rig_ev = st.rig.evaluated_get(dg)
         ev = st.card.evaluated_get(dg)

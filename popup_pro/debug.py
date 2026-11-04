@@ -284,9 +284,11 @@ def refresh(scene, context=None, aim=False):
     if card is None:
         return
     mod = card.modifiers.get(MOD)
+    from . import clashes
     if not st.plan_view:
         if mod is not None:
             card.modifiers.remove(mod)
+        clashes.clear(scene)
         return
     t = angle(scene)
     if not st.plan_use_open:
@@ -305,6 +307,7 @@ def refresh(scene, context=None, aim=False):
         card.modifiers.move(i, len(card.modifiers) - 1)
     card.update_tag()
     scene["pop_plan_t"] = t
+    clashes.show(scene, axis, st.plan_depth)
     if aim:
         _aim(scene, context, axis, turn_only=aim == "TURN")
 

@@ -281,7 +281,10 @@ move around.
   stage closes. Their width is worked out from the stage count, so every
   frame pulls flat exactly when the stage is fully open. A new stage starts
   with a staging frame at the front and one floating frame behind it; add
-  up to three floating frames from the Add menu.
+  up to three floating frames from the Add menu. Frames go on an ordinary
+  card too (Add > Frame, with no stage set selected): a layer across the
+  card's fold, glued to both pages, that pulls flat when the card is open
+  flat; each new one goes a little further in.
 * **Floors** and **ceilings** are V-folds along the bottom and top edges of
   the pages. They lie flat when the stage is open and fold into the stage
   as it closes. Frames are cut back automatically to clear them. Floors and
@@ -843,6 +846,23 @@ plain what lies in front of what in a busy build, a stage set especially.
 how much depth is kept, **See-through** the X-ray opacity. It works on a
 carousel stage too. It is for the viewport only: renders and exports never
 see it, and turning it off puts your view, shading and opening back.
+
+**Show Clashes** (on by default) draws bright magenta lines, on top of
+everything, where two pieces of paper actually pass through each other at
+that opening, and lists which mechanisms clash (or one passing through
+itself). Hinges, folds lying on a page and glue tabs under what stands on
+them don't count. Turn the Open slider (or follow Open while you scrub the
+Movement Test) to find where a clash starts.
+
+### Visibility
+
+Each row of the Mechanisms list has an eye: click it to cycle **Normal**,
+**Wire** (outline only) and **Hidden**. The eye menu beside the list has
+**Show All**, **Isolate Selected** (everything else hidden) and **Others
+as Wire**. It is for the viewport only, on the folded card and the flat
+layout: renders, prints and exports always show everything. Draw Anywhere
+paints straight through a wire or hidden mechanism onto the paper behind
+it (to paint the mechanism itself, set it back to Normal).
 
 ## Artwork that stays on the paper
 

@@ -178,9 +178,15 @@ class POPUP_OT_add(bpy.types.Operator):
         if self.kind in ("FRAME", "FLOOR", "CEILING"):
             if st.stage_master is None and not self.host:
                 stages = [x for x in st.mechs if x.kind == "STAGE"]
-                if not stages:
+                act = st.mechs[st.active] if st.active < len(st.mechs) else None
+                in_stage = act is not None and (act.kind == "STAGE" or any(
+                    x.uid == act.host_uid for x in stages))
+                if self.kind == "FRAME" and not in_stage:
+                    stages = []  # a frame across the card's own fold
+                elif not stages:
                     self.report({"ERROR"}, "Add a Stage Set first (or make a carousel)")
                     return {"CANCELLED"}
+            if st.stage_master is None and not self.host and stages:
                 act = st.mechs[st.active] if st.active < len(st.mechs) else None
                 if act is not None and act.kind == "STAGE":
                     self.host = act.uid
@@ -200,6 +206,16 @@ class POPUP_OT_add(bpy.types.Operator):
         was_active = st.mechs[st.active].uid if 0 <= st.active < len(st.mechs) else None
         m = _add(st, self.kind)
         uid = m.uid
+        if self.kind == "FRAME" and not self.host and st.stage_master is None:
+            # across the card's own fold: a layer that pulls flat as it opens
+            was = st.live
+            st["live"] = False
+            W_, H_ = st.card_dict()["W"], st.card_dict()["H"]
+            m.label = unique_label(st.mechs, "Frame", m)
+            n_ = sum(1 for x in st.mechs if x.kind == "FRAME" and not x.host_uid)
+            m.x = round(0.7 * W_ * (1.0 - 0.25 * (n_ - 1)), 1)  # (each one further in)
+            m.y, m.height = round(0.1 * H_, 1), round(0.75 * H_, 1)
+            st["live"] = was
         if self.kind == "VFOLD" and self.variant == "ASYM":
             was = st.live
             st["live"] = False
@@ -1866,7 +1882,47 @@ class POPUP_OT_trace_holes(bpy.types.Operator):
         return {"FINISHED"}
 
 
-classes = (POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
+class POPUP_OT_visibility(bpy.types.Operator):
+    """How mechanisms show in the viewport: Normal, Wire (outline only) or
+    Hidden. Draw Anywhere paints through wire and hidden ones onto the paper
+    behind. Renders, prints and exports always show everything"""
+    bl_idname = "popup.visibility"
+    bl_label = "Mechanism Visibility"
+    bl_options = {"REGISTER", "UNDO"}
+    action: EnumProperty(items=[
+        ("CYCLE", "Cycle", "Normal, then Wire, then Hidden"),
+        ("ALL", "Show All", "Every mechanism shown as usual"),
+        ("ISOLATE", "Isolate", "Only the selected (and active) mechanisms shown"),
+        ("WIRE_OTHERS", "Others as Wire", "The rest drawn as outlines")],
+        default="CYCLE", options={"SKIP_SAVE"})
+    uid: IntProperty(default=0, options={"SKIP_SAVE"})
+
+    def execute(self, context):
+        st = context.scene.popup
+        if not st.mechs:
+            return {"CANCELLED"}
+        if self.action == "CYCLE":
+            m = next((x for x in st.mechs if x.uid == self.uid), None)
+            if m is None:
+                return {"CANCELLED"}
+            nxt = {"NORMAL": "WIRE", "WIRE": "HIDDEN", "HIDDEN": "NORMAL"}
+            m["visibility"] = ("NORMAL", "WIRE", "HIDDEN").index(nxt[m.visibility])
+        else:
+            act = st.mechs[st.active].uid if 0 <= st.active < len(st.mechs) else None
+            keep = {x.uid for x in st.mechs if x.selected} | {act}
+            for m in st.mechs:
+                if self.action == "ALL" or m.uid in keep:
+                    m["visibility"] = 0
+                else:
+                    m["visibility"] = 2 if self.action == "ISOLATE" else 1
+        from . import visibility
+        visibility.refresh(context.scene)
+        for area in context.screen.areas if context.screen else ():
+            area.tag_redraw()
+        return {"FINISHED"}
+
+
+classes = (POPUP_OT_visibility, POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_remove_line, POPUP_OT_draw_lines,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
