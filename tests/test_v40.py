@@ -21,7 +21,7 @@ sc = bpy.context.scene
 st = sc.popup
 assert bpy.ops.popup.build() == {"FINISHED"}
 st.mechs.clear()
-for k, y in (("VFOLD", 150), ("BOX", 20), ("STANDUP", 100)):
+for k, y in (("VFOLD", 150), ("BOX", 20), ("STANDUP", 75)):  # (its picture runs up from 75, v0.66)
     assert bpy.ops.popup.add(kind=k) == {"FINISHED"}
     st.mechs[-1].y = y
 assert bpy.ops.popup.add(kind="CUBE") == {"FINISHED"}

@@ -67,7 +67,7 @@ assert bpy.ops.popup.add(kind="PICTURE") == {"FINISHED"}
 pic = st.mechs[-1]
 assert pic.host_uid == bx.uid and pic.face.startswith(f"Box{bx.uid}.")
 pic.face = f"Box{bx.uid}.CB"
-pic.img_w, pic.img_h, pic.y = 60.0, 70.0, 5.0
+pic.img_w, pic.img_h, pic.pic_y, pic.pic_x = 60.0, 70.0, 5.0, -30.0
 model = build.rebuild(sc, force=True)
 assert not st.warnings, st.warnings
 P = model.panels
@@ -99,31 +99,59 @@ ang = math.degrees(e.angle(e0))
 assert abs(ang - 30.0) < 0.5 or abs(ang - 150.0) < 0.5, ang
 print("on the back of a face, turned")
 
-# ---- pictures on the 45 degree triangles, pointing out of the box
+# ---- pictures on the 45 degree triangles, both layouts, at both ends
 bx.tri45, bx.tri_size = "BOTH", 12.0
 while len(st.mechs) > 1:
     st.active = 1
     bpy.ops.popup.remove()
 bpy.ops.popup.build()
-assert bpy.ops.popup.tri_pictures(uid=bx.uid, which="BOTH") == {"FINISHED"}
-pics = [m for m in st.mechs if m.kind == "PICTURE"]
-assert len(pics) == 4 and {p.face for p in pics} == {
-    f"Box{bx.uid}.Tri{e}{s}" for e in "TB" for s in "LR"}
+
+
+def rects(model):
+    """{face: picture corners in the crease's own frame (x out from the
+    crease, y up the card)}"""
+    hc = model.hosts[(bx.uid, "C")]
+    Ti = hc.T1.inverted()
+    out = {}
+    for m in st.mechs:
+        if m.kind != "PICTURE":
+            continue
+        face = model.panels[f"Pic{m.uid}.Face"]
+        F = model.panels[m.face].asm(180.0).inverted() @ face.asm(180.0)
+        out[m.face] = [Ti @ (F @ v3(q)) for q in face.polys[0]]
+    return out
+
+
+for layout in ("ALONG", "OUT"):
+    while len(st.mechs) > 1:
+        st.active = 1
+        bpy.ops.popup.remove()
+    bx.tri_pic_layout = layout
+    bpy.ops.popup.build()
+    assert bpy.ops.popup.tri_pictures(uid=bx.uid, which="BOTH") == {"FINISHED"}
+    pics = [m for m in st.mechs if m.kind == "PICTURE"]
+    assert len(pics) == 4
+    model = build.rebuild(sc, force=True)
+    top, bot, k = bx.y + bx.width, bx.y, 12.0
+    for face, R in rects(model).items():
+        xs, ys = [p.x for p in R], [p.y for p in R]
+        sd = -1.0 if face.endswith("L") else 1.0
+        tp = ".TriT" in face
+        edge = top if tp else bot
+        if layout == "ALONG":
+            # one edge on the crease, from the box's edge in; out across the face
+            assert min(abs(x) for x in xs) < 0.01, (face, xs)
+            assert max(x * sd for x in xs) > 0.9 * k, (face, xs)
+            assert abs((max(ys) if tp else min(ys)) - edge) < 0.01, (face, ys)
+            assert abs(max(ys) - min(ys) - 0.6 * k) < 0.01
+        else:
+            # standing on the triangle, past the box's edge
+            assert (max(ys) > edge + 0.5 * k) if tp else (min(ys) < edge - 0.5 * k), (face, ys)
+            assert min(x * sd for x in xs) > 0.0
+    assert rig_error() < 0.05
+    assert shut_spread(model) < 3.0, shut_spread(model)
 assert bpy.ops.popup.tri_pictures(uid=bx.uid, which="LEFT") == {"CANCELLED"}  # done already
-model = build.rebuild(sc, force=True)
-assert not [w for w in st.warnings.split("\\n") if w and "overlap" in w], st.warnings
-top = bx.width  # (in the box piece's own pattern)
-for p in pics:
-    face = model.panels[f"Pic{p.uid}.Face"]
-    ys = [(model.panels[p.face].asm(180.0).inverted() @ (face.asm(180.0) @ v3(q))).y
-          for q in face.polys[0]]
-    if ".TriT" in p.face:
-        assert max(ys) > top + 10.0, (p.face, ys)  # out past the top edge
-    else:
-        assert min(ys) < -10.0, (p.face, ys)  # and the bottom one
-assert rig_error() < 0.05
-assert shut_spread(model) < 3.0, shut_spread(model)
-print("pictures on the 45° triangles, out past the box's edges")
+print("pictures on the 45° triangles: along the crease or out past the edge, either end")
 
 # ---- on a page of the card
 st.active = -1
@@ -151,7 +179,7 @@ for fc in ("TopF", "GF"):
     assert bpy.ops.popup.add(kind="PICTURE") == {"FINISHED"}
     pp = st.mechs[-1]
     pp.face = f"D45{d45.uid}.{fc}"
-    pp.img_w, pp.img_h, pp.y = 20.0, 18.0, 2.0
+    pp.img_w, pp.img_h, pp.pic_y, pp.pic_x = 20.0, 18.0, 2.0, -10.0
 model = build.rebuild(sc, force=True)
 for pp in [x for x in st.mechs if x.kind == "PICTURE" and x.host_uid == d45.uid]:
     nm = f"Pic{pp.uid}.Face"

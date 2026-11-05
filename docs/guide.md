@@ -614,8 +614,8 @@ to its back. **Picture** sets which way it faces:
   the background along its back edge and held up by a leg. **Height Above
   Floor** is E and **Leg Out From Back** is F.
 
-**Picture Width** and **Picture Height** (or **Depth**) size the picture, centred
-on its bridge or leg. Shape its outline by erasing the art in Texture Paint
+**Picture Width** and **Picture Height** (or **Depth**) size the picture; it
+runs up the fold from where its bridge or leg starts. Shape its outline by erasing the art in Texture Paint
 (Creases, Cuts and Holes), the way the family and the dog are cut out in the book
 (Texture Paint is hidden for now, since v0.60).
 Stand-ups stack: with one selected, **Add** offers *Stand-up in Front*, which
@@ -707,17 +707,23 @@ the card is nearly shut.
 a mechanism selected, onto it; otherwise onto a page. **Glued On** and
 **Face** pick the face (a box's top or front, a V-fold half, a cube's wall,
 a 45° triangle, a page; build once first so the faces are listed), **Side**
-the front or back of it. **X** runs across the face from its centre and
-**Y** up from its bottom edge; **Width** and **Height** size it; **Turn**
-turns it about the middle of its bottom edge. It can reach past the face's
+the front or back of it. **X** and **Y** place its bottom left corner (X
+across the face from its centre, Y up from its bottom edge, either may be
+negative); **Width** and **Height** grow it from that corner; **Turn** turns
+it about the corner. It can reach past the face's
 edges: on a box fold's front it stands up with it, a stand-up with no
 bridge of its own. On the double 45°'s top piece it bends and twists with
 the paper. It prints as its own piece; draw on it, or erase its art to shape
 it.
 
 On a box with **45° Triangles**, **Pictures on them: Left / Right / Both**
-glues one on each triangle of each pair, pointing out past the box's edge
-(the leaping fish). Near flat they rest on the page, which Checks may note.
+glues one on each triangle of each pair, laid out by **Pictures**: *Along the
+Crease* (the default: each picture's bottom edge on the box's crease from
+the box's edge in, reaching out across the box's face, so it swings up out of
+the box with its triangle) or *Out Past the Edge* (standing on its triangle,
+reaching out past the box's top or bottom edge, the leaping fish). Either
+works at both ends of the box, mirrored. Near flat, pictures out past the
+edge rest on the page, which Checks may note.
 
 ### Holes and shaping (every mechanism)
 
@@ -792,7 +798,9 @@ since that piece would come away.
 
 ### Flap and the Pull control
 
-The flap is glued down by a tab along its hinge. A strip is glued under the
+The flap is glued down by a tab along its hinge. **From Spine** and
+**Position** are where the hinge starts; its **Width** runs on from there,
+away from the spine (a hinge across the page) or up the card (one along it). A strip is glued under the
 flap at the **Glue Point**. It runs back through a slit in the page, behind
 the page, and out past the card edge as a pull tab. Pulling it lifts the
 flap, which swings over towards the side you pull. Gluing the strip close to
@@ -850,9 +858,10 @@ is what the others line up with. Open **Align** under the list:
   **Up** to distribute), and flaps across their pages, measured out from the
   spine, so a flap on the left page lines up as the mirror image of one on
   the right.
-* **To** picks the reference: the **Active** mechanism, the span of the
-  **Selection**, or the **Fold / Card** itself (the ends of the fold, or the
-  card's edges and spine; Distribute then leaves the same gap at the ends).
+* **To** picks the reference: the **Fold / Card** itself (the default: the
+  ends of the fold, or the card's edges and spine; Distribute then leaves
+  the same gap at the ends), the **Active** mechanism, or the span of the
+  **Selection**.
 
 Things riding on a mechanism that moves go with it. Frames, floors,
 ceilings, roofs and tethers stay where what they stand in puts them.

@@ -510,8 +510,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "pic_on")
             col.prop(m, "pic_face")
             col.prop(m, "pic_side")
-            col.prop(m, "x", text="X (across the face)")
-            col.prop(m, "y", text="Y (up the face)")
+            col.prop(m, "pic_x", text="X (corner, across)")
+            col.prop(m, "pic_y", text="Y (corner, up)")
             col.prop(m, "img_w", text="Width")
             col.prop(m, "img_h", text="Height")
             col.prop(m, "pic_turn")
@@ -744,6 +744,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "tri45")
                 if m.tri45 != "NONE":
                     col.prop(m, "tri_size")
+                    col.prop(m, "tri_pic_layout")
                     row = col.row(align=True)
                     row.label(text="Pictures on them")
                     for w_, t_ in (("LEFT", "Left"), ("RIGHT", "Right"), ("BOTH", "Both")):

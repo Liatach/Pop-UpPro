@@ -220,6 +220,9 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.66**: widths grow one way, from a corner or a start (pictures, stand-up
+  pictures, flaps); pictures on the 45° triangles along the crease by
+  default, at either end; Align to the fold or card by default.
 * **0.65**: pictures glued on any face (a stand-up on a box's front, on the
   45° triangles, bending with the double 45°'s top piece); the stand-up's
   rolled tail, picture and bridge in one piece.

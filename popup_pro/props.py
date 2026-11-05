@@ -376,8 +376,8 @@ def fit_to_host(m, st):
     st["live"] = False
     try:
         if host.kind == "STANDUP":
-            w = host.img_w  # the picture is what there is room on
-            hy = host.y + 0.5 * host.width - 0.5 * w
+            w = host.img_w  # the picture is what there is room on (from its bridge's start)
+            hy = host.y
         else:
             hy = host.y
             k_ = math.tan(math.radians(host.slant))  # a slanted strip's folds move up or down
@@ -748,8 +748,10 @@ class PopupMech(bpy.types.PropertyGroup):
     # flap
     side: EnumProperty(name="Page", items=[("R", "Right", ""), ("L", "Left", "")],
                        update=_changed)
-    x: FloatProperty(name="From Spine", description="Distance from the spine to the "
-                     "middle of the hinge (mm)", default=70.0, min=0.0, soft_max=300.0,
+    x: FloatProperty(name="From Spine", description="Distance from the spine (mm): to "
+                     "where a flap's hinge starts (its width runs on from there, away from "
+                     "the spine or up the card), to a tube's strips, to a frame's glue "
+                     "lines", default=70.0, min=0.0, soft_max=300.0,
                      update=_changed)
     hinge: EnumProperty(name="Hinge", description="Which edge of the flap is hinged",
                         items=[("TOP", "Top", ""), ("BOTTOM", "Bottom", ""),
@@ -960,9 +962,24 @@ class PopupMech(bpy.types.PropertyGroup):
     pic_side: EnumProperty(name="Side", default="FRONT", update=_changed, items=[
         ("FRONT", "Front", "On the printed side of the face"),
         ("BACK", "Back", "On the back of the face")])
+    pic_x: FloatProperty(name="X", default=0.0, soft_min=-200.0, soft_max=200.0,
+                         update=_changed, description="Where the picture's bottom left "
+                         "corner is, across the face from its centre (mm; negative to the "
+                         "left)")
+    pic_y: FloatProperty(name="Y", default=0.0, soft_min=-200.0, soft_max=200.0,
+                         update=_changed, description="Where the picture's bottom left "
+                         "corner is, up the face from its bottom edge (mm; negative below "
+                         "it)")
     pic_turn: FloatProperty(name="Turn", default=0.0, min=-360.0, max=360.0, update=_changed,
-                            description="Turns the picture about the middle of its bottom "
-                            "edge (degrees)")
+                            description="Turns the picture about its bottom left corner "
+                            "(degrees)")
+    tri_pic_layout: EnumProperty(name="Pictures", default="ALONG", update=_changed, items=[
+        ("ALONG", "Along the Crease", "Each picture's bottom edge along the box's crease, "
+         "from the box's edge in, reaching out across the box's face: it swings up out of "
+         "the box with its triangle"),
+        ("OUT", "Out Past the Edge", "Each picture standing on its triangle, reaching out "
+         "past the box's top or bottom edge")],
+        description="How Pictures on the 45° triangles are laid out")
     stand: EnumProperty(name="Picture", items=[
         ("UPRIGHT", "Upright", "The picture stands parallel to the background, held by a "
          "bridge from the background to its back"),
@@ -973,7 +990,7 @@ class PopupMech(bpy.types.PropertyGroup):
         ("FLAT", "Flat", "The picture lies parallel to the floor (a flying carpet), glued to "
          "the background and held up by a leg")], update=_changed)
     img_w: FloatProperty(name="Picture Width", description="Width of the picture along "
-                         "the fold (mm), centred on its bridge or leg", default=80.0,
+                         "the fold (mm), from where its bridge or leg starts", default=80.0,
                          min=2.0, soft_max=250.0, update=_changed)
     img_h: FloatProperty(name="Picture Height", description="Upright: height of the "
                          "picture from the floor. Flat: how far it reaches out from the "
@@ -1008,7 +1025,7 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="RISER", width=self.width, height=self.height,
                      brace_size=self.brace_size)
         elif self.kind == "PICTURE":
-            d.update(type="PICTURE", face=self.face, x=self.x, img_w=self.img_w,
+            d.update(type="PICTURE", face=self.face, x=self.pic_x, y=self.pic_y, img_w=self.img_w,
                      img_h=self.img_h, turn=self.pic_turn, pic_side=self.pic_side)
         elif self.kind == "JACK":  # always on its V-fold's crease
             d.update(type="JACK", height=self.height, depth=self.depth, vside="V")
@@ -1297,7 +1314,7 @@ class PopupSettings(bpy.types.PropertyGroup):
          "(each fold's own mechanisms on their own)", "SNAP_MIDPOINT", 0),
         ("CARD", "Whole Card", "Line up across the whole card: up and down the spine, and "
          "flaps across their pages", "FILE_IMAGE", 1)])
-    align_to: EnumProperty(name="Relative To", default="ACTIVE", items=[
+    align_to: EnumProperty(name="Relative To", default="HOST", items=[
         ("ACTIVE", "Active", "The active mechanism stays put; the others line up with it",
          "PIVOT_ACTIVE", 0),
         ("SELECTION", "Selection", "The span of everything selected", "PIVOT_BOUNDBOX", 1),

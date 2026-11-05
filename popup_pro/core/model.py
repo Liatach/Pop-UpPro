@@ -1374,8 +1374,8 @@ class Model:
     def _picture(self, m):
         """A piece of card glued flat onto one face of anything (a box's top
         or front, a V-fold half, a 45 degree triangle, a page): Width by
-        Height, X across the face from its centre and Y up from its bottom
-        edge, turned about its bottom centre. It may reach past the face's
+        Height from its bottom left corner, which sits X across the face from
+        its centre and Y up from its bottom edge; turned about that corner. It may reach past the face's
         edges: on a box's front it stands up as a stand-up does."""
         from .openings import face_frame
         uid, lab = m["uid"], m["label"]
@@ -1402,8 +1402,8 @@ class Model:
                     (0.0, 0.0, sgn, sgn * 2.0 * TAB_LIFT), (0.0, 0.0, 0.0, 1.0)))
         host = self.panels[face]
         piece = f"Pic{uid}"
-        self.add_piece(Piece(piece, lab, 1 + uid, (0.0, 0.5 * h)))
-        rect = [[(-0.5 * w, 0.0), (0.5 * w, 0.0), (0.5 * w, h), (-0.5 * w, h)]]
+        self.add_piece(Piece(piece, lab, 1 + uid, (0.5 * w, 0.5 * h)))
+        rect = [[(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)]]
         bl = self.blend.get(face)
         if bl is not None:
             # on paper that bends (the double 45's top piece): it bends with
@@ -1412,8 +1412,8 @@ class Model:
             pa, pb = self.panels[a_].asm, self.panels[b_].asm
             rows = 12
             ys_ = [h * k / rows for k in range(rows + 1)]
-            polys = [[(-0.5 * w, ys_[k]), (0.5 * w, ys_[k]), (0.5 * w, ys_[k + 1]),
-                      (-0.5 * w, ys_[k + 1])] for k in range(rows)]
+            polys = [[(0.0, ys_[k]), (w, ys_[k]), (w, ys_[k + 1]), (0.0, ys_[k + 1])]
+                     for k in range(rows)]
             main = self.add(Panel(f"{piece}.Face", piece, "panel", polys,
                                   (lambda t, pa=pa, M=M: pa(t) @ M), a_, None,
                                   f"{lab}: picture"))
@@ -1459,7 +1459,7 @@ class Model:
         lift1, lift2 = host.lift
         base = f"Stand{uid}"
         AC, CB = f"{base}.AC", f"{base}.CB"
-        img = self.add_piece(Piece(base, lab, 1 + uid, (0.0, 0.5 * Hi)))
+        img = self.add_piece(Piece(base, lab, 1 + uid, (0.5 * Wi - vc, 0.5 * Hi)))
         img.upright = True
         strip = f"Bridge{uid}"
         if m.get("stand") != "TAIL":
@@ -1483,7 +1483,8 @@ class Model:
             return frame(S + (a + 2 * b) * r + y0 * Y + lift2 * TAB_LIFT * nr, -r, Y)
 
         under = Matrix.Translation((0.0, 0.0, -TAB_LIFT))
-        hw = 0.5 * Wi
+        # the picture runs from its bridge's (or leg's) start, up the fold
+        xl, xr = -vc, Wi - vc
         tail = m.get("stand") == "TAIL"
         if tail:
             # one piece: the picture's paper runs on below it along the floor
@@ -1495,7 +1496,7 @@ class Model:
             tc = min(t_, a)
             chc = min(0.3 * tc, 0.25 * w)
             gap = 0.4  # (each glued face stops short of the folds either side)
-            self.add(Panel(CB, base, "panel", [[(-hw, 0), (hw, 0), (hw, Hi), (-hw, Hi)]],
+            self.add(Panel(CB, base, "panel", [[(xl, 0), (xr, 0), (xr, Hi), (xl, Hi)]],
                            lambda t: asm_cb(t) @ M, host.p2,
                            Hinge(host.T2 @ hinge_frame_2d((b, y0 + vc), (0, 1)),
                                  hinge_frame_2d((0, 0), (1, 0))), f"{lab}: picture"))
@@ -1540,12 +1541,12 @@ class Model:
             M = Matrix(((0, -1, 0, a + b), (1, 0, 0, vc), (0, 0, 1, 0), (0, 0, 0, 1)))
             tf = min(t_, b)
             ch = min(0.3 * tf, 0.25 * Wi)
-            self.add(Panel(CB, base, "panel", [[(-hw, 0), (hw, 0), (hw, Hi), (-hw, Hi)]],
+            self.add(Panel(CB, base, "panel", [[(xl, 0), (xr, 0), (xr, Hi), (xl, Hi)]],
                            lambda t: asm_cb(t) @ M, host.p2,
                            Hinge(host.T2 @ hinge_frame_2d((b, y0 + vc), (0, 1)),
                                  hinge_frame_2d((0, 0), (1, 0))), f"{lab}: picture"))
             self.add(Panel(f"{base}.Foot", base, "tab",
-                           [[(-hw + ch, -tf), (hw - ch, -tf), (hw, 0), (-hw, 0)]],
+                           [[(xl + ch, -tf), (xr - ch, -tf), (xr, 0), (xl, 0)]],
                            lambda t: asm_tabB(t) @ M, host.p2, None, f"{lab}: foot"))
             ta = min(t_, a - 1.0, b)
             tc = min(t_, a)
@@ -1566,14 +1567,16 @@ class Model:
             TB = Mi @ Matrix.Translation((a + b, -y0, 0.0))
         else:
             # picture pattern: x along the fold, y out from the background
+            # (x runs down the fold here: it starts at the leg's start all the same)
             M = Matrix(((0, 1, 0, 0), (-1, 0, 0, vc), (0, 0, 1, 0), (0, 0, 0, 1)))
+            xl, xr = vc - Wi, vc
             tf = min(t_, a)
             ch = min(0.3 * tf, 0.25 * Wi)
             self.add(Panel(f"{base}.TabA", base, "tab",
-                           [[(-hw, 0), (-hw + ch, -tf), (hw - ch, -tf), (hw, 0)][::-1]],
+                           [[(xl, 0), (xl + ch, -tf), (xr - ch, -tf), (xr, 0)][::-1]],
                            lambda t: asm_tabA(t) @ M, host.p1, None,
                            f"{lab}: tab on the background"))
-            self.add(Panel(AC, base, "panel", [[(-hw, 0), (hw, 0), (hw, Hi), (-hw, Hi)]],
+            self.add(Panel(AC, base, "panel", [[(xl, 0), (xr, 0), (xr, Hi), (xl, Hi)]],
                            lambda t: asm_ac(t) @ M, host.p1,
                            Hinge(host.T1 @ hinge_frame_2d((-a, y0 + vc), (0, 1)),
                                  hinge_frame_2d((0, 0), (-1, 0))), f"{lab}: picture"))
@@ -3607,6 +3610,11 @@ class Model:
         U = Vector((uu[0], uu[1], 0))
         Hd = Z.cross(U)
         Wf, Lf = float(m["width"]), float(m["length"])
+        # x, y is where the hinge starts; it runs Width from there: away from
+        # the spine (a hinge across the page) or up the card (one along it)
+        along = (Vector(((-1.0 if left else 1.0), 0.0, 0.0)) if uu[1] != 0
+                 else Vector((0.0, 1.0, 0.0)))
+        hx, hy = hx + 0.5 * Wf * along.x, hy + 0.5 * Wf * along.y
         tb = min(float(m.get("tab", 10.0)), 30.0)
         amax = float(m.get("angle", 150.0))
         ws = min(float(m.get("strip", 10.0)), Wf - 2)

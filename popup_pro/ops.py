@@ -70,7 +70,7 @@ DEFAULTS = {
     "BOXCUT": dict(y=20.0, width=40.0, height=30.0, depth=30.0),
     "MOUTH": dict(y=150.0, jaw=30.0, upper=20.0, lower=15.0),
     "CUBE": dict(y=60.0, size=40.0, height=40.0, tab=10.0),
-    "FLAP": dict(y=170.0, x=70.0, width=40.0, length=35.0, tab=8.0),
+    "FLAP": dict(y=170.0, x=50.0, width=40.0, length=35.0, tab=8.0),
     "TUBE": dict(y=80.0, x=25.0, depth=40.0, height=50.0, front=30.0, back=30.0, tab=10.0),
     "TETHER": dict(height=30.0, tab=8.0, to_y=40.0),
     "PYRAMID": dict(y=80.0, x=25.0, depth=50.0, height=40.0, ridge=0.0, front=25.0,
@@ -86,7 +86,7 @@ DEFAULTS = {
     "RISER": dict(y=60.0, width=70.0, height=80.0, tab=12.0, brace_size=20.0),
     "DOUBLE45": dict(y=105.0, width=30.0, height=45.0, depth=104.0, tab=10.0),
     "JACK": dict(y=30.0, width=60.0, height=25.0, depth=25.0, tab=10.0),
-    "PICTURE": dict(y=0.0, x=0.0, img_w=30.0, img_h=40.0),
+    "PICTURE": dict(img_w=30.0, img_h=40.0),
     "ROOF": dict(phi_l=100.0, alpha_l=70.0, glue=150.0, height=60.0, tab=8.0,
                  tab_side="IN"),
 }
@@ -269,7 +269,7 @@ class POPUP_OT_add(bpy.types.Operator):
             else:
                 m.face = "Page.R"
             if not on:
-                m.x, m.y = 0.0, 20.0
+                m.pic_x, m.pic_y = 0.0, 20.0
             st["live"] = was
             st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
             _rebuild(self, context, force=st.rig is not None and not st.edited)
@@ -1924,22 +1924,59 @@ class POPUP_OT_tri_pictures(bpy.types.Operator):
         ends = {"TOP": "T", "BOTTOM": "B", "BOTH": "TB"}[bx.tri45]
         sides = {"LEFT": "L", "RIGHT": "R", "BOTH": "LR"}[self.which]
         done = {x.face for x in st.mechs if x.kind == "PICTURE" and x.host_uid == bx.uid}
+        from . import arrange
+        from .core.openings import face_frame
+        from mathutils import Vector
+        model = arrange._model(st)
+        hc = model.hosts.get((bx.uid, "C"))
+        if hc is None:
+            self.report({"ERROR"}, "Build the card first")
+            return {"CANCELLED"}
+        Ti = hc.T1.inverted()  # piece pattern -> the crease's own frame (x across, y up it)
         was = st.live
         st["live"] = False
-        k = bx.tri_size
         made = 0
         for e in ends:
             for sd in sides:
                 face = f"Box{bx.uid}.Tri{e}{sd}"
-                if face in done:
+                tri = model.panels.get(face)
+                if face in done or tri is None:
                     continue
+                pts = [Ti @ Vector((q[0], q[1], 0.0)) for q in tri.polys[0]]
+                on = [p for p in pts if abs(p.x) < 1e-4]  # the two on the crease
+                if len(on) != 2:
+                    continue
+                edge = max(on, key=lambda p: p.y) if e == "T" else min(on, key=lambda p: p.y)
+                apex = on[0] if on[1] is edge else on[1]
+                k = (edge - apex).length  # the triangle's size
+                out = Vector((-1.0 if sd == "L" else 1.0, 0.0, 0.0))
+                inward = (apex - edge).normalized()
+                if bx.tri_pic_layout == "ALONG":
+                    # bottom edge along the crease from the box's edge in,
+                    # reaching out across the face (as Box 1 in Kim's file)
+                    ay, w_, h_ = out, round(0.6 * k, 1), round(k, 1)
+                    ax = inward if inward.cross(ay).z > 0 else -inward
+                    corner = edge if ax.dot(inward) > 0 else edge + inward * w_
+                else:
+                    # standing on the triangle, out past the box's edge
+                    ay, w_, h_ = -inward, round(0.6 * k, 1), round(1.6 * k, 1)
+                    ax = Vector((ay.y, -ay.x, 0.0))
+                    mid = apex + out * (0.5 * k)
+                    corner = mid - ax * (0.5 * w_)
+                # into the face's own frame (what X, Y and Turn are measured in)
+                T1 = hc.T1
+                cp = T1 @ corner
+                axp = T1.to_3x3() @ ax
+                origin, across, upv, _ = face_frame(model, face)
+                rel = (cp.x - origin[0], cp.y - origin[1])
                 m = _add(st, "PICTURE")
                 m.host_uid, m.face = bx.uid, face
-                m.img_w, m.img_h = round(1.5 * k, 1), round(2.5 * k, 1)
-                # anchored on the triangle, pointing out past the box's edge
-                m.x = 0.0
-                m.y = 0.0 if e == "T" else round(k, 1)
-                m.pic_turn = 0.0 if e == "T" else 180.0
+                m.img_w, m.img_h = w_, h_
+                m.pic_x = round(rel[0] * across[0] + rel[1] * across[1], 2)
+                m.pic_y = round(rel[0] * upv[0] + rel[1] * upv[1], 2)
+                ca = axp.x * across[0] + axp.y * across[1]
+                sa = axp.x * upv[0] + axp.y * upv[1]
+                m.pic_turn = round(math.degrees(math.atan2(sa, ca)), 3)
                 m.label = unique_label(st.mechs, f"{bx.label} picture", m)
                 made += 1
         st["live"] = was
