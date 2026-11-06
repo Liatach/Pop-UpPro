@@ -239,6 +239,7 @@ class Model:
         self.hosts = {}
         self.placed = {}  # mechanism uid -> the Host it was built on
         self.cut_panels = set()
+        self.carried = set()  # V-fold halves grown a top to carry another's tabs
         self.pull = {}  # flap uid -> pull 0..1 (the Pull slider)
         self.soft = set()  # panel pairs joined by a sliding bend, not a fold
         self.blend = {}  # bent panel -> (stiff a, stiff b, y at a, y at b): shown between
@@ -1747,6 +1748,33 @@ class Model:
             halfR = [(0, 0), GR, (GR[0], GR[1] + Lc), Q]
         FcL = hinge_frame_2d((0, 0), uLp)
         FcR = hinge_frame_2d((0, 0), uRp)
+        # glued away from the spine (Birmingham 18-20): the glue lines still
+        # meet at the fold, the tabs start further out along them, and the
+        # piece is cut away in an arch between them
+        off = {"L": float(m.get("glue_from", 0.0) or 0.0),
+               "R": float(m.get("glue_from_r", m.get("glue_from", 0.0)) or 0.0)}
+        for sd in ("L", "R"):
+            if off[sd] > gs[sd] - 3.0:
+                off[sd] = max(0.0, gs[sd] - 3.0)
+                self.warn(f"{lab}: tabs start past the end of their glue line; shortened")
+        if off["L"] > 0 or off["R"] > 0:
+            ah = float(m.get("arch", 0.0) or 0.0) or max(off["L"], off["R"])
+            ah = min(ah, Lc - 3.0)
+            for sd, up, half in (("L", uLp, halfL), ("R", uRp, halfR)):
+                c0 = off[sd]
+                if c0 <= 0:
+                    continue
+                # keep what's beyond the line from (0, ah) on the crease to c0
+                # out along the glue line
+                a_, b_ = Vector((0.0, ah, 0.0)), Vector((c0 * up[0], c0 * up[1], 0.0))
+                n = Vector((-(b_ - a_).y, (b_ - a_).x, 0.0)).normalized()
+                if n.dot(-a_) > 0:  # (pointing away from the V point)
+                    n = -n
+                cut = clip_halfplane(half, (n.x, n.y), n.dot(a_))
+                if sd == "L":
+                    halfL = cut
+                else:
+                    halfR = cut
 
         # Tabs: fold flat onto the host along the glue line, inside or outside
         bis = Vector((uLf[0] + uRf[0], uLf[1] + uRf[1], 0))
@@ -1765,10 +1793,17 @@ class Model:
             T = frame(Vector((0, yP, lift * TAB_LIFT)), -sigma * q,
                       Vector((uf[0], uf[1], 0))) @ Fc.inverted()
             gp = (gs[side] * up[0], gs[side] * up[1])
-            ins = min(0.5 * t_, 0.3 * gs[side])
-            poly = [(0, 0), gp,
-                    (gp[0] + t_ * s2.x - ins * up[0], gp[1] + t_ * s2.y - ins * up[1]),
-                    (t_ * s2.x, t_ * s2.y)]
+            c0 = off[side]
+            ins = min(0.5 * t_, 0.3 * (gs[side] - c0))
+            if c0 > 0:  # glued away from the spine: the tab starts c0 out
+                cp = (c0 * up[0], c0 * up[1])
+                poly = [cp, gp,
+                        (gp[0] + t_ * s2.x - ins * up[0], gp[1] + t_ * s2.y - ins * up[1]),
+                        (cp[0] + t_ * s2.x + ins * up[0], cp[1] + t_ * s2.y + ins * up[1])]
+            else:
+                poly = [(0, 0), gp,
+                        (gp[0] + t_ * s2.x - ins * up[0], gp[1] + t_ * s2.y - ins * up[1]),
+                        (t_ * s2.x, t_ * s2.y)]
             # stay on this side of the fold: virtual x <= -gap (left), >= gap (right)
             sgn = -1.0 if side == "L" else 1.0
             n2 = (sgn * T[0][0], sgn * T[0][1])
@@ -1790,6 +1825,7 @@ class Model:
             parent, Tp = (host.p1, host.T1) if side == "L" else (host.p2, host.T2)
             pa = self.panels[parent].asm
             Tpat = Tp @ T
+            self._carry_tab(parent, [(Tpat @ v3(q)).to_2d()[:] for q in poly], lab)
             self.add(Panel(f"{base}.Tab{side}", piece, "tab", [poly],
                            (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
                            f"{lab}: tab {side}"))
@@ -1809,6 +1845,37 @@ class Model:
             self.warn(f"{lab}: tears if opened past {min(tears):.0f} degrees (pointing "
                       f"forward, make each piece angle at least its glue angle; or turn on "
                       f"Fold Flat)")
+
+    def _carry_tab(self, parent, fp, lab):
+        """A V-fold standing on another's crease near its top (Birmingham
+        21-22): where its glue tab would hang off the lower one's half, that
+        half grows a pointed top (tab A) to carry it."""
+        import re
+        if not re.fullmatch(r"VFold\d+\.Half[LR]", parent):
+            return
+        P = self.panels[parent]
+        if len(P.polys) != 1 or len(fp) < 3:
+            return
+        if self._overlap(fp, P.polys[0]) >= abs(poly_area(fp)) - 0.5:
+            return
+        pts = sorted(set((round(x, 6), round(y, 6)) for x, y in list(P.polys[0]) + list(fp)))
+
+        def cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+        lo, hi = [], []
+        for q in pts:
+            while len(lo) >= 2 and cross(lo[-2], lo[-1], q) <= 1e-9:
+                lo.pop()
+            lo.append(q)
+        for q in reversed(pts):
+            while len(hi) >= 2 and cross(hi[-2], hi[-1], q) <= 1e-9:
+                hi.pop()
+            hi.append(q)
+        hull = lo[:-1] + hi[:-1]
+        if poly_area(P.polys[0]) < 0:
+            hull = hull[::-1]
+        P.polys[0] = hull
+        self.carried.add(parent)
 
     def _fan(self, m, host, base, piece, lab, yP, uLf, R_, t_):
         """A pleated fan: a row of small V-folds side by side, sharing their

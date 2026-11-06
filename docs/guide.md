@@ -473,6 +473,27 @@ angle between the halves. A V-fold sits on the other side of the crease, the
 printed face, so V-folds stack outwards into a tower. Stand-ups and glued boxes can also stand in front
 of or behind either half (above).
 
+### V-folds glued away from the spine
+
+Birmingham 18–20. The two pieces still meet at the spine, but their glue tabs
+start some way out along the glue lines: set **Glued From** (mm along the glue
+line from where it meets the spine; with Symmetric off, **Glued From L** and
+**R** can differ). The bottom of the piece is cut away between the tab starts
+so nothing near the spine is glued, which leaves the spine end free to
+move and lets the piece sit over things glued close to the fold.
+**Arch Height** sets how far up the centre crease the cut-away reaches (0 lets
+it follow the larger Glued From). The cut is straight; draw a curve with
+**Holes and shaping** if you want a rounded arch.
+
+### A V-fold on top of a V-fold
+
+Birmingham 21–22. With a V-fold selected, **Add → V-fold on Top (tabs A)**
+stands a second V-fold at the top of its crease, the two creases against each
+other. Where the new one's glue tabs would hang off the lower one's halves,
+those halves grow a pointed top (the book's tabs A) to carry them. Move the
+upper one's **Position** down the crease and the points shrink back; the
+checks still say if the points stick out of the closed card.
+
 ### Extra creases and cuts
 
 See [Tutorial 7](https://www.youtube.com/watch?v=IkJAnmS-2ZE) and [Tutorial 22](https://www.youtube.com/watch?v=Ze9shENIBf4).

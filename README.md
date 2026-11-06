@@ -79,8 +79,8 @@ Paint flat or folded, import and position images or simply textures, then export
 ## Features
 
 **Mechanisms**
-* V-folds (panels, beaks or pleated fans; symmetric or asymmetric), mouths
-  and jaws.
+* V-folds (panels, beaks or pleated fans; symmetric or asymmetric; glued
+  away from the spine; on top of each other), mouths and jaws.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
 * Tubes, pyramids and tents on parallel strips, with tethers and roofs, and
   castles: towers up a tube's inside corners with pyramid roofs that still
@@ -214,12 +214,18 @@ Sunflower is a good way to make them.
   * the jack in the box on a parallelogram, arms that reach out past the
     base's edges 
   * box ends filled by double 45° folds, and a box lid lifted by a strut
+* **V-folds, continued** (Birmingham): the "bite" that sculpts a V-fold
+  into a curve or a point (12–15), a looped arch (16), tall narrow sides
+  that twist (19), and the M-fold (28–29).
 * **Multiple quadrilaterals**: a chain of linked quadrilaterals sweeping
   across the spine, each with its own height and shape, as long as each
   one's front and rear crease lengths balance.
 
 ## Version history
 
+* **0.67**: V-folds glued away from the spine (Glued From, the piece arched
+  away between the tabs, each side its own distance); a V-fold on top of a
+  V-fold, the lower one's halves growing points to carry its tabs.
 * **0.66**: widths grow one way, from a corner or a start (pictures, stand-up
   pictures, flaps); pictures on the 45° triangles along the crease by
   default, at either end; Align to the fold or card by default.

@@ -169,7 +169,8 @@ class POPUP_OT_add(bpy.types.Operator):
     variant: StringProperty(default="", description="ASYM: an asymmetric V-fold; "
                            "VALLEY: a roof upside down; STRAP: a box fold with equal sides "
                            "(gullies off the centre); CASTLE: a tube with towers; TOWERS: "
-                           "a tower in every inside corner of a tube",
+                           "a tower in every inside corner of a tube; TOP: a V-fold at the top of a "
+                           "V-fold's crease",
                            options={"SKIP_SAVE"})
 
     def execute(self, context):
@@ -316,6 +317,17 @@ class POPUP_OT_add(bpy.types.Operator):
             if self.side:
                 next(x for x in st.mechs if x.uid == uid)["side"] = 1 if self.side == "L" else 0
             _put_on(st, uid, self.host, self.fold)
+        if self.kind == "VFOLD" and self.variant == "TOP" and self.host:
+            # Birmingham 21-22: at the top of the lower V-fold's crease, its
+            # tabs carried by points grown on the lower one's halves (tabs A)
+            h = next(x for x in st.mechs if x.uid == self.host)
+            was = st.live
+            st["live"] = False
+            m = next(x for x in st.mechs if x.uid == uid)
+            m.y = round(h.height, 1)
+            m.glue = m.height = round(0.5 * min(h.glue, h.height), 1)
+            m.tab = min(m.tab, round(0.3 * m.glue, 1))
+            st["live"] = was
         if self.kind == "STAGE":  # a staging frame at the front, one frame behind
             for _ in range(2):
                 _put_on(st, _add(st, "FRAME").uid, uid, "A")

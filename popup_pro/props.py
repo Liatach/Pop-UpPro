@@ -903,6 +903,19 @@ class PopupMech(bpy.types.PropertyGroup):
                          "an angle (degrees from square). Its creases stay parallel to the "
                          "fold; one end sits further up the card than the other, so what "
                          "stands on its folds is offset diagonally")
+    glue_from: FloatProperty(name="Glued From", default=0.0, min=0.0, soft_max=100.0,
+                             update=_changed, description="Glued away from the spine "
+                             "(Birmingham 18): the glue lines still meet at the fold, but "
+                             "the tabs start this far out along them (mm), and the piece is "
+                             "cut away in an arch between them. 0: glued right up to the "
+                             "fold")
+    glue_from_r: FloatProperty(name="Glued From R", default=0.0, min=0.0, soft_max=100.0,
+                               update=_changed, description="Where the right tab starts "
+                               "along its glue line (mm), for an asymmetrical piece")
+    arch: FloatProperty(name="Arch Height", default=0.0, min=0.0, soft_max=200.0,
+                        update=_changed, description="How far up the crease the arch cut "
+                        "away between the tabs reaches (mm). 0: as high as the tabs are "
+                        "far out")
     glue_r: FloatProperty(name="Glue Length R", default=0.0, min=0.0, soft_max=150.0,
                           update=_changed,
                           description="Asymmetric V-fold: length of the right glue edge "
@@ -1075,6 +1088,9 @@ class PopupMech(bpy.types.PropertyGroup):
                      phi_r=self.phi_l if self.symmetric else self.phi_r, alpha_r=ar,
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
                      glue_r=self.glue if self.symmetric or self.glue_r <= 0 else self.glue_r,
+                     glue_from=self.glue_from,
+                     glue_from_r=self.glue_from if self.symmetric else self.glue_from_r,
+                     arch=self.arch,
                      shape=self.shape, cut_above=self.cut_above, fan_pleats=self.fan_pleats,
                      fan_spread=self.fan_spread, fan_stand=self.fan_stand,
                      pleat=self.pleat,

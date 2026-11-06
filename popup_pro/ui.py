@@ -143,6 +143,10 @@ class POPUP_MT_add(bpy.types.Menu):
                                ("STANDUP", "Stand-up on the Crease")):
                 op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
                 op.kind, op.host, op.fold = kind, h.uid, "V"
+                if kind == "VFOLD":
+                    op = self.layout.operator("popup.add", text="V-fold on Top (tabs A)",
+                                              icon=KIND_ICON[kind])
+                    op.kind, op.host, op.fold, op.variant = kind, h.uid, "V", "TOP"
             for kind, text in (("CUBE", "Cube in the V (on the Crease)"),
                                ("TUBE", "Tube in the V (on the Crease)")):
                 op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
@@ -705,6 +709,11 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     col.prop(m, "alpha_r")
             if not m.host_uid:
                 col.prop(m, "cut_above")
+            col.prop(m, "glue_from", text="Glued From" if m.symmetric else "Glued From L")
+            if not m.symmetric:
+                col.prop(m, "glue_from_r")
+            if m.glue_from > 0 or (not m.symmetric and m.glue_from_r > 0):
+                col.prop(m, "arch")
             _tabs(self.layout, m)
             _draw_lines(self.layout, context, m)
         else:
