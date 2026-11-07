@@ -630,7 +630,9 @@ def _shape_changed(self, context):
         st["live"] = False
         try:
             if self.shape == "M":
-                self.alpha_l, self.m_hinge = 90.0, 50.0
+                # standing well up, opening flat: A 80, B 60, C = D 120, E = F 60
+                self.alpha_l, self.phi_l, self.symmetric = 80.0, 60.0, True
+                self.m_d, self.m_e, self.m_free = 120.0, 60.0, False
             elif self.shape == "ZIGZAG":
                 # glue lines running down and out, the walls a way out on them
                 self.phi_l, self.symmetric = 120.0, True
@@ -759,6 +761,24 @@ class PopupMech(bpy.types.PropertyGroup):
          "between them ride up on their creases. The centre crease takes other "
          "mechanisms like any V-fold's")],
         update=lambda self, ctx: _shape_changed(self, ctx))
+    m_d: FloatProperty(name="Angle D", default=115.0, min=20.0, max=175.0, update=_changed,
+                       description="M-fold, on the piece: at the bend in a half's bottom edge, "
+                       "between the edge (back towards the centre) and the crease rising off "
+                       "it. With Free Angles off, angle C on the page matches it")
+    m_e: FloatProperty(name="Angle E", default=45.0, min=5.0, max=150.0, update=_changed,
+                       description="M-fold, on the piece: the little panel between that crease "
+                       "and crease H. With Free Angles off, the outer panel's angle F "
+                       "matches it")
+    m_c: FloatProperty(name="Angle C", default=115.0, min=20.0, max=175.0, update=_changed,
+                       description="M-fold, on the page: where the glue line bends, between "
+                       "its part towards the spine and its outer part")
+    m_f: FloatProperty(name="Angle F", default=45.0, min=5.0, max=150.0, update=_changed,
+                       description="M-fold, on the piece: the outer panel's corner between "
+                       "crease H and its glued edge")
+    m_free: BoolProperty(name="Free Angles", default=False, update=_changed,
+                         description="M-fold: set C and F yourself. The book's rules (C = D, "
+                         "E = F) fold flat; to change them, change both together (if D = C + "
+                         "x then E = F + x, with H a mountain fold)")
     m_inner: FloatProperty(name="Inner Length", default=30.0, min=3.0, soft_max=200.0,
                            update=_changed, description="M-fold: along each half's bottom "
                            "edge, from the centre crease to where crease H starts (mm)")
@@ -1078,6 +1098,12 @@ class PopupMech(bpy.types.PropertyGroup):
         default="LIGHT", update=_changed,
         description="Zig-zags and quadrilaterals: walls standing on angled strips tip their "
         "bottom edges down towards the pages part way open")
+    q_back1: FloatProperty(name="Back, Outer Face", default=16.0, min=3.0, soft_max=200.0,
+                           update=_changed, description="Quadrilaterals: the back's face from "
+                           "the strip to its crease (D), each side (mm)")
+    q_back2: FloatProperty(name="Back, Centre Face", default=16.0, min=3.0, soft_max=200.0,
+                           update=_changed, description="Quadrilaterals: the back's face from "
+                           "that crease to the centre crease (E), each side (mm)")
     q_side: FloatProperty(name="Side", default=25.0, min=3.0, soft_max=200.0, update=_changed,
                           description="Quadrilaterals: the side piece's face from the strip's "
                           "far end to the front (mm). Its other face is worked out so the "
@@ -1205,7 +1231,9 @@ class PopupMech(bpy.types.PropertyGroup):
                      depth=self.depth)
         elif self.kind in ("ZIGZAG", "QUADS"):
             d.update(type=self.kind, phi_l=self.phi_l, x=self.x, width=self.width,
-                     height=self.height, faces=self.faces, jut=self.jut,
+                     height=self.height, jut=self.jut,
+                     faces=self.faces if self.kind == "ZIGZAG" else
+                     f"{self.q_back1:g}, {self.q_back2:g}",
                      depth=self.q_side, front=self.q_front, back=self.q_side_h,
                      img_h=self.q_front_h, cut_bottoms=self.cut_bottoms)
         elif self.kind == "STANDUP":
@@ -1266,9 +1294,9 @@ class PopupMech(bpy.types.PropertyGroup):
                      cut_bottoms=self.cut_bottoms,
                      faces=self.faces if self.faces_uneven else
                      ", ".join([f"{self.face_w:g}"] * self.faces_n),
-                     m_inner=self.m_inner, m_hinge=self.m_hinge, m_outer=self.m_outer,
+                     m_d=self.m_d, m_e=self.m_e, m_c=self.m_c, m_f=self.m_f,
+                     m_free=self.m_free,
                      m_outer_len=self.m_outer_len, m_outer_h=self.m_outer_h,
-                     m_lean=self.m_lean,
                      shape=self.shape, cut_above=self.cut_above, fan_pleats=self.fan_pleats,
                      fan_spread=self.fan_spread, fan_stand=self.fan_stand,
                      pleat=self.pleat,

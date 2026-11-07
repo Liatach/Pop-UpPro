@@ -679,7 +679,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "jut")
                 col.prop(m, "height")
             else:
-                col.prop(m, "faces", text="Back Faces (strip in, mm)")
+                col.prop(m, "q_back1")
+                col.prop(m, "q_back2")
                 col.prop(m, "q_side", text="Side (back crease to front)")
                 col.prop(m, "q_front", text="Front (to centre)")
                 col.prop(m, "height", text="Back Height")
@@ -724,18 +725,20 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 return
             if m.shape == "M":
                 col.prop(m, "height", text="Fold Length")
-                col.prop(m, "phi_l", text="Glue Angle (where the halves touch down)")
-                col.prop(m, "alpha_l", text="Piece Angle")
-                col.prop(m, "m_inner")
-                col.prop(m, "m_hinge")
-                col.prop(m, "m_outer_h")
-                col.prop(m, "m_outer")
-                col.prop(m, "m_outer_len")
-                col.prop(m, "glue_from", text="Glued From (along the outer edge)")
-                col.prop(m, "m_lean")
-                col.label(text="Only the outer panels are glued; the centre crease takes "
-                          "other mechanisms", icon="INFO")
-                _tabs(self.layout, m, side=False)
+                col.prop(m, "phi_l", text="Glue Angle (B)")
+                col.prop(m, "alpha_l", text="Piece Angle (A)")
+                col.prop(m, "glue", text="Glue Length to the Bend")
+                col.prop(m, "m_d", text="Angle D (= C on the page)" if not m.m_free else
+                         "Angle D")
+                col.prop(m, "m_e", text="Angle E (= F)" if not m.m_free else "Angle E")
+                col.prop(m, "m_free")
+                if m.m_free:
+                    col.prop(m, "m_c")
+                    col.prop(m, "m_f")
+                col.prop(m, "m_outer_h", text="Crease Length (D and H)")
+                col.prop(m, "m_outer_len", text="Outer Glue Length")
+                col.prop(m, "glue_from")
+                _tabs(self.layout, m)
                 self.draw_warnings(context, m)
                 return
             fan = m.shape == "FAN"

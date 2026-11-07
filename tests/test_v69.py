@@ -82,7 +82,7 @@ st.mechs.clear()
 assert bpy.ops.popup.add(kind="VFOLD") == {"FINISHED"}
 v = st.mechs[0]
 v.shape = "M"
-assert v.label == "M-fold 1" and v.alpha_l == 90.0 and v.m_hinge == 50.0, v.label
+assert v.label == "M-fold 1" and v.alpha_l == 80.0 and v.m_d == 120.0, v.label
 v.shape = "FAN"
 assert v.label == "Fan 1"
 v.label = "Tower"

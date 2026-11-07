@@ -417,33 +417,34 @@ def build(model, m, host, plan, pieces, lab, tab):
     # clear it
     how = m.get("cut_bottoms", "LIGHT")
     slack = 0.6 if how == "CLEAR" else 3.0  # (mm a bottom may rub on a page)
+    Tc = [t for t in model.TABLE_T[::2] if t >= 12.0]
+    # (only where it would really dig in: card gives a little, and nearly
+    # shut everything is lying down anyway)
+    pg = {t: host.dirs(t) for t in Tc}
+
+    def need(a, b, f):
+        """How far up a wall's bottom must start, at fraction f from node a
+        to node b, to clear both pages at every opening."""
+        if how == "NONE":
+            return 0.0
+        worst = 0.0
+        for t in Tc:
+            Lo, _, _, _, nL, nR = pg[t]
+            X = Vector(plan.point(t, a)) * (1.0 - f) + Vector(plan.point(t, b)) * f
+            d = Vector(plan.frame_at(t)["d"])
+            for nn in (nL, nR):
+                dip = -(X - Lo).dot(nn) - slack
+                if dip > 0.0:
+                    up = d.dot(nn)  # (how much a step up the crease lifts it)
+                    if up > 0.2:
+                        worst = max(worst, dip / up)
+        return worst + 0.5 if worst > 0.05 else 0.0
     clear = {}
     for pc in pieces:
         for n in pc["nodes"]:
-            if n in clear:
-                continue
-            if n[0] in "AB" and n[1:] in (".L", ".R"):
-                clear[n] = 0.0  # (on a strip's glue line)
-                continue
-            # (only where it would really dig in: card gives a little, and
-            # nearly shut everything is lying down anyway)
-            if how == "NONE":
-                clear[n] = 0.0
-                continue
-            worst = 0.0
-            for t in model.TABLE_T[::2]:
-                if t < 12.0:
-                    continue
-                Lo, _, _, _, nL, nR = host.dirs(t)
-                X = Vector(plan.point(t, n))
-                d = Vector(plan.frame_at(t)["d"])
-                for nn in (nL, nR):
-                    dip = -(X - Lo).dot(nn) - slack
-                    if dip > 0.0:
-                        up = d.dot(nn)  # (how much a step up the crease lifts it)
-                        if up > 0.2:
-                            worst = max(worst, dip / up)
-            clear[n] = worst + 0.5 if worst > 0.05 else 0.0
+            if n not in clear:
+                glue = n[0] in "AB" and n[1:] in (".L", ".R")  # (on a strip's glue line)
+                clear[n] = 0.0 if glue else need(n, n, 0.0)
     plan.clear = clear
 
     slot = 1 + uid
@@ -459,13 +460,20 @@ def build(model, m, host, plan, pieces, lab, tab):
         for k in range(len(ns) - 1):
             name = f"{pc['key']}{k}"
             w = walls[name]
-            ca, cb = clear.get(w["a"], 0.0), clear.get(w["b"], 0.0)
-            if max(ca, cb) > w["h"] - 3.0:
+            # its bottom: cut only as far along as it would dig in (the cut
+            # is a max of straight lines along the wall, so it stays convex)
+            bot = []
+            for j in range(9):
+                f = j / 8.0
+                c_ = clear[w["a"]] if j == 0 else clear[w["b"]] if j == 8 else \
+                    need(w["a"], w["b"], f)
+                bot.append((w["x0"] + f * w["L"], c_))
+            if max(c_ for _, c_ in bot) > w["h"] - 3.0:
                 model.warn(f"{lab}: {pc['label']} {k + 1} would dip right into the page; "
                            f"make it taller or the strips steeper")
-                ca, cb = min(ca, w["h"] - 3.0), min(cb, w["h"] - 3.0)
-            poly = [(w["x0"], ca), (w["x0"] + w["L"], cb), (w["x0"] + w["L"], w["h"]),
-                    (w["x0"], w["h"])]
+                bot = [(x_, min(c_, w["h"] - 3.0)) for x_, c_ in bot]
+            from .geom import clean, ccw
+            poly = clean(ccw(bot + [(w["x0"] + w["L"], w["h"]), (w["x0"], w["h"])]))
             glued = (k == 0 and pc["glued"][0]) or (k == len(ns) - 2 and pc["glued"][1])
             pname = f"{base}.{name}"
             if k == 0 and pc["glued"][0] or k == 0 and pc.get("first") is None:

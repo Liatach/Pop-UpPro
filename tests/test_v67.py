@@ -164,8 +164,9 @@ assert bpy.ops.popup.export_svg(filepath=svg) == {"FINISHED"}
 print("V-fold on top, tabs A: point cut", round(area0), "->", round(area1), "mm2; top piece",
       [round(x) for x in el], "degrees up;", round(e, 4))
 
-# ---- the M-fold (Birmingham 28-29): only the outer panels glued; the halves
-# ride between them and each other
+# ---- the M-fold (Birmingham 28-29): halves glued as a V-fold's to a bend in
+# their glue lines; past it crease D, a little panel E, crease H and an outer
+# panel glued along the line's outer part (v0.70)
 st.mechs.clear()
 assert bpy.ops.popup.add(kind="VFOLD") == {"FINISHED"}
 mf = st.mechs[0]
@@ -181,7 +182,9 @@ for side in "LR":
     # glued on the printed side of its page (both of them)
     Mt = P[pg].asm(90.0).inverted() @ P[f"VFold{u}.Tab{side}"].asm(90.0)
     assert all((Mt @ v3(q)).z > 0.0 for q in P[f"VFold{u}.Tab{side}"].polys[0]), side
-    assert P[f"VFold{u}.Half{side}"].parent == f"VFold{u}.Outer{side}"  # (not glued)
+    assert P[f"VFold{u}.Outer{side}"].parent == pg
+    assert P[f"VFold{u}.OuterTab{side}"].parent == pg
+    assert P[f"VFold{u}.E{side}"].parent == f"VFold{u}.Half{side}"
 # the halves meet along the centre crease at every opening
 for t in (179.0, 140.0, 90.0, 45.0, 10.0, 1.0):
     a_, b_ = P[f"VFold{u}.HalfL"].asm(t), P[f"VFold{u}.HalfR"].asm(t)

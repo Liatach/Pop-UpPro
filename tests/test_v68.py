@@ -135,16 +135,17 @@ for k in ("K0", "K5", "SL0", "SR0", "F0", "F1"):
 # the side piece's corner and the front's ends meet, opening by opening
 for t in (160.0, 100.0, 40.0, 10.0):
     sr = P[f"Link{u}.SR0"]
-    x_c = sr.polys[0][1][0]
+    x_c = max(q[0] for q in sr.polys[0])
     c1 = sr.asm(t) @ Vector((x_c, 20.0, 0))
     f1 = P[f"Link{u}.F1"]
-    c2 = f1.asm(t) @ Vector((f1.polys[0][1][0], 20.0, 0))
+    c2 = f1.asm(t) @ Vector((max(q[0] for q in f1.polys[0]), 20.0, 0))
     assert (c1 - c2).length < 0.05, (t, (c1 - c2).length)
 # the quadrilateral balances: B to C worked out from the rest
 d = q_.to_dict()
 ad = float(d["faces"].split(",")[0])
 bc = ad + q_.q_side - q_.width
-assert abs(P[f"Link{u}.SR0"].polys[0][1][0] - P[f"Link{u}.SR0"].polys[0][0][0] - bc) < 0.01
+xs = [q[0] for q in P[f"Link{u}.SR0"].polys[0]]
+assert abs(max(xs) - min(xs) - bc) < 0.01
 assert feet_clear(model, u) > -0.6
 assert shut_spread(model) < 3.0, shut_spread(model)
 e = rig_error()
