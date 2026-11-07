@@ -55,6 +55,34 @@ ROUND_DMAX = _round_peak(ROUND_FACETS)
 ROUND_FMAX = _round_reach(ROUND_DMAX, ROUND_FACETS)  # about 0.72
 
 
+def arcade(L, w, bays, top, sill, pillar, arch=True):
+    """A strip L long (s down from its top edge) and w wide (v across) with
+    bays openings between pillars, under a band top deep and over a sill
+    (0: open at the bottom), as polygons that share edges (one sheet).
+    arch: the openings' tops are half circles."""
+    bays = max(1, int(bays))
+    bw = (w - (bays + 1) * pillar) / bays
+    if bw < 1.0 or L - top - sill < 2.0:
+        return None
+    r = 0.5 * bw
+    s_spring = top + (r + 0.8 if arch else 0.0)
+    if arch and L - sill - s_spring < 1.0:
+        return None
+    out = [[(0.0, 0.0), (top, 0.0), (top, w), (0.0, w)]]
+    if sill > 1e-6:
+        out.append([(L - sill, 0.0), (L, 0.0), (L, w), (L - sill, w)])
+    for i in range(bays + 1):
+        v0 = i * (pillar + bw)
+        out.append([(top, v0), (L - sill, v0), (L - sill, v0 + pillar), (top, v0 + pillar)])
+        if arch and i < bays:
+            a0, a1 = v0 + pillar, v0 + pillar + bw
+            vc = 0.5 * (a0 + a1)
+            arc = [(s_spring - r * math.sin(math.pi * j / 16), vc - r * math.cos(math.pi * j / 16))
+                   for j in range(17)]
+            out.append([(top, a0)] + arc + [(top, a1)])
+    return out
+
+
 def round_arc(x, L, n):
     """A round tube wall half, length L, from a side wall's end to the
     mirror plane x across, as n flat facets turning evenly: straight when
@@ -837,6 +865,8 @@ class Model:
             h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0, f"{lab}: {txt}", T1, T2).finish()
             h.trig = host.trig
             self.hosts[(uid, key)] = h
+        if m.get("support", "SOLID") == "ARCHES" and m.get("style") != "CUT" and single:
+            self._supports(m, base, a, b, w, k)
         rail = float(m.get("rail", 0.0) or 0.0)
         if rail > 1e-6:
             self._rail(m, host, base, a, b, y0, w, k, rail, single)
@@ -856,6 +886,8 @@ class Model:
                 self._raise_walls(host, a, b, y0 + w)
             if m.get("roof") == "POINTED":
                 self._tower_roof(m, host, base, a, b, y0, w, float(m.get("tab", 10.0)))
+            elif m.get("roof") == "GABLE":
+                self._tower_gable(m, host, base, a, b, y0, w, float(m.get("tab", 10.0)))
 
     # ------------------------------------------------------- 45 degree folds
     def _brace(self, owner, k, host, y, size, lean, tab, lab):
@@ -3096,6 +3128,171 @@ class Model:
                         polys.append([(T @ Vector((x, y, 0.0))).to_2d()[:] for x, y in part])
             p.polys = [ccw(q) for q in polys]
 
+    @staticmethod
+    def _peak(polys, T, lo, hi, top, rise):
+        """Raise a gable on the top edge of a panel between x = lo and hi
+        (coordinates through T, pattern -> local): its apex rise above top,
+        half-way. Returns the new polys (pattern coordinates)."""
+        Ti = T.inverted()
+        out = []
+        for poly in polys:
+            V = [(Ti @ v3(q)).to_2d()[:] for q in poly]
+            n = len(V)
+            done = False
+            for i in range(n):
+                if done:
+                    break
+                P, Q = V[i], V[(i + 1) % n]
+                if abs(P[1] - top) > 1e-4 or abs(Q[1] - top) > 1e-4:
+                    continue
+                if min(P[0], Q[0]) > lo + 1e-4 or max(P[0], Q[0]) < hi - 1e-4:
+                    continue
+                pts = [(lo, top), (0.5 * (lo + hi), top + rise), (hi, top)]
+                if P[0] > Q[0]:
+                    pts.reverse()
+                pts = [q for q in pts if (q[0] - P[0]) ** 2 + (q[1] - P[1]) ** 2 > 1e-8 and
+                       (q[0] - Q[0]) ** 2 + (q[1] - Q[1]) ** 2 > 1e-8]
+                V = V[:i + 1] + pts + V[i + 1:]
+                done = True
+                break
+            out.append([(T @ Vector((x, y, 0.0))).to_2d()[:] for x, y in V])
+        return out
+
+    def _tower_gable(self, m, host, base, a, b, y0, w, tab):
+        """Birmingham 49's roof on a corner tower. The tower is a
+        parallelogram: a wall and the inner face across from it stay
+        parallel as it shears. Each of that pair gets a gable end; a rib
+        joins the two tips (the only points that keep their places to each
+        other) on vertical folds, and a roof creased along its ridge is
+        stuck on tabs on the rib's top, glued to nothing else. The gables'
+        slopes hold its halves up, square open, and let them hang down
+        flat as the tower shears flat; it overhangs the walls all round
+        (Overhang), so nothing snags as it closes."""
+        uid, lab = m["uid"], m["label"]
+        rise = max(1.0, float(m.get("roof_height", 0.0) or 0.6 * min(a, b)))
+        eave = max(0.0, float(m.get("eave", 0.0) or 0.0))
+        turn = bool(m.get("gable_turn", False))
+        AC, CB = f"{base}.AC", f"{base}.CB"
+        if AC not in self.panels or CB not in self.panels:
+            return
+        top = y0 + w
+        if not turn:  # gables on the left wall (S to A) and on CB; the ridge runs along b
+            wall, Tw, lo, hi = host.p1, host.T1, -a, 0.0
+            inner, ilo, ihi = CB, b, a + b
+            span, L = a, b
+        else:  # on the right wall (S to B) and on AC; the ridge runs along a
+            wall, Tw, lo, hi = host.p2, host.T2, 0.0, b
+            inner, ilo, ihi = AC, 0.0, b
+            span, L = b, a
+        # the gables (box pattern: u across, v up the corner from y0)
+        pw = self.panels[wall]
+        pw.polys = [ccw(q) for q in self._peak(pw.polys, Tw, lo, hi, top, rise)]
+        pin = self.panels[inner]
+        pin.polys = [ccw(q) for q in self._peak(pin.polys, Matrix.Identity(4), ilo, ihi, w, rise)]
+
+        def wpt(t, x, y):  # a point on the wall gable, virtual coordinates
+            return self.panels[wall].asm(t) @ (Tw @ Vector((x, y, 0.0)))
+
+        def geo(t):
+            E1 = wpt(t, 0.5 * (lo + hi), top + rise)
+            E2 = self.panels[inner].asm(t) @ Vector((0.5 * (ilo + ihi), w + rise, 0.0))
+            v = (E2 - E1).normalized()
+            S, l, r, Y, nl, nr = host.dirs(t)
+            ds = []
+            for x in (lo, hi):
+                d = wpt(t, x, top) - E1
+                d = d - d.dot(v) * v
+                ds.append(d.normalized())
+            return E1, E2, v, Y, ds
+
+        tr = self.t_ref
+        E1, E2, v, Y, ds = geo(tr)
+        if abs((E2 - E1).length - L) > 0.5:
+            self.warn(f"{lab}: the gable tips don't keep their distance; no roof")
+            return
+        # which corner each half rests on: printed side up
+        k0 = 0 if v.cross(ds[0]).dot(Y) > 0 else 1
+        # (the slope's true length along the roof: corner to ridge, square to it)
+        Eo, E2o, vo, _, _ = geo(self.tmax)
+        S0 = max(1.0, max(((wpt(self.tmax, x, top) - Eo) -
+                           (wpt(self.tmax, x, top) - Eo).dot(vo) * vo).length for x in (lo, hi)))
+        hr = max(3.0, min(0.6 * rise, 12.0))  # the rib, down from the ridge
+        tb = max(3.0, min(tab, 0.45 * span, 10.0))
+        rp = f"Rib{uid}"
+        self.add_piece(Piece(rp, f"{lab} roof rib", 400 + uid, (0.5 * L, 0.0)))
+
+        def asm_rib(t):
+            E1, E2, v, Y, ds = geo(t)
+            return frame(E1, v, Y)
+
+        # the rib hinges on the wall gable's tip, on a fold up the gable
+        Hp = Tw @ hinge_frame_2d((0.5 * (lo + hi), top + rise), (0.0, 1.0))
+        Fc = hinge_frame_2d((0.0, 0.0), (0.0, 1.0))
+        rib = self.add(Panel(f"{rp}.Rib", rp, "panel", [[(0.0, -hr), (L, -hr), (L, 0.0),
+                                                         (0.0, 0.0)]], asm_rib, wall,
+                             Hinge(Hp, Fc, "TABLE", {}), f"{lab}: roof rib"))
+        rib.hinge.host_bound = True
+        # its end tabs, glued flat on the two gables (inside)
+        for end, x0, sgn, par in (("A", 0.0, -1.0, wall), ("B", L, 1.0, inner)):
+            # inside the gable's point: as wide as its slopes allow
+            tx = min(tb, 0.9 * hr * 0.5 * span / rise)
+            if end == "A":
+                poly = [(-tx, -hr), (0.0, -hr), (0.0, 0.0)]
+            else:
+                poly = [(L, -hr), (L + tx, -hr), (L, 0.0)]
+            Pa = self.panels[par].asm(tr)
+            gx = (Pa.to_3x3() @ Vector((1.0, 0.0, 0.0))).normalized()  # along the gable
+            gn = (Pa.to_3x3() @ Z).normalized()
+            if gx.dot(v) * sgn < 0:
+                gx = -gx
+            if gn.dot(v) * sgn > 0:
+                gn = -gn  # the side the rib is on
+            E = E1 if end == "A" else E2
+            own = frame(E + TAB_LIFT * gn, gx, Y) @ \
+                frame(Vector((x0, 0.0, 0.0)), (sgn, 0.0, 0.0), (0.0, 1.0, 0.0)).inverted()
+            off = Pa.inverted() @ own
+            self.add(Panel(f"{rp}.Tab{end}", rp, "tab", [poly],
+                           (lambda t, f=self.panels[par].asm, off=off: f(t) @ off), par, None,
+                           f"{lab}: rib tab {end}"))
+        # the roof: one sheet creased along its ridge, overhanging all round
+        fp = f"GRoof{uid}"
+        self.add_piece(Piece(fp, f"{lab} roof", 450 + uid, (0.5 * L, 0.0)))
+        Sx = S0 + eave
+        halfA = [(-eave, 0.0), (L + eave, 0.0), (L + eave, Sx), (-eave, Sx)]
+        halfB = [(-eave, -Sx), (L + eave, -Sx), (L + eave, 0.0), (-eave, 0.0)]
+
+        def asm_A(t):
+            E1, E2, v, Y, ds = geo(t)
+            return frame(E1, v, ds[k0])
+
+        def asm_B(t):
+            E1, E2, v, Y, ds = geo(t)
+            return frame(E1, v, -ds[1 - k0])
+
+        ridge = hinge_frame_2d((0.0, 0.0), (1.0, 0.0))
+        RA = self.add(Panel(f"{fp}.A", fp, "panel", [halfA], asm_A, rib.name,
+                            Hinge(ridge, ridge, "TABLE", {}), f"{lab}: roof"))
+        RB = self.add(Panel(f"{fp}.B", fp, "panel", [halfB], asm_B, RA.name,
+                            Hinge(ridge, ridge, "TABLE", {}), f"{lab}: roof"))
+        RA.hinge.host_bound = RB.hinge.host_bound = True
+        # tabs on top of the rib, folded either way and stuck under the halves
+        tw = min(tb, 0.4 * S0)
+        g = min(2.0, 0.1 * L)
+        c = 0.3 * tw
+        for half, x0, x1, kk, lab2 in ((RA, g, 0.5 * L - g, k0, "A"),
+                                       (RB, 0.5 * L + g, L - g, 1 - k0, "B")):
+            poly = [(x0, 0.0), (x1, 0.0), (x1 - c, tw), (x0 + c, tw)]
+
+            def asm_t(t, kk=kk):
+                E1, E2, v, Y, ds = geo(t)
+                n = v.cross(ds[kk]).normalized()
+                if n.dot(Y) < 0:
+                    n = -n
+                return frame(E1 - TAB_LIFT * n, v, ds[kk])
+
+            self.add(Panel(f"{rp}.Top{lab2}", rp, "tab", [poly], asm_t, half.name, None,
+                           f"{lab}: rib top tab {lab2}"))
+
     def _tower_roof(self, m, host, base, a, b, y0, w, tab):
         """A pyramid roof on a corner tower that still folds flat: two V-folds,
         one in each of the tower's side corners (where the box meets a wall),
@@ -3170,10 +3367,23 @@ class Model:
         if host.is_spine and a + b + rail > self.W + 1e-6:
             self.warn(f"{lab}: the railing sticks out of the card when it's shut")
         piece = f"Rail{uid}"
-        self.add_piece(Piece(piece, f"{lab} railing", 1 + uid, (0.5 * (a + rail), 0.5 * w)))
+        self.add_piece(Piece(piece, f"{lab} railing", 900 + uid, (0.5 * (a + rail), 0.5 * w)))
         # pattern: x up the front from its foot (B, 0) past the top (C, a);
         # y along the fold
-        poly = [(0.0, 0.0), (a + rail, 0.0), (a + rail, w), (0.0, w)]
+        polys = [[(0.0, 0.0), (a + rail, 0.0), (a + rail, w), (0.0, w)]]
+        if m.get("support", "SOLID") == "ARCHES":
+            # (glued only on the band above the arches)
+            tb_ = self._arch_bands(a, w)[0]
+            polys = [[(a - tb_, 0.0), (a + rail, 0.0), (a + rail, w), (a - tb_, w)]]
+        if m.get("rail_open") and rail >= 6.0:
+            # posts between a top rail and a strip along the floor
+            n = max(1, int(round(w / 7.0)))
+            band = min(2.5, 0.25 * rail)
+            bars = arcade(rail, w, n, band, 1.5, min(2.0, 0.3 * w / n), arch=False)
+            if bars:
+                low = polys[0][0][0]
+                polys = [[(low, 0.0), (a, 0.0), (a, w), (low, w)]] + \
+                    [[(a + rail - s_, v) for s_, v in q] for q in bars]
 
         def asm_own(t):
             S, l, r, Y, nl, nr = host.dirs(t)
@@ -3187,8 +3397,29 @@ class Model:
         def asm(t, f=cb.asm, off=off):
             return f(t) @ off
 
-        self.add(Panel(f"{piece}.Rail", piece, "panel", [poly], asm, CB, None,
+        self.add(Panel(f"{piece}.Rail", piece, "panel", polys, asm, CB, None,
                        f"{lab}: railing"))
+
+    @staticmethod
+    def _arch_bands(a, w):
+        """A balcony's arcade under its floor: band over the arches, sill, pillar."""
+        return max(2.0, 0.15 * a), max(1.5, 0.08 * a), max(2.0, min(4.0, 0.08 * w))
+
+    def _supports(self, m, base, a, b, w, k):
+        """Cut a box fold's front (a balcony's support) into arches."""
+        lab = m["label"]
+        CB = f"{base}.CB"
+        if CB not in self.panels or abs(k) > 1e-9:
+            self.warn(f"{lab}: arches need a plain box fold (one peak, no slant)")
+            return
+        top, sill, pil = self._arch_bands(a, w)
+        bays = int(m.get("bays", 3) or 3)
+        parts = arcade(a, w, bays, top, sill, pil)
+        if parts is None:
+            self.warn(f"{lab}: too small for {bays} arches; left solid")
+            return
+        # front pattern: u from C (b, the top) to B (a + b, the foot), v along
+        self.panels[CB].polys = [ccw([(b + s_, v) for s_, v in q]) for q in parts]
 
     def _wall_asm(self, host, a, P, Q, u0, pts_fn, frame_fn=None):
         """Wall standing along e from plan point P to Q (keys into pts_fn(t)),
@@ -3253,7 +3484,18 @@ class Model:
         # strip pattern: F_L | G_fl | G_fr | F_R | G_br | G_bl | closing tab
         u = [0.0, D, D + wf, D + 2 * wf, 2 * D + 2 * wf, 2 * D + 2 * wf + wb,
              2 * D + 2 * wf + 2 * wb]
-        self.pieces[piece].wrap = [0.0, 0.0, u[6], hgt]  # all six walls, round
+        two = int(m.get("strips", 1) or 1) >= 2
+        pR = f"{piece}b" if two else piece  # the right side wall and the back
+        if two:
+            # two strips: the left side and the front, the right side and the
+            # back, each with a tab glued inside the other's side wall
+            self.pieces[piece].label = f"{lab} (front)"
+            self.pieces[piece].wrap = [0.0, 0.0, u[3], hgt]
+            self.add_piece(Piece(pR, f"{lab} (back)", 350 + uid,
+                                 (0.5 * (u[3] + u[6]), 0.5 * hgt)))
+            self.pieces[pR].wrap = [u[3], 0.0, u[6], hgt]
+        else:
+            self.pieces[piece].wrap = [0.0, 0.0, u[6], hgt]  # all six walls, round
         # each front or back half: one wall, or facets round a curve (keys into
         # tube_plan, which gives the points between them)
         nodesL = ["FL"] + [f"fL{k}" for k in range(1, nf)] + ["CF"]
@@ -3298,7 +3540,7 @@ class Model:
                                   Hinge(host.T1 @ hinge_frame_2d((-a, y0 + D), (0, -1)),
                                         hinge_frame_2d((0, 0), (1, 0))),
                                   f"{lab}: left side"))
-        P["FR_"] = self.add(Panel(f"{piece}.FR_", piece, "panel", [walls["FR_"]["poly"]],
+        P["FR_"] = self.add(Panel(f"{piece}.FR_", pR, "panel", [walls["FR_"]["poly"]],
                                   walls["FR_"]["asm"], host.p2,
                                   Hinge(host.T2 @ hinge_frame_2d((a, y0), (0, 1)),
                                         hinge_frame_2d((u[3], 0), (1, 0))),
@@ -3308,9 +3550,10 @@ class Model:
         i_fr = chain.index("FR_")
         for order_ in (chain[1:i_fr], chain[i_fr + 1:]):
             prev = "FL_" if order_ and order_[0].startswith("GF") else "FR_"
+            pc_ = piece if prev == "FL_" else pR
             for nm in order_:
                 w_ = walls[nm]
-                P[nm] = self.add(Panel(f"{piece}.{nm}", piece, "panel", [w_["poly"]],
+                P[nm] = self.add(Panel(f"{piece}.{nm}", pc_, "panel", [w_["poly"]],
                                        w_["asm"], P[prev].name,
                                        Hinge(tab_hinge(w_["u0"]), tab_hinge(w_["u0"]),
                                              "TABLE", {}),
@@ -3338,8 +3581,21 @@ class Model:
             f3 = self.plan3d(host, a, t, p["FL"])
             return frame(b3 + TAB_LIFT * xh, (f3 - b3).normalized(), e) @ Pc
 
-        self.add(Panel(f"{piece}.Close", piece, "tab", [close], asm_close, P["FL_"].name, None,
+        self.add(Panel(f"{piece}.Close", pR, "tab", [close], asm_close, P["FL_"].name, None,
                        f"{lab}: closing tab"))
+        if two:  # the front strip's end, glued inside the right side wall
+            join = [(u[3], 0), (u[3] + tb, ch), (u[3] + tb, hgt - ch), (u[3], hgt)]
+            Pj = frame(Vector((u[3], 0, 0)), (1, 0, 0), (0, 1, 0)).inverted()
+
+            def asm_join(t):
+                p = pts(t)
+                S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+                f3 = self.plan3d(host, a, t, p["FR"])
+                b3 = self.plan3d(host, a, t, p["BR"])
+                return frame(f3 - TAB_LIFT * xh, (b3 - f3).normalized(), e) @ Pj
+
+            self.add(Panel(f"{piece}.Join", piece, "tab", [join], asm_join, P["FR_"].name,
+                           None, f"{lab}: joining tab"))
         # base tabs under the side walls, folded in (towards the fold) or out
         k = 1.0 if m.get("tab_side", "IN") == "IN" else -1.0
         for side, u0, u1, T, parent, Tp in (
@@ -3356,7 +3612,7 @@ class Model:
             poly = clip_halfplane(poly, n2, 0.5 - sgn * T[0][3])
             pa = self.panels[parent].asm
             Tpat = Tp @ T
-            self.add(Panel(f"{piece}.Tab{side}", piece, "tab", [poly],
+            self.add(Panel(f"{piece}.Tab{side}", piece if side == "L" else pR, "tab", [poly],
                            (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
                            f"{lab}: base tab {side}"))
         # the folds where the side walls meet the page, outside the tube
@@ -3376,7 +3632,10 @@ class Model:
             CF=(P[cfw].name, walls[cfw]["ends"][0]), CB=(P[cbw].name, walls[cbw]["ends"][0]))
         roof = m.get("roof", "NONE")
         roof = {True: "POINTED", False: "NONE"}.get(roof, roof)
-        if roof == "POINTED" and (rf or rb):
+        if roof == "GABLE":
+            self.warn(f"{lab}: gabled roofs go on towers (a tube's ends don't keep their "
+                      f"distance as it folds); use Pointed or Flat")
+        elif roof == "POINTED" and (rf or rb):
             self.warn(f"{lab}: a pointed roof needs straight front and back walls; use a "
                       f"flat roof on a round tube")
         elif roof == "POINTED":
@@ -3509,7 +3768,7 @@ class Model:
             poly = [back(q) for q in on]
             A = F @ frame(Vector((u0, hgt, 0)), (1, 0, 0), (0, 1, 0)).inverted()
             asm_h = half.asm
-            self.add(Panel(f"Tube{uid}.Top{side}", f"Tube{uid}", "tab", [poly],
+            self.add(Panel(f"Tube{uid}.Top{side}", wall.piece, "tab", [poly],
                            (lambda t, f=asm_h, A=A: f(t) @ A), half.name, None,
                            f"{lab}: roof tab {side}"))
         if k < 0:

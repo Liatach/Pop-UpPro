@@ -333,6 +333,42 @@ class POPUP_OT_add(bpy.types.Operator):
             st.active = next(i for i, x in enumerate(st.mechs) if x.uid == new[0])
             _rebuild(self, context, force=st.rig is not None and not st.edited)
             return {"FINISHED"}
+        if self.kind == "BOX" and self.variant == "TOWER_BALCONIES" and self.host:
+            # a balcony on the side wall outside each tower, the length of the
+            # tower along the wall, its floor at the top of the castle's walls
+            _remove_new(st, uid)
+            # (by value: adding to the list moves its items in memory)
+            h = next(x for x in st.mechs if x.uid == self.host)
+            hd, hh = h.depth, h.height
+            towers = [(max(x.height, x.depth), x.wall, x.label) for x in st.mechs
+                      if x.kind == "BOX" and x.host_uid == self.host and
+                      x.wall.startswith("K")]
+            new = []
+            for size, wall, tlab in towers:
+                span = min(size, hd)
+                side = "WL" if wall in ("KFL", "KBL") else "WR"
+                # (the left wall's foot runs back to front, the right's front to back)
+                at_start = wall in ("KBL", "KFR")
+                nu = _add(st, "BOX").uid
+                _put_on(st, nu, self.host, side)
+                _balcony(st, nu, self.host)
+                m = next(x for x in st.mechs if x.uid == nu)
+                was = st.live
+                st["live"] = False
+                m.width = round(span, 1)
+                m.y = 0.0 if at_start else round(hd - span, 1)
+                m.height = round(hh, 1)
+                m.rail = round(min(12.0, 0.3 * hh), 1)
+                m.bays = max(1, min(6, int(span // 12)))
+                m.label = f"{tlab} balcony"
+                st["live"] = was
+                new.append(nu)
+            if not new:
+                self.report({"ERROR"}, "No towers in this tube's corners")
+                return {"CANCELLED"}
+            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == new[0])
+            _rebuild(self, context, force=st.rig is not None and not st.edited)
+            return {"FINISHED"}
         if self.kind == "BOX" and self.variant == "BALCONY" and self.host:
             _balcony(st, uid, self.host)
         if self.kind == "VFOLD" and self.variant == "TOP" and self.host:
@@ -398,6 +434,9 @@ def _balcony(st, uid, host):
             m.width = round(0.8 * h.depth, 1)
             m.y = round(0.1 * h.depth, 1)
         m.rail = round(min(12.0, 0.4 * m.height), 1)
+        m.support = "ARCHES"
+        m.bays = max(1, min(6, int(m.width // 12)))
+        m.rail_open = m.rail >= 8.0
         m.tab = min(m.tab, round(0.8 * min(m.height, m.depth), 1))
         m.label = unique_label(st.mechs, "Balcony", m)
     finally:

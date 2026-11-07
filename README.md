@@ -85,9 +85,9 @@ Paint flat or folded, import and position images or simply textures, then export
 * Multiple quadrilaterals on angled glue lines.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
 * Tubes, cylinders, pyramids and tents on parallel strips, with tethers and
-  roofs, and castles: towers up a tube's inside corners with pyramid roofs
-  that still fold flat. Balconies with railings on tube and cube walls and in
-  front of boxes.
+  roofs, and castles: towers up a tube's inside corners with pyramid or
+  overhanging gabled roofs that still fold flat. Balconies on arches, with
+  railings, on tube and cube walls, in front of boxes and outside towers.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   pictures glued on any face, pull-tab flaps.
 * 45° folds: a raised platform (on or off the centre) and a rising sheet,
@@ -166,10 +166,11 @@ Sunflower is a good way to make them.
   layers; tubes, roofs and stand-up pictures don't take them yet.
   Asymmetric creases need their own matching crease on the other side
   (drawn with Mirror off).
-* A tube's (or castle's) walls are one strip of paper, so they must fit on
-  one print sheet.
-* Balconies go on a tube's side walls, not round its front or back, which
-  swing round as the card closes.
+* A tube's (or castle's) walls are one or two strips of paper, each of which
+  must fit on one print sheet.
+* Balconies go on a tube's side walls, not round its front or back or a
+  tower's outside: those corners open out as the card closes, so a floor
+  would have to bend round them.
 * Draw Anywhere strokes become paint when they go on the paper: they can't
   be edited as strokes afterwards (Ctrl Z takes them off), and a stroke
   that runs from one piece of paper onto another is painted on each.
@@ -187,10 +188,9 @@ Sunflower is a good way to make them.
   Paper**), so nothing is baked in for good. Strokes that keep to the piece
   they're on near folds and edges.
 * **Tubes and castles, continued**: battlements and a drawbridge in a
-  tube's walls, a wall in two strips (as Birmingham's) so big castles fit
-  the sheet, and towers on other folds. Gabled and overhanging roofs on
-  towers and tubes; balconies that wrap round a tube's front and back;
-  crenellations along more kinds of edge; a cylinder's lid trimmed as the
+  tube's walls, and towers on other folds. Overhanging roofs on tubes, and
+  eaves on pyramid tower roofs; a balcony across a tube's front or back, if
+  a way can be found for its floor to fold there; crenellations along more kinds of edge; a cylinder's lid trimmed as the
   book's (68).
 * **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
   for cards that stand part open), everything flat or square at that angle
@@ -228,6 +228,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.71**: gabled tower roofs that overhang the walls (Birmingham 49: a rib
+  between the gable tips, the roof stuck only to the rib); tubes and castles
+  in two strips; balconies on arches with open railings, and balconies
+  outside a castle's towers.
 * **0.70**: cylinders (Birmingham 68: a tube's front or back curves round,
   creased above the fold); balconies with railings on tube and cube walls
   and in front of box folds; the M-fold reworked with the book's crease D and

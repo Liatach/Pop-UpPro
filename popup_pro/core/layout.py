@@ -89,7 +89,10 @@ def build_layout(model, margin=8.0, gap=6.0):
         if best is None:
             size = max(sizes, key=lambda z: z[0] * z[1])
             best = min(opts, key=lambda o: max(o[3] - size[0], o[4] - size[1]))
-            model.warn(f"{piece.label}: bigger than the print sheet")
+            hint = ""
+            if piece.name.startswith("Tube") and not piece.name.endswith("b"):
+                hint = " (Strips: 2 cuts its walls in two)"
+            model.warn(f"{piece.label}: bigger than the print sheet{hint}")
         elif size != tuple(piece_sheet):
             model.warn(f"{piece.label}: too big for the piece paper, so it has a "
                        f"{size[0]:.0f} x {size[1]:.0f} mm sheet of its own")

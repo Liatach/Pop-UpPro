@@ -924,11 +924,21 @@ class PopupMech(bpy.types.PropertyGroup):
         ("IN", "Pointed In", "The back crease points into the tube"),
         ("ROUND", "Round", "The back curves round from the side walls; tubes only")],
         update=_round_changed)
+    strips: IntProperty(name="Strips", description="Tube: its walls cut as one strip of "
+                        "paper, or two (left side and front, right side and back) joined "
+                        "by a tab, so a big tube or castle fits the print sheet",
+                        default=1, min=1, max=2, update=_changed)
     roof: EnumProperty(name="Roof", items=[
         ("NONE", "None", "Open top"),
         ("POINTED", "Pointed", "Pyramid or ridge roof (set Roof Height and Ridge)"),
         ("FLAT", "Flat", "Flat roof creased down the middle above the fold, optionally "
-         "overhanging the walls")], update=_changed)
+         "overhanging the walls"),
+        ("GABLE", "Gabled", "Towers: gable ends on two faces, a rib between their tips and "
+         "a roof stuck only to the rib, overhanging the walls (Birmingham 49)")],
+        update=_changed)
+    gable_turn: BoolProperty(name="Turn Roof", description="Gabled tower roof: put the "
+                             "gables on the other pair of faces, so the ridge runs the "
+                             "other way", default=False, update=_changed)
     roof_fold: EnumProperty(name="Fold", items=[
         ("PEAK", "Peak", "The centre crease rises as the card closes"),
         ("DIP", "Dip", "The centre crease sinks into the tube as the card closes (needs "
@@ -940,8 +950,8 @@ class PopupMech(bpy.types.PropertyGroup):
                         "runs on past the front of the stage (mm). It is shortened if it "
                         "would stick out when shut", default=0.0, min=0.0, soft_max=200.0,
                         update=_changed)
-    eave: FloatProperty(name="Overhang", description="How far a flat roof reaches past the "
-                        "walls all round (mm)", default=0.0, min=0.0, soft_max=40.0,
+    eave: FloatProperty(name="Overhang", description="How far a flat or gabled roof "
+                        "reaches past the walls all round (mm)", default=0.0, min=0.0, soft_max=40.0,
                         update=_changed)
     roof_height: FloatProperty(name="Roof Height", description="How far the roof rises "
                                "above the walls, card open flat (mm)", default=30.0, min=1.0,
@@ -1010,6 +1020,14 @@ class PopupMech(bpy.types.PropertyGroup):
                         "tube's or cube's wall, or in front of a box, the box fold is a "
                         "balcony and its top the floor. 0: none", default=0.0, min=0.0,
                         soft_max=60.0, update=_changed)
+    rail_open: BoolProperty(name="Open Railing", description="Cut the railing into "
+                            "posts under a top rail", default=False, update=_changed)
+    support: EnumProperty(name="Front", items=[
+        ("SOLID", "Solid", "The box fold's front is whole"),
+        ("ARCHES", "Arches", "The front is cut into an arcade, so a balcony stands on "
+         "pillars")], update=_changed)
+    bays: IntProperty(name="Arches", description="How many arches across the front",
+                      default=3, min=1, max=12, update=_changed)
     peaks: IntProperty(name="Peaks", default=1, min=1, max=8, update=_changed,
                        description="Box fold or strap: creases along the strip so it "
                        "zig-zags into this many peaks as the card closes (still glued only "
@@ -1241,6 +1259,7 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
                      front=self.front, back=self.back, front_style=self.front_style,
                      back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
+                     strips=self.strips,
                      roof_height=self.roof_height, ridge=self.ridge,
                      roof_fold=self.roof_fold, eave=self.eave, rib=self.rib)
         elif self.kind == "ROOF":
@@ -1340,12 +1359,14 @@ class PopupMech(bpy.types.PropertyGroup):
                             for ln in self.lines])
         else:
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
-                     roof=self.roof, roof_height=self.roof_height,
+                     roof=self.roof, roof_height=self.roof_height, eave=self.eave,
+                     gable_turn=self.gable_turn,
                      width=self.width, height=self.height,
                      depth=self.height if (self.strap and self.kind == "BOX") else self.depth,
                      slant=self.slant, peaks=self.peaks if self.kind == "BOX" else 1,
                      pleat=self.pleat, tri45=self.tri45, tri_size=self.tri_size,
                      rail=self.rail if self.kind == "BOX" else 0.0,
+                     rail_open=self.rail_open, support=self.support, bays=self.bays,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         return d

@@ -151,7 +151,7 @@ for m in balc:
     ac = model.panels[f"Box{m.uid}.AC"]
     for ang in (60.0, 120.0, 180.0):
         top = max((rp.asm(ang) @ Vector((x, y, 0))).dot(Vector((0, 0, 1)))
-                  for x, y in rp.polys[0])
+                  for poly in rp.polys for x, y in poly)
         flo = max((ac.asm(ang) @ Vector((x, y, 0))).dot(Vector((0, 0, 1)))
                   for x, y in ac.polys[0])
         if ang == 180.0:

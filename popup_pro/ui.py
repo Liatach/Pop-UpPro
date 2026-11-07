@@ -195,6 +195,11 @@ class POPUP_MT_add(bpy.types.Menu):
             op = self.layout.operator("popup.add", text="Balconies on Both Side Walls",
                                       icon=KIND_ICON["BOX"])
             op.kind, op.host, op.variant = "BOX", h.uid, "BALCONIES"
+            if h.kind == "TUBE" and any(x.kind == "BOX" and x.host_uid == h.uid and
+                                        x.wall.startswith("K") for x in st.mechs):
+                op = self.layout.operator("popup.add", text="Balconies Outside the Towers",
+                                          icon=KIND_ICON["BOX"])
+                op.kind, op.host, op.variant = "BOX", h.uid, "TOWER_BALCONIES"
             if h.kind == "TUBE":
                 self.layout.label(text=f"Towers in the corners of {h.label}:")
                 op = self.layout.operator("popup.add", text="Tower in Every Inside Corner",
@@ -521,6 +526,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 import math as _m
                 col.label(text=f"Round: {0.5 * _m.pi * m.x:.1f} mm makes a half circle",
                           icon="INFO")
+            col.prop(m, "strips")
             col.prop(m, "roof")
             if m.roof == "POINTED":
                 col.prop(m, "roof_height")
@@ -846,14 +852,23 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "roof", text="Roof")
                 if m.roof == "POINTED":
                     col.prop(m, "roof_height")
+                elif m.roof == "GABLE":
+                    col.prop(m, "roof_height", text="Gable Height")
+                    col.prop(m, "eave")
+                    col.prop(m, "gable_turn")
                 elif m.roof == "FLAT":
-                    col.label(text="A tower's roof is Pointed or None", icon="INFO")
+                    col.label(text="A tower's roof is Pointed, Gabled or None", icon="INFO")
             if m.kind in ("BOX", "BOXCUT") and not tower:
                 col.prop(m, "slant")
             if m.kind == "BOX" and not tower:
                 col.prop(m, "peaks")
                 if m.peaks <= 1:
+                    col.prop(m, "support")
+                    if m.support == "ARCHES":
+                        col.prop(m, "bays")
                     col.prop(m, "rail")
+                    if m.rail > 0:
+                        col.prop(m, "rail_open")
             if m.kind in ("BOX", "BOXCUT") and not tower and not joint:
                 col.prop(m, "tri45")
                 if m.tri45 != "NONE":

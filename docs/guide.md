@@ -158,10 +158,19 @@ with a box fold selected, a **Balcony in Front**. A balcony is a box fold
 standing against the wall: its top is the floor, **Height** up the wall,
 **Depth** out from it, and its front is the leg under the floor. **Railing**
 sticks a strip on the outside of the leg standing that far above the floor
-(any box fold can have one). It stays parallel to the wall and the floor to
+(any box fold can have one); **Open Railing** cuts it into posts under a top
+rail. **Front: Arches** cuts the leg into an arcade (**Arches** across), so
+the balcony stands on pillars. It stays parallel to the wall and the floor to
 the page, so it folds flat with them. A tube's balconies go on its side
-walls; its front and back walls swing round as the card closes, so a floor
-can't follow round them.
+walls. Its front and back walls swing round as the card closes, and every
+corner round them (and round a tower's outside) opens out as it shuts: a
+floor hinged on each wall would have to bend at the corner, so a balcony
+can't wrap round them.
+
+**Strips**: a tube's walls are one strip of paper round all six walls, or,
+at 2, two strips (the left side and the front, the right side and the back),
+each with a tab glued inside the other's side wall, so a big tube or castle
+fits the print sheet. Checks suggests it when the strip is too long.
 
 Every wall in this family leans together, halfway between the pages, and
 every crease stays parallel, so one tube can pull others into shape:
@@ -200,10 +209,19 @@ tube and **Fold** to an *Inside Corner*.
   into an L whose tabs glue inside the walls (**Along Wall** left and right,
   **Tower Height**, **Position** up the corner). It squashes into a diamond
   and lies flat with the walls.
+* **Roof: Gabled** (Birmingham 49, the pop-up house) gives a tower gable
+  ends on two of its faces (one a castle wall, the other the inner face
+  across from it, **Turn Roof** for the other pair), **Gable Height** above
+  the tower, and a roof that overhangs the walls by **Overhang** all round.
+  As the tower shears into a diamond those two faces stay parallel and the
+  gables' tips keep their distance, so a rib joins the tips on vertical
+  folds, and the roof, creased along its ridge, is stuck only to tabs on the
+  rib's top. The gables' slopes hold it up: square when the card is open,
+  its halves hanging down flat against the walls when shut. Any tower can
+  have one, square or not. The overhang is what stops it snagging as it
+  closes.
 * **Roof: Pointed** gives a square tower a pyramid roof, **Roof Height**
-  above the walls. A gable can't do it: as the tower shears into a diamond
-  its eaves slide past each other, so a ridge glued between them tears or
-  sticks out. The pyramid is two V-folds, one in each corner where the L
+  above the walls. The pyramid is two V-folds, one in each corner where the L
   meets a wall, hinged on the two top edges that meet there, with their
   creases rising to the apex. Those corners close to 0° as the card shuts,
   which is just what V-folds fold flat at. Open flat the four faces meet in
@@ -214,9 +232,13 @@ tube and **Fold** to an *Inside Corner*.
 * The tower's tabs stop short of the roof's tabs, which glue inside the top
   of the walls. At the back left corner they lie over the tube's own closing
   tab: glue on glue is fine there.
-* The whole castle wall is one strip, so it must fit on one print sheet (the
-  Castle preset does on A4); make the tube shorter or narrower if Checks
-  says it's bigger than the sheet.
+* The castle wall is one strip, so it must fit on one print sheet (the
+  Castle preset does on A4); for a bigger castle set the tube's **Strips**
+  to 2.
+* **Balconies Outside the Towers** (the **+** menu, with the castle
+  selected) puts a balcony on the side wall beside each tower, as long as
+  the tower and its floor level with the top of the castle walls, on
+  arches, with an open railing.
 
 ### Pyramids, tents and roofs
 
