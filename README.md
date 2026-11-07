@@ -79,9 +79,10 @@ Paint flat or folded, import and position images or simply textures, then export
 ## Features
 
 **Mechanisms**
-* V-folds (panels, beaks or pleated fans; symmetric or asymmetric; glued
-  away from the spine; on top of each other; M-folds), mouths and jaws.
-* Zig-zag folds and multiple quadrilaterals on angled glue lines.
+* V-folds: panels, beaks, pleated fans, M-folds and zig-zags; symmetric or
+  asymmetric, glued away from the spine (arched), or on top of each other.
+  Mouths and jaws.
+* Multiple quadrilaterals on angled glue lines.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
 * Tubes, cylinders, pyramids and tents on parallel strips, with tethers and
   roofs, and castles: towers up a tube's inside corners with pyramid roofs
@@ -111,10 +112,9 @@ Paint flat or folded, import and position images or simply textures, then export
   mechanism, so overlaps in a busy build show plainly.
 
 **Art and output**
-* Draw on the card with any Grease Pencil brush, folded or on the flat
-  layout (they're the same paper), across folds: it's painted into the
-  paper, flat on every fold. Or place images that wrap round cubes and
-  tubes. Art stays on the paper as it folds.
+* Draw with any Grease Pencil brush, folded or on the flat layout (they're
+  the same paper), or place images that wrap round cubes and tubes; either
+  way the art stays on the paper as it folds.
 * Outside glue tabs print the art of the part they glue onto, so they
   disappear into the picture.
 * A movement test with one Open slider, on a rig that needs no Python
@@ -147,7 +147,8 @@ The mechanisms follow The Pop-Up Channel's video tutorials:
 * [360° pop-up book](https://www.youtube.com/watch?v=HKvsssZ9W0E) (the basic box and carousels; also [on Reddit](https://www.reddit.com/r/popupbooks/comments/1xcfeks/how_to_make_360_popup_book/))
 
 Duncan Birmingham's splendid book *Pop-Up! A Manual of Paper Mechanisms* covers them
-too. 
+too, and the newer mechanisms follow it (its mechanism numbers are given in
+the guide and below).
 
 Pop-Up Pro is self-contained. Paint layers you set up yourself on the
 card's paper work alongside it: the fabulous
@@ -156,18 +157,19 @@ Sunflower is a good way to make them.
 
 ## Constraints
 
-* One card (or carousel) per scene. Mechanisms sit on the spine, on box
-  folds and straps (and their valleys), stand-ups, a tube's roof, a V-fold's
-  crease or glue folds, outside a cube's or tube's walls, or (towers) up a
-  tube's inside corners.
+* One card (or carousel) per scene. Mechanisms stand on the spine or on the
+  folds other mechanisms offer: the **+** menu lists what fits the one
+  selected.
 * The checks look at paper footprints, but not at 3D collisions between
   separate mechanisms (the Plan View helps you spot them by eye).
 * Extra creases and cuts work on the card itself, V-folds, box folds and box
-  layers; tubes (so castle walls: no battlements or drawbridge yet), roofs
-  and stand-up pictures don't take them yet. Asymmetric creases need their
-  own matching crease on the other side (drawn with Mirror off).
-* A castle's wall is one strip of paper round all its walls, so it must fit
-  on one print sheet.
+  layers; tubes, roofs and stand-up pictures don't take them yet.
+  Asymmetric creases need their own matching crease on the other side
+  (drawn with Mirror off).
+* A tube's (or castle's) walls are one strip of paper, so they must fit on
+  one print sheet.
+* Balconies go on a tube's side walls, not round its front or back, which
+  swing round as the card closes.
 * Draw Anywhere strokes become paint when they go on the paper: they can't
   be edited as strokes afterwards (Ctrl Z takes them off), and a stroke
   that runs from one piece of paper onto another is painted on each.
@@ -184,11 +186,12 @@ Sunflower is a good way to make them.
   hide, reorder and fade, with the paper redrawn from them (**Update
   Paper**), so nothing is baked in for good. Strokes that keep to the piece
   they're on near folds and edges.
-* **Castle, continued**: battlements and a drawbridge in the tube's walls, a
-  castle wall in two strips (as Birmingham's), and towers on other folds.
-  Gabled roofs, and roofs that overhang the walls, on towers and tubes;
-  balconies that wrap round a tube's front; crenellations along more kinds
-  of edge.
+* **Tubes and castles, continued**: battlements and a drawbridge in a
+  tube's walls, a wall in two strips (as Birmingham's) so big castles fit
+  the sheet, and towers on other folds. Gabled and overhanging roofs on
+  towers and tubes; balconies that wrap round a tube's front and back;
+  crenellations along more kinds of edge; a cylinder's lid trimmed as the
+  book's (68).
 * **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
   for cards that stand part open), everything flat or square at that angle
   instead of at 180°, which lets floors and ceilings go in a plain card.
@@ -201,22 +204,21 @@ Sunflower is a good way to make them.
     Background Above and Level Ridge; floors, ceilings and the background
     folding in sit together as one "Stage" section.
   * The Add menu grouped by where things go (on the spine, on a V-fold, on
-    a floor or ceiling, in a stage), offering only what fits the selected
-    host.
+    a floor or ceiling, in a stage); it already offers what fits the
+    selected host, but the list has grown long.
   * Clicking a warning in Checks selects the mechanism it's about.
 * Door flaps on cubes, tubes and stand-up pictures.
 * **Tabs that carry the art**, continued: outside tabs (V-folds with Tab
   Side Outside) already print the art of the part they glue onto. Next:
   a Tab Side choice for box folds, straps and cubes, and inside tabs' backs
   printed on the reverse sheet.
-* **Concertina cont.**: opening into a
-  fan, but standing free of the centre crease, congruent concertina corners like an accordion corner, arches, rainbows and arcs.
+* **Concertinas, continued**: a fan standing free of the centre crease,
+  concertina corners (like an accordion's), rainbows and arcs.
+* **45° folds, continued**: the jack in the box on a parallelogram, arms that
+  reach out past the base's edges, box ends filled by double 45° folds, and
+  a box lid lifted by a strut.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
-  arch V-folds, moving arms.
-* **45° folds** 
-  * the jack in the box on a parallelogram, arms that reach out past the
-    base's edges 
-  * box ends filled by double 45° folds, and a box lid lifted by a strut
+  moving arms.
 * **V-folds, continued** (Birmingham): the "bite" that sculpts a V-fold
   into a curve or a point (12–15), a looped arch (16), and tall narrow sides
   that twist (19).
@@ -246,23 +248,11 @@ Sunflower is a good way to make them.
 * **0.67**: V-folds glued away from the spine (Glued From, the piece arched
   away between the tabs, each side its own distance); a V-fold on top of a
   V-fold, the lower one's halves growing points to carry its tabs.
-* **0.66**: widths grow one way, from a corner or a start (pictures, stand-up
-  pictures, flaps); pictures on the 45° triangles along the crease by
-  default, at either end; Align to the fold or card by default.
-* **0.65**: pictures glued on any face (a stand-up on a box's front, on the
-  45° triangles, bending with the double 45°'s top piece); the stand-up's
-  rolled tail, picture and bridge in one piece.
-* **0.64**: visibility per mechanism (Normal, Wire, Hidden), with Draw
-  Anywhere painting through; the Plan View shows where pieces of paper pass
-  through each other; frames across an ordinary card's fold.
-* **0.63**: the double 45°'s top piece no longer passes through itself on
-  the way open; a jack in the box goes on top of any V-fold (Add with a
-  V-fold selected), sized to fit.
-* **0.62**: the double 45° fold, its top piece bending and twisting on
-  screen; the jack in the box on a V-fold; 45° triangles in a box fold's
-  corners; a stage set added to an emptied card works again.
-* **0.61**: pyramids stand on other folds, like tubes; a plain tube after a
-  castle is a plain tube again.
+* **0.61–0.66**: the double 45° fold, its top piece twisting without passing
+  through itself; the jack in the box on any V-fold; 45° triangles in a box
+  fold's corners; pictures glued on any face; the stand-up's rolled tail;
+  visibility per mechanism; frames across an ordinary card's fold; widths
+  that grow one way; pyramids on other folds.
 * **0.56–0.60**: Align (along a fold or across the card) and a see-through
   Plan View; castle towers in a tube's corners with pyramid roofs that fold
   flat; self-contained for Blender Extensions; Draw Anywhere with Grease
