@@ -225,6 +225,9 @@ class Host:
         return self
 
 
+_MFOLD_CACHE = {}  # M-fold sides on a card's spine, by shape
+
+
 class Model:
     def __init__(self, card, mechs):
         self.card = dict(card)
@@ -407,7 +410,7 @@ class Model:
                     self.warn(f"{m['label']}: frames, floors and ceilings go on a stage set, "
                               f"and only they do; skipped")
                     ok = False
-                elif parent is not None and parent["type"] == "VFOLD" and (
+                elif parent is not None and parent["type"] in ("VFOLD", "ZIGZAG", "QUADS") and (
                         m["type"] not in ("STANDUP", "BOX", "VFOLD", "MOUTH", "CUBE",
                                           "TUBE", "PYRAMID", "JACK") or
                         (m.get("vside", "FL") != "V" and
@@ -420,7 +423,8 @@ class Model:
                               f"V-folds; skipped")
                     ok = False
                 elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD",
-                                                               "CUBE", "PLATFORM")
+                                                               "CUBE", "PLATFORM", "ZIGZAG",
+                                                               "QUADS")
                                         and not lid and not stage and not joint
                                         and not (parent["type"] == "TUBE" and
                                                  m.get("wall") in ("L", "R") + CORNERS)):
@@ -465,7 +469,7 @@ class Model:
                 fold = "L" if m.get("side", "L") == "L" else "R"  # its join with a wall
                 if m.get("vside") == "V":
                     fold = "V"  # on its centre crease, from the stage side
-            if h and by_uid[h]["type"] == "VFOLD":
+            if h and by_uid[h]["type"] in ("VFOLD", "ZIGZAG", "QUADS"):
                 fold = m.get("vside", "FL")  # in front of / behind a half
             if h and fold == "V" and by_uid[h]["type"] == "BOX":
                 # a strap's valley between two peaks, counted from the left
@@ -473,7 +477,13 @@ class Model:
             else:
                 host = self.hosts.get((h, fold) if h else (0, "S"))
             if host is None:
-                self.warn(f"{m['label']}: its host was skipped; skipped too")
+                hm = by_uid.get(h) if h else None
+                if hm is not None and hm["uid"] in self.placed and \
+                        hm["type"] in ("VFOLD", "ZIGZAG", "QUADS") and fold != "V":
+                    self.warn(f"{m['label']}: {hm['label']} has no glue folds to stand on "
+                              f"(its halves aren't glued along a line); put it on the crease")
+                else:
+                    self.warn(f"{m['label']}: its host was skipped; skipped too")
                 continue
             self.placed[m["uid"]] = host  # the fold it stands on (Align measures along it)
             n0 = len(self.order)
@@ -1752,6 +1762,9 @@ class Model:
         if shape == "M":
             self._mfold(m, host, base, piece, lab, yP, phl, all_, Lc, t_)
             return
+        if shape == "ZIGZAG":
+            self._zigzag(m, host)
+            return
         if shape in ("TRI", "BEAK_L"):
             halfL = [(0, 0), Q, GL]
         else:
@@ -1760,6 +1773,14 @@ class Model:
             halfR = [(0, 0), GR, Q]
         else:
             halfR = [(0, 0), GR, (GR[0], GR[1] + Lc), Q]
+        b_ = float(m.get("top_below", 0.0) or 0.0) if m.get("on_top") else 0.0
+        if b_ > 0:
+            # Birmingham 21: the top piece carries on below the join, down its
+            # crease (D) past the lifting piece's point
+            halfL = [(0.0, -b_), Q] + [p_ for p_ in halfL[2:-1]] + [GL, (GL[0], GL[1] - b_)] \
+                if shape not in ("TRI", "BEAK_L") else [(0.0, -b_), Q, GL, (GL[0], GL[1] - b_)]
+            halfR = [(0.0, -b_), (GR[0], GR[1] - b_), GR] + \
+                ([(GR[0], GR[1] + Lc)] if shape not in ("TRI", "BEAK_R") else []) + [Q]
         FcL = hinge_frame_2d((0, 0), uLp)
         FcR = hinge_frame_2d((0, 0), uRp)
         # glued away from the spine (Birmingham 18-20): the glue lines still
@@ -1913,8 +1934,17 @@ class Model:
         n_out = Vector((-e2.y, e2.x))
         if n_out.dot(h) > 0:
             n_out = -n_out  # (away from the outer panel)
-        ins = min(0.5 * tab, 0.3 * g2)
-        tabp = [P[:], Et[:], (Et + n_out * tab - e2 * ins)[:], (P + n_out * tab + e2 * ins)[:]]
+        # glued away from crease H: the tab starts c0 out along the edge and
+        # the outer panel's corner is cut away to there
+        c0 = min(float(m.get("glue_from", 0.0) or 0.0), g2 - 3.0)
+        S0 = P + e2 * max(c0, 0.0)
+        if c0 > 0:
+            cut_n = Vector((-(S0 - (P + h * c0)).y, (S0 - (P + h * c0)).x))
+            if cut_n.dot(P - S0) > 0:
+                cut_n = -cut_n
+            outer = clip_halfplane(outer, (cut_n.x, cut_n.y), cut_n.dot(S0))
+        ins = min(0.5 * tab, 0.3 * (g2 - max(c0, 0.0)))
+        tabp = [S0[:], Et[:], (Et + n_out * tab - e2 * ins)[:], (S0 + n_out * tab + e2 * ins)[:]]
 
         def mir(q):
             return (-q[0], q[1])
@@ -2000,56 +2030,33 @@ class Model:
 
         Ts = sorted(self.TABLE_T, reverse=True)
         tables = {}
+        ckey = None
+        if (host.p1, host.p2) == ("Page.L", "Page.R"):
+            # on the card's spine, moving it up or down changes no angle
+            ckey = (round(A, 7), round(B, 7), g, round(Fh, 7), round(E, 7), L, g2, Lh,
+                    lean_in, hash(tuple(self.TABLE_T)))
         for side, S in sides.items():
-            t0 = Ts[0]
-            # fully open: the root with the half's edge down on the page
-            best = None
-            for i in range(12):
-                for j in range(12):
-                    x0 = (-math.pi + (i + 0.5) * math.pi / 6, -math.pi + (j + 0.5) * math.pi / 6)
-                    x, ok = newton(S, t0, x0, 25)
-                    if not ok:
-                        continue
-                    _, Mi = poses(S, t0, *x)
-                    # the half standing like a V-fold, its bottom edge
-                    # down on the page along the V-fold's glue line
-                    Vt = S["V"](t0)
-                    nz = Vt.to_3x3() @ Vector((0.0, 0.0, 1.0))
-                    if (Mi @ S["K"] - Vt.to_translation()).dot(nz) <= 0.0:
-                        continue  # (its mirror image, down through the page)
-                    score = (Mi @ S["P3"] - Vt @ S["Pb3"]).length + \
-                        (Mi @ S["O"] - Vt @ Vector((0.0, yP, 0.0))).length
-                    if best is None or score < best[0]:
-                        best = (score, x)
-            if best is None:
-                self.warn(f"{lab}: M-fold can't stand up with these angles; skipped")
+            got = _MFOLD_CACHE.get((side,) + ckey) if ckey else None
+            if got is not None:
+                tables[side], S["solved"], ws = got
+                for w_ in ws:
+                    self.warn(w_)
+                continue
+            nw = len(self.warnings)
+            self._mfold_side(side, S, Ts, newton, poses, yP, lab, tables)
+            if side not in tables:
                 return
-            x = best[1]
-            tab_ = {}
-            bad = None
-            for t in Ts:
-                x2, ok = newton(S, t, x)
-                if not ok or max(abs(x2[0] - x[0]), abs(x2[1] - x[1])) > 0.35:
-                    bad = t
-                    break
-                x = x2
-                tab_[t] = x
-            if bad is not None:
-                self.warn(f"{lab}: M-fold jams closing past {bad:.0f} degrees; check its "
-                          f"angles")
-                for t in Ts:
-                    tab_.setdefault(t, x)
-            tables[side] = tab_
-            # shut: everything should lie flat
-            psi0, eta0 = tab_[Ts[-1]]
-            off = min(abs(math.remainder(psi0, math.pi)), 9) + \
-                min(abs(math.remainder(eta0, math.pi)), 9)
-            if side == "R" and bad is None and math.degrees(off) > 4.0:
-                self.warn(f"{lab}: M-fold doesn't fold flat (about "
-                          f"{math.degrees(off):.0f} degrees out)")
+            if ckey:
+                if len(_MFOLD_CACHE) > 40:
+                    _MFOLD_CACHE.clear()
+                _MFOLD_CACHE[(side,) + ckey] = (tables[side], S["solved"],
+                                               list(self.warnings[nw:]))
+
+        for side in ("L", "R"):
+            sides[side]["keys"] = sorted(tables[side])
 
         def interp(tab_, t, S=None):
-            Tk = sorted(tab_)
+            Tk = S["keys"] if S is not None else sorted(tab_)
             t = min(max(t, Tk[0]), Tk[-1])
             got = tab_.get(t)
             if got is not None:
@@ -2168,7 +2175,18 @@ class Model:
         pieces = [dict(key="Z", label="zig-zag", nodes=chain, heights=[h] * (len(chain) - 1),
                        glued=(True, True))]
         self.line_frames[m["uid"]] = (f"Link{m['uid']}.Z", lambda q: q, None)
-        build(self, m, host, P, pieces, lab, float(m.get("tab", 10.0)))
+        walls = build(self, m, host, P, pieces, lab, float(m.get("tab", 10.0)))
+        # its centre crease takes other mechanisms, as a V-fold's does
+        kL, kR = len(left) - 1, len(left)
+        nL, nR = f"Link{m['uid']}.Z{kL}", f"Link{m['uid']}.Z{kR}"
+        if nL in self.panels and nR in self.panels:
+            wl = walls[f"Z{kL}"]
+            xE = wl["x0"] + wl["L"]
+            hh = Host(self, nL, xE, 0.0, nR, xE, 0.0, f"{lab}: crease").finish()
+            hh.trig = False
+            hh.size = (faces[-1], h)
+            hh.key = (m["uid"], "V")
+            self.hosts[(m["uid"], "V")] = hh
 
     def _quads(self, m, host):
         """Birmingham 57, multiple quadrilaterals: a back zig-zag glued by its
@@ -2258,7 +2276,67 @@ class Model:
                  glued=(False, False), first=("SL0", "C.L"), last=("SR0", "C.R")),
         ]
         self.line_frames[m["uid"]] = (f"Link{m['uid']}.K", lambda q: q, None)
-        build(self, m, host, P, pieces, lab, float(m.get("tab", 10.0)))
+        walls = build(self, m, host, P, pieces, lab, float(m.get("tab", 10.0)))
+        # the back's centre crease takes other mechanisms
+        nL, nR = f"Link{m['uid']}.K2", f"Link{m['uid']}.K3"
+        if nL in self.panels and nR in self.panels:
+            xE = walls["K2"]["x0"] + walls["K2"]["L"]
+            hh = Host(self, nL, xE, 0.0, nR, xE, 0.0, f"{lab}: back crease").finish()
+            hh.trig = False
+            hh.size = (de, hb)
+            hh.key = (m["uid"], "V")
+            self.hosts[(m["uid"], "V")] = hh
+
+    def _mfold_side(self, side, S, Ts, newton, poses, yP, lab, tables):
+        """One side of an M-fold: its fully open pose, then each opening down."""
+        t0 = Ts[0]
+        # fully open: the root with the half's edge down on the page
+        best = None
+        for i in range(12):
+            for j in range(12):
+                x0 = (-math.pi + (i + 0.5) * math.pi / 6, -math.pi + (j + 0.5) * math.pi / 6)
+                x, ok = newton(S, t0, x0, 25)
+                if not ok:
+                    continue
+                _, Mi = poses(S, t0, *x)
+                # the half standing like a V-fold, its bottom edge
+                # down on the page along the V-fold's glue line
+                Vt = S["V"](t0)
+                nz = Vt.to_3x3() @ Vector((0.0, 0.0, 1.0))
+                if (Mi @ S["K"] - Vt.to_translation()).dot(nz) <= 0.0:
+                    continue  # (its mirror image, down through the page)
+                score = (Mi @ S["P3"] - Vt @ S["Pb3"]).length + \
+                    (Mi @ S["O"] - Vt @ Vector((0.0, yP, 0.0))).length
+                if best is None or score < best[0]:
+                    best = (score, x)
+            if best is not None and best[0] < 1e-3:
+                break  # (found it)
+        if best is None:
+            self.warn(f"{lab}: M-fold can't stand up with these angles; skipped")
+            return
+        x = best[1]
+        tab_ = {}
+        bad = None
+        for t in Ts:
+            x2, ok = newton(S, t, x)
+            if not ok or max(abs(x2[0] - x[0]), abs(x2[1] - x[1])) > 0.35:
+                bad = t
+                break
+            x = x2
+            tab_[t] = x
+        if bad is not None:
+            self.warn(f"{lab}: M-fold jams closing past {bad:.0f} degrees; check its "
+                      f"angles")
+            for t in Ts:
+                tab_.setdefault(t, x)
+        tables[side] = tab_
+        # shut: everything should lie flat
+        psi0, eta0 = tab_[Ts[-1]]
+        off = min(abs(math.remainder(psi0, math.pi)), 9) + \
+            min(abs(math.remainder(eta0, math.pi)), 9)
+        if side == "R" and bad is None and math.degrees(off) > 4.0:
+            self.warn(f"{lab}: M-fold doesn't fold flat (about "
+                      f"{math.degrees(off):.0f} degrees out)")
 
     @staticmethod
     def _arch_cut(half, ah, c0, up, how):
@@ -2297,6 +2375,26 @@ class Model:
         outs = [clean(q) for q in outs if len(q) >= 3 and abs(poly_area(q)) > 0.5]
         return [q for q in outs if len(q) >= 3] or [half]
 
+    @staticmethod
+    def _hull(pts):
+        """Convex hull, anticlockwise."""
+        pts = sorted(set((round(x, 7), round(y, 7)) for x, y in pts))
+        if len(pts) < 3:
+            return pts
+
+        def cr(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+        lo, hi = [], []
+        for q in pts:
+            while len(lo) >= 2 and cr(lo[-2], lo[-1], q) <= 1e-12:
+                lo.pop()
+            lo.append(q)
+        for q in reversed(pts):
+            while len(hi) >= 2 and cr(hi[-2], hi[-1], q) <= 1e-12:
+                hi.pop()
+            hi.append(q)
+        return lo[:-1] + hi[:-1]
+
     def _top_tabs(self, m, base, side, parent, Tpat, up, g, depth):
         """A V-fold on top of a V-fold (Birmingham 21-22): the lifting piece's
         top is cut to a point along the glue lines, and its own tabs (A) fold
@@ -2317,6 +2415,16 @@ class Model:
         V = Vector((0.0, 0.0))  # the lifting piece's V point
         if n.dot(V - a0) > 0:
             n = -n  # (pointing out, away from the lifting piece)
+        cx = sum(q[0] for poly in P.polys for q in poly)
+        sx = 1.0 if cx > 0 else -1.0
+        if u.y > 0.02 and u.x * sx > 0 and P.polys:
+            # Birmingham 22: the lines rise from the crease's top, so the top
+            # is a V. The half's outer side grows up to meet its line
+            xo = max(abs(q[0]) for poly in P.polys for q in poly)
+            Pe = a0 + u * (abs(xo - abs(a0.x)) / max(abs(u.x), 1e-9))
+            k = max(range(len(P.polys)), key=lambda i: max(
+                (abs(q[0]), q[1]) for q in P.polys[i]))
+            P.polys[k] = self._hull(list(P.polys[k]) + [Pe[:]])
         # how far along the line the lifting piece reaches
         reach = 0.0
         for poly in P.polys:
@@ -2335,9 +2443,17 @@ class Model:
             self.warn(f"{lab}: the glue lines miss the lifting piece; usual tabs")
             return False
         # the lifting piece's top, cut to the glue lines
-        cx = sum(q[0] for poly in P.polys for q in poly)
         cuts = [clip_halfplane(q, (-n.x, -n.y), -n.dot(a0)) for q in P.polys]
-        cuts = [clean(ccw(q)) for q in cuts if len(q) >= 3 and abs(poly_area(q)) > 1e-6]
+        def dedupe(q):
+            out = []
+            for p_ in q:
+                if not out or (abs(p_[0] - out[-1][0]) + abs(p_[1] - out[-1][1])) > 1e-4:
+                    out.append(p_)
+            while len(out) > 1 and abs(out[0][0] - out[-1][0]) + abs(out[0][1] - out[-1][1]) \
+                    <= 1e-4:
+                out.pop()
+            return out
+        cuts = [clean(ccw(dedupe(q))) for q in cuts if len(q) >= 3 and abs(poly_area(q)) > 1e-6]
         cuts = [q for q in cuts if len(q) >= 3]
         if not cuts:
             return False
@@ -2493,11 +2609,25 @@ class Model:
         seg = max(2, int(math.ceil(24 / (2 * N))))
         prev = host.p1
         names = []
+        # glued away from the spine: the fan's hub is cut away and its tabs
+        # start that far out along the end edges
+        offL = min(float(m.get("glue_from", 0.0) or 0.0), R_ - 3.0)
+        offR = min(float(m.get("glue_from_r", m.get("glue_from", 0.0)) or 0.0), R_ - 3.0)
+
+        def hub(k):
+            return offL + (offR - offL) * k / (2 * N)
         for k in range(2 * N):
             poly = [(0.0, 0.0)]
             for j in range(seg + 1):
                 a = a0 - (k + j / seg) * d
                 poly.append((mx * R_ * math.cos(a), R_ * math.sin(a)))
+            if hub(k) > 0 or hub(k + 1) > 0:
+                A_ = Vector((mx * pat[k][0], pat[k][1])) * hub(k)
+                B_ = Vector((mx * pat[k + 1][0], pat[k + 1][1])) * hub(k + 1)
+                nn = Vector((-(B_ - A_).y, (B_ - A_).x))
+                if nn.dot(-A_ - B_) > 0:
+                    nn = -nn  # (away from the hub)
+                poly = clip_halfplane(poly, (nn.x, nn.y), nn.dot(A_))
             name = f"{base}.Fan{k + 1}"
             asm = make(k, mx)
             Fc = hinge_frame_2d((0.0, 0.0), (mx * pat[k][0], pat[k][1]))
@@ -2518,10 +2648,12 @@ class Model:
             s2 = Vector((p.y, -p.x, 0.0))
             if s2.dot(pin) > 0:
                 s2 = -s2  # away from the fan
-            ins = min(0.5 * t_, 0.3 * R_)
-            poly = [(0.0, 0.0), (R_ * p.x, R_ * p.y),
+            c0 = offL if side == "L" else offR
+            ins = min(0.5 * t_, 0.3 * (R_ - c0))
+            poly = [(c0 * p.x, c0 * p.y), (R_ * p.x, R_ * p.y),
                     (R_ * p.x + t_ * s2.x - ins * p.x, R_ * p.y + t_ * s2.y - ins * p.y),
-                    (t_ * s2.x, t_ * s2.y)]
+                    (c0 * p.x + t_ * s2.x + (ins if c0 > 0 else 0) * p.x,
+                     c0 * p.y + t_ * s2.y + (ins if c0 > 0 else 0) * p.y)]
             W, P3 = rays(tr)
             u = W[ke]
             other = W[2 * N] if side == "L" else W[0]
@@ -4765,12 +4897,13 @@ class Model:
             lab = p.label.split(":")[0]
             pts = [v3(q) for poly in p.polys for q in poly]
             poke = None
+            tol = max(0.5, getattr(p, "rub", 0.0))  # (walls let rub a little on purpose)
             for t in self.samples:
                 M = p.asm(t)
                 l, r, nl, nr = self.dirs(t)
                 for q in pts:
                     w = M @ q
-                    if w.dot(nl) < -0.5 or w.dot(nr) < -0.5:
+                    if w.dot(nl) < -tol or w.dot(nr) < -tol:
                         poke = t if poke is None else max(poke, t)
                         break
             if poke is not None:

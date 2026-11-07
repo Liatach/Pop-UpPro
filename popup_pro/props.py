@@ -250,6 +250,32 @@ def fit_to_host(m, st):
         finally:
             st["live"] = was
         return
+    if host is not None and (host.kind in ("ZIGZAG", "QUADS") or
+                             host.kind == "VFOLD" and host.shape in ("ZIGZAG", "M")):
+        # on the centre crease: its two centre faces (or halves) are the pages
+        was = st.live
+        st["live"] = False
+        try:
+            d = host.to_dict()
+            widths = [float(x) for x in str(d.get("faces", "30")).split(",") if x.strip()]
+            if host.kind == "VFOLD" and host.shape == "M":
+                g, L = host.m_inner, host.height
+            else:
+                g, L = (widths[-1] if widths else 20.0), host.height
+            k = 0.35 * min(g, L)
+            m.y = round(0.3 * L, 1)
+            if m.kind in ("BOX", "BOXCUT"):
+                m.width, m.height, m.depth = round(0.4 * L, 1), round(k, 1), round(k, 1)
+            elif m.kind in ("VFOLD", "MOUTH"):
+                m.glue = m.height = round(k, 1)
+            elif m.kind in ("CUBE", "TUBE"):
+                m.size = m.height = round(k, 1)
+            elif m.kind == "STANDUP":
+                m.height = round(k, 1)
+            m.tab = min(m.tab, round(0.3 * k, 1))
+        finally:
+            st["live"] = was
+        return
     if host is not None and host.kind == "VFOLD":
         # on a half's glue line: the half is the background, the page the floor
         was = st.live
@@ -587,7 +613,33 @@ def _strap(self, context):
     _changed(self, context)
 
 
+SHAPE_NAMES = {"QUAD": "V-fold", "TRI": "Beak", "BEAK_L": "Beak", "BEAK_R": "Beak",
+               "FAN": "Fan", "M": "M-fold", "ZIGZAG": "Zig-zag"}
+
+
 def _shape_changed(self, context):
+    """A V-fold given another shape takes that shape's name (if it still has
+    a made-up one) and, for an M-fold, angles that stand it up."""
+    import re
+    st = context.scene.popup if context and context.scene else None
+    new = SHAPE_NAMES.get(self.shape, "V-fold")
+    bases = "|".join(re.escape(b) for b in set(SHAPE_NAMES.values()))
+    mt = re.fullmatch(rf"({bases}) \d+", self.label or "")
+    if st is not None and mt and mt.group(1) != new:
+        was = st.live
+        st["live"] = False
+        try:
+            if self.shape == "M":
+                self.alpha_l, self.m_hinge = 90.0, 50.0
+            elif self.shape == "ZIGZAG":
+                # glue lines running down and out, the walls a way out on them
+                self.phi_l, self.symmetric = 120.0, True
+                self.glue_from = self.glue_from or 20.0
+                self.glue = min(self.glue, 25.0)
+            from .ops import unique_label
+            self.label = unique_label(st.mechs, new, self)
+        finally:
+            st["live"] = was
     _changed(self, context)
 
 
@@ -699,6 +751,9 @@ class PopupMech(bpy.types.PropertyGroup):
          "half a triangle to the crease's end"),
         ("FAN", "Fan", "A pleated fan glued along its two end edges: more paper than the "
          "gap it spans (Spread), folding flat pleat on pleat as the card shuts"),
+        ("ZIGZAG", "Zig-zag", "Birmingham 45-48: square creases instead of a V. The glue "
+         "lines' walls stand up off the page and faces zig-zag in to a centre crease: one "
+         "face each side juts like a V, more make a concertina"),
         ("M", "M-fold", "Birmingham 28-29: the V-fold's halves go on past a crease (H) into "
          "an outer panel each side. Only the outer panels are glued down; the halves "
          "between them ride up on their creases. The centre crease takes other "
@@ -707,7 +762,7 @@ class PopupMech(bpy.types.PropertyGroup):
     m_inner: FloatProperty(name="Inner Length", default=30.0, min=3.0, soft_max=200.0,
                            update=_changed, description="M-fold: along each half's bottom "
                            "edge, from the centre crease to where crease H starts (mm)")
-    m_hinge: FloatProperty(name="Crease H Angle", default=40.0, min=5.0, max=175.0,
+    m_hinge: FloatProperty(name="Crease H Angle", default=50.0, min=5.0, max=175.0,
                            update=_changed, description="M-fold: how far crease H turns up "
                            "from the line of the half's bottom edge, carried on past it "
                            "(degrees, on the piece)")
@@ -965,8 +1020,9 @@ class PopupMech(bpy.types.PropertyGroup):
                          "and its own tabs (A) stick under this piece")
     top_angle: FloatProperty(name="Point Angle", default=60.0, min=5.0, max=175.0,
                              update=_changed, description="On Top: the angle between the "
-                             "lifting piece's crease and each side of its pointed top "
-                             "(Birmingham's B). Smaller: a sharper point")
+                             "lifting piece's crease (pointing down) and each side of its "
+                             "top (Birmingham's B). Under 90 the top is a point (21); over 90 "
+                             "it's a V, the sides rising from the crease (22)")
     top_angle_r: FloatProperty(name="Point Angle R", default=60.0, min=5.0, max=175.0,
                                update=_changed, description="On Top, asymmetric: the right "
                                "side of the point")
@@ -976,6 +1032,10 @@ class PopupMech(bpy.types.PropertyGroup):
                              "the lifting piece) and where tab A sticks (Birmingham's C). "
                              "Larger than the point angle; nearer it, the top piece stands "
                              "up; larger, it lies flatter")
+    top_below: FloatProperty(name="Below the Join", default=0.0, min=0.0, soft_max=150.0,
+                             update=_changed, description="On Top: how far the top piece "
+                             "carries on below where it meets the lifting piece, down its "
+                             "crease (Birmingham's D: a nose, a tail, a body)")
     top_piece_r: FloatProperty(name="Top Piece Angle R", default=80.0, min=5.0, max=175.0,
                                update=_changed, description="On Top, asymmetric: the "
                                "right side")
@@ -994,16 +1054,30 @@ class PopupMech(bpy.types.PropertyGroup):
                          default=30.0, min=2.0, soft_max=150.0, update=_changed)
     width: FloatProperty(name="Width", description="Width along the spine (mm)",
                          default=50.0, min=2.0, soft_max=200.0, update=_changed)
-    faces: StringProperty(name="Faces", default="30", update=_changed,
-                          description="Zig-zag: the width of each face from the end wall in "
-                          "to the centre crease, one side (mm, separated by commas: '30' or "
-                          "'25, 20'). Quadrilaterals: the back's two faces each side, from "
-                          "the strip to the centre crease")
+    faces_n: IntProperty(name="Faces Each Side", default=1, min=1, max=6, update=_changed,
+                         description="Zig-zag: how many faces each side between the glued wall "
+                         "and the centre crease. 1 juts like a V; more make a concertina")
+    face_w: FloatProperty(name="Face Width", default=30.0, min=3.0, soft_max=200.0,
+                          update=_changed, description="Zig-zag: each face's width (mm)")
+    faces_uneven: BoolProperty(name="Uneven Faces", default=False, update=_changed,
+                               description="Zig-zag: give each face its own width")
+    faces: StringProperty(name="Face Widths", default="30", update=_changed,
+                          description="Each face's width from the glued wall in to the centre "
+                          "crease, one side, in mm separated by commas (zig-zag with Uneven "
+                          "Faces: '25, 20'; quadrilaterals: the back's two faces)")
     jut: EnumProperty(name="Centre", items=[
         ("FRONT", "Juts Forward", "The centre crease comes forward, towards the bottom of "
          "the card"),
         ("BACK", "Sits Back", "The centre crease sits back, towards the top of the card")],
         default="FRONT", update=_changed)
+    cut_bottoms: EnumProperty(name="Bottoms", items=[
+        ("LIGHT", "Cut Lightly", "Cut the walls' bottoms away only where they'd dig more than "
+         "a few mm into a page as it moves (card gives that much)"),
+        ("CLEAR", "Cut to Clear", "Cut the walls' bottoms away wherever they'd touch a page"),
+        ("NONE", "Leave Square", "No cut: the bottoms rub on the pages as it moves")],
+        default="LIGHT", update=_changed,
+        description="Zig-zags and quadrilaterals: walls standing on angled strips tip their "
+        "bottom edges down towards the pages part way open")
     q_side: FloatProperty(name="Side", default=25.0, min=3.0, soft_max=200.0, update=_changed,
                           description="Quadrilaterals: the side piece's face from the strip's "
                           "far end to the front (mm). Its other face is worked out so the "
@@ -1133,7 +1207,7 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type=self.kind, phi_l=self.phi_l, x=self.x, width=self.width,
                      height=self.height, faces=self.faces, jut=self.jut,
                      depth=self.q_side, front=self.q_front, back=self.q_side_h,
-                     img_h=self.q_front_h)
+                     img_h=self.q_front_h, cut_bottoms=self.cut_bottoms)
         elif self.kind == "STANDUP":
             d.update(type="STANDUP", stand=self.stand, width=self.width, height=self.height,
                      depth=self.depth, img_w=self.img_w, img_h=self.img_h)
@@ -1187,7 +1261,11 @@ class PopupMech(bpy.types.PropertyGroup):
                      glue_from=self.glue_from,
                      glue_from_r=self.glue_from_r if each else self.glue_from,
                      arch=self.arch, arch_shape=self.arch_shape,
-                     on_top=bool(top),
+                     on_top=bool(top), top_below=self.top_below,
+                     x=self.glue_from, width=self.glue, jut=self.jut,
+                     cut_bottoms=self.cut_bottoms,
+                     faces=self.faces if self.faces_uneven else
+                     ", ".join([f"{self.face_w:g}"] * self.faces_n),
                      m_inner=self.m_inner, m_hinge=self.m_hinge, m_outer=self.m_outer,
                      m_outer_len=self.m_outer_len, m_outer_h=self.m_outer_h,
                      m_lean=self.m_lean,

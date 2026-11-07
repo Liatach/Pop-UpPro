@@ -485,6 +485,8 @@ the piece can sit over things glued close to the fold.
   follow the larger Glued From).
 * **Cut Shape**: Straight, Round, Square (up from the tab starts, then across)
   or Pointed (a gothic arch).
+* Fans and M-folds take **Glued From** too: a fan's hub is cut away, an
+  M-fold's outer tabs start further out.
 * **Uneven Sides**: each side its own **Glue Length** and **Glued From**
   while the angles stay symmetric. With Symmetric off, the two sides are
   separate anyway.
@@ -503,6 +505,14 @@ stick under the top piece, its crease right up against the lifting piece's.
   (pointing down past the point) and where tab A sticks. Keep it larger than
   the point angle; near it the top piece stands up, larger it lies flatter,
   hanging level over the lifting piece at about 70–80°.
+* **Below the Join**: the top piece carries on down its crease past where it
+  meets the lifting piece (the book's D: a nose, a tail, a body).
+* **Point Angle** over 90 makes a V-shaped top instead (mechanism 22): the
+  lifting piece's sides rise above its crease, tabs A at their tops.
+* A top piece can lift a third the same way (select it, **Add → V-fold on
+  Top**).
+* Depending on the two angles the top piece stands up, lies level or leans
+  back: angles where it can't fold say so.
 * It always sits at the very top of the lifting piece's crease. Keep it small
   enough to fold away inside the lifting piece (the checks say if it pokes
   through the card).
@@ -523,25 +533,33 @@ tabulated. The centre crease takes other mechanisms like any V-fold's.
 * **Outer Angle**: the outer panel's corner between H and its glued edge; the
   glue line on the page is worked out to suit. **Outer Glue Length**: that
   edge.
+* A new M-fold starts at Piece Angle 90 and Crease H Angle 50, standing up.
+* **Glued From**: the outer panel's tab starts that far along its edge, the
+  corner by crease H cut away.
 * **Outer Panels**: Lean Out or Lean In, which way they go down as the card
   closes.
 
 ### Zig-zag folds
 
-Birmingham 45–48. **Add → Zig-zag Fold**: a strip of walls glued only by its
-two end walls, each along a sticking strip set at an angle to the spine.
-Every crease runs square to the strip's bottom edge, so the walls between
-zig-zag out to a centre crease on the spine's line.
+Birmingham 45–48. A V-fold's **Shape → Zig-zag**: instead of a V, each glue
+line carries a wall standing straight up off the page, and faces zig-zag in
+from the walls to a centre crease. Every crease is square to the bottom edge.
 
-* **Position**: where the strips' lines meet the spine. **Strip Angle**:
-  measured from the spine going up (over 90 the strips run down and out, the
-  book's usual way). **Strip From Spine**: how far out along that line the
-  end wall starts. **End Wall**: the glued wall's width.
-* **Faces**: each face's width from the end wall in to the centre crease,
-  separated by commas: `30` is mechanism 45, `25, 20` the facade of 48.
+* **Glue Angle** (as a V-fold's, measured from the spine going up; a zig-zag
+  starts at 120, glue lines running down and out as the book draws them),
+  **Glued From** (how far out along the glue line the wall starts) and
+  **Glue Length** (the glued wall's width).
+* **Faces Each Side**: 1 juts out like a V (mechanism 45); 2 or more make a
+  concertina (48). **Face Width**, or **Uneven Faces** to give each its own
+  width (mm, from the glued wall in).
 * **Centre**: Juts Forward or Sits Back.
-* Where the walls' bottoms would dip into a page as the card opens and
-  closes, they're cut away to clear it (the pattern shows it).
+* **Bottoms**: walls on angled glue lines tip their bottom edges down towards
+  the pages part way open. **Cut Lightly** (the default) trims them only
+  where they'd dig in more than a few mm; **Cut to Clear** wherever they'd
+  touch; **Leave Square** doesn't cut.
+* Its centre crease takes other mechanisms, like a V-fold's.
+* What sets the M-fold apart (page 29) is its angle E, between crease H and
+  the glued edge; in a zig-zag every crease is square.
 
 ### Multiple quadrilaterals
 
@@ -557,6 +575,9 @@ back's crease, in line with the back's centre face.
 * **Front**: each half of the front strip, side piece to centre.
 * Heights for back, sides and front; the side and front pieces glue on with
   tabs at their ends.
+* **Glue Angle**, **Glued From** and **Glue Length** set the glue lines and
+  end walls as on a zig-zag; **Bottoms** as there too.
+* The back's centre crease takes other mechanisms.
 
 ### Extra creases and cuts
 

@@ -90,7 +90,6 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("PLATFORM", "Platform (45° folds)"),
                         ("RISER", "Rising Sheet (45° folds)"),
                         ("DOUBLE45", "Double 45° Fold (twisting top)"),
-                        ("ZIGZAG", "Zig-zag Fold (angled strips)"),
                         ("QUADS", "Multiple Quadrilaterals (angled strips)"),
                         ("JACK", "Jack in the Box (on a V-fold)"),
                         ("PICTURE", "Picture (glued on a face)")):
@@ -135,8 +134,12 @@ class POPUP_MT_add(bpy.types.Menu):
             op = self.layout.operator("popup.add", text="V-fold on its crease",
                                       icon=KIND_ICON["VFOLD"])
             op.kind, op.host, op.fold = "VFOLD", h.uid, "V"
-        elif st.mechs and st.active < len(st.mechs) and st.mechs[st.active].kind == "VFOLD":
+        elif st.mechs and st.active < len(st.mechs) and (
+                st.mechs[st.active].kind in ("ZIGZAG", "QUADS") or
+                st.mechs[st.active].kind == "VFOLD" and st.mechs[st.active].shape != "FAN"):
             h = st.mechs[st.active]
+            # (halves glued along a line: a V-fold's)
+            glued = h.kind == "VFOLD" and h.shape not in ("M", "ZIGZAG")
             self.layout.separator()
             self.layout.label(text=f"On {h.label}:")
             for kind, text in (("BOX", "Box Fold on the Crease"),
@@ -146,7 +149,7 @@ class POPUP_MT_add(bpy.types.Menu):
                                ("STANDUP", "Stand-up on the Crease")):
                 op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
                 op.kind, op.host, op.fold = kind, h.uid, "V"
-                if kind == "VFOLD":
+                if kind == "VFOLD" and glued:
                     op = self.layout.operator("popup.add", text="V-fold on Top (tabs A)",
                                               icon=KIND_ICON[kind])
                     op.kind, op.host, op.fold, op.variant = kind, h.uid, "V", "TOP"
@@ -154,9 +157,10 @@ class POPUP_MT_add(bpy.types.Menu):
                                ("TUBE", "Tube in the V (on the Crease)")):
                 op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
                 op.kind, op.host, op.fold = kind, h.uid, "V"
-            self.layout.label(text="On its glue folds (off-centre):")
-            for fold, where in (("FL", "in front, left"), ("FR", "in front, right"),
-                                ("BL", "behind, left"), ("BR", "behind, right")):
+            if glued:
+                self.layout.label(text="On its glue folds (off-centre):")
+            for fold, where in ((("FL", "in front, left"), ("FR", "in front, right"),
+                                ("BL", "behind, left"), ("BR", "behind, right")) if glued else ()):
                 for kind, name in (("STANDUP", "Stand-up"), ("CUBE", "Cube"),
                                    ("TUBE", "Tube"), ("VFOLD", "V-fold"),
                                    ("BOX", "Box Fold")):
@@ -666,10 +670,10 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "depth", text="Arm Reach")
             col.label(text="Draw the figure; erase its art to shape it", icon="INFO")
         elif m.kind in ("ZIGZAG", "QUADS"):
-            col.label(text="Sticking strips (where their lines meet the spine: Position)")
-            col.prop(m, "phi_l", text="Strip Angle")
-            col.prop(m, "x", text="Strip From Spine")
-            col.prop(m, "width", text="End Wall (glued)")
+            col.label(text="Glue lines meet the spine at Position")
+            col.prop(m, "phi_l", text="Glue Angle")
+            col.prop(m, "x", text="Glued From")
+            col.prop(m, "width", text="Glue Length (end walls)")
             if m.kind == "ZIGZAG":
                 col.prop(m, "faces", text="Faces (end in, mm)")
                 col.prop(m, "jut")
@@ -683,7 +687,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "q_front_h")
                 col.label(text="Side's face to the strip: worked out so it folds flat",
                           icon="INFO")
-            col.label(text="Bottoms are cut away where they'd dip into a page", icon="INFO")
+            col.prop(m, "cut_bottoms")
         elif m.kind == "DOUBLE45":
             col.prop(m, "width", text="Arm Width")
             col.prop(m, "height", text="Arm Length")
@@ -702,6 +706,22 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                       icon="INFO")
         elif m.kind == "VFOLD":
             col.prop(m, "shape")
+            if m.shape == "ZIGZAG":
+                col.prop(m, "height", text="Wall Height")
+                col.prop(m, "phi_l", text="Glue Angle")
+                col.prop(m, "glue_from", text="Glued From")
+                col.prop(m, "glue", text="Glue Length (end walls)")
+                col.prop(m, "faces_n")
+                col.prop(m, "faces_uneven")
+                if m.faces_uneven:
+                    col.prop(m, "faces", text="Widths (mm, from the glued wall in)")
+                else:
+                    col.prop(m, "face_w")
+                col.prop(m, "jut")
+                col.prop(m, "cut_bottoms")
+                _tabs(self.layout, m, side=False)
+                self.draw_warnings(context, m)
+                return
             if m.shape == "M":
                 col.prop(m, "height", text="Fold Length")
                 col.prop(m, "phi_l", text="Glue Angle (where the halves touch down)")
@@ -711,6 +731,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "m_outer_h")
                 col.prop(m, "m_outer")
                 col.prop(m, "m_outer_len")
+                col.prop(m, "glue_from", text="Glued From (along the outer edge)")
                 col.prop(m, "m_lean")
                 col.label(text="Only the outer panels are glued; the centre crease takes "
                           "other mechanisms", icon="INFO")
@@ -724,6 +745,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "fan_spread")
                 col.prop(m, "fan_stand")
                 col.prop(m, "phi_l", text="Glue Angle")
+                col.prop(m, "glue_from", text="Glued From (hub cut away)")
                 if not m.host_uid:
                     col.prop(m, "cut_above")
                 _tabs(self.layout, m)
@@ -743,8 +765,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                          text="Top Piece Angle" if m.symmetric else "Top Piece Angle L")
                 if not m.symmetric:
                     col.prop(m, "top_piece_r")
-                col.label(text="Top piece angle above the point angle; larger lies flatter",
-                          icon="INFO")
+                col.prop(m, "top_below")
+                col.label(text="Point Angle over 90 makes a V-shaped top", icon="INFO")
             else:
                 col.prop(m, "phi_l", text="Glue Angle" if m.symmetric else "Glue Angle L")
             if not m.symmetric and not top:

@@ -23,6 +23,8 @@ from mathutils import Matrix, Vector
 from .geom import frame, hinge_frame_2d, rot_y
 
 MIR = ".L"
+_CACHE = {}  # solved linkages on a card's spine, by shape (moving one up or
+# down the spine changes nothing in its plan)
 
 
 def _np(M):
@@ -97,47 +99,94 @@ class Plan:
             self._fr.clear()
         return got
 
-    def nodes(self, t, q):
-        """All node positions (plan) from the unknowns q."""
-        F = self.frame_at(t)
-        P = {"A.R": F["A"], "B.R": F["B"]}
+    def _compile(self):
+        """Index the nodes once: positions = fixed + G q."""
+        names = ["A.R", "B.R", "A.L", "B.L"]
+        names += [n + ".R" for n in self.free] + [n + MIR for n in self.free] + list(self.mid)
+        self.names = names
+        self.idx = {n: i for i, n in enumerate(names)}
+        N, nq = len(names), 2 * len(self.free) + len(self.mid)
+        G = np.zeros((2 * N, nq))
         k = 0
         for n in self.free:
-            P[n + ".R"] = np.array([q[k], q[k + 1]])
+            iR, iL = self.idx[n + ".R"], self.idx[n + MIR]
+            G[2 * iR, k], G[2 * iR + 1, k + 1] = 1.0, 1.0
+            G[2 * iL, k], G[2 * iL + 1, k + 1] = -1.0, 1.0
             k += 2
         for n in self.mid:
-            P[n] = np.array([0.0, q[k]])
+            G[2 * self.idx[n] + 1, k] = 1.0
             k += 1
-        for n in list(P):
-            if n.endswith(".R"):
-                v = P[n]
-                P[n[:-2] + MIR] = np.array([-v[0], v[1]])
-        return P
+        self.G = G
+        self.ia = np.array([self.idx[a] for a, _, _ in self.bars], dtype=int)
+        self.ib = np.array([self.idx[b] for _, b, _ in self.bars], dtype=int)
+        self.L = np.array([L for _, _, L in self.bars])
+        self.li = [tuple(self.idx[x] for x in tri) for tri in self.lines]
+
+    def _pos(self, t, q):
+        if not hasattr(self, "G"):
+            self._compile()
+        F = self.frame_at(t)
+        P0 = np.zeros((len(self.names), 2))
+        P0[0], P0[1] = F["A"], F["B"]
+        P0[2] = (-F["A"][0], F["A"][1])
+        P0[3] = (-F["B"][0], F["B"][1])
+        return P0 + (self.G @ np.asarray(q, dtype=float)).reshape(-1, 2)
+
+    def nodes(self, t, q):
+        """All node positions (plan) from the unknowns q."""
+        P = self._pos(t, q)
+        return {n: P[i] for i, n in enumerate(self.names)}
+
+    def _rj(self, t, q, jac=True):
+        P = self._pos(t, q)
+        D = P[self.ia] - P[self.ib]
+        ln = np.linalg.norm(D, axis=1)
+        r = ln - self.L
+        J = None
+        if jac:
+            U = D / np.maximum(ln, 1e-12)[:, None]
+            Jp = np.zeros((len(self.L), 2 * len(self.names)))
+            rows = np.arange(len(self.L))
+            Jp[rows, 2 * self.ia] += U[:, 0]
+            Jp[rows, 2 * self.ia + 1] += U[:, 1]
+            Jp[rows, 2 * self.ib] -= U[:, 0]
+            Jp[rows, 2 * self.ib + 1] -= U[:, 1]
+            J = Jp @ self.G
+        if self.li:
+            rl, Jl = [], []
+            for a, b, c in self.li:
+                ids = (a, b, c)
+
+                def f(x):
+                    u = x[2:4] - x[0:2]
+                    v = x[4:6] - x[2:4]
+                    return (u[0] * v[1] - u[1] * v[0]) / max(math.hypot(v[0], v[1]), 1e-9)
+                x0 = np.concatenate([P[a], P[b], P[c]])
+                f0 = f(x0)
+                rl.append(f0)
+                if jac:
+                    row = np.zeros(2 * len(self.names))
+                    for j in range(6):
+                        x1 = x0.copy()
+                        x1[j] += 1e-7
+                        row[2 * ids[j // 2] + j % 2] = (f(x1) - f0) / 1e-7
+                    Jl.append(row @ self.G)
+            r = np.concatenate([r, rl])
+            if jac:
+                J = np.vstack([J, np.array(Jl)])
+        return r, J
 
     def resid(self, t, q):
-        P = self.nodes(t, q)
-        r = [np.linalg.norm(P[a] - P[b]) - L for a, b, L in self.bars]
-        for a, b, c in self.lines:
-            u, v = P[b] - P[a], P[c] - P[b]
-            r.append((u[0] * v[1] - u[1] * v[0]) / max(np.linalg.norm(v), 1e-9))
-        return np.array(r)
+        return self._rj(t, q, False)[0]
 
     def solve(self, t, q0, qref, mu, it=60):
         q = np.array(q0, dtype=float)
         qref = np.array(qref, dtype=float)
         lam = 1e-6
         n = len(q)
-
-        def cost(q_):
-            r = self.resid(t, q_)
-            return r @ r + mu * ((q_ - qref) @ (q_ - qref)), r
-        c0, r = cost(q)
+        r, J = self._rj(t, q)
+        c0 = r @ r + mu * ((q - qref) @ (q - qref))
         for _ in range(it):
-            J = np.zeros((len(r), n))
-            for i in range(n):
-                dq = np.zeros(n)
-                dq[i] = 1e-7
-                J[:, i] = (self.resid(t, q + dq) - r) / 1e-7
             g = J.T @ r + mu * (q - qref)
             Hm = J.T @ J + mu * np.eye(n)
             while True:
@@ -146,17 +195,20 @@ class Plan:
                 except np.linalg.LinAlgError:
                     lam *= 10.0
                     continue
-                c1, r1 = cost(q + step)
+                q1 = q + step
+                r1, _ = self._rj(t, q1, False)
+                c1 = r1 @ r1 + mu * ((q1 - qref) @ (q1 - qref))
                 if c1 <= c0:
-                    q, c0, r = q + step, c1, r1
+                    q, c0 = q1, c1
+                    r, J = self._rj(t, q)
                     lam = max(lam * 0.3, 1e-12)
                     break
                 lam *= 10.0
                 if lam > 1e8:
                     return q, float(np.abs(r).max())
-            if np.abs(step).max() < 1e-11:
+            if np.abs(step).max() < 1e-11 or float(np.abs(r).max()) < 1e-12:
                 break
-        return q, float(np.abs(self.resid(t, q)).max())
+        return q, float(np.abs(r).max())
 
     def q_from_guess(self):
         q = []
@@ -170,7 +222,30 @@ class Plan:
         P = self.nodes(t, q)
         return max(abs(v[0]) for v in P.values())
 
+    def _key(self):
+        h = self.host
+        if (h.p1, h.p2) != ("Page.L", "Page.R"):
+            return None
+        r = (lambda v: round(float(v), 6))
+        return (r(self.C), r(self.B), r(self.w0), tuple(self.free), tuple(self.mid),
+                tuple((a, b, r(L)) for a, b, L in self.bars), tuple(self.lines),
+                tuple(sorted((k, r(v[0]), r(v[1])) for k, v in self.guess.items())),
+                hash(tuple(self.mo.TABLE_T)))
+
     def run(self):
+        key = self._key()
+        got = _CACHE.get(key) if key is not None else None
+        if got is not None:
+            self.tables, self.keys, self.jammed, self.solved, warn = got
+            return list(warn)
+        warn = self._run()
+        if key is not None:
+            if len(_CACHE) > 24:
+                _CACHE.clear()
+            _CACHE[key] = (self.tables, self.keys, self.jammed, self.solved, list(warn))
+        return warn
+
+    def _run(self):
         """Tabulate the linkage; returns warnings. Where the lengths leave
         slack, it closes as gently as it can while ending flat."""
         mo = self.mo
@@ -295,8 +370,15 @@ class Plan:
         return q
 
     def point(self, t, node, z=0.0):
-        F = self.frame_at(t)
-        p = self.nodes(t, self.q_at(t))[node]
+        got = self._pts.get(t) if hasattr(self, "_pts") else None
+        if got is None:
+            if not hasattr(self, "_pts") or len(self._pts) > 50000:
+                self._pts = {}
+            F = self.frame_at(t)
+            P = self._pos(t, self.q_at(t))
+            got = self._pts[t] = (F, {n: P[i] for i, n in enumerate(self.names)})
+        F, P = got
+        p = P[node]
         return F["S"] + p[0] * F["m"] + p[1] * F["e2"] + (F["h0"] + z) * F["d"]
 
 
@@ -333,6 +415,8 @@ def build(model, m, host, plan, pieces, lab, tab):
     # where the walls' common foot would dip into a page (as the card opens
     # and closes the strips tip it), their bottom edges are cut away to
     # clear it
+    how = m.get("cut_bottoms", "LIGHT")
+    slack = 0.6 if how == "CLEAR" else 3.0  # (mm a bottom may rub on a page)
     clear = {}
     for pc in pieces:
         for n in pc["nodes"]:
@@ -341,17 +425,25 @@ def build(model, m, host, plan, pieces, lab, tab):
             if n[0] in "AB" and n[1:] in (".L", ".R"):
                 clear[n] = 0.0  # (on a strip's glue line)
                 continue
+            # (only where it would really dig in: card gives a little, and
+            # nearly shut everything is lying down anyway)
+            if how == "NONE":
+                clear[n] = 0.0
+                continue
             worst = 0.0
             for t in model.TABLE_T[::2]:
+                if t < 12.0:
+                    continue
                 Lo, _, _, _, nL, nR = host.dirs(t)
                 X = Vector(plan.point(t, n))
                 d = Vector(plan.frame_at(t)["d"])
                 for nn in (nL, nR):
-                    dip = -(X - Lo).dot(nn)
+                    dip = -(X - Lo).dot(nn) - slack
                     if dip > 0.0:
                         up = d.dot(nn)  # (how much a step up the crease lifts it)
-                        worst = max(worst, dip / max(up, 0.05))
-            clear[n] = worst + 0.8 if worst > 0.05 else 0.0
+                        if up > 0.2:
+                            worst = max(worst, dip / up)
+            clear[n] = worst + 0.5 if worst > 0.05 else 0.0
     plan.clear = clear
 
     slot = 1 + uid
@@ -397,8 +489,10 @@ def build(model, m, host, plan, pieces, lab, tab):
                 parent, hinge = f"{base}.{pc['key']}{k - 1}", Hinge(Hc, Hc, "TABLE")
             if getattr(plan, "jammed", False):
                 hinge.host_bound = True  # (it can't follow all the way: warn, don't fail)
-            model.add(Panel(pname, w["piece"], "panel", [poly], wall_asm(w), parent, hinge,
-                            f"{lab}: {pc['label']} {k + 1}"))
+            pn = model.add(Panel(pname, w["piece"], "panel", [poly], wall_asm(w), parent,
+                                 hinge, f"{lab}: {pc['label']} {k + 1}"))
+            if pn is not None:
+                pn.rub = 1e9 if how == "NONE" else slack + 0.5
             if glued:
                 side = w["a"][-1] if w["a"][-1] in "LR" else w["b"][-1]
                 page, Tp = (host.p2, host.T2) if side == "R" else (host.p1, host.T1)

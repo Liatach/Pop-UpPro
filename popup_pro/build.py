@@ -289,8 +289,11 @@ def build_mesh(mesh, model, layout, s, holes=None):
                         idx += [(bv, a_, 1.0 - u), (bv, b_, u)]
                     else:
                         idx.append((bv, name, 1.0))
-                vs.append(bv)
-            if len(set(vs)) < 3:
+                if not vs or vs[-1] is not bv:
+                    vs.append(bv)
+            while len(vs) > 1 and vs[0] is vs[-1]:
+                vs.pop()  # (two corners within a hair of each other: one vertex)
+            if len(set(vs)) < 3 or len(set(vs)) != len(vs):
                 continue
             try:
                 f = bm.faces.new(vs)

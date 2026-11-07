@@ -81,7 +81,7 @@ Paint flat or folded, import and position images or simply textures, then export
 **Mechanisms**
 * V-folds (panels, beaks or pleated fans; symmetric or asymmetric; glued
   away from the spine; on top of each other; M-folds), mouths and jaws.
-* Zig-zag folds and multiple quadrilaterals on angled sticking strips.
+* Zig-zag folds and multiple quadrilaterals on angled glue lines.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
 * Tubes, pyramids and tents on parallel strips, with tethers and roofs, and
   castles: towers up a tube's inside corners with pyramid roofs that still
@@ -224,6 +224,13 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.69**: V-fold on Top as Birmingham 21-22 (the top piece runs on below
+  the join, a V-shaped top, a third piece on the second; a lifting piece that
+  vanished from the mesh fixed); Zig-zag is now a V-fold shape (faces each
+  side and a face width); fans and M-folds take Glued From; shapes name
+  themselves; M-folds stand up by default and move without lag; lighter
+  bottom cuts (Bottoms: light, clear or square); zig-zag and quadrilateral
+  centre creases take other mechanisms.
 * **0.68**: zig-zag folds (Birmingham 45-48) and multiple quadrilaterals (57)
   on angled sticking strips, their bottoms cut away where they'd dip into a
   page; the M-fold (28-29); V-fold on Top reworked as the book has it (the

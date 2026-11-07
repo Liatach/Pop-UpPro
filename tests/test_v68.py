@@ -85,6 +85,7 @@ for faces in ("30", "25, 20", "20, 15, 15"):
     assert bpy.ops.popup.add(kind="ZIGZAG") == {"FINISHED"}
     z = st.mechs[0]
     z.faces = faces
+    z.cut_bottoms = "CLEAR"
     model = build.rebuild(sc, force=True)
     assert not st.warnings, (faces, st.warnings)
     u = z.uid
@@ -124,6 +125,7 @@ assert rig_error() < 0.05
 st.mechs.clear()
 assert bpy.ops.popup.add(kind="QUADS") == {"FINISHED"}
 q_ = st.mechs[0]
+q_.cut_bottoms = "CLEAR"
 model = build.rebuild(sc, force=True)
 assert not st.warnings, st.warnings
 u = q_.uid
