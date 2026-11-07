@@ -629,7 +629,10 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "on_crease")
         if joint and not (m.kind == "VFOLD" and m.on_crease):
             col.prop(m, "side", text="Wall")
-        col.prop(m, "y", text="Position")
+        if m.kind == "VFOLD" and m.on_top and m.host_uid and (m.vside == "V" or m.on_crease):
+            col.label(text="At the top of the lifting piece's crease", icon="INFO")
+        else:
+            col.prop(m, "y", text="Position")
         if m.kind == "CUBE":
             col.prop(m, "size", text="Width" if m.size_r <= 0 else "Width Left")
             col.prop(m, "size_r", text="Width Right (0 = square)" if m.size_r <= 0
@@ -677,6 +680,21 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                       icon="INFO")
         elif m.kind == "VFOLD":
             col.prop(m, "shape")
+            if m.shape == "M":
+                col.prop(m, "height", text="Fold Length")
+                col.prop(m, "phi_l", text="Glue Angle (where the halves touch down)")
+                col.prop(m, "alpha_l", text="Piece Angle")
+                col.prop(m, "m_inner")
+                col.prop(m, "m_hinge")
+                col.prop(m, "m_outer_h")
+                col.prop(m, "m_outer")
+                col.prop(m, "m_outer_len")
+                col.prop(m, "m_lean")
+                col.label(text="Only the outer panels are glued; the centre crease takes "
+                          "other mechanisms", icon="INFO")
+                _tabs(self.layout, m, side=False)
+                self.draw_warnings(context, m)
+                return
             fan = m.shape == "FAN"
             col.prop(m, "height", text="Radius" if fan else "Fold Length")
             if fan:
@@ -694,11 +712,25 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 if not m.symmetric:
                     col.prop(m, "glue_r")
             col.prop(m, "symmetric")
-            col.prop(m, "phi_l", text="Glue Angle" if m.symmetric else "Glue Angle L")
-            if not m.symmetric:
+            top = m.on_top and m.host_uid and (m.vside == "V" or m.on_crease)
+            if top:
+                col.prop(m, "top_angle", text="Point Angle" if m.symmetric else "Point Angle L")
+                if not m.symmetric:
+                    col.prop(m, "top_angle_r")
+                col.prop(m, "top_piece",
+                         text="Top Piece Angle" if m.symmetric else "Top Piece Angle L")
+                if not m.symmetric:
+                    col.prop(m, "top_piece_r")
+                col.label(text="Top piece angle above the point angle; larger lies flatter",
+                          icon="INFO")
+            else:
+                col.prop(m, "phi_l", text="Glue Angle" if m.symmetric else "Glue Angle L")
+            if not m.symmetric and not top:
                 col.prop(m, "phi_r")
                 col.prop(m, "fold_flat")
-            if not m.symmetric and m.fold_flat:
+            if top:
+                pass
+            elif not m.symmetric and m.fold_flat:
                 col.prop(m, "lean")
                 d = m.to_dict()
                 col.label(text=f"Piece angles {d['alpha_l']:.0f}° L, {d['alpha_r']:.0f}° R; "
@@ -709,11 +741,19 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     col.prop(m, "alpha_r")
             if not m.host_uid:
                 col.prop(m, "cut_above")
-            col.prop(m, "glue_from", text="Glued From" if m.symmetric else "Glued From L")
-            if not m.symmetric:
+            if m.host_uid and (m.vside == "V" or m.on_crease):
+                col.prop(m, "on_top")
+            each = not m.symmetric or m.arch_uneven
+            col.prop(m, "glue_from", text="Glued From L" if each else "Glued From")
+            if each:
                 col.prop(m, "glue_from_r")
-            if m.glue_from > 0 or (not m.symmetric and m.glue_from_r > 0):
+            if m.glue_from > 0 or (each and m.glue_from_r > 0):
+                if m.symmetric:
+                    col.prop(m, "arch_uneven")
+                    if m.arch_uneven:
+                        col.prop(m, "glue_r")
                 col.prop(m, "arch")
+                col.prop(m, "arch_shape")
             _tabs(self.layout, m)
             _draw_lines(self.layout, context, m)
         else:

@@ -80,7 +80,7 @@ Paint flat or folded, import and position images or simply textures, then export
 
 **Mechanisms**
 * V-folds (panels, beaks or pleated fans; symmetric or asymmetric; glued
-  away from the spine; on top of each other), mouths and jaws.
+  away from the spine; on top of each other; M-folds), mouths and jaws.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
 * Tubes, pyramids and tents on parallel strips, with tethers and roofs, and
   castles: towers up a tube's inside corners with pyramid roofs that still
@@ -215,8 +215,8 @@ Sunflower is a good way to make them.
     base's edges 
   * box ends filled by double 45° folds, and a box lid lifted by a strut
 * **V-folds, continued** (Birmingham): the "bite" that sculpts a V-fold
-  into a curve or a point (12–15), a looped arch (16), tall narrow sides
-  that twist (19), and the M-fold (28–29).
+  into a curve or a point (12–15), a looped arch (16), and tall narrow sides
+  that twist (19).
 * **Multiple quadrilaterals**: a chain of linked quadrilaterals sweeping
   across the spine, each with its own height and shape, as long as each
   one's front and rear crease lengths balance.

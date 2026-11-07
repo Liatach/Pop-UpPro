@@ -691,8 +691,34 @@ class PopupMech(bpy.types.PropertyGroup):
         ("BEAK_R", "Panel Left, Beak Right", "The left half a four-sided panel, the right "
          "half a triangle to the crease's end"),
         ("FAN", "Fan", "A pleated fan glued along its two end edges: more paper than the "
-         "gap it spans (Spread), folding flat pleat on pleat as the card shuts")],
+         "gap it spans (Spread), folding flat pleat on pleat as the card shuts"),
+        ("M", "M-fold", "Birmingham 28-29: the V-fold's halves go on past a crease (H) into "
+         "an outer panel each side. Only the outer panels are glued down; the halves "
+         "between them ride up on their creases. The centre crease takes other "
+         "mechanisms like any V-fold's")],
         update=lambda self, ctx: _shape_changed(self, ctx))
+    m_inner: FloatProperty(name="Inner Length", default=30.0, min=3.0, soft_max=200.0,
+                           update=_changed, description="M-fold: along each half's bottom "
+                           "edge, from the centre crease to where crease H starts (mm)")
+    m_hinge: FloatProperty(name="Crease H Angle", default=40.0, min=5.0, max=175.0,
+                           update=_changed, description="M-fold: how far crease H turns up "
+                           "from the line of the half's bottom edge, carried on past it "
+                           "(degrees, on the piece)")
+    m_outer: FloatProperty(name="Outer Angle", default=60.0, min=5.0, max=175.0,
+                           update=_changed, description="M-fold: the outer panel's corner "
+                           "between crease H and its glued bottom edge (degrees). The "
+                           "glue line on the page is worked out to suit")
+    m_outer_len: FloatProperty(name="Outer Glue Length", default=30.0, min=3.0,
+                               soft_max=200.0, update=_changed,
+                               description="M-fold: the outer panel's glued edge (mm)")
+    m_outer_h: FloatProperty(name="Crease H Length", default=40.0, min=3.0, soft_max=200.0,
+                             update=_changed, description="M-fold: how far crease H runs "
+                             "up between the half and the outer panel (mm)")
+    m_lean: EnumProperty(name="Outer Panels", items=[
+        ("OUT", "Lean Out", "The outer panels fold down outwards as the card closes"),
+        ("IN", "Lean In", "The outer panels fold over inwards as the card closes")],
+        default="OUT", update=_changed,
+        description="M-fold: which way the outer panels go down as the card closes")
     fan_pleats: IntProperty(name="Pleats", default=5, min=1, max=24, update=_changed,
                             description="How many pleats (ridges) the fan has")
     fan_stand: FloatProperty(name="Stand", default=60.0, min=0.0, max=90.0, update=_changed,
@@ -916,6 +942,36 @@ class PopupMech(bpy.types.PropertyGroup):
                         update=_changed, description="How far up the crease the arch cut "
                         "away between the tabs reaches (mm). 0: as high as the tabs are "
                         "far out")
+    arch_uneven: BoolProperty(name="Uneven Sides", default=False, update=_changed,
+                              description="Glued away from the spine: each side its own "
+                              "glue length and start, even with the angles symmetric")
+    arch_shape: EnumProperty(name="Cut Shape", items=[
+        ("STRAIGHT", "Straight", "A straight cut from each tab start to the top of the arch"),
+        ("ROUND", "Round", "A rounded arch"),
+        ("SQUARE", "Square", "Nearly square: up from the tab starts, then across"),
+        ("POINTED", "Pointed", "A pointed (gothic) arch, curving in to a peak")],
+        default="STRAIGHT", update=_changed,
+        description="The shape cut away between the tabs")
+    on_top: BoolProperty(name="On Top", default=False, update=_changed,
+                         description="Birmingham 21-22: stuck on top of the V-fold it "
+                         "stands on. That one's top is cut to a point along the glue lines "
+                         "and its own tabs (A) stick under this piece")
+    top_angle: FloatProperty(name="Point Angle", default=60.0, min=5.0, max=175.0,
+                             update=_changed, description="On Top: the angle between the "
+                             "lifting piece's crease and each side of its pointed top "
+                             "(Birmingham's B). Smaller: a sharper point")
+    top_angle_r: FloatProperty(name="Point Angle R", default=60.0, min=5.0, max=175.0,
+                               update=_changed, description="On Top, asymmetric: the right "
+                               "side of the point")
+    top_piece: FloatProperty(name="Top Piece Angle", default=80.0, min=5.0, max=175.0,
+                             update=_changed, description="On Top: on the top piece, the "
+                             "angle between its crease (pointing down, past where it meets "
+                             "the lifting piece) and where tab A sticks (Birmingham's C). "
+                             "Larger than the point angle; nearer it, the top piece stands "
+                             "up; larger, it lies flatter")
+    top_piece_r: FloatProperty(name="Top Piece Angle R", default=80.0, min=5.0, max=175.0,
+                               update=_changed, description="On Top, asymmetric: the "
+                               "right side")
     glue_r: FloatProperty(name="Glue Length R", default=0.0, min=0.0, soft_max=150.0,
                           update=_changed,
                           description="Asymmetric V-fold: length of the right glue edge "
@@ -1084,13 +1140,24 @@ class PopupMech(bpy.types.PropertyGroup):
                     al, ar = 180.0 - self.phi_r + self.lean, 180.0 - self.phi_l + self.lean
                 else:
                     al, ar = self.phi_r + self.lean, self.phi_l + self.lean
-            d.update(type="VFOLD", phi_l=self.phi_l, alpha_l=al,
-                     phi_r=self.phi_l if self.symmetric else self.phi_r, alpha_r=ar,
+            pl, pr = self.phi_l, self.phi_l if self.symmetric else self.phi_r
+            top = self.on_top and self.host_uid and (self.vside == "V" or self.on_crease)
+            if top:
+                # Birmingham's B and C, measured down from the point
+                tl, tr = self.top_angle, self.top_angle if self.symmetric else self.top_angle_r
+                cl, cr = self.top_piece, self.top_piece if self.symmetric else self.top_piece_r
+                pl, pr, al, ar = 180.0 - tl, 180.0 - tr, 180.0 - cl, 180.0 - cr
+            each = not self.symmetric or self.arch_uneven
+            d.update(type="VFOLD", phi_l=pl, alpha_l=al, phi_r=pr, alpha_r=ar,
                      glue=self.glue, height=self.height, tab_side=self.tab_side,
-                     glue_r=self.glue if self.symmetric or self.glue_r <= 0 else self.glue_r,
+                     glue_r=self.glue if not each or self.glue_r <= 0 else self.glue_r,
                      glue_from=self.glue_from,
-                     glue_from_r=self.glue_from if self.symmetric else self.glue_from_r,
-                     arch=self.arch,
+                     glue_from_r=self.glue_from_r if each else self.glue_from,
+                     arch=self.arch, arch_shape=self.arch_shape,
+                     on_top=bool(top),
+                     m_inner=self.m_inner, m_hinge=self.m_hinge, m_outer=self.m_outer,
+                     m_outer_len=self.m_outer_len, m_outer_h=self.m_outer_h,
+                     m_lean=self.m_lean,
                      shape=self.shape, cut_above=self.cut_above, fan_pleats=self.fan_pleats,
                      fan_spread=self.fan_spread, fan_stand=self.fan_stand,
                      pleat=self.pleat,

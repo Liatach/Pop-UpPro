@@ -477,22 +477,54 @@ of or behind either half (above).
 
 Birmingham 18–20. The two pieces still meet at the spine, but their glue tabs
 start some way out along the glue lines: set **Glued From** (mm along the glue
-line from where it meets the spine; with Symmetric off, **Glued From L** and
-**R** can differ). The bottom of the piece is cut away between the tab starts
-so nothing near the spine is glued, which leaves the spine end free to
-move and lets the piece sit over things glued close to the fold.
-**Arch Height** sets how far up the centre crease the cut-away reaches (0 lets
-it follow the larger Glued From). The cut is straight; draw a curve with
-**Holes and shaping** if you want a rounded arch.
+line from where it meets the spine). The piece is cut away between the tab
+starts, so nothing near the spine is glued: the spine end is free to move and
+the piece can sit over things glued close to the fold.
+
+* **Arch Height**: how far up the centre crease the cut reaches (0 lets it
+  follow the larger Glued From).
+* **Cut Shape**: Straight, Round, Square (up from the tab starts, then across)
+  or Pointed (a gothic arch).
+* **Uneven Sides**: each side its own **Glue Length** and **Glued From**
+  while the angles stay symmetric. With Symmetric off, the two sides are
+  separate anyway.
 
 ### A V-fold on top of a V-fold
 
 Birmingham 21–22. With a V-fold selected, **Add → V-fold on Top (tabs A)**
-stands a second V-fold at the top of its crease, the two creases against each
-other. Where the new one's glue tabs would hang off the lower one's halves,
-those halves grow a pointed top (the book's tabs A) to carry them. Move the
-upper one's **Position** down the crease and the points shrink back; the
-checks still say if the points stick out of the closed card.
+sticks a second creased piece on top of it (**On Top** on a V-fold standing on
+another's crease does the same). The lifting V-fold's top is cut to a point
+along the glue lines, and its own tabs (the book's tabs A) fold over and
+stick under the top piece, its crease right up against the lifting piece's.
+
+* **Point Angle** (the book's B): between the lifting piece's crease and each
+  side of its pointed top. It changes how far the card opens the top piece.
+* **Top Piece Angle** (the book's C): on the top piece, between its crease
+  (pointing down past the point) and where tab A sticks. Keep it larger than
+  the point angle; near it the top piece stands up, larger it lies flatter,
+  hanging level over the lifting piece at about 70–80°.
+* It always sits at the very top of the lifting piece's crease. Keep it small
+  enough to fold away inside the lifting piece (the checks say if it pokes
+  through the card).
+
+### The M-fold
+
+Birmingham 28–29. **Shape → M-fold** on a V-fold: each half carries on past a
+crease H into an outer panel. Only the outer panels are glued down; the
+halves ride between them and each other, so each opening is solved and
+tabulated. The centre crease takes other mechanisms like any V-fold's.
+
+* **Glue Angle** and **Piece Angle**: as a V-fold's, with the piece angle the
+  larger. Fully open, the halves' bottom edges come down on the page along
+  the glue lines (just touching: they aren't glued).
+* **Inner Length**: from the centre crease to where crease H starts.
+* **Crease H Angle**: how far H turns up from the line of the half's bottom
+  edge; **Crease H Length**: how far it runs.
+* **Outer Angle**: the outer panel's corner between H and its glued edge; the
+  glue line on the page is worked out to suit. **Outer Glue Length**: that
+  edge.
+* **Outer Panels**: Lean Out or Lean In, which way they go down as the card
+  closes.
 
 ### Extra creases and cuts
 

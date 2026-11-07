@@ -318,15 +318,19 @@ class POPUP_OT_add(bpy.types.Operator):
                 next(x for x in st.mechs if x.uid == uid)["side"] = 1 if self.side == "L" else 0
             _put_on(st, uid, self.host, self.fold)
         if self.kind == "VFOLD" and self.variant == "TOP" and self.host:
-            # Birmingham 21-22: at the top of the lower V-fold's crease, its
-            # tabs carried by points grown on the lower one's halves (tabs A)
+            # Birmingham 21-22: stuck on top of the V-fold it stands on, whose
+            # top is cut to a point and whose own tabs (A) stick under it
             h = next(x for x in st.mechs if x.uid == self.host)
             was = st.live
             st["live"] = False
             m = next(x for x in st.mechs if x.uid == uid)
+            m.on_top = True
             m.y = round(h.height, 1)
-            m.glue = m.height = round(0.5 * min(h.glue, h.height), 1)
-            m.tab = min(m.tab, round(0.3 * m.glue, 1))
+            m.top_angle = m.top_angle_r = 50.0
+            m.top_piece = m.top_piece_r = 70.0
+            # small enough to fold away inside the lifting piece's height
+            m.glue = m.height = round(max(10.0, 0.4 * h.height), 1)
+            m.tab = min(h.tab, round(0.3 * m.glue, 1))
             st["live"] = was
         if self.kind == "STAGE":  # a staging frame at the front, one frame behind
             for _ in range(2):
