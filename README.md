@@ -81,6 +81,7 @@ Paint flat or folded, import and position images or simply textures, then export
 **Mechanisms**
 * V-folds (panels, beaks or pleated fans; symmetric or asymmetric; glued
   away from the spine; on top of each other; M-folds), mouths and jaws.
+* Zig-zag folds and multiple quadrilaterals on angled sticking strips.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
 * Tubes, pyramids and tents on parallel strips, with tethers and roofs, and
   castles: towers up a tube's inside corners with pyramid roofs that still
@@ -217,12 +218,17 @@ Sunflower is a good way to make them.
 * **V-folds, continued** (Birmingham): the "bite" that sculpts a V-fold
   into a curve or a point (12–15), a looped arch (16), and tall narrow sides
   that twist (19).
-* **Multiple quadrilaterals**: a chain of linked quadrilaterals sweeping
-  across the spine, each with its own height and shape, as long as each
-  one's front and rear crease lengths balance.
+* **Zig-zags and quadrilaterals, continued** (Birmingham): slanted fold
+  lines (47), boxes cut into the faces (46, 48), and a quadrilateral lifted
+  on a V-fold (56).
 
 ## Version history
 
+* **0.68**: zig-zag folds (Birmingham 45-48) and multiple quadrilaterals (57)
+  on angled sticking strips, their bottoms cut away where they'd dip into a
+  page; the M-fold (28-29); V-fold on Top reworked as the book has it (the
+  lifting piece cut to a point, its tabs A under the top piece); glued-away
+  arches with Round, Square or Pointed cuts and uneven sides.
 * **0.67**: V-folds glued away from the spine (Glued From, the piece arched
   away between the tabs, each side its own distance); a V-fold on top of a
   V-fold, the lower one's halves growing points to carry its tabs.

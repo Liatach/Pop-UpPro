@@ -526,6 +526,38 @@ tabulated. The centre crease takes other mechanisms like any V-fold's.
 * **Outer Panels**: Lean Out or Lean In, which way they go down as the card
   closes.
 
+### Zig-zag folds
+
+Birmingham 45–48. **Add → Zig-zag Fold**: a strip of walls glued only by its
+two end walls, each along a sticking strip set at an angle to the spine.
+Every crease runs square to the strip's bottom edge, so the walls between
+zig-zag out to a centre crease on the spine's line.
+
+* **Position**: where the strips' lines meet the spine. **Strip Angle**:
+  measured from the spine going up (over 90 the strips run down and out, the
+  book's usual way). **Strip From Spine**: how far out along that line the
+  end wall starts. **End Wall**: the glued wall's width.
+* **Faces**: each face's width from the end wall in to the centre crease,
+  separated by commas: `30` is mechanism 45, `25, 20` the facade of 48.
+* **Centre**: Juts Forward or Sits Back.
+* Where the walls' bottoms would dip into a page as the card opens and
+  closes, they're cut away to clear it (the pattern shows it).
+
+### Multiple quadrilaterals
+
+Birmingham 57. **Add → Multiple Quadrilaterals**: a back zig-zag glued by its
+end walls to angled strips, a front strip across the spine, and a side piece
+each side making a quadrilateral from the strip's far end round to the
+back's crease, in line with the back's centre face.
+
+* **Back Faces**: the back's two faces each side, strip to centre.
+* **Side**: the side piece from the back's crease to its front corner; the
+  side's other face (to the strip's far end) is worked out so the
+  quadrilateral folds flat (the book's AB + BC = AD + DC).
+* **Front**: each half of the front strip, side piece to centre.
+* Heights for back, sides and front; the side and front pieces glue on with
+  tabs at their ends.
+
 ### Extra creases and cuts
 
 See [Tutorial 7](https://www.youtube.com/watch?v=IkJAnmS-2ZE) and [Tutorial 22](https://www.youtube.com/watch?v=Ze9shENIBf4).

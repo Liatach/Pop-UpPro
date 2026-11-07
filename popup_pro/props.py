@@ -98,6 +98,13 @@ KINDS = [
     ("PICTURE", "Picture", "A piece of card glued flat on any face: a box's top or front "
      "(a stand-up), a V-fold half, a 45° triangle, a page. It can reach past the face's "
      "edges", "IMAGE_DATA", 19),
+    ("ZIGZAG", "Zig-zag Fold", "A strip of walls glued only by its two end walls along "
+     "sticking strips set at an angle to the spine, every crease square to its bottom edge: "
+     "the walls between zig-zag forward or back to a centre crease (Birmingham 45-48)",
+     "MOD_SCREW", 20),
+    ("QUADS", "Multiple Quadrilaterals", "A back zig-zag on angled sticking strips with a "
+     "front strip across the spine, joined each side by a side piece into a quadrilateral "
+     "that folds flat (Birmingham 57)", "MOD_LATTICE", 21),
 ]
 
 POINTS = [
@@ -987,6 +994,27 @@ class PopupMech(bpy.types.PropertyGroup):
                          default=30.0, min=2.0, soft_max=150.0, update=_changed)
     width: FloatProperty(name="Width", description="Width along the spine (mm)",
                          default=50.0, min=2.0, soft_max=200.0, update=_changed)
+    faces: StringProperty(name="Faces", default="30", update=_changed,
+                          description="Zig-zag: the width of each face from the end wall in "
+                          "to the centre crease, one side (mm, separated by commas: '30' or "
+                          "'25, 20'). Quadrilaterals: the back's two faces each side, from "
+                          "the strip to the centre crease")
+    jut: EnumProperty(name="Centre", items=[
+        ("FRONT", "Juts Forward", "The centre crease comes forward, towards the bottom of "
+         "the card"),
+        ("BACK", "Sits Back", "The centre crease sits back, towards the top of the card")],
+        default="FRONT", update=_changed)
+    q_side: FloatProperty(name="Side", default=25.0, min=3.0, soft_max=200.0, update=_changed,
+                          description="Quadrilaterals: the side piece's face from the strip's "
+                          "far end to the front (mm). Its other face is worked out so the "
+                          "quadrilateral folds flat")
+    q_front: FloatProperty(name="Front", default=30.0, min=3.0, soft_max=200.0,
+                           update=_changed, description="Quadrilaterals: each half of the "
+                           "front strip, from a side piece to the centre crease (mm)")
+    q_side_h: FloatProperty(name="Side Height", default=30.0, min=3.0, soft_max=200.0,
+                            update=_changed)
+    q_front_h: FloatProperty(name="Front Height", default=25.0, min=3.0, soft_max=200.0,
+                             update=_changed)
     tab: FloatProperty(name="Tab Size", description="Glue tab size (mm)", default=12.0,
                        min=3.0, soft_max=30.0, update=_changed)
     vside: EnumProperty(name="Fold", description="Which half of the host V-fold, and "
@@ -1101,6 +1129,11 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "DOUBLE45":
             d.update(type="DOUBLE45", width=self.width, height=self.height,
                      depth=self.depth)
+        elif self.kind in ("ZIGZAG", "QUADS"):
+            d.update(type=self.kind, phi_l=self.phi_l, x=self.x, width=self.width,
+                     height=self.height, faces=self.faces, jut=self.jut,
+                     depth=self.q_side, front=self.q_front, back=self.q_side_h,
+                     img_h=self.q_front_h)
         elif self.kind == "STANDUP":
             d.update(type="STANDUP", stand=self.stand, width=self.width, height=self.height,
                      depth=self.depth, img_w=self.img_w, img_h=self.img_h)

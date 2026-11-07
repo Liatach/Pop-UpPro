@@ -86,6 +86,9 @@ DEFAULTS = {
     "RISER": dict(y=60.0, width=70.0, height=80.0, tab=12.0, brace_size=20.0),
     "DOUBLE45": dict(y=105.0, width=30.0, height=45.0, depth=104.0, tab=10.0),
     "JACK": dict(y=30.0, width=60.0, height=25.0, depth=25.0, tab=10.0),
+    "ZIGZAG": dict(y=80.0, phi_l=120.0, x=20.0, width=25.0, height=50.0, faces="30", tab=10.0),
+    "QUADS": dict(y=70.0, phi_l=120.0, x=20.0, width=25.0, height=50.0, faces="16, 16",
+                  q_side=25.0, q_front=40.0, tab=8.0),
     "PICTURE": dict(img_w=30.0, img_h=40.0),
     "ROOF": dict(phi_l=100.0, alpha_l=70.0, glue=150.0, height=60.0, tab=8.0,
                  tab_side="IN"),
@@ -95,7 +98,8 @@ NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "
          "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
          "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof",
          "PLATFORM": "Platform", "RISER": "Rising sheet", "DOUBLE45": "Double 45",
-         "JACK": "Jack in the box", "PICTURE": "Picture"}
+         "JACK": "Jack in the box", "PICTURE": "Picture", "ZIGZAG": "Zig-zag",
+         "QUADS": "Quadrilaterals"}
 
 
 def unique_label(items, base, skip=None):

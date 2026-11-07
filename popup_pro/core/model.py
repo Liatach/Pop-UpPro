@@ -21,6 +21,8 @@ so the rig works without enabling Python scripts.
 import bisect
 import math
 
+import numpy as np
+
 from mathutils import Matrix, Vector
 
 from .geom import (Z, angle_from_roty, ccw, clean, clip_halfplane, frame, hinge_frame_2d,
@@ -491,6 +493,10 @@ class Model:
                 self._riser(m, host)
             elif m["type"] == "DOUBLE45":
                 self._double45(m, host)
+            elif m["type"] == "ZIGZAG":
+                self._zigzag(m, host)
+            elif m["type"] == "QUADS":
+                self._quads(m, host)
             elif m["type"] == "JACK":
                 self._jack(m, host, bool(h) and by_uid[h]["type"] == "VFOLD")
             elif m["type"] == "CUBE":
@@ -2016,17 +2022,9 @@ class Model:
                     if best is None or score < best[0]:
                         best = (score, x)
             if best is None:
-                import os
-                if os.environ.get("MDBG"):
-                    for i in range(6):
-                        x0 = (-math.pi + (i + 0.5) * math.pi / 3, 0.5)
-                        print("dbg", x0, newton(S, t0, x0, 25), resid(S, t0, *x0))
                 self.warn(f"{lab}: M-fold can't stand up with these angles; skipped")
                 return
             x = best[1]
-            import os
-            if os.environ.get("MDBG"):
-                print("root", side, [round(math.degrees(a), 1) for a in x], round(best[0], 3))
             tab_ = {}
             bad = None
             for t in Ts:
@@ -2102,6 +2100,165 @@ class Model:
         self.line_frames[m["uid"]] = (piece, lambda q: q, None)
         # its centre crease takes other mechanisms, like a V-fold's
         self._vfold_hosts(m["uid"], base, host, yP, (g, g), L, None, None)
+
+    # ------------------------------------------- walls on angled strips
+    @staticmethod
+    def _lengths(text, default):
+        out = []
+        for tok in str(text or "").replace(";", ",").split(","):
+            tok = tok.strip()
+            if tok:
+                try:
+                    v = float(tok)
+                except ValueError:
+                    continue
+                if v > 0.5:
+                    out.append(v)
+        return out or list(default)
+
+    def _strips(self, m, lab):
+        from .linkage import Plan
+        host = self.placed.get(m["uid"])
+        C = math.radians(float(m.get("phi_l", 60.0)))
+        if not (5.0 <= math.degrees(C) <= 85.0 or 95.0 <= math.degrees(C) <= 175.0):
+            self.warn(f"{lab}: the strips can't run square across the spine; using 60")
+            C = math.radians(60.0)
+        return Plan(self, host, C, float(m.get("x", 20.0)), float(m.get("width", 25.0)),
+                    float(m.get("y", 60.0)))
+
+    def _zigzag(self, m, host):
+        """Birmingham 45-48, zig-zag folds: a strip of walls, all its creases
+        square to its bottom edge, glued only by its two end walls along
+        sticking strips set at an angle to the spine. The walls in between
+        zig-zag out from the strips to a centre crease on the spine's line."""
+        from .linkage import build
+        lab = m["label"]
+        P = self._strips(m, lab)
+        faces = self._lengths(m.get("faces", ""), [30.0])[:6]
+        jut = 1.0 if m.get("jut", "FRONT") == "FRONT" else -1.0
+        A = np.array(P.vA) - np.array((0.0, P.y0))
+        tot = sum(faces)
+        if tot <= abs(A[0]) + 0.5:
+            self.warn(f"{lab}: its faces are too narrow to reach the centre from the "
+                      f"strips; skipped")
+            return
+        # open flat: from the strip's inner end out to the centre crease,
+        # zig-zagging on the way
+        ey = A[1] - jut * math.sqrt(max(tot * tot - A[0] * A[0], 0.0)) * 0.85
+        E = np.array((0.0, ey))
+        names = [f"N{k}" for k in range(1, len(faces))]
+        prev = "A.R"
+        for k, n in enumerate(names):
+            f = sum(faces[:k + 1]) / tot
+            g = A + f * (E - A)
+            dirv = (E - A) / max(np.linalg.norm(E - A), 1e-9)
+            nrm = np.array((-dirv[1], dirv[0]))
+            g = g + nrm * (0.35 * faces[k] * (1 if k % 2 == 0 else -1) * jut)
+            P.add_free(n, (g[0], g[1] + P.y0))
+            P.bar(prev, n + ".R", faces[k])
+            prev = n + ".R"
+        P.add_mid("E", ey + P.y0)
+        P.bar(prev, "E", faces[-1])
+        for w_ in P.run():
+            self.warn(f"{lab}: {w_}")
+        h = float(m.get("height", 50.0))
+        right = ["A.R"] + [n + ".R" for n in names] + ["E"]
+        left = ["B.L", "A.L"] + [n + ".L" for n in names]
+        chain = left + ["E"] + [x for x in reversed(right[:-1])] + ["B.R"]
+        pieces = [dict(key="Z", label="zig-zag", nodes=chain, heights=[h] * (len(chain) - 1),
+                       glued=(True, True))]
+        self.line_frames[m["uid"]] = (f"Link{m['uid']}.Z", lambda q: q, None)
+        build(self, m, host, P, pieces, lab, float(m.get("tab", 10.0)))
+
+    def _quads(self, m, host):
+        """Birmingham 57, multiple quadrilaterals: a back zig-zag glued by its
+        end walls to angled strips (strip end A, back crease D, centre E), a
+        side piece each side from the strip's far end B to a front corner C
+        and back to D, in line with the back's centre face, and a front strip
+        from C across the spine (centre F). Quadrilateral ABCD's two ways
+        round, from back crease to front corner, are made equal (the book's
+        AB + BC = AD + DC) so it folds flat: B to C is worked out to suit."""
+        from .linkage import build
+        lab = m["label"]
+        P = self._strips(m, lab)
+        ad, de = (self._lengths(m.get("faces", ""), [16.0, 16.0]) + [16.0])[:2]
+        cd = float(m.get("depth", 25.0))
+        cf = float(m.get("front", 30.0))
+        ab = P.w0
+        bc = ad + cd - ab
+        if bc < 3.0:
+            self.warn(f"{lab}: the side piece's face to the strip comes out too short "
+                      f"({bc:.0f} mm); make Side or the back's first face longer")
+            return
+        A = np.array(P.vA)
+        Bv = np.array(P.vB)
+        # the back zig-zag sits on the side the strips spread towards, the
+        # front strip on the other
+        sy = -1.0 if math.cos(P.C) > 0 else 1.0
+
+        def layout(th):
+            # open flat (the plan is then the page): D round A, E behind it on
+            # the spine's line, C on past D in line with E
+            D = A + ad * np.array((-math.cos(th), sy * math.sin(th)))
+            if de < abs(D[0]):
+                return None
+            E = np.array((0.0, D[1] + sy * math.sqrt(de * de - D[0] * D[0])))
+            u = (D - E) / max(np.linalg.norm(D - E), 1e-9)
+            return D, E, D + u * cd
+        best = None
+        for i in range(1, 400):
+            th = -0.5 * math.pi + math.pi * i / 400
+            got = layout(th)
+            if got is None:
+                continue
+            gap = abs(float(np.linalg.norm(got[2] - Bv)) - bc)
+            if got[2][0] > 0 and (best is None or gap < best[0]):
+                best = (gap, th)
+        if best is None or best[0] > 5.0:
+            self.warn(f"{lab}: these lengths can't make the quadrilateral; skipped")
+            return
+        lo, hi = best[1] - math.pi / 400, best[1] + math.pi / 400
+        f = (lambda th: float(np.linalg.norm(layout(th)[2] - Bv)) - bc)
+        for _ in range(60):
+            mid = 0.5 * (lo + hi)
+            if layout(lo) is None or layout(mid) is None:
+                break
+            if (f(lo) > 0) == (f(mid) > 0):
+                lo = mid
+            else:
+                hi = mid
+        D, E, Cn = layout(0.5 * (lo + hi))
+        if cf < Cn[0]:
+            self.warn(f"{lab}: the front can't reach the centre; make Front longer")
+            return
+        F = (0.0, Cn[1] - sy * math.sqrt(max(cf * cf - Cn[0] * Cn[0], 0.0)))
+        P.add_free("D", tuple(D))
+        P.add_free("C", tuple(Cn))
+        P.add_mid("E", E[1])
+        P.add_mid("F", F[1])
+        P.bar("A.R", "D.R", ad)
+        P.bar("D.R", "E", de)
+        P.bar("B.R", "C.R", bc)
+        P.bar("C.R", "D.R", cd)
+        P.bar("C.R", "F", cf)
+        P.line("C.R", "D.R", "E")
+        for w_ in P.run():
+            self.warn(f"{lab}: {w_}")
+        hb = float(m.get("height", 50.0))
+        hs = float(m.get("back", 30.0))
+        hf = float(m.get("img_h", 25.0))
+        pieces = [
+            dict(key="K", label="back", nodes=["B.L", "A.L", "D.L", "E", "D.R", "A.R", "B.R"],
+                 heights=[hb] * 6, glued=(True, True)),
+            dict(key="SL", label="left side", nodes=["B.L", "C.L", "D.L"], heights=[hs] * 2,
+                 glued=(False, False), first=("K0", "B.L"), last=("K2", "D.L")),
+            dict(key="SR", label="right side", nodes=["B.R", "C.R", "D.R"], heights=[hs] * 2,
+                 glued=(False, False), first=("K5", "B.R"), last=("K3", "D.R")),
+            dict(key="F", label="front", nodes=["C.L", "F", "C.R"], heights=[hf] * 2,
+                 glued=(False, False), first=("SL0", "C.L"), last=("SR0", "C.R")),
+        ]
+        self.line_frames[m["uid"]] = (f"Link{m['uid']}.K", lambda q: q, None)
+        build(self, m, host, P, pieces, lab, float(m.get("tab", 10.0)))
 
     @staticmethod
     def _arch_cut(half, ah, c0, up, how):

@@ -9,6 +9,7 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND",
              "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME", "PLATFORM": "MOD_SOLIDIFY",
              "RISER": "OUTLINER_OB_FORCE_FIELD", "DOUBLE45": "ORIENTATION_GIMBAL",
+             "ZIGZAG": "MOD_SCREW", "QUADS": "MOD_LATTICE",
              "JACK": "OUTLINER_OB_ARMATURE", "PICTURE": "IMAGE_DATA"}
 
 
@@ -89,6 +90,8 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("PLATFORM", "Platform (45° folds)"),
                         ("RISER", "Rising Sheet (45° folds)"),
                         ("DOUBLE45", "Double 45° Fold (twisting top)"),
+                        ("ZIGZAG", "Zig-zag Fold (angled strips)"),
+                        ("QUADS", "Multiple Quadrilaterals (angled strips)"),
                         ("JACK", "Jack in the Box (on a V-fold)"),
                         ("PICTURE", "Picture (glued on a face)")):
             if k == "CASTLE":  # a tube with a tower in each inside corner
@@ -662,6 +665,25 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "height", text="Fold Spacing (G)")
             col.prop(m, "depth", text="Arm Reach")
             col.label(text="Draw the figure; erase its art to shape it", icon="INFO")
+        elif m.kind in ("ZIGZAG", "QUADS"):
+            col.label(text="Sticking strips (where their lines meet the spine: Position)")
+            col.prop(m, "phi_l", text="Strip Angle")
+            col.prop(m, "x", text="Strip From Spine")
+            col.prop(m, "width", text="End Wall (glued)")
+            if m.kind == "ZIGZAG":
+                col.prop(m, "faces", text="Faces (end in, mm)")
+                col.prop(m, "jut")
+                col.prop(m, "height")
+            else:
+                col.prop(m, "faces", text="Back Faces (strip in, mm)")
+                col.prop(m, "q_side", text="Side (back crease to front)")
+                col.prop(m, "q_front", text="Front (to centre)")
+                col.prop(m, "height", text="Back Height")
+                col.prop(m, "q_side_h")
+                col.prop(m, "q_front_h")
+                col.label(text="Side's face to the strip: worked out so it folds flat",
+                          icon="INFO")
+            col.label(text="Bottoms are cut away where they'd dip into a page", icon="INFO")
         elif m.kind == "DOUBLE45":
             col.prop(m, "width", text="Arm Width")
             col.prop(m, "height", text="Arm Length")
@@ -799,7 +821,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     for w_, t_ in (("LEFT", "Left"), ("RIGHT", "Right"), ("BOTH", "Both")):
                         op = row.operator("popup.tri_pictures", text=t_)
                         op.uid, op.which = m.uid, w_
-        if m.kind in ("CUBE", "STANDUP", "BOX", "PLATFORM", "RISER", "DOUBLE45"):
+        if m.kind in ("CUBE", "STANDUP", "BOX", "PLATFORM", "RISER", "DOUBLE45", "ZIGZAG",
+                      "QUADS"):
             _tabs(self.layout, m, side=m.kind == "CUBE")
         if m.kind in ("BOX", "BOXCUT"):
             _draw_lines(self.layout, context, m)
