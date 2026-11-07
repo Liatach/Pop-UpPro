@@ -141,6 +141,28 @@ creases stay vertical above the fold, so the tube stays upright and folds
 flat. A pair as wide as the strip distance gives a flat face when the card is
 open flat (a box); wider pairs point out (a hexagon) or in (a recess).
 
+**Front / Back: Round** makes a cylinder (Birmingham 68): the wall pair
+curves round from the side walls to a crease above the fold (F at the front,
+G at the back), straight when the card is shut and round as it opens. Picked,
+it sets the width to a quarter of the circle through the strips, so each end
+is a half circle when the card is open flat; wider walls bulge further. Each curved wall is
+modelled as eight narrow facets with no folds drawn between them on the
+pattern: score only F, G and the side walls' edges and let the card curve.
+A tube round at both ends names itself Cylinder. A flat roof follows the
+curve; a pointed roof needs straight walls. A tube's walls can't curve
+narrower than about 1.4 times the strip distance (Checks widens them).
+
+**Balconies**: with a tube or cube selected, the **+** menu adds a
+**Balcony** on its left or right wall, or **Balconies on Both Side Walls**;
+with a box fold selected, a **Balcony in Front**. A balcony is a box fold
+standing against the wall: its top is the floor, **Height** up the wall,
+**Depth** out from it, and its front is the leg under the floor. **Railing**
+sticks a strip on the outside of the leg standing that far above the floor
+(any box fold can have one). It stays parallel to the wall and the floor to
+the page, so it folds flat with them. A tube's balconies go on its side
+walls; its front and back walls swing round as the card closes, so a floor
+can't follow round them.
+
 Every wall in this family leans together, halfway between the pages, and
 every crease stays parallel, so one tube can pull others into shape:
 
@@ -519,25 +541,31 @@ stick under the top piece, its crease right up against the lifting piece's.
 
 ### The M-fold
 
-Birmingham 28–29. **Shape → M-fold** on a V-fold: each half carries on past a
-crease H into an outer panel. Only the outer panels are glued down; the
-halves ride between them and each other, so each opening is solved and
-tabulated. The centre crease takes other mechanisms like any V-fold's.
+Birmingham 28–29. **Shape → M-fold** on a V-fold: each half bends at a
+point on its bottom edge, and past the bend a crease rises off the edge (D),
+a small panel E sits between it and crease H, and the outer panel past H is
+the only part glued down, along a glue line that bends at the same point
+(C). The halves, the E panels and the outer panels ride between each other,
+so each opening is solved and tabulated. The centre crease takes other
+mechanisms like any V-fold's.
 
-* **Glue Angle** and **Piece Angle**: as a V-fold's, with the piece angle the
-  larger. Fully open, the halves' bottom edges come down on the page along
-  the glue lines (just touching: they aren't glued).
-* **Inner Length**: from the centre crease to where crease H starts.
-* **Crease H Angle**: how far H turns up from the line of the half's bottom
-  edge; **Crease H Length**: how far it runs.
-* **Outer Angle**: the outer panel's corner between H and its glued edge; the
-  glue line on the page is worked out to suit. **Outer Glue Length**: that
-  edge.
-* A new M-fold starts at Piece Angle 90 and Crease H Angle 50, standing up.
-* **Glued From**: the outer panel's tab starts that far along its edge, the
-  corner by crease H cut away.
-* **Outer Panels**: Lean Out or Lean In, which way they go down as the card
-  closes.
+* **Glue Angle (B)** and **Piece Angle (A)**: as a V-fold's, with the piece
+  angle the larger. **Glue Length to the Bend**: from the spine to the bend.
+* **Angle D**: on the piece, at the bend, between the edge back towards the
+  centre and the crease rising off it. The glue line on the page bends by
+  the same angle (C = D).
+* **Angle E**: the little panel between that crease and crease H. The outer
+  panel's corner F matches it (E = F). Panel E is what makes an M-fold an
+  M-fold and not a zig-zag (page 29): without it the outer panel can't
+  move.
+* **Free Angles** lets you set C and F yourself. The book's rule: change
+  them together (if D = C + x then E = F + x).
+* **Crease Length (D and H)** and **Outer Glue Length**: the creases' and
+  the outer panel's glued edge's lengths. **Glued From**: the outer panel's
+  tab starts that far along its edge.
+* A new M-fold starts at Piece Angle 80, Glue Angle 60, D 120 and E 60,
+  standing up. Some angle sets hold the card from opening all the way;
+  Checks says how far it gets.
 
 ### Zig-zag folds
 
@@ -568,7 +596,8 @@ end walls to angled strips, a front strip across the spine, and a side piece
 each side making a quadrilateral from the strip's far end round to the
 back's crease, in line with the back's centre face.
 
-* **Back Faces**: the back's two faces each side, strip to centre.
+* **Back, Outer Face** and **Back, Centre Face**: the back's two faces each
+  side, from the strip to its crease and from there to the centre.
 * **Side**: the side piece from the back's crease to its front corner; the
   side's other face (to the strip's far end) is worked out so the
   quadrilateral folds flat (the book's AB + BC = AD + DC).

@@ -30,6 +30,53 @@ from .geom import (Z, angle_from_roty, ccw, clean, clip_halfplane, frame, hinge_
 
 T_MIN = 0.05  # degrees; avoids the degenerate fully-closed pose
 TAB_LIFT = 0.15  # mm a glued tab floats above the page (avoids z-fighting)
+ROUND_FACETS = 8  # panels a round tube wall half is made of
+
+
+def _round_reach(d, n):
+    """How far across a round half reaches, per unit length, with each of
+    its n facets turned d further than the last (the middle of the first
+    turned d / 2 off the side wall)."""
+    return sum(math.sin((k + 0.5) * d) for k in range(n)) / n
+
+
+def _round_peak(n):
+    lo, hi = 0.0, math.pi / n * 2.0
+    for _ in range(60):  # the reach rises then falls: find where it peaks
+        m1, m2 = lo + (hi - lo) / 3.0, hi - (hi - lo) / 3.0
+        if _round_reach(m1, n) < _round_reach(m2, n):
+            lo = m1
+        else:
+            hi = m2
+    return 0.5 * (lo + hi)
+
+
+ROUND_DMAX = _round_peak(ROUND_FACETS)
+ROUND_FMAX = _round_reach(ROUND_DMAX, ROUND_FACETS)  # about 0.72
+
+
+def round_arc(x, L, n):
+    """A round tube wall half, length L, from a side wall's end to the
+    mirror plane x across, as n flat facets turning evenly: straight when
+    shut, round as it opens (a quarter circle across when the facets turn
+    through 90 degrees between them). Points along it as (across, along)
+    from the side wall's end."""
+    r = min(max(x / L, 0.0), ROUND_FMAX)
+    lo, hi = 0.0, ROUND_DMAX
+    for _ in range(48):
+        mid = 0.5 * (lo + hi)
+        if _round_reach(mid, n) < r:
+            lo = mid
+        else:
+            hi = mid
+    d = 0.5 * (lo + hi)
+    out = [(0.0, 0.0)]
+    l_ = L / n
+    for k in range(n):
+        px, py = out[-1]
+        th = (k + 0.5) * d
+        out.append((px + l_ * math.sin(th), py + l_ * math.cos(th)))
+    return out
 SAMPLES = [0.5, 5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
 
 IN = 25.4
@@ -249,6 +296,8 @@ class Model:
         self.soft = set()  # panel pairs joined by a sliding bend, not a fold
         self.blend = {}  # bent panel -> (stiff a, stiff b, y at a, y at b): shown between
         self.fold_kind = {}  # panel pairs drawn as this fold however they're shown
+        self.facets = set()  # panel pairs that are one curved sheet
+        self.smooth_panels = set()  # panels shaded as curved paper
         self.flaps = {}  # flap uid -> info for the UI and checks
         self.tubes = {}  # tube uid -> plan geometry for tethers
         self.tethers = {}
@@ -788,6 +837,9 @@ class Model:
             h = Host(self, p1, 0.0, 0.0, p2, 0.0, 0.0, f"{lab}: {txt}", T1, T2).finish()
             h.trig = host.trig
             self.hosts[(uid, key)] = h
+        rail = float(m.get("rail", 0.0) or 0.0)
+        if rail > 1e-6:
+            self._rail(m, host, base, a, b, y0, w, k, rail, single)
         tri = m.get("tri45", "NONE") or "NONE"
         if tri != "NONE" and (uid, "C") in self.hosts:
             self._tri45(m, self.hosts[(uid, "C")], tri, y0, w, a, b, k, base, lab)
@@ -2953,23 +3005,55 @@ class Model:
 
     def tube_plan(self, uid, t):
         T = self.tubes[uid]
+        if T.get("rf") or T.get("rb"):
+            c = T.setdefault("cache", {})
+            k = float(t)
+            if k not in c:
+                if len(c) > 4096:
+                    c.clear()
+                c[k] = self._tube_plan(uid, t)
+            return dict(c[k])
+        return self._tube_plan(uid, t)
+
+    def _tube_plan(self, uid, t):
+        T = self.tubes[uid]
         host, a, y0, D = T["host"], T["a"], T["y0"], T["D"]
         S, e, xh, Y, sn, cs = self.strip_frame(host, t)
         x = a * sn
         pf = math.sqrt(max(T["wf"] ** 2 - x * x, 0.0))
         pb = math.sqrt(max(T["wb"] ** 2 - x * x, 0.0))
-        return dict(BL=(-x, y0 + D), FL=(-x, y0), FR=(x, y0), BR=(x, y0 + D),
-                    CF=(0.0, y0 - T["sf"] * pf), CB=(0.0, y0 + D + T["sb"] * pb))
+        out = dict(BL=(-x, y0 + D), FL=(-x, y0), FR=(x, y0), BR=(x, y0 + D),
+                   CF=(0.0, y0 - T["sf"] * pf), CB=(0.0, y0 + D + T["sb"] * pb))
+        if T.get("rf"):
+            n = T["nf"]
+            arc = round_arc(x, T["wf"], n)
+            for k in range(1, n):
+                dx, dy = arc[k]
+                out[f"fL{k}"] = (-x + dx, y0 - dy)
+                out[f"fR{k}"] = (x - dx, y0 - dy)
+            out["CF"] = (-x + arc[n][0], y0 - arc[n][1])
+        if T.get("rb"):
+            n = T["nb"]
+            arc = round_arc(x, T["wb"], n)
+            for k in range(1, n):
+                dx, dy = arc[k]
+                out[f"bL{k}"] = (-x + dx, y0 + D + dy)
+                out[f"bR{k}"] = (x - dx, y0 + D + dy)
+            out["CB"] = (-x + arc[n][0], y0 + D + arc[n][1])
+        return out
 
-    def _corner_hosts(self, uid, lab, P, u, hgt):
+    def _corner_hosts(self, uid, lab, P, u, hgt, walls=None):
         """A tube's four inside corners, where a side wall meets the front or
         back: folds a tower (a glued box fold) stands in, inside the tube.
         Seen from inside, the corner is 90 degrees with the walls square and
         opens out to 180 as the card shuts, so a box fold there lies flat
         with the tube. Virtual y runs up the corner from the page."""
         t = self.t_ref
-        mids = [P[n].asm(t) @ Vector((0.5 * (u[i] + u[i + 1]), 0.5 * hgt, 0.0))
-                for i, n in enumerate(("FL_", "GFL", "GFR", "FR_", "GBR", "GBL"))]
+        if walls is None:
+            walls = {n: dict(u0=u[i], u1=u[i + 1])
+                     for i, n in enumerate(("FL_", "GFL", "GFR", "FR_", "GBR", "GBL"))}
+        mids = [P[n].asm(t) @ Vector((0.5 * (w["u0"] + w["u1"]), 0.5 * hgt, 0.0))
+                for n, w in walls.items()]
         cen = sum(mids, Vector()) / len(mids)
         R = Matrix.Rotation(math.pi, 4, "Y")
         for key, wa, ua, wb, ub, txt in (
@@ -3071,16 +3155,54 @@ class Model:
                 if hg is not None:
                     hg.host_bound = True
 
-    def _wall_asm(self, host, a, P, Q, u0, pts_fn):
+    def _rail(self, m, host, base, a, b, y0, w, k, rail, single):
+        """A balcony's railing: a strip stuck flat on the outside of a box
+        fold's front (the leg under the floor), standing rail above its top
+        (the floor). It moves with the front, so it folds flat with it."""
+        lab, uid = m["label"], m["uid"]
+        CB = f"{base}.CB"
+        if not single or CB not in self.panels:
+            self.warn(f"{lab}: a railing needs a plain box fold (one peak); no railing")
+            return
+        if abs(k) > 1e-9:
+            self.warn(f"{lab}: a railing on a slanted box fold isn't made; no railing")
+            return
+        if host.is_spine and a + b + rail > self.W + 1e-6:
+            self.warn(f"{lab}: the railing sticks out of the card when it's shut")
+        piece = f"Rail{uid}"
+        self.add_piece(Piece(piece, f"{lab} railing", 1 + uid, (0.5 * (a + rail), 0.5 * w)))
+        # pattern: x up the front from its foot (B, 0) past the top (C, a);
+        # y along the fold
+        poly = [(0.0, 0.0), (a + rail, 0.0), (a + rail, w), (0.0, w)]
+
+        def asm_own(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            out = (r - r.dot(l) * l).normalized()  # away from the wall it's against
+            return frame(S + b * r + y0 * Y + TAB_LIFT * out, l, Y)
+
+        cb = self.panels[CB]
+        tr = self.t_ref
+        off = cb.asm(tr).inverted() @ asm_own(tr)
+
+        def asm(t, f=cb.asm, off=off):
+            return f(t) @ off
+
+        self.add(Panel(f"{piece}.Rail", piece, "panel", [poly], asm, CB, None,
+                       f"{lab}: railing"))
+
+    def _wall_asm(self, host, a, P, Q, u0, pts_fn, frame_fn=None):
         """Wall standing along e from plan point P to Q (keys into pts_fn(t)),
         its pattern starting at u = u0."""
         Pi = frame(Vector((u0, 0, 0)), (1, 0, 0), (0, 1, 0)).inverted()
+        frame_fn = frame_fn or (lambda t: self.strip_frame(host, t))
 
         def asm(t):
             pts = pts_fn(t)
-            S, e, xh, Y, sn, cs = self.strip_frame(host, t)
-            p3 = self.plan3d(host, a, t, pts[P])
-            q3 = self.plan3d(host, a, t, pts[Q])
+            S, e, xh, Y, sn, cs = frame_fn(t)
+            o = S + a * cs * e
+            p, q = pts[P], pts[Q]
+            p3 = o + p[0] * xh + p[1] * Y
+            q3 = o + q[0] * xh + q[1] * Y
             return frame(p3, (q3 - p3).normalized(), e) @ Pi
 
         return asm
@@ -3094,12 +3216,24 @@ class Model:
         uid, lab = m["uid"], m["label"]
         a, y0 = float(m["x"]), float(m["y"])
         D, hgt = float(m["depth"]), float(m["height"])
+        rf = m.get("front_style", "OUT") == "ROUND"
+        rb = m.get("back_style", "OUT") == "ROUND"
         wf, wb = max(float(m["front"]), a), max(float(m["back"]), a)
         if float(m["front"]) < a - 1e-6 or float(m["back"]) < a - 1e-6:
             self.warn(f"{lab}: front and back walls must be at least as wide as the strip "
                       f"distance; widened to {a:.0f} mm")
-        sf = 1.0 if m.get("front_style", "OUT") == "OUT" else -1.0
-        sb = 1.0 if m.get("back_style", "OUT") == "OUT" else -1.0
+        wmin = a / ROUND_FMAX + 0.01
+        for on, w_, nm_ in ((rf, wf, "front"), (rb, wb, "back")):
+            if on and w_ < wmin:
+                self.warn(f"{lab}: a round {nm_} needs walls at least {wmin:.0f} mm wide "
+                          f"for this strip distance ({0.5 * math.pi * a:.0f} mm makes it "
+                          f"a half circle); widened")
+        if rf:
+            wf = max(wf, wmin)
+        if rb:
+            wb = max(wb, wmin)
+        sf = 1.0 if m.get("front_style", "OUT") in ("OUT", "ROUND") else -1.0
+        sb = 1.0 if m.get("back_style", "OUT") in ("OUT", "ROUND") else -1.0
         tb = min(float(m.get("tab", 10.0)), 0.45 * D)
         if sf < 0 and sb < 0 and wf + wb > D + 1e-6:
             self.warn(f"{lab}: recessed front and back meet inside the tube when closed "
@@ -3109,8 +3243,10 @@ class Model:
                       f"sticks out when closed")
         if host.is_spine and (y0 - sf * wf < -1e-6 or y0 + D + sb * wb > self.H + 1e-6):
             self.warn(f"{lab}: runs past the top or bottom of the card")
+        nf = ROUND_FACETS if rf else 1
+        nb = ROUND_FACETS if rb else 1
         self.tubes[uid] = dict(host=host, a=a, y0=y0, D=D, wf=wf, wb=wb, sf=sf, sb=sb, h=hgt,
-                               label=lab)
+                               label=lab, rf=rf, rb=rb, nf=nf, nb=nb)
         piece = f"Tube{uid}"
         self.add_piece(Piece(piece, lab, 1 + uid, (D + wf, 0.5 * hgt)))
         pts = lambda t: self.tube_plan(uid, t)
@@ -3118,15 +3254,42 @@ class Model:
         u = [0.0, D, D + wf, D + 2 * wf, 2 * D + 2 * wf, 2 * D + 2 * wf + wb,
              2 * D + 2 * wf + 2 * wb]
         self.pieces[piece].wrap = [0.0, 0.0, u[6], hgt]  # all six walls, round
-        names = ["FL_", "GFL", "GFR", "FR_", "GBR", "GBL"]
-        ends = [("BL", "FL"), ("FL", "CF"), ("CF", "FR"), ("FR", "BR"), ("BR", "CB"), ("CB", "BL")]
-        labels = ["left side", "front left", "front right", "right side", "back right",
-                  "back left"]
+        # each front or back half: one wall, or facets round a curve (keys into
+        # tube_plan, which gives the points between them)
+        nodesL = ["FL"] + [f"fL{k}" for k in range(1, nf)] + ["CF"]
+        nodesR = ["CF"] + [f"fR{k}" for k in range(nf - 1, 0, -1)] + ["FR"]
+        nodesBR = ["BR"] + [f"bR{k}" for k in range(1, nb)] + ["CB"]
+        nodesBL = ["CB"] + [f"bL{k}" for k in range(nb - 1, 0, -1)] + ["BL"]
+        segs = [("FL_", "FL_", u[0], u[1], "BL", "FL", "left side")]
+
+        def half(key, nodes, u0, w, n, lb):
+            for k in range(n):
+                nm_ = key if n == 1 else f"{key}{k + 1}"
+                segs.append((nm_, key, u0 + w * k / n, u0 + w * (k + 1) / n, nodes[k],
+                             nodes[k + 1], lb if n == 1 else f"{lb} {k + 1}"))
+
+        half("GFL", nodesL, u[1], wf, nf, "front left")
+        half("GFR", nodesR, u[2], wf, nf, "front right")
+        segs.append(("FR_", "FR_", u[3], u[4], "FR", "BR", "right side"))
+        half("GBR", nodesBR, u[4], wb, nb, "back right")
+        half("GBL", nodesBL, u[5], wb, nb, "back left")
+        frame_fn = None
+        if rf or rb:  # many facets ask for the same openings: work each out once
+            fc = {}
+
+            def frame_fn(t):
+                k = float(t)
+                if k not in fc:
+                    if len(fc) > 4096:
+                        fc.clear()
+                    fc[k] = self.strip_frame(host, t)
+                return fc[k]
         walls = {}
-        for i, nm in enumerate(names):
-            poly = [(u[i], 0), (u[i + 1], 0), (u[i + 1], hgt), (u[i], hgt)]
-            walls[nm] = dict(poly=poly, asm=self._wall_asm(host, a, ends[i][0], ends[i][1], u[i], pts),
-                             u0=u[i])
+        for nm, grp, u0, u1, pk, qk, lb in segs:
+            poly = [(u0, 0), (u1, 0), (u1, hgt), (u0, hgt)]
+            walls[nm] = dict(poly=poly, asm=self._wall_asm(host, a, pk, qk, u0, pts, frame_fn),
+                             u0=u0,
+                             u1=u1, grp=grp, lb=lb, ends=(pk, qk))
         tab_hinge = lambda u_: hinge_frame_2d((u_, 0), (0, 1))
         P = {}
         # side walls hinge on the strips
@@ -3140,14 +3303,29 @@ class Model:
                                   Hinge(host.T2 @ hinge_frame_2d((a, y0), (0, 1)),
                                         hinge_frame_2d((u[3], 0), (1, 0))),
                                   f"{lab}: right side"))
-        for nm, parent, hu, lb in (("GFL", "FL_", u[1], "front left"),
-                                   ("GFR", "GFL", u[2], "front right"),
-                                   ("GBR", "FR_", u[4], "back right"),
-                                   ("GBL", "GBR", u[5], "back left")):
-            P[nm] = self.add(Panel(f"{piece}.{nm}", piece, "panel", [walls[nm]["poly"]],
-                                   walls[nm]["asm"], P[parent].name,
-                                   Hinge(tab_hinge(hu), tab_hinge(hu), "TABLE", {}),
-                                   f"{lab}: {lb}"))
+        # the rest chain on from the side walls: front from the left, back from the right
+        chain = [sg[0] for sg in segs]
+        i_fr = chain.index("FR_")
+        for order_ in (chain[1:i_fr], chain[i_fr + 1:]):
+            prev = "FL_" if order_ and order_[0].startswith("GF") else "FR_"
+            for nm in order_:
+                w_ = walls[nm]
+                P[nm] = self.add(Panel(f"{piece}.{nm}", piece, "panel", [w_["poly"]],
+                                       w_["asm"], P[prev].name,
+                                       Hinge(tab_hinge(w_["u0"]), tab_hinge(w_["u0"]),
+                                             "TABLE", {}),
+                                       f"{lab}: {w_['lb']}"))
+                if walls[prev]["grp"] == w_["grp"] and nm != w_["grp"]:
+                    # facets of one curved wall: one sheet, no fold drawn between them
+                    pair = frozenset((P[prev].name, P[nm].name))
+                    self.fold_kind[pair] = "skip"
+                    self.facets.add(pair)
+                if nm != w_["grp"]:
+                    self.smooth_panels.add(P[nm].name)
+                prev = nm
+        # where a point sits along the strip, on the wall a tether glues to
+        self.tubes[uid]["walls"] = {nm: (P[nm].name, w_["u0"], w_["u1"]) + w_["ends"]
+                                    for nm, w_ in walls.items()}
         # closing tab on the back-left wall, glued inside the left side
         ch = min(0.3 * tb, 0.2 * hgt)
         close = [(u[6], 0), (u[6] + tb, ch), (u[6] + tb, hgt - ch), (u[6], hgt)]
@@ -3188,15 +3366,20 @@ class Model:
         self._wall_host(uid, "WR", P["FR_"].name, (u[3], 0.0), (1.0, 0.0), (0.0, 1.0),
                         host.p2, host.T2, (a, y0), (0.0, 1.0), (1.0, 0.0),
                         f"{lab}: right side wall", (D, hgt))
-        self._corner_hosts(uid, lab, P, u, hgt)
+        self._corner_hosts(uid, lab, P, u, hgt, walls)
         # which wall a tether glues to at each point, and the way along it
+        cfw = "GFL" if nf == 1 else f"GFL{nf}"
+        cbw = "GBR" if nb == 1 else f"GBR{nb}"
         self.tubes[uid]["attach"] = dict(
             FL=(P["FL_"].name, "BL"), BL=(P["FL_"].name, "FL"),
             FR=(P["FR_"].name, "BR"), BR=(P["FR_"].name, "FR"),
-            CF=(P["GFL"].name, "FL"), CB=(P["GBR"].name, "BR"))
+            CF=(P[cfw].name, walls[cfw]["ends"][0]), CB=(P[cbw].name, walls[cbw]["ends"][0]))
         roof = m.get("roof", "NONE")
         roof = {True: "POINTED", False: "NONE"}.get(roof, roof)
-        if roof == "POINTED":
+        if roof == "POINTED" and (rf or rb):
+            self.warn(f"{lab}: a pointed roof needs straight front and back walls; use a "
+                      f"flat roof on a round tube")
+        elif roof == "POINTED":
             self._roof(uid, f"Roof{uid}", f"{lab} roof", 300 + uid, host, a, y0, D, wf, wb,
                        sf, sb, hgt, float(m.get("roof_height", 30.0)),
                        float(m.get("ridge", 0.0)), tb, "IN",
@@ -3204,10 +3387,10 @@ class Model:
         elif roof == "FLAT":
             self._flat_roof(uid, f"{lab} roof", host, a, y0, D, wf, wb, sf, sb, hgt,
                             float(m.get("eave", 0.0)), m.get("roof_fold", "PEAK"), tb,
-                            P["FL_"], P["FR_"], u[3], float(m.get("rib", 0.0)))
+                            P["FL_"], P["FR_"], u[3], float(m.get("rib", 0.0)), uid)
 
     def _flat_roof(self, uid, lab, host, a, y0, D, wf, wb, sf, sb, hgt, eave, fold, tb,
-                   wl, wr, u3, rib=0.0):
+                   wl, wr, u3, rib=0.0, tube=None):
         """Flat roof on a tube: two halves creased down the middle above the
         fold, each hinged on a side wall's top edge by a tab folded in off the
         wall and glued underneath. Eave lets it overhang the walls all round.
@@ -3237,6 +3420,16 @@ class Model:
 
         # left half outline at open, grown by the eave on its outer edges
         outline = [(0.0, y0 + D + pbo), (-a, y0 + D), (-a, y0), (0.0, y0 - pfo)]
+        T_ = self.tubes.get(tube) if tube is not None else None
+        if T_ is not None and (T_.get("rf") or T_.get("rb")):
+            # a round front or back: the roof follows the walls' curve when open
+            pl = self.tube_plan(tube, self.tmax)
+            back = ["CB"] + [f"bL{k}" for k in range(T_["nb"] - 1, 0, -1)] if T_["rb"] \
+                else ["CB"]
+            front = [f"fL{k}" for k in range(1, T_["nf"])] + ["CF"] if T_["rf"] else ["CF"]
+            outline = [(0.0, pl["CB"][1]) if k == "CB" else pl[k] for k in back] + \
+                [(-a, y0 + D), (-a, y0)] + \
+                [(0.0, pl["CF"][1]) if k == "CF" else pl[k] for k in front]
 
         def line(p, q, d):
             """Edge p -> q moved d to its left (the outline runs anticlockwise)."""
@@ -3254,10 +3447,11 @@ class Model:
             return (p[0] + s_ * u[0], p[1] + s_ * u[1])
 
         e_ = max(eave, 0.0)
-        lines = [line(outline[i], outline[i + 1], -e_) for i in range(3)]
+        lines = [line(outline[i], outline[i + 1], -e_) for i in range(len(outline) - 1)]
         mid = ((0.0, 0.0), (0.0, 1.0))
-        polyL = [meet(mid, lines[0]), meet(lines[0], lines[1]), meet(lines[1], lines[2]),
-                 meet(lines[2], mid)]
+        polyL = [meet(mid, lines[0])] + [meet(lines[i], lines[i + 1])
+                                         for i in range(len(lines) - 1)] + \
+            [meet(lines[-1], mid)]
         if ccw(polyL) and poly_area(ccw(polyL)) < 1.0:
             self.warn(f"{lab}: roof too small; skipped")
             return
@@ -3398,8 +3592,11 @@ class Model:
         if float(m["front"]) < a - 1e-6 or float(m["back"]) < a - 1e-6:
             self.warn(f"{lab}: front and back must be at least as wide as the strip "
                       f"distance; widened to {a:.0f} mm")
-        sf = 1.0 if m.get("front_style", "OUT") == "OUT" else -1.0
-        sb = 1.0 if m.get("back_style", "OUT") == "OUT" else -1.0
+        if "ROUND" in (m.get("front_style"), m.get("back_style")):
+            self.warn(f"{lab}: a pyramid can't have a round front or back; pointed out "
+                      f"instead")
+        sf = 1.0 if m.get("front_style", "OUT") in ("OUT", "ROUND") else -1.0
+        sb = 1.0 if m.get("back_style", "OUT") in ("OUT", "ROUND") else -1.0
         tb = min(float(m.get("tab", 10.0)), 0.45 * D)
         self._roof(uid, f"Pyramid{uid}", lab, 1 + uid, host, a, y0, D, wf, wb, sf, sb, 0.0,
                    float(m["height"]), float(m.get("ridge", 0.0)), tb,
@@ -4254,11 +4451,9 @@ class Model:
 
     def _tube_u(self, uid, pt, wall):
         """Pattern u of a tube point on the given tube wall."""
-        T = self.tubes[uid]
-        D, wf, wb = T["D"], T["wf"], T["wb"]
-        u = {"FL_": {"BL": 0.0, "FL": D}, "FR_": {"FR": D + 2 * wf, "BR": 2 * D + 2 * wf},
-             "GFL": {"FL": D, "CF": D + wf}, "GBR": {"BR": 2 * D + 2 * wf, "CB": 2 * D + 2 * wf + wb}}
-        return u[wall.split(".")[-1]][pt]
+        short = wall.split(".")[-1]
+        pn, u0, u1, pk, qk = self.tubes[uid]["walls"][short]
+        return u0 if pt == pk else u1
 
     # ------------------------------------------------------------------ flap
     def _flap(self, m):

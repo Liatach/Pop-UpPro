@@ -183,10 +183,18 @@ class POPUP_MT_add(bpy.types.Menu):
             self.layout.label(text=f"Outside the walls of {h.label}:")
             for wall, where in (("L", "left wall"), ("R", "right wall")):
                 for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
-                                   ("BOX", "Box Fold"), ("STANDUP", "Stand-up")):
+                                   ("BOX", "Box Fold"), ("BALCONY", "Balcony"),
+                                   ("STANDUP", "Stand-up")):
                     op = self.layout.operator("popup.add", text=f"{name}, {where}",
-                                              icon=KIND_ICON[kind])
-                    op.kind, op.host, op.fold = kind, h.uid, "W" + wall
+                                              icon=KIND_ICON["BOX" if kind == "BALCONY"
+                                                             else kind])
+                    op.kind, op.host, op.fold = ("BOX" if kind == "BALCONY" else kind,
+                                                 h.uid, "W" + wall)
+                    if kind == "BALCONY":
+                        op.variant = "BALCONY"
+            op = self.layout.operator("popup.add", text="Balconies on Both Side Walls",
+                                      icon=KIND_ICON["BOX"])
+            op.kind, op.host, op.variant = "BOX", h.uid, "BALCONIES"
             if h.kind == "TUBE":
                 self.layout.label(text=f"Towers in the corners of {h.label}:")
                 op = self.layout.operator("popup.add", text="Tower in Every Inside Corner",
@@ -221,6 +229,10 @@ class POPUP_MT_add(bpy.types.Menu):
                         continue  # cut-ins need one piece of paper across the fold
                     op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
                     op.kind, op.host, op.fold = kind, h.uid, fold
+                    if kind == "BOX" and fold == "B":
+                        op = self.layout.operator("popup.add", text="Balcony in Front",
+                                                  icon=KIND_ICON["BOX"])
+                        op.kind, op.host, op.fold, op.variant = "BOX", h.uid, "B", "BALCONY"
                 if h.kind == "BOX" and h.peaks > 1:
                     for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
                                        ("STANDUP", "Stand-up")):
@@ -505,6 +517,10 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "front_style")
             col.prop(m, "back")
             col.prop(m, "back_style")
+            if "ROUND" in (m.front_style, m.back_style):
+                import math as _m
+                col.label(text=f"Round: {0.5 * _m.pi * m.x:.1f} mm makes a half circle",
+                          icon="INFO")
             col.prop(m, "roof")
             if m.roof == "POINTED":
                 col.prop(m, "roof_height")
@@ -836,6 +852,8 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "slant")
             if m.kind == "BOX" and not tower:
                 col.prop(m, "peaks")
+                if m.peaks <= 1:
+                    col.prop(m, "rail")
             if m.kind in ("BOX", "BOXCUT") and not tower and not joint:
                 col.prop(m, "tri45")
                 if m.tri45 != "NONE":

@@ -321,6 +321,20 @@ class POPUP_OT_add(bpy.types.Operator):
             if self.side:
                 next(x for x in st.mechs if x.uid == uid)["side"] = 1 if self.side == "L" else 0
             _put_on(st, uid, self.host, self.fold)
+        if self.kind == "BOX" and self.variant == "BALCONIES" and self.host:
+            # one on each side wall of a tube or cube
+            _remove_new(st, uid)
+            new = []
+            for fold in ("WL", "WR"):
+                m = _add(st, "BOX")
+                _put_on(st, m.uid, self.host, fold)
+                _balcony(st, m.uid, self.host)
+                new.append(m.uid)
+            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == new[0])
+            _rebuild(self, context, force=st.rig is not None and not st.edited)
+            return {"FINISHED"}
+        if self.kind == "BOX" and self.variant == "BALCONY" and self.host:
+            _balcony(st, uid, self.host)
         if self.kind == "VFOLD" and self.variant == "TOP" and self.host:
             # Birmingham 21-22: stuck on top of the V-fold it stands on, whose
             # top is cut to a point and whose own tabs (A) stick under it
@@ -365,6 +379,29 @@ def _tower(st, host, fold):
     t.roof_height = round(0.9 * t.height, 1)
     st["live"] = was
     return uid
+
+
+def _balcony(st, uid, host):
+    """A box fold made a balcony: its top the floor, part way up the wall
+    (or box front) it stands against, a railing round its front."""
+    was = st.live
+    st["live"] = False
+    try:
+        m = next(x for x in st.mechs if x.uid == uid)
+        h = next((x for x in st.mechs if x.uid == host), None)
+        tall = h.height if h is not None else 2.0 * m.height
+        if h is not None and h.kind in ("BOX", "BOXCUT", "STANDUP") and m.fold == "B":
+            tall = h.height  # (up the box's front)
+        m.height = round(max(8.0, 0.55 * tall), 1)
+        m.depth = round(max(8.0, min(0.35 * tall, 20.0)), 1)
+        if h is not None and h.kind == "TUBE":
+            m.width = round(0.8 * h.depth, 1)
+            m.y = round(0.1 * h.depth, 1)
+        m.rail = round(min(12.0, 0.4 * m.height), 1)
+        m.tab = min(m.tab, round(0.8 * min(m.height, m.depth), 1))
+        m.label = unique_label(st.mechs, "Balcony", m)
+    finally:
+        st["live"] = was
 
 
 def _put_on(st, uid, host, fold="A"):

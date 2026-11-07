@@ -613,6 +613,33 @@ def _strap(self, context):
     _changed(self, context)
 
 
+def _round_changed(self, context):
+    """A tube front or back made round starts as a half circle (each wall a
+    quarter of the circle through the strips); round both ways, a tube that
+    still has a made-up name becomes a cylinder."""
+    import math
+    import re
+    st = context.scene.popup if context and context.scene else None
+    if st is not None and self.kind == "TUBE":
+        was = st.live
+        st["live"] = False
+        try:
+            half = round(0.5 * math.pi * self.x, 1)
+            if self.front_style == "ROUND" and self.front < half - 0.05:
+                self.front = half
+            if self.back_style == "ROUND" and self.back < half - 0.05:
+                self.back = half
+            new = "Cylinder" if (self.front_style == "ROUND" and
+                                 self.back_style == "ROUND") else "Tube"
+            mt = re.fullmatch(r"(Tube|Cylinder) \d+", self.label or "")
+            if mt and mt.group(1) != new:
+                from .ops import unique_label
+                self.label = unique_label(st.mechs, new, self)
+        finally:
+            st["live"] = was
+    _changed(self, context)
+
+
 SHAPE_NAMES = {"QUAD": "V-fold", "TRI": "Beak", "BEAK_L": "Beak", "BEAK_R": "Beak",
                "FAN": "Fan", "M": "M-fold", "ZIGZAG": "Zig-zag"}
 
@@ -888,11 +915,15 @@ class PopupMech(bpy.types.PropertyGroup):
                         default=30.0, min=2.0, soft_max=150.0, update=_changed)
     front_style: EnumProperty(name="Front", items=[
         ("OUT", "Pointed Out", "The front crease points forward (hexagon)"),
-        ("IN", "Pointed In", "The front crease points into the tube (recessed)")],
-        update=_changed)
+        ("IN", "Pointed In", "The front crease points into the tube (recessed)"),
+        ("ROUND", "Round", "The front curves round from the side walls (cylinder, "
+         "Birmingham 68); tubes only")],
+        update=_round_changed)
     back_style: EnumProperty(name="Back", items=[
         ("OUT", "Pointed Out", "The back crease points backward (hexagon)"),
-        ("IN", "Pointed In", "The back crease points into the tube")], update=_changed)
+        ("IN", "Pointed In", "The back crease points into the tube"),
+        ("ROUND", "Round", "The back curves round from the side walls; tubes only")],
+        update=_round_changed)
     roof: EnumProperty(name="Roof", items=[
         ("NONE", "None", "Open top"),
         ("POINTED", "Pointed", "Pyramid or ridge roof (set Roof Height and Ridge)"),
@@ -974,6 +1005,11 @@ class PopupMech(bpy.types.PropertyGroup):
                            update=_changed)
     glue: FloatProperty(name="Glue Length", description="Length of each glue edge (mm)",
                         default=40.0, min=2.0, soft_max=150.0, update=_changed)
+    rail: FloatProperty(name="Railing", description="Box fold: a railing stuck on the "
+                        "outside of its front, standing this far above the top (mm). On a "
+                        "tube's or cube's wall, or in front of a box, the box fold is a "
+                        "balcony and its top the floor. 0: none", default=0.0, min=0.0,
+                        soft_max=60.0, update=_changed)
     peaks: IntProperty(name="Peaks", default=1, min=1, max=8, update=_changed,
                        description="Box fold or strap: creases along the strip so it "
                        "zig-zags into this many peaks as the card closes (still glued only "
@@ -1309,6 +1345,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      depth=self.height if (self.strap and self.kind == "BOX") else self.depth,
                      slant=self.slant, peaks=self.peaks if self.kind == "BOX" else 1,
                      pleat=self.pleat, tri45=self.tri45, tri_size=self.tri_size,
+                     rail=self.rail if self.kind == "BOX" else 0.0,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())
                             for ln in self.lines])
         return d

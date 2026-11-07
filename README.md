@@ -83,9 +83,10 @@ Paint flat or folded, import and position images or simply textures, then export
   away from the spine; on top of each other; M-folds), mouths and jaws.
 * Zig-zag folds and multiple quadrilaterals on angled glue lines.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
-* Tubes, pyramids and tents on parallel strips, with tethers and roofs, and
-  castles: towers up a tube's inside corners with pyramid roofs that still
-  fold flat.
+* Tubes, cylinders, pyramids and tents on parallel strips, with tethers and
+  roofs, and castles: towers up a tube's inside corners with pyramid roofs
+  that still fold flat. Balconies with railings on tube and cube walls and in
+  front of boxes.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   pictures glued on any face, pull-tab flaps.
 * 45° folds: a raised platform (on or off the centre) and a rising sheet,
@@ -186,7 +187,8 @@ Sunflower is a good way to make them.
 * **Castle, continued**: battlements and a drawbridge in the tube's walls, a
   castle wall in two strips (as Birmingham's), and towers on other folds.
   Gabled roofs, and roofs that overhang the walls, on towers and tubes;
-  balconies with railings; crenellations along more kinds of edge.
+  balconies that wrap round a tube's front; crenellations along more kinds
+  of edge.
 * **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
   for cards that stand part open), everything flat or square at that angle
   instead of at 180°, which lets floors and ceilings go in a plain card.
@@ -224,6 +226,11 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.70**: cylinders (Birmingham 68: a tube's front or back curves round,
+  creased above the fold); balconies with railings on tube and cube walls
+  and in front of box folds; the M-fold reworked with the book's crease D and
+  panel E, so its outer panels actuate; the multiple quadrilaterals' back
+  faces set one by one and the front piece no longer cut needlessly.
 * **0.69**: V-fold on Top as Birmingham 21-22 (the top piece runs on below
   the join, a V-shaped top, a third piece on the second; a lifting piece that
   vanished from the mesh fixed); Zig-zag is now a V-fold shape (faces each

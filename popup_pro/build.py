@@ -301,7 +301,7 @@ def build_mesh(mesh, model, layout, s, holes=None):
                 continue
             f[lay] = pi
             f[mlay] = mech_uid
-            if name in model.blend:
+            if name in model.blend or name in getattr(model, "smooth_panels", ()):
                 f.smooth = True  # bent paper, not facets
             to_host = carry.get(name)
             for loop, q in zip(f.loops, poly):
@@ -314,11 +314,15 @@ def build_mesh(mesh, model, layout, s, holes=None):
                     loop[uvl].uv = own
         groups[name] = idx
     if model.fold_kind:
-        # a crease between bent panels stays sharp
+        # a crease between bent panels stays sharp; facets of a curve don't
+        facets = getattr(model, "facets", set())
         for e in bm.edges:
             if len(e.link_faces) == 2:
                 pa, pb = (model.order[f[lay]] for f in e.link_faces)
-                if model.fold_kind.get(frozenset((pa, pb)), "skip") != "skip":
+                pair = frozenset((pa, pb))
+                if pa != pb and pair not in facets and (
+                        model.fold_kind.get(pair, "skip") != "skip"
+                        or pa in model.smooth_panels or pb in model.smooth_panels):
                     e.smooth = False
     bm.verts.index_update()
     order = {}  # bone -> [(vertex index, weight)]
