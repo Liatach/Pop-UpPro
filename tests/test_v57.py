@@ -113,8 +113,9 @@ M = one()
 assert not M.warnings and "VFold2r0.HalfL" in M.panels, M.warnings
 M = one(b_depth=16.0)  # not square: no roof
 assert any("square tower" in w for w in M.warnings) and "VFold2r0.HalfL" not in M.panels
-M = one(t_front=40.0, t_back=40.0)  # a hexagon: corners not square open flat
-assert any("corners square" in w for w in M.warnings), M.warnings
+# (since v0.72 a square tower's pyramid roof sits in a hexagon's corners too)
+M = one(t_front=40.0, t_back=40.0)
+assert "VFold2r0.HalfL" in M.panels, M.warnings
 M = one(b_style="CUT")
 assert any("only glued box folds" in w for w in M.warnings)
 M = one(b_type="VFOLD", b_phi_l=60.0, b_phi_r=60.0, b_alpha_l=70.0, b_alpha_r=70.0,
@@ -122,7 +123,7 @@ M = one(b_type="VFOLD", b_phi_l=60.0, b_phi_r=60.0, b_alpha_l=70.0, b_alpha_r=70
 assert any("only glued box folds" in w for w in M.warnings)
 M = one(b_roof="NONE")  # a plain tower
 assert not M.warnings and "VFold2r0.HalfL" not in M.panels
-print("no roof on a tower that isn't square; only box folds in the corners")
+print("no roof on an oblong tower; hexagon corners; only box folds in the corners")
 
 # ---- towers in the corners of a tube you already have
 bpy.ops.popup.remove()  # (any one: then start a fresh tube)

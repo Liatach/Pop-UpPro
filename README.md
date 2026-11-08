@@ -85,8 +85,10 @@ Paint flat or folded, import and position images or simply textures, then export
 * Multiple quadrilaterals on angled glue lines.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
 * Tubes, cylinders, pyramids and tents on parallel strips, with tethers and
-  roofs, and castles: towers up a tube's inside corners with pyramid or
-  overhanging gabled roofs that still fold flat. Balconies on arches, with
+  roofs, and castles (square, pentagonal or hexagonal): towers up a tube's
+  inside corners and creases with pyramid, overhanging gabled, or flat roofs
+  (sunk behind battlements, or at the top with a ledge round them) that
+  still fold flat. Balconies on arches, with
   railings, on tube and cube walls, in front of boxes and outside towers.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   pictures glued on any face, pull-tab flaps.
@@ -189,7 +191,9 @@ Sunflower is a good way to make them.
   they're on near folds and edges.
 * **Tubes and castles, continued**: battlements and a drawbridge in a
   tube's walls, and towers on other folds. Overhanging roofs on tubes, and
-  eaves on pyramid tower roofs; a balcony across a tube's front or back, if
+  eaves on pyramid tower roofs; stand-ups on a tower's sunken platform (its
+  creases fold the wrong way up for them, so it needs a dish shaped for
+  it); a ledge part-way up a tower (the walls above are in its way); a balcony across a tube's front or back, if
   a way can be found for its floor to fold there; crenellations along more kinds of edge; a cylinder's lid trimmed as the
   book's (68).
 * **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
@@ -228,6 +232,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.72**: towers up a tube's front and back creases, so castles can be
+  pentagonal or hexagonal; pointed roofs in a hexagon's corners too; flat
+  tower roofs, sunk behind battlements or at the top with a ledge round the
+  tower.
 * **0.71**: gabled tower roofs that overhang the walls (Birmingham 49: a rib
   between the gable tips, the roof stuck only to the rib); tubes and castles
   in two strips; balconies on arches with open railings, and balconies

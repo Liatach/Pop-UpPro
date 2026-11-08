@@ -109,7 +109,7 @@ SAMPLES = [0.5, 5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
 
 IN = 25.4
 NO_HOST = ("FLAP", "TETHER", "ROOF", "PICTURE")
-CORNERS = ("KFL", "KFR", "KBR", "KBL")  # a tube's inside corners (towers stand there)
+CORNERS = ("KFL", "KFR", "KBR", "KBL", "KF", "KB")  # a tube's inside corners (towers stand there)
 
 
 def _card(w, h, label, desc):
@@ -884,8 +884,9 @@ class Model:
                     self.panels[n].lift = 0.0
             if y0 + w > host.tower_top + 1e-6:
                 self._raise_walls(host, a, b, y0 + w)
-            if m.get("roof") == "POINTED":
-                self._tower_roof(m, host, base, a, b, y0, w, float(m.get("tab", 10.0)))
+            if m.get("roof") in ("POINTED", "FLAT"):
+                self._tower_roof(m, host, base, a, b, y0, w, float(m.get("tab", 10.0)),
+                                 flat=m.get("roof") == "FLAT")
             elif m.get("roof") == "GABLE":
                 self._tower_gable(m, host, base, a, b, y0, w, float(m.get("tab", 10.0)))
 
@@ -3074,7 +3075,7 @@ class Model:
             out["CB"] = (-x + arc[n][0], y0 + D + arc[n][1])
         return out
 
-    def _corner_hosts(self, uid, lab, P, u, hgt, walls=None):
+    def _corner_hosts(self, uid, lab, P, u, hgt, walls=None, creases=()):
         """A tube's four inside corners, where a side wall meets the front or
         back: folds a tower (a glued box fold) stands in, inside the tube.
         Seen from inside, the corner is 90 degrees with the walls square and
@@ -3092,7 +3093,13 @@ class Model:
                 ("KFL", "FL_", u[1], "GFL", u[1], "front left corner"),
                 ("KFR", "GFR", u[3], "FR_", u[3], "front right corner"),
                 ("KBR", "FR_", u[4], "GBR", u[4], "back right corner"),
-                ("KBL", "GBL", u[6], "FL_", u[0], "back left corner")):
+                ("KBL", "GBL", u[6], "FL_", u[0], "back left corner"),
+                # the front and back creases, pointing out: inside they close
+                # to 0 as the card shuts, like the spine
+                ("KF", "GFL", u[2], "GFR", u[2], "front crease"),
+                ("KB", "GBR", u[5], "GBL", u[5], "back crease")):
+            if key in ("KF", "KB") and key not in creases:
+                continue
             if wa not in P or wb not in P:
                 continue
             A = P[wa].asm(t)
@@ -3293,64 +3300,200 @@ class Model:
             self.add(Panel(f"{rp}.Top{lab2}", rp, "tab", [poly], asm_t, half.name, None,
                            f"{lab}: rib top tab {lab2}"))
 
-    def _tower_roof(self, m, host, base, a, b, y0, w, tab):
-        """A pyramid roof on a corner tower that still folds flat: two V-folds,
-        one in each of the tower's side corners (where the box meets a wall),
-        hinged on the two top edges that meet there (glue lines square to the
-        corner) with their creases rising to the apex. Those corners close to
-        0 degrees as the card shuts, where V-folds lie flat; open flat, the
-        tower is square and the four faces meet in a pyramid. In between they
-        part along the two hips. (A gable can't follow the tower as it
-        shears into a diamond: its eaves slide past each other.)"""
+    def _tower_roof(self, m, host, base, a, b, y0, w, tab, flat=False):
+        """A pyramid (or near-flat) roof on a corner tower that still folds
+        flat: two V-folds, one in each of the two corners of the tower that
+        close to 0 degrees as the card shuts (where V-folds lie flat), hinged
+        on the two top edges that meet there (glue lines square to the
+        corner) with their creases rising to the apex over the tower's
+        middle. Open flat the four faces meet in a pyramid; part-way they
+        part along the two hips. In a tube's side corners those are the
+        tower's side corners (A, B); on a front or back crease, where the
+        corner itself closes, its own corner and the inner one (S, C).
+        Flat: the apex only Slope above the top (or below it, a dish, so the
+        crease is a valley on top), the roof set Below Top inside the tower
+        (Battlements on the walls above), and at the top an Overhang: a
+        ledge stuck over the roof reaching past the walls all round."""
         uid, lab = m["uid"], m["label"]
         if abs(a - b) > 0.5:
-            self.warn(f"{lab}: a roof needs a square tower (the same distance along both "
-                      f"walls); "
-                      f"no roof")
+            # (an oblong one's V-folds can't follow it nearly shut)
+            self.warn(f"{lab}: a pointed or flat roof needs a square tower (the same "
+                      f"distance along both walls; a gabled roof doesn't); no roof")
             return
-        S, l, r, Y, nl, nr = host.dirs(self.tmax)
-        if abs(math.degrees(l.angle(r)) - 90.0) > 1.0:
-            self.warn(f"{lab}: a roof needs the tube's corners square when the card is "
-                      f"open (front and back as wide as the strip distance); no roof")
-            return
-        s = 0.5 * (a + b)
-        h = max(1.0, float(m.get("roof_height", 0.6 * s) or 0.6 * s))
-        L = math.sqrt(0.5 * s * s + h * h)  # a hip: corner to apex
-        al = math.degrees(math.acos(min(1.0, s / (2.0 * L))))
+        tr = self.tmax
+        S0, l0, r0, Y0, nl, nr = host.dirs(tr)
+        top = y0 + w
+        below = max(0.0, float(m.get("roof_below", 0.0) or 0.0)) if flat else 0.0
+        below = min(below, 0.8 * w)
+        yv = top - below
+        if flat:
+            rise = float(m.get("roof_slope", 1.5))
+            if abs(rise) < 0.3:
+                rise = 0.3 if rise >= 0 else -0.3
+                self.warn(f"{lab}: a flat roof needs a little slope to fold the right way; "
+                          f"0.3 mm")
+        else:
+            s_ = 0.5 * (a + b)
+            rise = max(1.0, float(m.get("roof_height", 0.6 * s_) or 0.6 * s_))
+        # (virtual y runs up the corner from the page)
+        S = S0 + yv * Y0
+        A = S + a * l0
+        B = S + b * r0
+        C = A + b * r0
+        O = 0.5 * (S + C) + rise * Y0
+        # which pair of the tower's corners closes as the card shuts
+        S1, l1, r1, _, _, _ = host.dirs(max(2.0, 0.1 * tr))
+        opening = l1.angle(r1) > l0.angle(r0)
         AC, CB = f"{base}.AC", f"{base}.CB"
         if AC not in self.panels or CB not in self.panels:
             return
-        rt = min(tab, 0.4 * w)  # the roof's glue tabs, under its eaves
-        for tn in (f"{base}.TabA", f"{base}.TabB"):
-            # the tower's own tabs stop short of them (both glue inside the walls)
-            if tn in self.panels:
-                p_ = self.panels[tn]
-                p_.polys = [ccw(q) for q in (clip_halfplane(q, (0.0, -1.0), -(w - rt - 1.0))
-                                             for q in p_.polys) if len(q) >= 3]
+        rt = min(tab, 0.4 * w)
+        if below > 0:  # (under the battlements' notches)
+            rt = min(rt, 0.4 * (w - below), below - self._crenel_depth(a, b, below) - 0.5)
+            rt = max(rt, 2.0)
+        if opening:
+            for tn in (f"{base}.TabA", f"{base}.TabB"):
+                # the tower's own tabs stop short of the roof's tabs (both glue
+                # inside the walls; the roof's hang down from its edges)
+                if tn in self.panels:
+                    p_ = self.panels[tn]
+                    lim = w - below - rt - 1.0
+                    p_.polys = [ccw(q) for q in (clip_halfplane(q, (0.0, -1.0), -lim)
+                                                 for q in p_.polys) if len(q) >= 3]
         R = Matrix.Rotation(math.pi, 4, "Y")
-        corners = (
-            # at A: the box's top panel (left) and the wall back towards the corner
-            Host(self, AC, 0.0, 0.0, host.p1, 0.0, 0.0, f"{lab}: roof corner A",
-                 Matrix.Translation((0.0, -y0, 0.0)) @ R,
-                 host.T1 @ Matrix.Translation((-a, 0.0, 0.0))),
-            # at B: the other wall back towards the corner (left) and the front panel
-            Host(self, host.p2, 0.0, 0.0, CB, 0.0, 0.0, f"{lab}: roof corner B",
-                 host.T2 @ Matrix.Translation((b, 0.0, 0.0)),
-                 Matrix.Translation((a + b, -y0, 0.0)) @ R))
-        for k, hc in enumerate(corners):
+        if opening:
+            corners = (
+                # at A: the box's top panel (left) and the wall back towards the corner
+                (Host(self, AC, 0.0, 0.0, host.p1, 0.0, 0.0, f"{lab}: roof corner A",
+                      Matrix.Translation((0.0, -y0, 0.0)) @ R,
+                      host.T1 @ Matrix.Translation((-a, 0.0, 0.0))), A, C, S),
+                # at B: the other wall back towards the corner (left) and the front panel
+                (Host(self, host.p2, 0.0, 0.0, CB, 0.0, 0.0, f"{lab}: roof corner B",
+                      host.T2 @ Matrix.Translation((b, 0.0, 0.0)),
+                      Matrix.Translation((a + b, -y0, 0.0)) @ R), B, S, C))
+        else:
+            corners = (
+                # at S: the corner itself, the two walls
+                (Host(self, host.p1, 0.0, 0.0, host.p2, 0.0, 0.0, f"{lab}: roof corner S",
+                      host.T1, host.T2), S, A, B),
+                # at C: the box's two panels
+                (Host(self, AC, 0.0, 0.0, CB, 0.0, 0.0, f"{lab}: roof corner C",
+                      Matrix.Translation((b, -y0, 0.0)),
+                      Matrix.Translation((b, -y0, 0.0))), C, A, B))
+        made = []
+        for k, (hc, X, PL, PR) in enumerate(corners):
             hc.finish()
             hc.trig = False
+            gl, gr = (PL - X).length, (PR - X).length
+            L = (O - X).length
+            al = math.degrees((PL - X).angle(O - X))
+            ar = math.degrees((PR - X).angle(O - X))
             n0 = len(self.order)
             self._vfold(dict(uid=f"{uid}r{k}", type="VFOLD", label=f"{lab} roof",
-                             y=y0 + w, phi_l=90.0, phi_r=90.0, alpha_l=al, alpha_r=al,
-                             glue=s, glue_r=s, height=L, tab=rt, shape="TRI",
-                             tab_side="OUT", pref=(0.0, 1.0), slot=800 + 2 * uid + k), hc)
+                             y=yv, phi_l=90.0, phi_r=90.0, alpha_l=al, alpha_r=ar,
+                             glue=gl, glue_r=gr, height=L, tab=rt, shape="TRI",
+                             tab_side="OUT", pref=(0.0, 1.0 if rise > 0 else -1.0),
+                             slot=800 + 2 * uid + k), hc)
             for name in self.order[n0:]:
                 hg = self.panels[name].hinge
                 if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
                     hg.kind = "TABLE"
                 if hg is not None:
                     hg.host_bound = True
+            made.append([n for n in self.order[n0:] if n.endswith((".HalfL", ".HalfR"))])
+        if flat and below > 0 and m.get("battlements", True):
+            self._tower_crenels(m, host, base, a, b, y0, w, below)
+        eave = float(m.get("eave", 0.0) or 0.0) if flat else 0.0
+        if eave > 0 and below > 0:
+            self.warn(f"{lab}: a roof set below the top can't overhang the walls; "
+                      f"no overhang")
+        elif eave > 0:
+            self._tower_ledge(m, made, eave, Y0)
+
+    @staticmethod
+    def _crenel_depth(a, b, below):
+        return min(0.6 * below, max(2.0, 0.12 * min(a, b)), 6.0)
+
+    def _tower_crenels(self, m, host, base, a, b, y0, w, below):
+        """Battlements round a tower's top, above its sunken roof: merlons at
+        both ends of each face, notches cut between."""
+        top = y0 + w
+        depth = self._crenel_depth(a, b, below)
+
+        def notch(polys, T, lo, hi, top_):
+            # the top cut down by the notches' depth, merlons standing on it
+            # as their own (convex) pieces of the same sheet
+            n = max(3, int(round((hi - lo) / 6.0)))
+            n += 1 - n % 2  # odd: a merlon at each end
+            seg = (hi - lo) / n
+            Ti = T.inverted()
+            out = []
+            for poly in polys:
+                V = [(Ti @ v3(q)).to_2d()[:] for q in poly]
+                if not any(abs(y - top_) < 1e-4 and lo - 1e-4 <= x <= hi + 1e-4 for x, y in V):
+                    out.append(V)
+                    continue
+                left = clip_halfplane(V, (-1.0, 0.0), -lo)
+                mid = clip_halfplane(clip_halfplane(V, (1.0, 0.0), lo), (-1.0, 0.0), -hi)
+                right = clip_halfplane(V, (1.0, 0.0), hi)
+                mid = [(x, top_ - depth if y > top_ - 1e-6 else y) for x, y in mid]
+                for part in (left, mid, right):
+                    if len(part) >= 3 and abs(poly_area(part)) > 1e-6:
+                        out.append(part)
+                for i in range(0, n, 2):
+                    x0, x1 = lo + i * seg, lo + (i + 1) * seg
+                    out.append([(x0, top_ - depth), (x1, top_ - depth), (x1, top_), (x0, top_)])
+            return [[(T @ Vector((x, y, 0.0))).to_2d()[:] for x, y in q] for q in out]
+
+        for pn, T, lo, hi, tp in ((host.p1, host.T1, -a, 0.0, top), (host.p2, host.T2, 0.0, b, top),
+                                  (f"{base}.AC", Matrix.Identity(4), 0.0, b, w),
+                                  (f"{base}.CB", Matrix.Identity(4), b, a + b, w)):
+            if pn in self.panels:
+                p_ = self.panels[pn]
+                p_.polys = [ccw(q) for q in notch(p_.polys, T, lo, hi, tp)]
+        for tn in (f"{base}.TabA", f"{base}.TabB"):
+            # the tower's tabs stop under the notches
+            if tn in self.panels:
+                p_ = self.panels[tn]
+                p_.polys = [ccw(q) for q in (clip_halfplane(q, (0.0, -1.0), -(w - depth - 0.5))
+                                             for q in p_.polys) if len(q) >= 3]
+
+    def _tower_ledge(self, m, made, eave, up):
+        """A flat tower roof's overhang: a sheet stuck over each V-fold's two
+        halves, the same triangles grown out past the walls, creased along
+        the same line. It moves with the roof, so it folds flat with it; open
+        flat it makes a ledge round the tower's top."""
+        uid, lab = m["uid"], m["label"]
+        tr = self.t_ref
+        for k, halves in enumerate(made):
+            if len(halves) != 2:
+                continue
+            piece = f"Ledge{uid}x{k}"
+            self.add_piece(Piece(piece, f"{lab} ledge {k + 1}", 960 + 2 * uid + k, (0.0, 0.0)))
+            # the halves: (0, 0) the corner, Q the apex, G the glue line's end
+            tri = []
+            for hn in halves:
+                poly = self.panels[hn].polys[0]
+                Q = next(Vector(q) for q in poly if abs(q[0]) < 1e-6 and q[1] > 1e-6)
+                G = next(Vector(q) for q in poly
+                         if Vector(q).length > 1e-6 and (Vector(q) - Q).length > 1e-6)
+                d = abs((G.x * Q.y - G.y * Q.x)) / max(G.length, 1e-9)  # Q to line O-G
+                tri.append((hn, Q, G, (d + eave) / max(d, 1e-6)))
+            fmax = max(f for _, _, _, f in tri)
+            for hn, Q, G, f in tri:
+                Oc = Q + fmax * (Vector((0.0, 0.0)) - Q)
+                Gg = Q + f * (G - Q)
+                poly = ccw([Q[:], Oc[:], Gg[:]])
+                half = self.panels[hn]
+                n_ = half.asm(tr).to_3x3() @ Z
+                sg = 1.0 if n_.dot(up) >= 0 else -1.0
+
+                def asm(t, f_=half.asm, sg=sg):
+                    M = f_(t)
+                    return Matrix.Translation(sg * TAB_LIFT * (M.to_3x3() @ Z).normalized()) @ M
+
+                self.add(Panel(f"{piece}.{hn.split('.')[-1]}", piece, "panel", [poly], asm,
+                               hn, None, f"{lab}: roof ledge"))
 
     def _rail(self, m, host, base, a, b, y0, w, k, rail, single):
         """A balcony's railing: a strip stuck flat on the outside of a box
@@ -3622,7 +3765,10 @@ class Model:
         self._wall_host(uid, "WR", P["FR_"].name, (u[3], 0.0), (1.0, 0.0), (0.0, 1.0),
                         host.p2, host.T2, (a, y0), (0.0, 1.0), (1.0, 0.0),
                         f"{lab}: right side wall", (D, hgt))
-        self._corner_hosts(uid, lab, P, u, hgt, walls)
+        creases = tuple(k_ for k_, ok_ in (
+            ("KF", not rf and sf > 0 and wf > a + 0.5),
+            ("KB", not rb and sb > 0 and wb > a + 0.5)) if ok_)
+        self._corner_hosts(uid, lab, P, u, hgt, walls, creases)
         # which wall a tether glues to at each point, and the way along it
         cfw = "GFL" if nf == 1 else f"GFL{nf}"
         cbw = "GBR" if nb == 1 else f"GBR{nb}"

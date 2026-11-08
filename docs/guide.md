@@ -196,14 +196,18 @@ still needs no scripts.
 ### Castle towers (towers in a tube's corners)
 
 Birmingham's parallel castle: a box-shaped tube (front and back as wide as
-the strip distance) with a tower standing up each inside corner. **Add →
+the strip distance) with a tower standing up each inside corner. A front or
+back that points out (wider than the strip distance) has a crease a tower
+can stand in too, inside: with both, a hexagonal castle with six towers;
+with one, a pentagon with five. **Add →
 Castle** makes one with a roofed tower in all four corners; with a tube
 selected, the **+** menu adds a **Tower in Every Inside Corner** or one in a
 corner you pick. Any glued box fold can stand there: set **Stands On** to the
 tube and **Fold** to an *Inside Corner*.
 
-* Seen from inside the castle, each corner is square when the card is open
-  flat and opens out to 180° as it shuts. A tower is a box fold on that
+* Seen from inside the castle, each side corner is square when the card is
+  open flat and opens out to 180° as it shuts; a front or back crease closes
+  to 0° instead, like the spine. A box fold lies flat either way. A tower is a box fold on that
   corner: its two outer faces are the castle walls themselves, which rise to
   the tower's top over its width; its two inner faces are a strip folded
   into an L whose tabs glue inside the walls (**Along Wall** left and right,
@@ -220,17 +224,26 @@ tube and **Fold** to an *Inside Corner*.
   its halves hanging down flat against the walls when shut. Any tower can
   have one, square or not. The overhang is what stops it snagging as it
   closes.
-* **Roof: Pointed** gives a square tower a pyramid roof, **Roof Height**
-  above the walls. The pyramid is two V-folds, one in each corner where the L
-  meets a wall, hinged on the two top edges that meet there, with their
-  creases rising to the apex. Those corners close to 0° as the card shuts,
-  which is just what V-folds fold flat at. Open flat the four faces meet in
-  a pyramid; part-way they part along two hips; shut, they lie flat inside
-  the walls. The roof needs a square tower (the same distance along both
-  walls) and square corners when the card is open, so a hexagon tube's
-  towers stay open-topped; Checks says why.
-* The tower's tabs stop short of the roof's tabs, which glue inside the top
-  of the walls. At the back left corner they lie over the tube's own closing
+* **Roof: Pointed** gives a square tower (the same distance along both
+  walls; its corners needn't be square) a pyramid roof, **Roof Height**
+  above the walls. The pyramid is two V-folds in the two corners of the tower
+  that close to 0° as the card shuts (which is what V-folds fold flat at),
+  hinged on the two top edges that meet there, with their creases rising
+  to the apex over the tower's middle. In a side corner those are where the
+  L meets the walls; on a crease, the tower's own corner and the L's inner
+  one. Open flat the four faces meet in a pyramid; part-way they part along
+  two hips; shut, they lie flat inside the walls.
+* **Roof: Flat** is the same two V-folds with the apex only **Slope** above
+  the edges: flat to the eye, but sloped enough that the creases know which
+  way to fold (perfectly flat, a V-fold can go either way). Below 0 it's a
+  shallow dish. **Below Top** sinks it inside the tower, a platform with
+  the walls standing round it, cut into **Battlements**. At the top,
+  **Overhang** sticks a second sheet over each V-fold, the same triangles
+  grown out past the walls: a ledge all round the tower's top. It moves with
+  the roof, so it folds flat with it (part-way, the ledge parts at the
+  corners with the roof).
+* The tower's tabs stop short of the roof's tabs, which glue inside the
+  walls under the roof's edges, and under the battlements' notches. At the back left corner they lie over the tube's own closing
   tab: glue on glue is fine there.
 * The castle wall is one strip, so it must fit on one print sheet (the
   Castle preset does on A4); for a bigger castle set the tube's **Strips**

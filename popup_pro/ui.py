@@ -205,9 +205,14 @@ class POPUP_MT_add(bpy.types.Menu):
                 op = self.layout.operator("popup.add", text="Tower in Every Inside Corner",
                                           icon=KIND_ICON["BOX"])
                 op.kind, op.host, op.variant = "BOX", h.uid, "TOWERS"
-                for fold, where in (("KFL", "front left"), ("KFR", "front right"),
-                                    ("KBR", "back right"), ("KBL", "back left")):
-                    op = self.layout.operator("popup.add", text=f"Tower, {where} corner",
+                folds = [("KFL", "front left corner"), ("KFR", "front right corner"),
+                         ("KBR", "back right corner"), ("KBL", "back left corner")]
+                if h.front_style == "OUT" and h.front > h.x + 0.5:
+                    folds.append(("KF", "front crease"))
+                if h.back_style == "OUT" and h.back > h.x + 0.5:
+                    folds.append(("KB", "back crease"))
+                for fold, where in folds:
+                    op = self.layout.operator("popup.add", text=f"Tower, {where}",
                                               icon=KIND_ICON["BOX"])
                     op.kind, op.host, op.fold = "BOX", h.uid, fold
         if st.mechs and st.active < len(st.mechs):
@@ -857,7 +862,12 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     col.prop(m, "eave")
                     col.prop(m, "gable_turn")
                 elif m.roof == "FLAT":
-                    col.label(text="A tower's roof is Pointed, Gabled or None", icon="INFO")
+                    col.prop(m, "roof_slope")
+                    col.prop(m, "roof_below")
+                    if m.roof_below > 0:
+                        col.prop(m, "battlements")
+                    else:
+                        col.prop(m, "eave")
             if m.kind in ("BOX", "BOXCUT") and not tower:
                 col.prop(m, "slant")
             if m.kind == "BOX" and not tower:

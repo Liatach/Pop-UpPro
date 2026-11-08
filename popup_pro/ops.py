@@ -253,7 +253,7 @@ class POPUP_OT_add(bpy.types.Operator):
         if self.kind == "BOX" and self.variant == "TOWERS" and self.host:
             # a tower up every inside corner of the tube (the castle's corners)
             _remove_new(st, uid)
-            for fold in ("KFL", "KFR", "KBR", "KBL"):
+            for fold in tube_corners(st, self.host):
                 _tower(st, self.host, fold)
             _rebuild(self, context, force=st.rig is not None and not st.edited)
             return {"FINISHED"}
@@ -342,7 +342,7 @@ class POPUP_OT_add(bpy.types.Operator):
             hd, hh = h.depth, h.height
             towers = [(max(x.height, x.depth), x.wall, x.label) for x in st.mechs
                       if x.kind == "BOX" and x.host_uid == self.host and
-                      x.wall.startswith("K")]
+                      x.wall in ("KFL", "KFR", "KBR", "KBL")]  # (by a side wall)
             new = []
             for size, wall, tlab in towers:
                 span = min(size, hd)
@@ -399,6 +399,19 @@ def _remove_new(st, uid):
     st.mechs.remove(i)
 
 
+def tube_corners(st, host):
+    """A tube's inside corners a tower can stand in: the four where the
+    sides meet the front and back, and its front and back creases when they
+    point out."""
+    h = next(x for x in st.mechs if x.uid == host)
+    out = ["KFL", "KFR", "KBR", "KBL"]
+    if h.front_style == "OUT" and h.front > h.x + 0.5:
+        out.append("KF")
+    if h.back_style == "OUT" and h.back > h.x + 0.5:
+        out.append("KB")
+    return out
+
+
 def _tower(st, host, fold):
     """A roofed tower (a glued box fold) up one inside corner of a tube."""
     t = _add(st, "BOX")
@@ -408,7 +421,7 @@ def _tower(st, host, fold):
     st["live"] = False
     t = next(x for x in st.mechs if x.uid == uid)
     where = {"KFL": "front left", "KFR": "front right", "KBR": "back right",
-             "KBL": "back left"}[fold]
+             "KBL": "back left", "KF": "front", "KB": "back"}[fold]
     h = next(x for x in st.mechs if x.uid == host)
     t.label = f"{h.label}: {where} tower"
     t.roof = "POINTED"
@@ -455,8 +468,8 @@ def _put_on(st, uid, host, fold="A"):
         m["on_crease"] = fold == "V"  # (a floor's or ceiling's crease)
     elif fold in ("WL", "WR"):  # outside a cube's or tube's wall
         m["wall"] = 1 if fold == "WL" else 2
-    elif fold in ("KFL", "KFR", "KBR", "KBL"):  # up a tube's inside corner (a tower)
-        m["wall"] = 3 + ("KFL", "KFR", "KBR", "KBL").index(fold)
+    elif fold in ("KFL", "KFR", "KBR", "KBL", "KF", "KB"):  # up a tube's inside corner
+        m["wall"] = 3 + ("KFL", "KFR", "KBR", "KBL", "KF", "KB").index(fold)
     elif fold == "VAL":  # a strap's valley between two peaks
         m["fold"] = 3
     else:

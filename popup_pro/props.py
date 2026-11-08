@@ -856,7 +856,11 @@ class PopupMech(bpy.types.PropertyGroup):
         ("KBR", "Inside Corner, Back Right", "On a tube: up its inside corner where the "
          "right side meets the back, a tower (box folds only)"),
         ("KBL", "Inside Corner, Back Left", "On a tube: up its inside corner where the "
-         "back meets the left side, a tower (box folds only)")],
+         "back meets the left side, a tower (box folds only)"),
+        ("KF", "Inside Front Crease", "On a tube whose front points out: up the inside of "
+         "its front crease, a tower (box folds only)"),
+        ("KB", "Inside Back Crease", "On a tube whose back points out: up the inside of "
+         "its back crease, a tower (box folds only)")],
         description="On a cube or tube: which wall's foot it stands at")
     depth_r: FloatProperty(name="Out Right", default=0.0, min=0.0, soft_max=150.0,
                            update=_changed,
@@ -924,6 +928,16 @@ class PopupMech(bpy.types.PropertyGroup):
         ("IN", "Pointed In", "The back crease points into the tube"),
         ("ROUND", "Round", "The back curves round from the side walls; tubes only")],
         update=_round_changed)
+    roof_slope: FloatProperty(name="Slope", description="Flat tower roof: how far its "
+                              "middle stands above its edges (mm); a little, so it "
+                              "folds the right way. Below 0: a dish", default=1.5, soft_min=-5.0,
+                              soft_max=10.0, update=_changed)
+    roof_below: FloatProperty(name="Below Top", description="Flat tower roof: set this "
+                              "far down inside the tower, its walls standing round it "
+                              "(mm)", default=0.0, min=0.0, soft_max=40.0, update=_changed)
+    battlements: BoolProperty(name="Battlements", description="Flat tower roof set below "
+                              "the top: notches cut along the walls above it",
+                              default=True, update=_changed)
     strips: IntProperty(name="Strips", description="Tube: its walls cut as one strip of "
                         "paper, or two (left side and front, right side and back) joined "
                         "by a tab, so a big tube or castle fits the print sheet",
@@ -1360,6 +1374,8 @@ class PopupMech(bpy.types.PropertyGroup):
         else:
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
                      roof=self.roof, roof_height=self.roof_height, eave=self.eave,
+                     roof_slope=self.roof_slope, roof_below=self.roof_below,
+                     battlements=self.battlements,
                      gable_turn=self.gable_turn,
                      width=self.width, height=self.height,
                      depth=self.height if (self.strap and self.kind == "BOX") else self.depth,
