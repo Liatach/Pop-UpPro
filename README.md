@@ -24,7 +24,8 @@ them.**
 5. Draw on the card with **Draw Anywhere** (any Grease Pencil brush, folded
    or flat, across folds, painted into the paper: [how to](docs/sketching.md)), or add
    an image with **Image on a Piece**. Draw holes, use the built-in cut-out
-   shapes, or cut away what's transparent in an image or your paint.
+   shapes, or cut away what's transparent in an image, or rub the paper
+   see-through with **Erase the Paper**.
 6. **Export SVG Sheets**, plus crease and cut patterns for Cricut and other
    cutting machines: print, cut, fold, glue.
 
@@ -88,8 +89,8 @@ Paint flat or folded, import and position images or simply textures, then export
   roofs, and castles (square, pentagonal or hexagonal): towers up a tube's
   inside corners and creases with pyramid, overhanging gabled, or flat roofs
   (sunk behind battlements, or at the top with a ledge round them), and
-  collars: balconies that wrap all the way round a tower and still fold
-  flat. Balconies on arches, with
+  collars: balconies (with railings or battlements) that wrap all the way
+  round a tower, or tapered tops, and still fold flat. Balconies on arches, with
   railings, on tube and cube walls, in front of boxes and outside towers.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   pictures glued on any face, pull-tab flaps.
@@ -117,7 +118,8 @@ Paint flat or folded, import and position images or simply textures, then export
 **Art and output**
 * Draw with any Grease Pencil brush, folded or on the flat layout (they're
   the same paper), or place images that wrap round cubes and tubes; either
-  way the art stays on the paper as it folds.
+  way the art stays on the paper as it folds. Erase the paper see-through
+  (round a drawing, say) and cut what's erased out.
 * Outside glue tabs print the art of the part they glue onto, so they
   disappear into the picture.
 * A movement test with one Open slider, on a rig that needs no Python
@@ -172,7 +174,7 @@ Sunflower is a good way to make them.
 * A tube's (or castle's) walls are one or two strips of paper, each of which
   must fit on one print sheet.
 * A floor can't turn a corner that opens out as the card closes unless it
-  slopes, so a balcony round a tower is a collar (sloping, slit at two
+  slopes, so a balcony round a tower is a collar (sloping, sliding at two
   corners); a tube's balconies go on its side walls.
 * Draw Anywhere strokes become paint when they go on the paper: they can't
   be edited as strokes afterwards (Ctrl Z takes them off), and a stroke
@@ -235,6 +237,9 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.74**: the collar's free corners slide one inside the other, the end
+  curling (no slits); railings and battlements on collars; the collar upside
+  down as a tapered top; Erase the Paper back in the Artwork panel.
 * **0.73**: Kim Lang's collar: a sloping balcony floor all the way round a
   tower, part-way up or at the top, V-folded at two corners and slit at the
   other two, that folds flat.

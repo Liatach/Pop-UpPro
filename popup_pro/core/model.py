@@ -885,7 +885,10 @@ class Model:
                     self.panels[n].lift = 0.0
             if y0 + w > host.tower_top + 1e-6:
                 self._raise_walls(host, a, b, y0 + w)
-            if m.get("roof") in ("POINTED", "FLAT"):
+            taper = m.get("collar") and m.get("collar_dir") == "IN"
+            if taper and m.get("roof", "NONE") != "NONE":
+                self.warn(f"{m['label']}: a tapered top takes the roof's place; no roof")
+            elif m.get("roof") in ("POINTED", "FLAT"):
                 self._tower_roof(m, host, base, a, b, y0, w, float(m.get("tab", 10.0)),
                                  flat=m.get("roof") == "FLAT")
             elif m.get("roof") == "GABLE":
@@ -3422,26 +3425,38 @@ class Model:
                   Matrix.Translation((b, -y0, 0.0))), C, A, B))
 
     def _tower_collar(self, m, host, base, a, b, y0, w, tab):
-        """Kim Lang's collar: a balcony floor round a tower, part-way up or at
-        its top, that still folds flat. Each side's floor is hinged on the
-        outside of its wall (a strip glued down the wall) and slopes up and
-        out. At the two corners that close as the card shuts the two floors
-        meeting there are one V-fold hung outside the corner, creased along
-        the mitre; at the other two the floors only meet, cut along the mitre
-        and slit so they slide past each other as the tower shears. Any slope
-        short of level works, the same both sides of each corner."""
+        """Kim Lang's collar: a floor round a tower, part-way up or at its top,
+        that still folds flat. Each side's floor is hinged on its wall (a
+        strip glued down the wall) and slopes up and out (a balcony) or up
+        and in, from the top (a tapered top). At the two corners that close as
+        the card shuts the two floors meeting there are one V-fold hung on
+        the corner, creased along the mitre; at the other two they only meet,
+        a mm or two apart, and as it shuts one slides inside the other,
+        curling its end out of the way. Any slope short of level works, the
+        same both sides of each corner. A railing (battlements optional)
+        stands on each floor's outer edge, upright like the walls."""
         uid, lab = m["uid"], m["label"]
         tr = self.tmax
         S0, l0, r0, Y0, nl, nr = host.dirs(tr)
         top = y0 + w
+        inward = m.get("collar_dir", "OUT") == "IN"
         below = min(max(0.0, float(m.get("collar_below", 0.0) or 0.0)), 0.9 * w)
+        if inward:
+            below = 0.0  # (a tapered top starts at the top)
         yv = top - below
         cw = max(2.0, float(m.get("collar_width", 8.0) or 8.0))
+        if inward:
+            cw = min(cw, 0.45 * min(a, b) / max(math.sin(math.radians(5.0)), 1e-6))
         beta = math.radians(min(max(float(m.get("collar_slope", 60.0)), 5.0), 80.0))
+        if inward and cw * math.sin(beta) > 0.48 * min(a, b):
+            cw = 0.48 * min(a, b) / math.sin(beta)
+            self.warn(f"{lab}: a tapered top can only lean in half-way across the tower; "
+                      f"made {cw:.1f} mm")
         if host.tower_top is not None and yv < host.tower_top - 1e-6:
             self.warn(f"{lab}: a collar goes on the tower above the castle's walls "
                       f"({host.tower_top - y0:.0f} mm up it at least); raised to that")
             yv = host.tower_top
+        gap = 0.5 * max(0.0, float(m.get("collar_gap", 1.5)))
         S = S0 + yv * Y0
         A = S + a * l0
         B = S + b * r0
@@ -3452,11 +3467,12 @@ class Model:
         if f"{base}.AC" not in self.panels or f"{base}.CB" not in self.panels:
             return
         ring = [S, A, C, B]
+        sgn = -1.0 if inward else 1.0
 
-        def out_of(P, Q):  # the floor's way up and out from wall P-Q
+        def out_of(P, Q):  # the floor's way up and out (or in) from wall P-Q
             d = (Q - P).normalized()
             n = d.cross(Y0).normalized()
-            if n.dot(0.5 * (P + Q) - mid) < 0:
+            if n.dot(0.5 * (P + Q) - mid) * sgn < 0:
                 n = -n
             return n, (math.cos(beta) * Y0 + math.sin(beta) * n).normalized()
 
@@ -3467,7 +3483,6 @@ class Model:
             n2, _ = out_of(X, Q)
             off = cw * math.sin(beta)
             d1, d2 = (P - X).normalized(), (Q - X).normalized()
-            # X + off n1 + s d1 = X + off n2 + t d2 (in plan)
             M_ = Matrix(((d1.dot(d1), -d1.dot(d2)), (d1.dot(d2), -d2.dot(d2))))
             rhs = Vector(((off * (n2 - n1)).dot(d1), (off * (n2 - n1)).dot(d2)))
             try:
@@ -3476,16 +3491,24 @@ class Model:
                 return X + off * n1 + cw * math.cos(beta) * Y0
             return X + off * n1 + st_[0] * d1 + cw * math.cos(beta) * Y0
 
-        Xo = {}
-        for i, X in enumerate(ring):
-            Xo[i] = outer(X, ring[i - 1], ring[(i + 1) % 4])
-        idx = {id(X): i for i, X in enumerate(ring)}
+        Xo = {i: outer(X, ring[i - 1], ring[(i + 1) % 4]) for i, X in enumerate(ring)}
         corners = self._tower_vcorners(host, base, a, b, y0, lab, "collar", opening,
                                        S, A, B, C)
         rt = min(tab, 0.4 * w, max(2.0, yv - y0 - 1.0))
+        if inward and opening:
+            for tn in (f"{base}.TabA", f"{base}.TabB"):
+                # the tower's tabs stop short of the taper's (both inside the walls)
+                if tn in self.panels:
+                    p_ = self.panels[tn]
+                    p_.polys = [ccw(q) for q in (clip_halfplane(q, (0.0, -1.0),
+                                                                -(w - rt - 1.0))
+                                                 for q in p_.polys) if len(q) >= 3]
+        rail_h = max(0.0, float(m.get("collar_rail", 0.0) or 0.0))
+        floors = []  # (half, free corner index, its pattern: X, P, P', Xc)
         for k, (hc, X, PL, PR) in enumerate(corners):
             hc.finish()
-            hc.lift = (-hc.lift[0], -hc.lift[1])  # (its tabs glue outside the walls)
+            if not inward:
+                hc.lift = (-hc.lift[0], -hc.lift[1])  # (its tabs glue outside the walls)
             hc.trig = False
             iX = next(i for i, P in enumerate(ring) if (P - X).length < 1e-6)
             iL = next(i for i, P in enumerate(ring) if (P - PL).length < 1e-6)
@@ -3516,9 +3539,8 @@ class Model:
                 Mi = half.asm(tr).inverted()
                 poly = [(Mi @ q).to_2d()[:] for q in (X, P_, Xo[iP], Xc)]
                 half.polys = [ccw(poly)]
-                self.collar_free.setdefault(uid, []).append((hn, iP))
-                # its tab: a strip glued down the outside of the wall, the
-                # length of the floor's hinge
+                floors.append((hn, iP, [Vector(q) for q in poly]))
+                # its tab: a strip glued down the wall, the length of its hinge
                 tn = hn[:-len(side)] + ("TabL" if side == "HalfL" else "TabR")
                 if tn in self.panels:
                     O_, G_ = Vector(poly[0]), Vector(poly[1])
@@ -3535,37 +3557,208 @@ class Model:
                     tab_ = clip_halfplane([q[:] for q in tab_], (sx, 0.0), 0.3)
                     if len(tab_) >= 3:
                         self.panels[tn].polys = [ccw(tab_)]
-        # the free corners: the two floors meet along the mitre when the card
-        # is open; as it shuts each passes through the other along a line
-        # turning about the tower's corner. Slits along where that line ends
-        # up (Kim's) let them slide past; or one floor is cut back to it.
-        style = m.get("collar_corner", "SLIT")
-        frees = self.collar_free.get(uid, [])
-        for iP in {i for _, i in frees}:
-            pair = [hn for hn, i in frees if i == iP]
+        self.collar_free[uid] = [(hn, iP) for hn, iP, _ in floors]
+        # the free corners: the floors stop a mm or two short of each other on
+        # the mitre; as it shuts each would pass through the other along a
+        # line turning about the tower's corner, so one slides inside the other
+        # (towards the tower), its end curling out of the way, or is cut back
+        style = m.get("collar_corner", "SLIDE")
+        if style not in ("SLIDE", "NOTCH"):
+            style = "SLIDE"
+        for hn, iP, pp in floors:
+            half = self.panels[hn]
+            X_, P_, Pp, Xc_ = pp
+            # back from the mitre (P - P') by half the gap
+            d = (Pp - P_).normalized()
+            nrm = Vector((-d.y, d.x))
+            if (X_ - P_).dot(nrm) < 0:
+                nrm = -nrm
+            half.polys = [ccw(clip_halfplane(half.polys[0], (nrm.x, nrm.y),
+                                             nrm.dot(P_) + gap))]
+        ctr_h = -0.5 * (yv - y0)  # (deep inside the tower)
+
+        def inside_pt(t):  # a point inside the tower, below the collar
+            S_, l_, r_, Y_, _, _ = host.dirs(t)
+            return S_ + 0.5 * (a * l_ + b * r_) + (yv + ctr_h) * Y_
+
+        curls = {}
+        for iP in sorted({i for _, i, _ in floors}):
+            pair = [hn for hn, i, _ in floors if i == iP]
             if len(pair) != 2:
                 continue
-            for j, (na, nb) in enumerate((pair, pair[::-1])):
-                if style == "NOTCH" and j == 1:
-                    break
-                pa, pb = self.panels[na], self.panels[nb]
-                line = self._cut_line(pa, pb, max(1.0, 0.02 * tr))
-                if line is None:
-                    continue
-                P_ = Vector((pa.asm(tr).inverted() @ ring[iP]).to_2d())
-                E = max(line, key=lambda q: (q - P_).length)  # on the outer edge
-                if style == "NOTCH":
-                    poly = pa.polys[0]
-                    cut = clip_halfplane(poly, *self._side_of(P_, E, poly))
-                    if len(cut) >= 3:
-                        pa.polys = [ccw(cut)]
-                    continue
-                d = (P_ - E).normalized()
-                n = Vector((-d.y, d.x)) * 0.25
-                L_ = 0.7 * (P_ - E).length  # (in from the outer edge)
-                slot = [E - n, E + n, E + d * L_ + n, E + d * L_ - n]
-                self.carve(pa.piece, [q[:] for q in slot], {na}, f"{lab}: collar slit")
-                pa.polys = [q for q in pa.polys if abs(poly_area(q)) > 0.05]  # (no slivers)
+            na, nb = pair  # na slides inside nb
+            pa, pb = self.panels[na], self.panels[nb]
+            line = self._cut_line(pa, pb, max(1.0, 0.02 * tr))
+            if line is None:
+                continue
+            P_ = Vector((pa.asm(tr).inverted() @ ring[iP]).to_2d())
+            E = max(line, key=lambda q: (q - P_).length)  # on the outer edge
+            keep = self._side_of(P_, E, pa.polys[0])
+            main = clip_halfplane(pa.polys[0], *keep)
+            flap = clip_halfplane(pa.polys[0], (-keep[0][0], -keep[0][1]), -keep[1])
+            if len(main) >= 3:
+                pa.polys = [ccw(main)]
+            if style == "NOTCH" or len(flap) < 3 or abs(poly_area(flap)) < 0.2:
+                continue
+            curls[na] = (P_, E)
+            # the curl: the end beyond P-E turns about it, towards the tower,
+            # just as far as it must to stay inside the other floor
+            ax = (E - P_).normalized()
+            Pi = frame(Vector((P_.x, P_.y, 0.0)), (ax.x, ax.y, 0.0), (-ax.y, ax.x, 0.0))
+            Pinv = Pi.inverted()
+            # points over the flap (where it might meet the other floor)
+            fl3 = []
+            cx = sum(q[0] for q in flap) / len(flap)
+            cy = sum(q[1] for q in flap) / len(flap)
+            for q in flap:
+                for f_ in (1.0, 0.66, 0.33):
+                    fl3.append(Vector((cx + f_ * (q[0] - cx), cy + f_ * (q[1] - cy), 0.0)))
+            for i in range(len(flap)):
+                q, r_ = flap[i], flap[(i + 1) % len(flap)]
+                for f_ in (0.25, 0.5, 0.75):
+                    fl3.append(Vector((q[0] + f_ * (r_[0] - q[0]), q[1] + f_ * (r_[1] - q[1]),
+                                       0.0)))
+            pbp = ccw(pb.polys[0])
+            cache = {}
+            # the side of the other floor the curl stays on: the side its own
+            # floor is on, just short of the seam
+            sm = 0.5 * (P_ + E) + Vector((keep[0][0], keep[0][1])) * 2.0
+            seam_in = Vector((sm.x, sm.y, 0.0))
+
+            def turn(t, pa=pa, pb=pb, Pi=Pi, Pinv=Pinv, fl3=fl3, cache=cache, pbp=pbp,
+                     seam_in=seam_in):
+                k_ = float(t)
+                if k_ in cache:
+                    return cache[k_]
+                Ma, Mb = pa.asm(t), pb.asm(t)
+                Mbi = Mb.inverted()
+                o, nb_ = Mb.translation, (Mb.to_3x3() @ Z).normalized()
+                if ((Ma @ seam_in) - o).dot(nb_) > 0:
+                    nb_ = -nb_  # (nb_ points away from this floor's side)
+
+                def over_b(q3):  # over (or under) the other floor, not past its edge
+                    u = Mbi @ q3
+                    for i in range(len(pbp)):
+                        x0, y0_ = pbp[i]
+                        x1, y1 = pbp[(i + 1) % len(pbp)]
+                        if (x1 - x0) * (u.y - y0_) - (y1 - y0_) * (u.x - x0) < -0.5:
+                            return False
+                    return True
+
+                def worst(th):
+                    R = Pi @ Matrix.Rotation(th, 4, "X") @ Pinv
+                    w_ = -1e9
+                    for q in fl3:
+                        q3 = Ma @ R @ q
+                        if over_b(q3):
+                            w_ = max(w_, (q3 - o).dot(nb_))
+                    return w_
+
+                best = 0.0
+                if worst(0.0) > -0.3:
+                    for sg in (1.0, -1.0):
+                        lo_, hi_ = 0.0, sg * math.radians(100.0)
+                        if worst(hi_) > -0.3:
+                            continue
+                        for _ in range(30):
+                            md = 0.5 * (lo_ + hi_)
+                            if worst(md) > -0.3:
+                                lo_ = md
+                            else:
+                                hi_ = md
+                        if best == 0.0 or abs(hi_) < abs(best):
+                            best = hi_
+                cache[k_] = best
+                return best
+
+            tg = [tr * i / 36.0 for i in range(37)]
+            env = {}
+
+            def curl(t, turn=turn, tg=tg, env=env, Pi=Pi, Pinv=Pinv):
+                """How far it's curled: as far as it must be at each opening,
+                eased in and out (a curl doesn't spring straight back)."""
+                if "raw" not in env:
+                    env["raw"] = [turn(x) for x in tg]
+                raw = env["raw"]
+                W, step = 30.0, tg[1] - tg[0]
+                t_ = float(t)
+                best = 0.0
+                for x, r_ in zip(tg, raw):
+                    if t_ >= x:  # opening up from x: back as the floors part
+                        f_ = max(0.0, 1.0 - (t_ - x) / step)
+                    else:  # shutting from x: easing back flat
+                        f_ = max(0.0, 1.0 - (x - t_) / W)
+                    v = r_ * f_
+                    if abs(v) > abs(best):
+                        best = v
+                best *= min(1.0, t_ / 10.0)  # (flat when shut)
+                return Pi @ Matrix.Rotation(best, 4, "X") @ Pinv
+
+            def asm_f(t, pa=pa, curl=curl):
+                return pa.asm(t) @ curl(t)
+
+            hf = hinge_frame_2d((P_.x, P_.y), (ax.x, ax.y))
+            fp = self.add(Panel(f"{na}Curl", pa.piece, "panel", [ccw(flap)], asm_f, na,
+                                Hinge(hf, hf, "TABLE", {}), f"{lab}: collar corner"))
+            fp.hinge.host_bound = True
+            fp.hinge.kink_ok = True  # (it starts turning when the floors touch)
+            pr = frozenset((na, fp.name))
+            self.fold_kind[pr] = "skip"  # (it curls, it isn't creased)
+            self.facets.add(pr)
+            self.smooth_panels.update((na, fp.name))
+        if rail_h > 0:
+            self._collar_rails(m, floors, curls, rail_h, host)
+
+    def _collar_rails(self, m, floors, curls, rh, host):
+        """A railing on each collar floor's outer edge, standing upright (like
+        the walls) as the floor turns, so it folds flat on it; battlements
+        cut along its top if asked."""
+        lab = m["label"]
+        cren = bool(m.get("collar_crenels", False))
+        for hn, iP, pp in floors:
+            half = self.panels[hn]
+            poly = half.polys[0]
+            X_, P_, Pp, Xc_ = pp
+            # the outer edge as it stands after trimming: from Xc to wherever
+            # it now meets the free end (or the curl's seam)
+            d = (Pp - Xc_).normalized()
+            nrm = Vector((-d.y, d.x))
+            if (X_ - Xc_).dot(nrm) > 0:
+                nrm = -nrm  # (outwards, away from the floor)
+            on = [Vector(q) for q in poly if abs((Vector(q) - Xc_).dot(nrm)) < 1e-4]
+            if len(on) < 2:
+                continue
+            q0 = min(on, key=lambda q: (q - Xc_).dot(d))
+            q1 = max(on, key=lambda q: (q - Xc_).dot(d))
+            L_ = (q1 - q0).length
+            if L_ < 1.0:
+                continue
+            # pattern: x along the edge from q0, y out from it (up the railing)
+            if cren and rh >= 4.0:
+                n_ = max(3, int(round(L_ / 5.0)))
+                n_ += 1 - n_ % 2
+                seg, dep = L_ / n_, min(0.4 * rh, 3.0)
+                parts = [[(0.0, 0.0), (L_, 0.0), (L_, rh - dep), (0.0, rh - dep)]] + \
+                    [[(i * seg, rh - dep), ((i + 1) * seg, rh - dep), ((i + 1) * seg, rh),
+                      (i * seg, rh)] for i in range(0, n_, 2)]
+            else:
+                parts = [[(0.0, 0.0), (L_, 0.0), (L_, rh), (0.0, rh)]]
+            to_pat = lambda u, v: q0 + d * u + nrm * v  # noqa: E731
+            polys = [ccw([to_pat(u, v)[:] for u, v in q]) for q in parts]
+
+            def asm(t, half=half, q0=q0, d=d, nrm=nrm):
+                M = half.asm(t)
+                o = M @ v3(q0)
+                e = (M.to_3x3() @ Vector((d.x, d.y, 0.0))).normalized()
+                S_, l_, r_, Y_, _, _ = host.dirs(t)
+                up = Y_ - Y_.dot(e) * e
+                Fp = frame(Vector((q0.x, q0.y, 0.0)), (d.x, d.y, 0.0), (nrm.x, nrm.y, 0.0))
+                return frame(o, e, up) @ Fp.inverted()
+
+            hf = hinge_frame_2d((q0.x, q0.y), (d.x, d.y))
+            rp = self.add(Panel(f"{hn}Rail", half.piece, "panel", polys, asm, hn,
+                                Hinge(hf, hf, "TABLE", {}), f"{lab}: collar railing"))
+            rp.hinge.host_bound = True
 
     @staticmethod
     def _cut_line(pa, pb, t):
@@ -5351,7 +5544,7 @@ class Model:
         if far:
             self.warn(f"{lab}: its fold can't follow the card from about {min(far):.0f} "
                       f"to {max(far):.0f} degrees (the paper would tear)")
-        elif err > 2e-3 and not bad:
+        elif err > 2e-3 and not bad and not getattr(h, "kink_ok", False):
             if getattr(h, "host_bound", False) or getattr(h, "corner_ok", False):
                 self.warn(f"{lab}: moves unevenly (its host fold kinks); check it in "
                           f"the movement test")

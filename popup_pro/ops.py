@@ -1157,6 +1157,29 @@ class POPUP_OT_paint_erase(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class POPUP_OT_erase_paper(bpy.types.Operator):
+    """Erase the paper: Texture Paint on the card with a brush that rubs it
+    see-through (the background round a drawing, say). Cut Painted Holes
+    then cuts what's erased out of the paper"""
+    bl_idname = "popup.erase_paper"
+    bl_label = "Erase Paper"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.card is not None
+
+    def execute(self, context):
+        sc = context.scene
+        if not painting(context):
+            r = bpy.ops.popup.paint(target="CARD")
+            if "FINISHED" not in r:
+                return {"CANCELLED"}
+        if not erasing(sc):
+            return bpy.ops.popup.paint_erase()
+        return {"FINISHED"}
+
+
 def flat_layers(mat):
     """A layer stack set up as "paint over" on the paper: a node group fed by
     the shaded paper (Shader to RGB) and mixed over it as flat colour. Returns (group
@@ -2141,7 +2164,7 @@ classes = (POPUP_OT_visibility, POPUP_OT_tri_pictures, POPUP_OT_add_card_line, P
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_draw_anywhere, POPUP_OT_ink_paper, POPUP_OT_ink_new, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_light_layers, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_draw_anywhere, POPUP_OT_ink_paper, POPUP_OT_ink_new, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_erase_paper, POPUP_OT_light_layers, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

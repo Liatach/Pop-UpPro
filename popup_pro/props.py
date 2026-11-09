@@ -954,10 +954,25 @@ class PopupMech(bpy.types.PropertyGroup):
                                 "level (it can't be quite level and still fold)",
                                 default=60.0, min=5.0, max=80.0, update=_changed)
     collar_corner: EnumProperty(name="Free Corners", items=[
-        ("SLIT", "Slits", "The floors meet at the two free corners and are slit so they "
-         "slide past each other as it folds (Kim's)"),
+        ("SLIDE", "Slide Inside", "At the two free corners the floors stop a mm or two "
+         "apart; as it folds one slides inside the other, its end curling out of the way "
+         "(Kim's)"),
         ("NOTCH", "Notch", "One floor at each free corner is cut back so they never "
-         "touch: a small gap there when open")], update=_changed)
+         "touch: a wedge-shaped gap there when open")], update=_changed)
+    collar_gap: FloatProperty(name="Corner Gap", description="Collar: how far apart the "
+                              "floors stop at the free corners (mm)", default=1.5,
+                              min=0.0, soft_max=4.0, update=_changed)
+    collar_dir: EnumProperty(name="Collar", items=[
+        ("OUT", "Balcony", "The floors slope up and out from the walls"),
+        ("IN", "Tapered Top", "From the top of the walls the floors lean up and in: a "
+         "tapered top (Kim's collar upside down)")], update=_changed)
+    collar_rail: FloatProperty(name="Railing", description="Collar: a railing this tall "
+                               "on each floor's outer edge (mm), upright like the walls; "
+                               "0: none", default=0.0, min=0.0, soft_max=30.0,
+                               update=_changed)
+    collar_crenels: BoolProperty(name="Battlements", description="Collar railing: "
+                                 "notches cut along its top", default=False,
+                                 update=_changed)
     strips: IntProperty(name="Strips", description="Tube: its walls cut as one strip of "
                         "paper, or two (left side and front, right side and back) joined "
                         "by a tab, so a big tube or castle fits the print sheet",
@@ -1397,7 +1412,9 @@ class PopupMech(bpy.types.PropertyGroup):
                      roof_slope=self.roof_slope, roof_below=self.roof_below,
                      collar=self.collar, collar_below=self.collar_below,
                      collar_width=self.collar_width, collar_slope=self.collar_slope,
-                     collar_corner=self.collar_corner,
+                     collar_corner=self.collar_corner, collar_gap=self.collar_gap,
+                     collar_dir=self.collar_dir, collar_rail=self.collar_rail,
+                     collar_crenels=self.collar_crenels,
                      battlements=self.battlements,
                      gable_turn=self.gable_turn,
                      width=self.width, height=self.height,

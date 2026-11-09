@@ -870,10 +870,17 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                         col.prop(m, "eave")
                 col.prop(m, "collar")
                 if m.collar:
-                    col.prop(m, "collar_below")
+                    col.prop(m, "collar_dir", text="Shape")
+                    if m.collar_dir == "OUT":
+                        col.prop(m, "collar_below")
                     col.prop(m, "collar_width")
                     col.prop(m, "collar_slope")
                     col.prop(m, "collar_corner")
+                    if m.collar_corner == "SLIDE":
+                        col.prop(m, "collar_gap")
+                    col.prop(m, "collar_rail")
+                    if m.collar_rail > 0:
+                        col.prop(m, "collar_crenels")
             if m.kind in ("BOX", "BOXCUT") and not tower:
                 col.prop(m, "slant")
             if m.kind == "BOX" and not tower:
@@ -1310,10 +1317,7 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
                 body.prop(st, "sketch_panel", text="")
                 body.operator("popup.sketch", text="Sketch on Panel",
                               icon="GREASEPENCIL").panel = ""
-        if _painting(context):  # (Texture Paint, left on from before)
-            r = lay.row()
-            r.alert = True
-            r.operator("popup.done_painting", icon="CHECKMARK")
+        _erase_section(lay, context)
         from . import images
         images.draw(lay, context)
         from . import materials
@@ -1410,6 +1414,53 @@ def _paint_controls(lay, context, big=False):
         c.label(text="Paint the folded card or the flat layout:", icon="INFO")
         c.label(text="they're the same paper")
         _brush_sections(lay, context)
+
+
+def _erase_section(lay, context):
+    """Erase the paper see-through (Texture Paint with an erasing brush) and
+    cut what's erased out of it. Grease Pencil stays the way to draw."""
+    from .ops import erasing
+    sc = context.scene
+    st = sc.popup
+    on = _painting(context)
+    head, body = lay.panel("popup_erase_paper", default_closed=not on)
+    head.label(text="Erase the Paper (see-through)", icon="SELECT_SUBTRACT")
+    if body is None:
+        return
+    if not on:
+        r = body.row()
+        r.scale_y = 1.3
+        r.operator("popup.erase_paper", icon="SELECT_SUBTRACT")
+    else:
+        r = body.row(align=True)
+        r.operator("popup.paint_erase", text="Erasing" if erasing(sc) else "Erase",
+                   icon="SELECT_SUBTRACT", depress=erasing(sc))
+        c = body.column(align=True)
+        c.scale_y = 0.8
+        c.label(text="Rub away the paper, folded or flat:", icon="INFO")
+        c.label(text="they're the same paper")
+        ip = sc.tool_settings.image_paint
+        brush = getattr(ip, "brush", None)
+        ups = getattr(sc.tool_settings, "unified_paint_settings", None)
+        if brush is not None:
+            src = ups if ups is not None and getattr(ups, "use_unified_size", False) \
+                else brush
+            try:
+                body.prop(src, "size", text="Size")
+            except (TypeError, AttributeError):
+                pass
+            try:
+                body.prop(brush, "strength", text="Strength")
+            except (TypeError, AttributeError):
+                pass
+        r = body.row()
+        r.alert = True
+        r.scale_y = 1.3
+        r.operator("popup.done_painting", icon="CHECKMARK")
+    row = body.row(align=True)
+    row.operator("popup.trace_holes", text="Cut Painted Holes", icon="MOD_BOOLEAN")
+    row.operator("popup.trace_holes", text="", icon="X").clear = True
+    body.prop(st, "auto_holes")
 
 
 def _brush_sections(lay, context):

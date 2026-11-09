@@ -103,12 +103,12 @@ for k in (0, 1):
     assert (max(xl) <= 1e-6 and min(xr) >= -1e-6) or (min(xl) >= -1e-6 and max(xr) <= 1e-6), \
         (xl, xr)
     assert abs(poly_area(tl)) > 20.0 and abs(poly_area(tr_)) > 20.0
-# slits at the free corners: each floor is in pieces round its slit
-assert all(len(model.panels[n].polys) >= 3 for n in halves), \
-    [len(model.panels[n].polys) for n in halves]
+# (since v0.74 the free corners slide inside, curling, not slit)
+curls = [n for n in model.panels if n.startswith(f"VFold{uid}c") and n.endswith("Curl")]
+assert len(curls) == 2, curls
 faces_in_mesh(f"VFold{uid}c")
 export_svg.export(sc, svg)
-print("collar: four floors folding up flat, V-folds at two corners, slits at two")
+print("collar: four floors folding up flat, V-folds at two corners, sliding at two")
 
 # notched instead: one floor at each free corner cut back
 uid = tower(collar_corner="NOTCH")

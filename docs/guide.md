@@ -244,7 +244,7 @@ tube and **Fold** to an *Inside Corner*.
   corners with the roof).
 * The tower's tabs stop short of the roof's tabs, which glue inside the
   walls under the roof's edges, and under the battlements' notches.
-* **Collar** (Kim Lang's): a balcony floor all the way round the tower,
+* **Collar** (Kim Lang's, found in card): a balcony floor all the way round the tower,
   part-way up it (**Collar Below Top**, but above the castle's walls) or at
   its top. Each side's floor is hinged on the outside of its wall by a
   strip glued down the wall, and slopes up and out (**Collar Slope**: 0 up
@@ -252,14 +252,23 @@ tube and **Fold** to an *Inside Corner*.
   fold) for **Collar Width**. At the two corners of the tower that close as
   the card shuts, the floors meeting there are one V-fold hung outside the
   corner, creased along the mitre: one L-shaped piece each. At the other
-  two the floors only meet along the mitre; as the card shuts each passes
-  through the other along a line turning about the tower's corner, so
-  they're **Slits** (cut in from the outer edge along where that line ends
-  up, so they slide past each other) or **Notch** (one floor cut back to
-  it: they never touch, but leave a small gap when open). Any slope works,
-  as long as it's the same both sides of the corner; the floors fold up
-  flat against the walls above as the card shuts. Crease towers get one
-  too. At the back left corner they lie over the tube's own closing
+  two the floors stop **Corner Gap** (1.5 mm) apart on the mitre. As the
+  card shuts each would pass through the other along a line turning about
+  the tower's corner, so with **Slide Inside** one slides inside the other,
+  its end curling (just as far as it must, easing back flat as the card
+  shuts; no fold drawn there, it's a curl in the paper), or with **Notch**
+  one is cut back so they never touch (a wedge-shaped gap when open). Any
+  slope works, as long as it's the same both sides of the corner; the
+  floors fold up flat against the walls above as the card shuts. Crease
+  towers get one too.
+  * **Railing**: a railing that tall stands on each floor's outer edge,
+    upright like the walls as the floor turns, so it folds flat on it;
+    **Battlements** cuts notches along its top. (On a curling floor it stops
+    where the curl starts.)
+  * **Shape: Tapered Top** turns it upside down (Kim's box with a tapered
+    top): from the top of the walls the floors lean up and in, at most
+    half-way across the tower, in place of a roof; with a railing on top
+    it's a smaller tower standing on the taper. At the back left corner they lie over the tube's own closing
   tab: glue on glue is fine there.
 * The castle wall is one strip, so it must fit on one print sheet (the
   Castle preset does on A4); for a bigger castle set the tube's **Strips**
@@ -922,7 +931,7 @@ flaps), **Creases and cuts** on the selected mechanism or on the **Card**
 (the switch at the top of the section; the card's own include the
 background folding in), and **Draw by hand** (creases, cuts and holes drawn
 on the flat layout, then added or cut). Holes painted with Erase are cut
-from the Artwork panel, under Paint. Openings work the same on every piece: the card, any
+from the Artwork panel, under Erase the Paper. Openings work the same on every piece: the card, any
 mechanism, roofs, ribs, frames, floors. Holes are cut into the paper itself,
 so they show in 3D and print as cut lines:
 
@@ -953,9 +962,9 @@ so they show in 3D and print as cut lines:
   * *Next Stage*: on a background page, the neighbouring stage's page that
     is glued back to back with it, so a doorway leads from one stage into
     the next.
-* **Painted** (*hidden for now, with Texture Paint: use Openings or Drawn
-  holes*): while painting, turn on **Erase** (next to Paint): the brush
-  rubs the paper see-through instead of painting colour. Erase inside a
+* **Painted**: Artwork panel, **Erase the Paper** (*Erase Paper* starts
+  Texture Paint with the brush rubbing the paper see-through instead of
+  painting colour; **Erase** turns it back to painting). Erase inside a
   piece for a hole, or up to its edge to change its outline (round a
   V-fold's corner, cut a jagged skyline). The see-through areas show on the
   model straight away; **Cut Painted Holes** traces them into smooth cut
@@ -1089,11 +1098,15 @@ Everything is one mesh, **Pop-up Card**, deformed by **Pop-up Rig**. Its rest
 shape is the print layout, which you also see as **Pop-up Layout** (same
 mesh, no rig). So:
 
-* **Draw Anywhere** (Grease Pencil, below) is the way to paint the card for
-  now: what you draw is painted into the paper. *The Texture Paint controls
-  described next (Paint, Erase, Cut Painted Holes, Paper / Layer) are hidden
-  from the panels since v0.60, to keep one way of painting; they're
-  described here for files painted before, and for when they come back.*
+* **Draw Anywhere** (Grease Pencil, below) is the way to paint the card:
+  what you draw is painted into the paper. **Erase the Paper** (a fold-away
+  section of the Artwork panel, since v0.74) is the one Texture Paint tool
+  back in the panels: **Erase Paper** rubs the paper see-through (round a
+  drawing, to shape a piece, for holes), with its brush's size and
+  strength, **Cut Painted Holes** and **Cut Automatically**, and **Done
+  Painting**. *Painting colour with Texture Paint (Paint, Paper / Layer,
+  described next) stays hidden from the panels since v0.60; it's described
+  here for files painted before.*
 * **Paint** turns painting on and off: Texture Paint on the card just as it
   stands (folded, flat open, anywhere in between), and back to Object Mode.
   It is in the Artwork panel and the 3D view's header, for a quick touch-up.
