@@ -938,6 +938,26 @@ class PopupMech(bpy.types.PropertyGroup):
     battlements: BoolProperty(name="Battlements", description="Flat tower roof set below "
                               "the top: notches cut along the walls above it",
                               default=True, update=_changed)
+    collar: BoolProperty(name="Collar", description="Tower: a balcony floor round it "
+                         "(sloping up and out, V-folds at two corners, slits at the "
+                         "other two) that still folds flat", default=False,
+                         update=_changed)
+    collar_below: FloatProperty(name="Collar Below Top", description="How far down the "
+                                "tower the collar's floor is hinged (mm); it must be "
+                                "above the castle's walls", default=0.0, min=0.0,
+                                soft_max=60.0, update=_changed)
+    collar_width: FloatProperty(name="Collar Width", description="How far the collar's "
+                                "floor reaches out from the walls, along its slope (mm)",
+                                default=8.0, min=2.0, soft_max=40.0, update=_changed)
+    collar_slope: FloatProperty(name="Collar Slope", description="The collar floor's "
+                                "angle out from the wall (degrees): 0 up the wall, 90 "
+                                "level (it can't be quite level and still fold)",
+                                default=60.0, min=5.0, max=80.0, update=_changed)
+    collar_corner: EnumProperty(name="Free Corners", items=[
+        ("SLIT", "Slits", "The floors meet at the two free corners and are slit so they "
+         "slide past each other as it folds (Kim's)"),
+        ("NOTCH", "Notch", "One floor at each free corner is cut back so they never "
+         "touch: a small gap there when open")], update=_changed)
     strips: IntProperty(name="Strips", description="Tube: its walls cut as one strip of "
                         "paper, or two (left side and front, right side and back) joined "
                         "by a tab, so a big tube or castle fits the print sheet",
@@ -1375,6 +1395,9 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="BOX", style="CUT" if self.kind == "BOXCUT" else "GLUED",
                      roof=self.roof, roof_height=self.roof_height, eave=self.eave,
                      roof_slope=self.roof_slope, roof_below=self.roof_below,
+                     collar=self.collar, collar_below=self.collar_below,
+                     collar_width=self.collar_width, collar_slope=self.collar_slope,
+                     collar_corner=self.collar_corner,
                      battlements=self.battlements,
                      gable_turn=self.gable_turn,
                      width=self.width, height=self.height,

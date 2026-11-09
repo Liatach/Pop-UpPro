@@ -243,7 +243,23 @@ tube and **Fold** to an *Inside Corner*.
   the roof, so it folds flat with it (part-way, the ledge parts at the
   corners with the roof).
 * The tower's tabs stop short of the roof's tabs, which glue inside the
-  walls under the roof's edges, and under the battlements' notches. At the back left corner they lie over the tube's own closing
+  walls under the roof's edges, and under the battlements' notches.
+* **Collar** (Kim Lang's): a balcony floor all the way round the tower,
+  part-way up it (**Collar Below Top**, but above the castle's walls) or at
+  its top. Each side's floor is hinged on the outside of its wall by a
+  strip glued down the wall, and slopes up and out (**Collar Slope**: 0 up
+  the wall, up to 80; never quite level, or it can't tell which way to
+  fold) for **Collar Width**. At the two corners of the tower that close as
+  the card shuts, the floors meeting there are one V-fold hung outside the
+  corner, creased along the mitre: one L-shaped piece each. At the other
+  two the floors only meet along the mitre; as the card shuts each passes
+  through the other along a line turning about the tower's corner, so
+  they're **Slits** (cut in from the outer edge along where that line ends
+  up, so they slide past each other) or **Notch** (one floor cut back to
+  it: they never touch, but leave a small gap when open). Any slope works,
+  as long as it's the same both sides of the corner; the floors fold up
+  flat against the walls above as the card shuts. Crease towers get one
+  too. At the back left corner they lie over the tube's own closing
   tab: glue on glue is fine there.
 * The castle wall is one strip, so it must fit on one print sheet (the
   Castle preset does on A4); for a bigger castle set the tube's **Strips**

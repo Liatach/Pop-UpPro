@@ -868,6 +868,12 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                         col.prop(m, "battlements")
                     else:
                         col.prop(m, "eave")
+                col.prop(m, "collar")
+                if m.collar:
+                    col.prop(m, "collar_below")
+                    col.prop(m, "collar_width")
+                    col.prop(m, "collar_slope")
+                    col.prop(m, "collar_corner")
             if m.kind in ("BOX", "BOXCUT") and not tower:
                 col.prop(m, "slant")
             if m.kind == "BOX" and not tower:

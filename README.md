@@ -87,8 +87,9 @@ Paint flat or folded, import and position images or simply textures, then export
 * Tubes, cylinders, pyramids and tents on parallel strips, with tethers and
   roofs, and castles (square, pentagonal or hexagonal): towers up a tube's
   inside corners and creases with pyramid, overhanging gabled, or flat roofs
-  (sunk behind battlements, or at the top with a ledge round them) that
-  still fold flat. Balconies on arches, with
+  (sunk behind battlements, or at the top with a ledge round them), and
+  collars: balconies that wrap all the way round a tower and still fold
+  flat. Balconies on arches, with
   railings, on tube and cube walls, in front of boxes and outside towers.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   pictures glued on any face, pull-tab flaps.
@@ -170,9 +171,9 @@ Sunflower is a good way to make them.
   (drawn with Mirror off).
 * A tube's (or castle's) walls are one or two strips of paper, each of which
   must fit on one print sheet.
-* Balconies go on a tube's side walls, not round its front or back or a
-  tower's outside: those corners open out as the card closes, so a floor
-  would have to bend round them.
+* A floor can't turn a corner that opens out as the card closes unless it
+  slopes, so a balcony round a tower is a collar (sloping, slit at two
+  corners); a tube's balconies go on its side walls.
 * Draw Anywhere strokes become paint when they go on the paper: they can't
   be edited as strokes afterwards (Ctrl Z takes them off), and a stroke
   that runs from one piece of paper onto another is painted on each.
@@ -193,7 +194,9 @@ Sunflower is a good way to make them.
   tube's walls, and towers on other folds. Overhanging roofs on tubes, and
   eaves on pyramid tower roofs; stand-ups on a tower's sunken platform (its
   creases fold the wrong way up for them, so it needs a dish shaped for
-  it); a ledge part-way up a tower (the walls above are in its way); a balcony across a tube's front or back, if
+  it); collars round a whole tube or castle (its corners don't close in
+  pairs the way a tower's do), round boxes, upside down as cornices, and
+  stacked on pillars; a balcony across a tube's front or back, if
   a way can be found for its floor to fold there; crenellations along more kinds of edge; a cylinder's lid trimmed as the
   book's (68).
 * **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
@@ -232,6 +235,9 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.73**: Kim Lang's collar: a sloping balcony floor all the way round a
+  tower, part-way up or at the top, V-folded at two corners and slit at the
+  other two, that folds flat.
 * **0.72**: towers up a tube's front and back creases, so castles can be
   pentagonal or hexagonal; pointed roofs in a hexagon's corners too; flat
   tower roofs, sunk behind battlements or at the top with a ledge round the
