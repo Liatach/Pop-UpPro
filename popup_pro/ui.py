@@ -83,7 +83,7 @@ class POPUP_MT_add(bpy.types.Menu):
                         ("BOX", "Box Fold / Strap (glued strip)"),
                         ("BOXCUT", "Box Layer (cut in)"),
                         ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap"),
-                        ("TUBE", "Tube (parallel strips)"), ("CASTLE", None),
+                        ("TUBE", "Tube (parallel strips)"), ("CASTLE", None), ("LOOP", None),
                         ("TETHER", "Tether"),
                         ("PYRAMID", "Pyramid / Tent (parallel strips)"),
                         ("STANDUP", "Stand-up (parallelogram)"),
@@ -98,7 +98,16 @@ class POPUP_MT_add(bpy.types.Menu):
                                           icon=KIND_ICON["TUBE"])
                 op.kind, op.variant = "TUBE", "CASTLE"
                 continue
+            if k == "LOOP":  # Birmingham 16: a ring on two tabs
+                op = self.layout.operator("popup.add", text="Loop (ring on two tabs)",
+                                          icon=KIND_ICON["TUBE"])
+                op.kind, op.variant = "TUBE", "LOOP"
+                continue
             self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
+            if k == "BOX":
+                op = self.layout.operator("popup.add", text="Box Fold (angled glue lines)",
+                                          icon=KIND_ICON[k])
+                op.kind, op.variant = "BOX", "ANGLED"
             if k == "VFOLD":
                 op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
                                           icon=KIND_ICON[k])
@@ -848,7 +857,10 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 left, right = "Width Left", "Width Right"
             if m.kind == "BOX" and not joint and not tower:
                 col.prop(m, "strap")
-            if m.kind == "BOX" and m.strap and not joint:
+            if m.kind == "BOX" and not joint and not tower and abs(m.fan_angle) > 0.05:
+                col.prop(m, "height", text="Out From Fold (bottom)" if m.fan_angle > 0
+                         else "Out From Fold (bottom, narrowing up)")
+            elif m.kind == "BOX" and m.strap and not joint:
                 col.prop(m, "height", text="Width Each Side")
             else:
                 col.prop(m, "height", text=left)
@@ -881,9 +893,16 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     col.prop(m, "collar_rail")
                     if m.collar_rail > 0:
                         col.prop(m, "collar_crenels")
-            if m.kind in ("BOX", "BOXCUT") and not tower:
+                        col.prop(m, "collar_tiers")
+            angled = m.kind == "BOX" and not tower and not joint and abs(m.fan_angle) > 0.05
+            if m.kind == "BOX" and not tower and not joint:
+                col.prop(m, "fan_angle")
+                if angled:
+                    col.prop(m, "fan_creases")
+                    col.prop(m, "fan_crease")
+            if m.kind in ("BOX", "BOXCUT") and not tower and not angled:
                 col.prop(m, "slant")
-            if m.kind == "BOX" and not tower:
+            if m.kind == "BOX" and not tower and not angled:
                 col.prop(m, "peaks")
                 if m.peaks <= 1:
                     col.prop(m, "support")
@@ -892,7 +911,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     col.prop(m, "rail")
                     if m.rail > 0:
                         col.prop(m, "rail_open")
-            if m.kind in ("BOX", "BOXCUT") and not tower and not joint:
+            if m.kind in ("BOX", "BOXCUT") and not tower and not joint and not angled:
                 col.prop(m, "tri45")
                 if m.tri45 != "NONE":
                     col.prop(m, "tri_size")

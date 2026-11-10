@@ -109,7 +109,8 @@ print("free corners: a 1.5 mm gap, one end curling inside the other")
 uid = tower(collar_rail=7.0, collar_crenels=True)
 assert not warns(), warns()
 model = build.make_model(sc)[0]
-rails = [n for n in model.panels if n.startswith(f"VFold{uid}c") and n.endswith("Rail")]
+rails = [n for n in model.panels if n.startswith(f"VFold{uid}c") and n.endswith("Rail")
+         and not n.endswith("CurlRail")]  # (since v0.75 it runs on along the curls too)
 assert len(rails) == 4, rails
 for r_ in rails:
     p = model.panels[r_]

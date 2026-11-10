@@ -152,6 +152,16 @@ A tube round at both ends names itself Cylinder. A flat roof follows the
 curve; a pointed roof needs straight walls. A tube's walls can't curve
 narrower than about 1.4 times the strip distance (Checks widens them).
 
+**Loop** (Birmingham 16, in the **+** menu): a ring of card on two tabs, a
+cylinder whose side walls are only as long as its tabs (**Side Length** 8 mm).
+The tabs glue down **Strip Distance** either side of the fold, mirrored, and
+that distance sets its size: open flat, the ring is about twice it across.
+It flattens to a lens as the card shuts, creased at its two ends (F and G).
+Change the strip distance and set the front and back walls to a quarter of
+the new circle (Checks widens them if they're too short); wider walls make
+a taller oval. A tube's base tabs reach their full **Tab** size out from the
+wall however short the wall is.
+
 **Balconies**: with a tube or cube selected, the **+** menu adds a
 **Balcony** on its left or right wall, or **Balconies on Both Side Walls**;
 with a box fold selected, a **Balcony in Front**. A balcony is a box fold
@@ -268,7 +278,15 @@ tube and **Fold** to an *Inside Corner*.
   * **Shape: Tapered Top** turns it upside down (Kim's box with a tapered
     top): from the top of the walls the floors lean up and in, at most
     half-way across the tower, in place of a roof; with a railing on top
-    it's a smaller tower standing on the taper. At the back left corner they lie over the tube's own closing
+    it's a smaller tower standing on the taper.
+  * **Tiers** (with a railing): another collar hung on the railings' tops,
+    and another on that one's, up to six: the same width and slope, each
+    tier's tabs glued down the railing below. On a curling corner the
+    railing runs right into the corner along the curl, meeting its own part
+    on an upright seam where the curl starts. Out, they step out like a
+    pagoda's balconies; tapering in, each leans in as far again, so only so
+    many fit before they meet in the middle (narrower, steeper floors fit
+    more; Checks says how many). Battlements go on the top tier. At the back left corner they lie over the tube's own closing
   tab: glue on glue is fine there.
 * The castle wall is one strip, so it must fit on one print sheet (the
   Castle preset does on A4); for a bigger castle set the tube's **Strips**
@@ -319,6 +337,34 @@ the roof can **Overhang** the walls all round, like eaves.
 * **Dip**: the centre crease sinks into the tube and the halves tuck down
   inside the walls, so nothing extra sticks out. This needs walls at least
   as tall as the strip distance, and ends that don't point in.
+
+### Angled box folds
+
+Kim Lang's, found in card. **Angled Glue Lines** (in a box fold's settings,
+or **Box Fold (angled glue lines)** in the **+** menu) turns the strip's glue
+lines that many degrees, mirrored either side of the fold, so they run
+toward the fold and meet it below the strip (positive: the box widens
+upward) or above it (negative: it narrows). **Out From Fold** is how far out
+they are at the strip's bottom; both sides mirror each other. The crease
+meets them on the fold too, so the whole strip turns about that point and
+its panels tilt into planes no square box fold reaches. The strip itself is
+a plain band with its ends cut along the glue lines.
+
+* **Creases: One**: one crease down the middle, like a box fold's.
+* **Creases: Three**: two creases with a free middle panel between them,
+  and a third (a valley) down the middle's centre. Open, the middle spans
+  the gap like a shelf; closing, once the side panels lie flat on their
+  pages, it folds down its centre like a V-fold, so it all lies flat shut.
+  Without the centre crease it can't close (the shelf would push through the
+  pages).
+* **Crease Angle**: the angle on the strip between each glue line and the
+  crease beside it. 0 (the default) makes it the glue angle (half of it with
+  three creases), so the strip lies flat open and shut. Bigger and it stands
+  up even with the card open flat, like a V-fold; smaller would tear, so
+  Checks raises it.
+
+Slant, peaks, railings and 45° triangles aren't made on an angled box fold,
+and a box layer or a tower can't be angled.
 
 ### The basic box: a second spine
 

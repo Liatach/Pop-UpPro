@@ -172,7 +172,8 @@ class POPUP_OT_add(bpy.types.Operator):
                          options={"SKIP_SAVE"})
     variant: StringProperty(default="", description="ASYM: an asymmetric V-fold; "
                            "VALLEY: a roof upside down; STRAP: a box fold with equal sides "
-                           "(gullies off the centre); CASTLE: a tube with towers; TOWERS: "
+                           "(gullies off the centre); ANGLED: a box fold with angled glue "
+                           "lines; CASTLE: a tube with towers; LOOP: a ring on two tabs; TOWERS: "
                            "a tower in every inside corner of a tube; TOP: a V-fold at the top of a "
                            "V-fold's crease",
                            options={"SKIP_SAVE"})
@@ -300,6 +301,21 @@ class POPUP_OT_add(bpy.types.Operator):
             st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
             _rebuild(self, context, force=st.rig is not None and not st.edited)
             return {"FINISHED"}
+        if self.kind == "BOX" and self.variant == "ANGLED" and not self.host:
+            was = st.live
+            st["live"] = False
+            m.fan_angle = 20.0
+            m.label = unique_label(st.mechs, "Angled box fold", m)
+            st["live"] = was
+        if self.kind == "TUBE" and self.variant == "LOOP":
+            # Birmingham 16: a band curving round both ways from two short flat
+            # sides glued down on tabs, the tabs' distance out setting its size
+            was = st.live
+            st["live"] = False
+            m.x, m.depth, m.height, m.tab = 25.0, 8.0, 20.0, 8.0
+            m.front_style = m.back_style = "ROUND"
+            m.label = unique_label(st.mechs, "Loop", m)
+            st["live"] = was
         if self.kind == "TUBE" and self.variant == "CASTLE":
             # Birmingham's parallel castle: a box-shaped tube (front and back as
             # wide as the strips are apart) with a roofed tower in each corner

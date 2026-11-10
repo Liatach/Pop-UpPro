@@ -970,6 +970,10 @@ class PopupMech(bpy.types.PropertyGroup):
                                "on each floor's outer edge (mm), upright like the walls; "
                                "0: none", default=0.0, min=0.0, soft_max=30.0,
                                update=_changed)
+    collar_tiers: IntProperty(name="Tiers", description="Collar: another collar hung "
+                              "on each one's railing, the same again, this many in all "
+                              "(each needs a railing to hang on)", default=1, min=1,
+                              max=6, update=_changed)
     collar_crenels: BoolProperty(name="Battlements", description="Collar railing: "
                                  "notches cut along its top", default=False,
                                  update=_changed)
@@ -1108,6 +1112,27 @@ class PopupMech(bpy.types.PropertyGroup):
                          "the card is shut (degrees), alternating mountain and valley, as if "
                          "pre-folded. They open out flat with the card. 0: they fold only as "
                          "far as they must")
+    fan_angle: FloatProperty(name="Angled Glue Lines", default=0.0, min=-60.0, max=60.0,
+                             precision=1, update=_changed,
+                             description="Box fold: turn its glue lines (degrees), mirrored "
+                             "either side of the fold, so they meet the fold below the strip "
+                             "(positive: it widens upward) or above it (negative). Its "
+                             "crease meets them there too, and its panels tilt into new "
+                             "planes as it opens. Height is how far out the glue lines are "
+                             "at the strip's bottom. 0: a square box fold")
+    fan_creases: EnumProperty(name="Creases", update=_changed,
+                              items=[("ONE", "One", "One crease down the middle, like a box "
+                                      "fold's"),
+                                     ("THREE", "Three", "Two creases with a free middle "
+                                      "between them, and a third down the middle's centre: "
+                                      "the middle spans the gap like a shelf, and folds down "
+                                      "its centre as the card shuts")])
+    fan_crease: FloatProperty(name="Crease Angle", default=0.0, min=0.0, max=85.0, precision=1,
+                              update=_changed,
+                              description="Angled box fold: the angle on the strip between "
+                              "each glue line and the crease next to it (degrees). The glue "
+                              "angle (half of it with three creases) lies flat when open; "
+                              "bigger stands up even open flat. 0: lie flat")
     slant: FloatProperty(name="Slant", default=0.0, min=-60.0, max=60.0, precision=1,
                          update=_changed,
                          description="Box fold or strap: run the strip across the fold at "
@@ -1414,12 +1439,14 @@ class PopupMech(bpy.types.PropertyGroup):
                      collar_width=self.collar_width, collar_slope=self.collar_slope,
                      collar_corner=self.collar_corner, collar_gap=self.collar_gap,
                      collar_dir=self.collar_dir, collar_rail=self.collar_rail,
-                     collar_crenels=self.collar_crenels,
+                     collar_crenels=self.collar_crenels, collar_tiers=self.collar_tiers,
                      battlements=self.battlements,
                      gable_turn=self.gable_turn,
                      width=self.width, height=self.height,
                      depth=self.height if (self.strap and self.kind == "BOX") else self.depth,
-                     slant=self.slant, peaks=self.peaks if self.kind == "BOX" else 1,
+                     slant=self.slant, fan_angle=self.fan_angle if self.kind == "BOX" else 0.0,
+                     fan_creases=self.fan_creases, fan_crease=self.fan_crease,
+                     peaks=self.peaks if self.kind == "BOX" else 1,
                      pleat=self.pleat, tri45=self.tri45, tri_size=self.tri_size,
                      rail=self.rail if self.kind == "BOX" else 0.0,
                      rail_open=self.rail_open, support=self.support, bays=self.bays,

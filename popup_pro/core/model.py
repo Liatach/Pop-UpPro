@@ -327,6 +327,7 @@ class Model:
         self.facets = set()  # panel pairs that are one curved sheet
         self.smooth_panels = set()  # panels shaded as curved paper
         self.collar_free = {}  # tower uid -> (collar floor, its free corner)
+        self._rail_len = {}  # collar railing -> its length along its floor
         self.flaps = {}  # flap uid -> info for the UI and checks
         self.tubes = {}  # tube uid -> plan geometry for tethers
         self.tethers = {}
@@ -686,6 +687,13 @@ class Model:
         base = f"Box{uid}"
         role = "inset" if m.get("fold") == "C" and m.get("host") else ""
         lift1, lift2 = host.lift
+        if abs(float(m.get("fan_angle", 0.0) or 0.0)) > 0.05:
+            if m.get("style") == "CUT" or getattr(host, "tower_top", None) is not None:
+                self.warn(f"{lab}: angled glue lines need a glued box fold (not a box "
+                          f"layer or a tower); made square")
+            else:
+                self._angled_box(m, host)
+                return
 
         if m.get("style") == "CUT":  # cut into the host's paper (box layer)
             if not host.cut_ok:
@@ -895,6 +903,222 @@ class Model:
                 self._tower_gable(m, host, base, a, b, y0, w, float(m.get("tab", 10.0)))
             if m.get("collar"):
                 self._tower_collar(m, host, base, a, b, y0, w, float(m.get("tab", 10.0)))
+
+    # ------------------------------------------------------- angled box folds
+    @staticmethod
+    def _cones(u1, c1, u2, c2, sgn):
+        """Unit direction d with d . u1 = c1 and d . u2 = c2 (two cones, or a
+        cone and a plane), on the branch sgn. None if they don't meet."""
+        g = u1.dot(u2)
+        det = 1.0 - g * g
+        if det < 1e-12:
+            return None, 0.0
+        p = (c1 - c2 * g) / det
+        q = (c2 - c1 * g) / det
+        base = p * u1 + q * u2
+        k2 = 1.0 - base.length_squared
+        k = math.sqrt(max(0.0, k2))
+        return (base + sgn * k * u1.cross(u2).normalized()).normalized(), k2
+
+    def _angled_box(self, m, host):
+        """Kim's angled box fold: the strip's glue lines turned, mirrored either
+        side of the fold, so they meet the fold (at O) above or below the strip;
+        its crease (or three: two with a free middle between them, and one
+        down the middle's centre) meets there too, so every fold of it turns
+        about O. One crease: the box fold's crease, the strip a V-fold glued
+        away from its point. Three: the middle spans the gap like a shelf,
+        then folds down its centre as the card shuts."""
+        uid, lab = m["uid"], m["label"]
+        W, H = self.W, self.H
+        a, y0, w = float(m["height"]), float(m["y"]), float(m["width"])
+        th = math.radians(max(-70.0, min(70.0, float(m["fan_angle"]))))
+        sg = 1.0 if th > 0 else -1.0
+        T = abs(th)
+        two = m.get("fan_creases", "ONE") == "THREE"
+        be = float(m.get("fan_crease", 0.0) or 0.0)
+        be = math.radians(be) if be > 0.05 else (0.5 * T if two else T)
+        if be < (0.5 * T if two else T) - 1e-6:
+            self.warn(f"{lab}: crease angle smaller than {'half ' if two else ''}the glue "
+                      f"angle tears as the card opens; made {'half ' if two else ''}the "
+                      f"glue angle")
+            be = 0.5 * T if two else T
+        if abs(float(m.get("depth", a)) - a) > 0.05 and not m.get("strap"):
+            pass  # (angled: the two sides mirror each other, both Height out)
+        psi, mu = (2.0 * be, be) if two else (be, 0.0)  # glue and crease, off the axis
+        if psi >= math.radians(85.0):
+            self.warn(f"{lab}: crease angle too wide; made narrower")
+            be = math.radians(85.0) / (2.0 if two else 1.0)
+            psi, mu = (2.0 * be, be) if two else (be, 0.0)
+        # O on the fold: the glue lines meet there, distance d along it from O
+        dn = a / math.tan(T)  # to the strip's bottom (sg > 0) or top edge
+        yO = y0 - sg * dn
+        if sg > 0:
+            d1, d2 = dn, dn + w
+        else:
+            d1, d2 = dn - w, dn
+            if d1 < 3.0:
+                d1 = min(3.0, d2 - 3.0)
+                self.warn(f"{lab}: its glue lines meet below its top; shortened")
+        s1, s2 = d1 / math.cos(T), d2 / math.cos(T)  # along the glue lines
+        if min(y0, y0 + w) < -1e-6 or max(y0, y0 + w) > H + 1e-6:
+            self.warn(f"{lab}: runs past the top or bottom of the card")
+        if a + s2 * math.sin(T) - a > W and host.is_spine:
+            self.warn(f"{lab}: wider than the page")
+        base = f"Box{uid}"
+        piece = base
+        self.add_piece(Piece(piece, lab, 1 + uid, (0.0, 0.5 * (s1 + s2))))
+
+        def u2(ang):  # pattern direction ang off the axis (+Y), X mirrored by sg
+            return Vector((sg * math.sin(ang), math.cos(ang), 0.0))
+        gLp, gRp, c1p, c2p = u2(-psi), u2(psi), u2(-mu), u2(mu)
+        Y1, Y2 = s1 * math.cos(psi), s2 * math.cos(psi)  # the strip's edges, across the axis
+
+        def on(u, Yv):  # where the line along u meets the edge Y' = Yv
+            return (u.x * Yv / u.y, Yv)
+        lines = [gLp, c1p, Vector((0.0, 1.0, 0.0)), c2p, gRp] if two else [gLp, c1p, gRp]
+        polys = [[on(lines[i], Y1), on(lines[i + 1], Y1), on(lines[i + 1], Y2),
+                  on(lines[i], Y2)] for i in range(len(lines) - 1)]
+
+        def pf(u, v):
+            return frame((0.0, 0.0, 0.0), u, v)
+        Fp = [pf(lines[i], lines[i + 1]).inverted() for i in range(len(lines) - 1)]
+
+        def page(t):
+            t = max(T_MIN, t)
+            S, l, r, Y, nl, nr = host.dirs(t)
+            O = S + yO * Y
+            dL = (math.cos(T) * sg * Y + math.sin(T) * l).normalized()
+            dR = (math.cos(T) * sg * Y + math.sin(T) * r).normalized()
+            n = l - r
+            n = n.normalized() if n.length > 1e-9 else nl.normalized()
+            return O, dL, dR, n, l, r, Y, nl, nr
+
+        cb, sb = math.cos(be), math.sin(be)
+        cm = math.cos(2.0 * mu)
+        tr = max(30.0, min(120.0, self.t_ref))
+        O, dL, dR, n, l, r, Y, nl, nr = page(tr)
+        gap = (l + r).normalized()
+        # the branch reaching into the gap between the pages
+        s0 = math.sin(mu)
+        sym = max((1.0, -1.0), key=lambda s_: self._cones(dL, cb, n, s0, s_)[0].dot(gap))
+
+        def c_sym(t):
+            O, dL, dR, n, *_ = page(t)
+            c1, k2 = self._cones(dL, cb, n, s0, sym)
+            c2 = c1 - 2.0 * c1.dot(n) * n  # its mirror image
+            return O, dL, dR, c1, c2, k2
+
+        tears = [t for t in self.samples if c_sym(t)[5] < -1e-6]
+        if tears:
+            self.warn(f"{lab}: tears if opened past {min(tears):.0f} degrees (make the "
+                      f"crease angle bigger)")
+        t_s = None
+        if two:
+            # The middle spans the gap like a shelf while the card is well
+            # open; closing further, it would push into the pages. From the
+            # opening where its sides reach them, the side panels lie flat on
+            # their pages and the middle folds down its centre crease, a
+            # V-fold between them, until it all lies flat shut.
+            def f(t):
+                return c_sym(t)[3].dot(page(t)[7])
+            lo, hi = T_MIN, max(T_MIN, tr)
+            if f(hi) > 0 and f(lo) < 0:
+                for _ in range(50):
+                    mid = 0.5 * (lo + hi)
+                    if f(mid) < 0:
+                        lo = mid
+                    else:
+                        hi = mid
+                t_s = hi
+                S, l, r, Y, nl, nr = host.dirs(t_s)
+                c1 = c_sym(t_s)[3]
+                cl = (c1.dot(l), c1.dot(Y))  # its place on the left page
+                tl = max(T_MIN, t_s - 1.0)
+                O_, dL_, dR_, n_, l_, r_, Y_, nl_, nr_ = page(tl)
+                c1x = (cl[0] * l_ + cl[1] * Y_).normalized()
+                cbr = max((1.0, -1.0), key=lambda s_: self._cones(
+                    c1x, math.cos(mu), n_, 0.0, s_)[0].dot(nl_ + nr_))
+
+        def dirs_at(t):
+            if t_s is not None and t < t_s:
+                O, dL, dR, n, l, r, Y, nl, nr = page(t)
+                c1 = (cl[0] * l + cl[1] * Y).normalized()
+                c2 = (cl[0] * r + cl[1] * Y).normalized()
+                ax = self._cones(c1, math.cos(mu), n, 0.0, cbr)[0]
+                return O, dL, dR, c1, ax, c2
+            O, dL, dR, c1, c2, _ = c_sym(t)
+            return O, dL, dR, c1, (c1 + c2).normalized(), c2
+
+        cache = {}
+
+        def solved(t):
+            v = cache.get(t)
+            if v is None:
+                O, dL, dR, c1, ax, c2 = dirs_at(t)
+                L3 = [dL, c1, ax, c2, dR] if two else [dL, c1, dR]
+                v = [frame(O, L3[i], L3[i + 1]) @ Fp[i] for i in range(len(L3) - 1)]
+                if len(cache) > 4096:
+                    cache.clear()
+                cache[t] = v
+            return v
+
+        names = ["AC", "MidL", "MidR", "CB"] if two else ["AC", "CB"]
+        txts = ["glued left", "middle left", "middle right", "glued right"] if two \
+            else ["top", "front"]
+        parent = host.p1
+        prev = None
+        for i, nm in enumerate(names):
+            asm = (lambda t, i=i: solved(t)[i])
+            Fc = hinge_frame_2d((0.0, 0.0), (lines[i].x, lines[i].y))
+            pa = self.panels[parent].asm
+            Hp = pa(tr).inverted() @ asm(tr) @ Fc
+            hg = Hinge(Hp, Fc, "TABLE")
+            hg.kink_ok = True
+            prev = self.add(Panel(f"{base}.{nm}", piece, "panel", [polys[i]], asm, parent,
+                                  hg, f"{lab}: {txts[i]}"))
+            if prev is None:
+                self.warn(f"{lab}: too small to fold")
+                return
+            parent = prev.name
+        if not two and abs(be - T) < 1e-6:
+            th_ = float(self.card.get("thickness", 0.0) or 0.0)
+            self.panels[f"{base}.AC"].lift = (TAB_LIFT + 2.0 * th_ + 0.05 if th_ > 0
+                                              else 2.0 * TAB_LIFT) * host.lift[0]
+        # glue tabs: folded back under the strip, flat on the pages
+        t_ = float(m.get("tab", 12.0))
+        ch = min(0.3 * t_, 0.25 * (s2 - s1))
+        for side, gp, nb, par, Tp, k_ in (("A", gLp, lines[1], host.p1, host.T1, 0),
+                                          ("B", gRp, lines[-2], host.p2, host.T2, 1)):
+            v_ = Vector(on(nb, Y1) + (0.0,)) - Vector(on(gp, Y1) + (0.0,))
+            out = Vector((-gp.y, gp.x, 0.0))
+            if out.dot(v_) > 0:
+                out = -out  # (away from the strip)
+            P1_, P2_ = gp * s1, gp * s2
+            poly = [(P1_.x, P1_.y), (P2_.x, P2_.y),
+                    ((P2_ + t_ * out - ch * gp).x, (P2_ + t_ * out - ch * gp).y),
+                    ((P1_ + t_ * out + ch * gp).x, (P1_ + t_ * out + ch * gp).y)]
+            sx = -1.0 if side == "A" else 1.0
+            gv = Vector((sx * math.sin(T), sg * math.cos(T), 0.0))  # glue line, virtual
+            inw = Vector((-gv.y, gv.x, 0.0))
+            if inw.x * sx > 0:
+                inw = -inw  # (toward the fold)
+            lift = host.lift[k_]
+            Tv = frame(Vector((0.0, yO, lift * TAB_LIFT)), gv, inw) @ pf(gp, out).inverted()
+            # stay on this side of the fold
+            n2 = (sx * Tv[0][0], sx * Tv[0][1])
+            poly = clip_halfplane(poly, n2, 0.5 - sx * Tv[0][3])
+            Tpat = Tp @ Tv
+            pa = self.panels[par].asm
+            self.add(Panel(f"{base}.Tab{side}", piece, "tab", [poly],
+                           (lambda t, pa=pa, T_=Tpat: pa(t) @ T_), par, None,
+                           f"{lab}: tab {side}"))
+        self.line_frames[uid] = (piece, lambda q: q, None)
+        for nm_ in ("rail", "peaks", "tri45"):
+            v_ = m.get(nm_)
+            if v_ and v_ not in ("NONE", 1, 1.0, 0, 0.0):
+                self.warn(f"{lab}: {'railing' if nm_ == 'rail' else nm_.replace('tri45', '45° triangles')} "
+                          f"isn't made on an angled box fold")
+                break
 
     # ------------------------------------------------------- 45 degree folds
     def _brace(self, owner, k, host, y, size, lean, tab, lab):
@@ -3467,6 +3691,86 @@ class Model:
         if f"{base}.AC" not in self.panels or f"{base}.CB" not in self.panels:
             return
         ring = [S, A, C, B]
+        corners = self._tower_vcorners(host, base, a, b, y0, lab, "collar", opening,
+                                       S, A, B, C)
+        rt = min(tab, 0.4 * w, max(2.0, yv - y0 - 1.0))
+        if inward and opening:
+            for tn in (f"{base}.TabA", f"{base}.TabB"):
+                # the tower's tabs stop short of the taper's (both inside the walls)
+                if tn in self.panels:
+                    p_ = self.panels[tn]
+                    p_.polys = [ccw(q) for q in (clip_halfplane(q, (0.0, -1.0),
+                                                                -(w - rt - 1.0))
+                                                 for q in p_.polys) if len(q) >= 3]
+        rail_h = max(0.0, float(m.get("collar_rail", 0.0) or 0.0))
+        tiers = max(1, int(m.get("collar_tiers", 1) or 1))
+        if tiers > 1 and rail_h <= 0:
+            self.warn(f"{lab}: collar tiers stand on railings; give it a railing")
+            tiers = 1
+        if inward and tiers > 1:
+            # each tier leans in as far again: they meet in the middle
+            fit = max(1, int(0.48 * min(a, b) / max(1e-6, cw * math.sin(beta)) + 1e-6))
+            if tiers > fit:
+                self.warn(f"{lab}: only {fit} tapered tier{'s' if fit > 1 else ''} fit "
+                          f"before they meet in the middle (narrower floors fit more)")
+                tiers = fit
+        for tier in range(tiers):
+            last = tier == tiers - 1
+            if tier > 0:  # (its tabs glue down the railing below)
+                rt = max(1.5, min(rt, rail_h - 0.5))
+            got = self._collar_tier(m, tier, ring, corners, Y0, inward, cw, beta, rt,
+                                    yv if tier == 0 else rail_h, gap, rail_h, host, last,
+                                    flip=not inward)
+            short = got is None or (rail_h > 0 and len(got[1]) < 2)
+            if short and tier > 0:
+                self.warn(f"{lab}: only {tier} collar tier{'s' if tier > 1 else ''} fit "
+                          f"(a tapered top meets in the middle); the rest left off")
+                break
+            if got is None or last:
+                break
+            Xo, rails = got
+            # the next tier hangs on this one's railings: its ring their tops
+            ring = [Xo[i] + rail_h * Y0 for i in range(4)]
+            corners = self._rail_corners(lab, tier, ring, rails)
+            if corners is None:
+                self.warn(f"{lab}: only {tier + 1} collar tier{'s' if tier else ''} fit; "
+                          f"the rest left off")
+                break
+
+    def _rail_corners(self, lab, tier, ring, rails):
+        """The corners of a ring of collar railings that close as the card
+        shuts (where the floors below were one V-fold): Hosts on the two
+        railings meeting there, virtual x along each away from the corner,
+        y up it from its foot."""
+        out = []
+        for (iX, iL, iR), (rl, rr) in rails.items():
+            if rl is None or rr is None:
+                return None
+            Ts = []
+            for (rn, q0, d, nrm), sx in ((rl, -1.0), (rr, 1.0)):
+                c0 = Vector((sx * d.x, sx * d.y, 0.0))
+                c1 = Vector((nrm.x, nrm.y, 0.0))
+                c2 = c0.cross(c1).normalized()
+                T = Matrix.Identity(4)
+                for r_ in range(3):
+                    T[r_][0], T[r_][1], T[r_][2] = c0[r_], c1[r_], c2[r_]
+                T[0][3], T[1][3] = q0.x, q0.y
+                Ts.append(T)
+            hc = Host(self, rl[0], 0.0, 0.0, rr[0], 0.0, 0.0,
+                      f"{lab}: collar tier {tier + 2} corner", Ts[0], Ts[1])
+            out.append((hc, ring[iX], ring[iL], ring[iR]))
+        return out
+
+    def _collar_tier(self, m, tier, ring, corners, Y0, inward, cw, beta, rt, yv, gap,
+                     rail_h, host, last, flip=True):
+        """One tier of a collar round a ring of four walls (a tower's, or the
+        railings of the tier below): floors hinged on the walls at virtual
+        height yv, V-folds at the closing corners, the free corners sliding
+        inside and curling, railings. Returns the floors' outer corners and
+        the railings (for the next tier)."""
+        uid, lab = m["uid"], m["label"]
+        tr = self.tmax
+        mid = sum(ring, Vector()) / 4.0
         sgn = -1.0 if inward else 1.0
 
         def out_of(P, Q):  # the floor's way up and out (or in) from wall P-Q
@@ -3492,22 +3796,12 @@ class Model:
             return X + off * n1 + st_[0] * d1 + cw * math.cos(beta) * Y0
 
         Xo = {i: outer(X, ring[i - 1], ring[(i + 1) % 4]) for i, X in enumerate(ring)}
-        corners = self._tower_vcorners(host, base, a, b, y0, lab, "collar", opening,
-                                       S, A, B, C)
-        rt = min(tab, 0.4 * w, max(2.0, yv - y0 - 1.0))
-        if inward and opening:
-            for tn in (f"{base}.TabA", f"{base}.TabB"):
-                # the tower's tabs stop short of the taper's (both inside the walls)
-                if tn in self.panels:
-                    p_ = self.panels[tn]
-                    p_.polys = [ccw(q) for q in (clip_halfplane(q, (0.0, -1.0),
-                                                                -(w - rt - 1.0))
-                                                 for q in p_.polys) if len(q) >= 3]
-        rail_h = max(0.0, float(m.get("collar_rail", 0.0) or 0.0))
         floors = []  # (half, free corner index, its pattern: X, P, P', Xc)
+        sides = {}  # corner (iX, iL, iR) -> its two floors
+        tag = f"{uid}c" if tier == 0 else f"{uid}t{tier}c"
         for k, (hc, X, PL, PR) in enumerate(corners):
             hc.finish()
-            if not inward:
+            if flip:
                 hc.lift = (-hc.lift[0], -hc.lift[1])  # (its tabs glue outside the walls)
             hc.trig = False
             iX = next(i for i, P in enumerate(ring) if (P - X).length < 1e-6)
@@ -3518,11 +3812,11 @@ class Model:
             al = math.degrees((PL - X).angle(Xc - X))
             ar = math.degrees((PR - X).angle(Xc - X))
             n0 = len(self.order)
-            self._vfold(dict(uid=f"{uid}c{k}", type="VFOLD", label=f"{lab} collar",
+            self._vfold(dict(uid=f"{tag}{k}", type="VFOLD", label=f"{lab} collar",
                              y=yv, phi_l=90.0, phi_r=90.0, alpha_l=al, alpha_r=ar,
                              glue=gl, glue_r=gr, height=(Xc - X).length, tab=rt,
                              shape="QUAD", tab_side="OUT", pref=(0.0, 1.0),
-                             slot=880 + 2 * uid + k), hc)
+                             slot=(880 + 2 * uid + k + 40 * tier) % 1000), hc)
             for name in self.order[n0:]:
                 hg = self.panels[name].hinge
                 if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
@@ -3540,6 +3834,7 @@ class Model:
                 poly = [(Mi @ q).to_2d()[:] for q in (X, P_, Xo[iP], Xc)]
                 half.polys = [ccw(poly)]
                 floors.append((hn, iP, [Vector(q) for q in poly]))
+                sides.setdefault((iX, iL, iR), {})[side] = hn
                 # its tab: a strip glued down the wall, the length of its hinge
                 tn = hn[:-len(side)] + ("TabL" if side == "HalfL" else "TabR")
                 if tn in self.panels:
@@ -3555,9 +3850,37 @@ class Model:
                     # (the two tabs meet under the crease, x = 0: each keeps its side)
                     sx = 1.0 if c_.x >= 0 else -1.0
                     tab_ = clip_halfplane([q[:] for q in tab_], (sx, 0.0), 0.3)
+                    # on a railing that stops short (where the floor below
+                    # curls), only as long as the railing
+                    lim = self._rail_len.get(hc.p1 if side == "HalfL" else hc.p2)
+                    if len(tab_) >= 3:  # (not back past the corner)
+                        tab_ = clip_halfplane(tab_, (d.x, d.y), d.dot(O_) + 0.2)
+                    if lim is not None and lim < L_ - 0.05 and len(tab_) >= 3:
+                        tab_ = clip_halfplane(tab_, (-d.x, -d.y),
+                                              -(d.dot(O_) + lim - 0.3))
                     if len(tab_) >= 3:
                         self.panels[tn].polys = [ccw(tab_)]
-        self.collar_free[uid] = [(hn, iP) for hn, iP, _ in floors]
+        if tier > 0:
+            # its tabs glue on the railings below: trimmed to fit on them
+            for hc, X, PL, PR in corners:
+                for rn in (hc.p1, hc.p2):
+                    for tn in [n for n in self.order if self.panels[n].parent == rn and
+                               self.panels[n].kind == "tab" and n.startswith(f"VFold{tag}")]:
+                        tp, rp_ = self.panels[tn], self.panels[rn]
+                        M = rp_.asm(tr).inverted() @ tp.asm(tr)
+                        Mi = M.inverted()
+                        q = [(M @ v3(c)).to_2d()[:] for c in tp.polys[0]]
+                        box = ccw(rp_.polys[0])
+                        for i in range(len(box)):
+                            (x0, y0_), (x1, y1) = box[i], box[(i + 1) % len(box)]
+                            n_ = Vector((-(y1 - y0_), x1 - x0)).normalized()
+                            if len(q) >= 3:
+                                q = clip_halfplane(q, (n_.x, n_.y),
+                                                   n_.dot(Vector((x0, y0_))) + 0.2)
+                        if len(q) >= 3 and abs(poly_area(q)) > 1.0:
+                            tp.polys = [ccw([(Mi @ v3(c)).to_2d()[:] for c in q])]
+        if tier == 0:
+            self.collar_free[uid] = [(hn, iP) for hn, iP, _ in floors]
         # the free corners: the floors stop a mm or two short of each other on
         # the mitre; as it shuts each would pass through the other along a
         # line turning about the tower's corner, so one slides inside the other
@@ -3575,12 +3898,6 @@ class Model:
                 nrm = -nrm
             half.polys = [ccw(clip_halfplane(half.polys[0], (nrm.x, nrm.y),
                                              nrm.dot(P_) + gap))]
-        ctr_h = -0.5 * (yv - y0)  # (deep inside the tower)
-
-        def inside_pt(t):  # a point inside the tower, below the collar
-            S_, l_, r_, Y_, _, _ = host.dirs(t)
-            return S_ + 0.5 * (a * l_ + b * r_) + (yv + ctr_h) * Y_
-
         curls = {}
         for iP in sorted({i for _, i, _ in floors}):
             pair = [hn for hn, i, _ in floors if i == iP]
@@ -3706,15 +4023,24 @@ class Model:
             self.fold_kind[pr] = "skip"  # (it curls, it isn't creased)
             self.facets.add(pr)
             self.smooth_panels.update((na, fp.name))
+        rails = {}
         if rail_h > 0:
-            self._collar_rails(m, floors, curls, rail_h, host)
+            rails = self._collar_rails(m, floors, curls, rail_h, host, last)
+        out = {}
+        for key, hs in sides.items():
+            out[key] = (rails.get(hs.get("HalfL")), rails.get(hs.get("HalfR")))
+        return Xo, out
 
-    def _collar_rails(self, m, floors, curls, rh, host):
+    def _collar_rails(self, m, floors, curls, rh, host, last=True):
         """A railing on each collar floor's outer edge, standing upright (like
-        the walls) as the floor turns, so it folds flat on it; battlements
-        cut along its top if asked."""
+        the walls) as the floor turns, so it folds flat on it; on a floor
+        whose end curls it carries on along the curl, meeting its own part
+        on an upright line where the curl starts, so it runs right into the
+        corner. Battlements cut along the top tier's if asked. Returns each
+        floor's railing (name, start, way along, way up, in its pattern)."""
         lab = m["label"]
-        cren = bool(m.get("collar_crenels", False))
+        cren = bool(m.get("collar_crenels", False)) and last
+        out = {}
         for hn, iP, pp in floors:
             half = self.panels[hn]
             poly = half.polys[0]
@@ -3734,31 +4060,59 @@ class Model:
             if L_ < 1.0:
                 continue
             # pattern: x along the edge from q0, y out from it (up the railing)
-            if cren and rh >= 4.0:
-                n_ = max(3, int(round(L_ / 5.0)))
-                n_ += 1 - n_ % 2
-                seg, dep = L_ / n_, min(0.4 * rh, 3.0)
-                parts = [[(0.0, 0.0), (L_, 0.0), (L_, rh - dep), (0.0, rh - dep)]] + \
-                    [[(i * seg, rh - dep), ((i + 1) * seg, rh - dep), ((i + 1) * seg, rh),
-                      (i * seg, rh)] for i in range(0, n_, 2)]
-            else:
-                parts = [[(0.0, 0.0), (L_, 0.0), (L_, rh), (0.0, rh)]]
-            to_pat = lambda u, v: q0 + d * u + nrm * v  # noqa: E731
-            polys = [ccw([to_pat(u, v)[:] for u, v in q]) for q in parts]
+            to_pat = lambda u, v, q0=q0, d=d, nrm=nrm: q0 + d * u + nrm * v  # noqa: E731
 
-            def asm(t, half=half, q0=q0, d=d, nrm=nrm):
-                M = half.asm(t)
-                o = M @ v3(q0)
-                e = (M.to_3x3() @ Vector((d.x, d.y, 0.0))).normalized()
-                S_, l_, r_, Y_, _, _ = host.dirs(t)
-                up = Y_ - Y_.dot(e) * e
-                Fp = frame(Vector((q0.x, q0.y, 0.0)), (d.x, d.y, 0.0), (nrm.x, nrm.y, 0.0))
-                return frame(o, e, up) @ Fp.inverted()
+            def parts(u0, u1):
+                L1 = u1 - u0
+                if cren and rh >= 4.0 and L1 > 2.0:
+                    n_ = max(1, int(round(L1 / 5.0)))
+                    n_ += 1 - n_ % 2
+                    seg, dep = L1 / n_, min(0.4 * rh, 3.0)
+                    ps = [[(u0, 0.0), (u1, 0.0), (u1, rh - dep), (u0, rh - dep)]] + \
+                        [[(u0 + i * seg, rh - dep), (u0 + (i + 1) * seg, rh - dep),
+                          (u0 + (i + 1) * seg, rh), (u0 + i * seg, rh)]
+                         for i in range(0, n_, 2)]
+                else:
+                    ps = [[(u0, 0.0), (u1, 0.0), (u1, rh), (u0, rh)]]
+                return [ccw([to_pat(u, v)[:] for u, v in q]) for q in ps]
+
+            def make_asm(pan, q0=q0, d=d, nrm=nrm):
+                def asm(t):
+                    M = pan.asm(t)
+                    o = M @ v3(q0)
+                    e = (M.to_3x3() @ Vector((d.x, d.y, 0.0))).normalized()
+                    S_, l_, r_, Y_, _, _ = host.dirs(t)
+                    up = Y_ - Y_.dot(e) * e
+                    Fp = frame(Vector((q0.x, q0.y, 0.0)), (d.x, d.y, 0.0),
+                               (nrm.x, nrm.y, 0.0))
+                    return frame(o, e, up) @ Fp.inverted()
+                return asm
 
             hf = hinge_frame_2d((q0.x, q0.y), (d.x, d.y))
-            rp = self.add(Panel(f"{hn}Rail", half.piece, "panel", polys, asm, hn,
-                                Hinge(hf, hf, "TABLE", {}), f"{lab}: collar railing"))
+            rp = self.add(Panel(f"{hn}Rail", half.piece, "panel", parts(0.0, L_),
+                                make_asm(half), hn, Hinge(hf, hf, "TABLE", {}),
+                                f"{lab}: collar railing"))
             rp.hinge.host_bound = True
+            out[hn] = (rp.name, q0, d, nrm)
+            self._rail_len[rp.name] = L_
+            cn = f"{hn}Curl"
+            if cn in self.panels:
+                # on along the curl, from where it starts to the corner
+                cp = self.panels[cn]
+                onc = [Vector(q) for q in cp.polys[0]
+                       if abs((Vector(q) - Xc_).dot(nrm)) < 1e-4]
+                if len(onc) >= 2:
+                    u1 = max((q - q0).dot(d) for q in onc)
+                    if u1 > L_ + 0.5:
+                        rc = self.add(Panel(f"{cn}Rail", half.piece, "panel",
+                                            parts(L_, u1), make_asm(cp), cn,
+                                            Hinge(hf, hf, "TABLE", {}),
+                                            f"{lab}: collar railing"))
+                        rc.hinge.host_bound = True
+                        rc.hinge.kink_ok = True
+                        pr = frozenset((rp.name, rc.name))
+                        self.fold_kind[pr] = "skip"  # (one strip, bending there)
+        return out
 
     @staticmethod
     def _cut_line(pa, pb, t):
@@ -4128,8 +4482,9 @@ class Model:
              host.p2, host.T2),
         ):
             T = T @ frame(Vector((u0, 0, 0)), (1, 0, 0), (0, 1, 0)).inverted()
-            c2 = min(0.3 * tb, 0.2 * D)
-            poly = [(u0 + c2, -tb), (u0, 0), (u1, 0), (u1 - c2, -tb)]
+            tbb = float(m.get("tab", 10.0))  # (out from the wall: not limited by its length)
+            c2 = min(0.3 * tbb, 0.2 * D)
+            poly = [(u0 + c2, -tbb), (u0, 0), (u1, 0), (u1 - c2, -tbb)]
             sgn = -1.0 if side == "L" else 1.0
             n2 = (sgn * T[0][0], sgn * T[0][1])
             poly = clip_halfplane(poly, n2, 0.5 - sgn * T[0][3])

@@ -85,12 +85,15 @@ Paint flat or folded, import and position images or simply textures, then export
   Mouths and jaws.
 * Multiple quadrilaterals on angled glue lines.
 * Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
-* Tubes, cylinders, pyramids and tents on parallel strips, with tethers and
+  Angled box folds (Kim Lang's): glue lines turned and mirrored either side
+  of the fold, with one crease or three (a shelf that folds down its centre),
+  their panels tilting into new planes.
+* Tubes, cylinders, loops (Birmingham 16), pyramids and tents on parallel strips, with tethers and
   roofs, and castles (square, pentagonal or hexagonal): towers up a tube's
   inside corners and creases with pyramid, overhanging gabled, or flat roofs
   (sunk behind battlements, or at the top with a ledge round them), and
   collars: balconies (with railings or battlements) that wrap all the way
-  round a tower, or tapered tops, and still fold flat. Balconies on arches, with
+  round a tower, or tapered tops, stacked in tiers, and still fold flat. Balconies on arches, with
   railings, on tube and cube walls, in front of boxes and outside towers.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   pictures glued on any face, pull-tab flaps.
@@ -198,7 +201,7 @@ Sunflower is a good way to make them.
   creases fold the wrong way up for them, so it needs a dish shaped for
   it); collars round a whole tube or castle (its corners don't close in
   pairs the way a tower's do), round boxes, upside down as cornices, and
-  stacked on pillars; a balcony across a tube's front or back, if
+  on pillars; a balcony across a tube's front or back, if
   a way can be found for its floor to fold there; crenellations along more kinds of edge; a cylinder's lid trimmed as the
   book's (68).
 * **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
@@ -229,14 +232,18 @@ Sunflower is a good way to make them.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   moving arms.
 * **V-folds, continued** (Birmingham): the "bite" that sculpts a V-fold
-  into a curve or a point (12–15), a looped arch (16), and tall narrow sides
-  that twist (19).
+  into a curve or a point (12–15), the loop made into an animal's head
+  (17), and tall narrow sides that twist (19).
 * **Zig-zags and quadrilaterals, continued** (Birmingham): slanted fold
   lines (47), boxes cut into the faces (46, 48), and a quadrilateral lifted
   on a V-fold (56).
 
 ## Version history
 
+* **0.75**: Kim Lang's angled box folds, under Box Fold settings: the glue
+  lines turned, with one crease or three; the loop (Birmingham 16), a ring
+  on two tabs; collars stacked in tiers, out or tapering in, their railings
+  running right round the curled corners.
 * **0.74**: the collar's free corners slide one inside the other, the end
   curling (no slits); railings and battlements on collars; the collar upside
   down as a tapered top; Erase the Paper back in the Artwork panel.
