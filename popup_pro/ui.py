@@ -305,6 +305,41 @@ def _tabs(lay, m, side=True, side_text="Tab Side"):
         c.prop(m, "tab_side", text=side_text)
 
 
+def _tower_top(col, m, cube=False):
+    """A tower's (or cube's) roof and collar settings."""
+    col.prop(m, "roof", text="Tower Roof" if cube else "Roof")
+    if m.roof == "POINTED":
+        col.prop(m, "roof_height")
+    elif m.roof == "GABLE" and not cube:
+        col.prop(m, "roof_height", text="Gable Height")
+        col.prop(m, "eave")
+        col.prop(m, "gable_turn")
+    elif m.roof == "FLAT":
+        col.prop(m, "roof_slope")
+        if not cube:
+            col.prop(m, "roof_below")
+        if m.roof_below > 0 and not cube:
+            col.prop(m, "battlements")
+        else:
+            col.prop(m, "eave")
+    col.prop(m, "collar")
+    if m.collar:
+        col.prop(m, "collar_dir", text="Shape")
+        if m.collar_dir == "OUT":
+            col.prop(m, "collar_below")
+        col.prop(m, "collar_width")
+        col.prop(m, "collar_slope")
+        col.prop(m, "collar_corner")
+        if m.collar_corner == "SLIDE":
+            col.prop(m, "collar_gap")
+        col.prop(m, "collar_rail")
+        if m.collar_rail > 0:
+            col.prop(m, "collar_crenels")
+            col.prop(m, "collar_tiers")
+            if m.collar_tiers > 1:
+                col.prop(m, "collar_alternate")
+
+
 def _where(col, st, m):
     """Where a mechanism stands: the same few words for every kind."""
     col.prop(m, "host", text="Stands On")
@@ -540,6 +575,13 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 import math as _m
                 col.label(text=f"Round: {0.5 * _m.pi * m.x:.1f} mm makes a half circle",
                           icon="INFO")
+            if m.kind == "TUBE" and m.front_style == "ROUND" and m.back_style == "ROUND":
+                col.prop(m, "cone_top")
+                if m.cone_top > 0.05 and abs(m.cone_top - m.x) > 0.5:
+                    import math as _m
+                    lean = _m.degrees(_m.atan2(m.x - m.cone_top, max(m.height, 0.1)))
+                    col.label(text=f"Walls lean {'in' if lean > 0 else 'out'} "
+                              f"{abs(lean):.0f}° (half circles each end)", icon="INFO")
             col.prop(m, "strips")
             col.prop(m, "roof")
             if m.roof == "POINTED":
@@ -682,8 +724,10 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                      else "Width Right")
             col.prop(m, "height")
             row = col.row()
-            row.active = m.size_r <= 0 or abs(m.size_r - m.size) < 1e-6
+            row.active = (m.size_r <= 0 or abs(m.size_r - m.size) < 1e-6) and m.roof in \
+                ("NONE", "GABLE")
             row.prop(m, "lid")
+            _tower_top(col, m, cube=True)
         elif m.kind == "MOUTH":
             col.prop(m, "jaw")
             col.prop(m, "upper")
@@ -866,34 +910,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "height", text=left)
                 col.prop(m, "depth", text=right)
             if tower:  # up a tube's inside corner
-                col.prop(m, "roof", text="Roof")
-                if m.roof == "POINTED":
-                    col.prop(m, "roof_height")
-                elif m.roof == "GABLE":
-                    col.prop(m, "roof_height", text="Gable Height")
-                    col.prop(m, "eave")
-                    col.prop(m, "gable_turn")
-                elif m.roof == "FLAT":
-                    col.prop(m, "roof_slope")
-                    col.prop(m, "roof_below")
-                    if m.roof_below > 0:
-                        col.prop(m, "battlements")
-                    else:
-                        col.prop(m, "eave")
-                col.prop(m, "collar")
-                if m.collar:
-                    col.prop(m, "collar_dir", text="Shape")
-                    if m.collar_dir == "OUT":
-                        col.prop(m, "collar_below")
-                    col.prop(m, "collar_width")
-                    col.prop(m, "collar_slope")
-                    col.prop(m, "collar_corner")
-                    if m.collar_corner == "SLIDE":
-                        col.prop(m, "collar_gap")
-                    col.prop(m, "collar_rail")
-                    if m.collar_rail > 0:
-                        col.prop(m, "collar_crenels")
-                        col.prop(m, "collar_tiers")
+                _tower_top(col, m)
             angled = m.kind == "BOX" and not tower and not joint and abs(m.fan_angle) > 0.05
             if m.kind == "BOX" and not tower and not joint:
                 col.prop(m, "fan_angle")

@@ -312,7 +312,7 @@ class POPUP_OT_add(bpy.types.Operator):
             # sides glued down on tabs, the tabs' distance out setting its size
             was = st.live
             st["live"] = False
-            m.x, m.depth, m.height, m.tab = 25.0, 8.0, 20.0, 8.0
+            m.x, m.depth, m.height, m.tab = 25.0, 14.0, 20.0, 8.0
             m.front_style = m.back_style = "ROUND"
             m.label = unique_label(st.mechs, "Loop", m)
             st["live"] = was

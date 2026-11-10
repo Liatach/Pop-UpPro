@@ -230,6 +230,7 @@ faces_in_mesh(f"Tube{lp.uid}")
 export_svg.export(sc, svg)
 lp.x = 40.0
 lp.front = lp.back = round(0.5 * math.pi * 40.0, 1)  # (half circles again)
+lp.strips = 2  # (since v0.76 its sides are longer: in two to fit the sheet)
 build.rebuild(sc, force=True)
 assert not warns(), warns()
 model = build.make_model(sc)[0]

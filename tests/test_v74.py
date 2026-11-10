@@ -70,7 +70,7 @@ def cross(model, na, nb, t):
 
 
 # ---- sliding free corners: a gap of a mm or two, the end curling
-uid = tower()
+uid = tower(collar_gap=1.5)  # (since v0.76 0.75 by default)
 assert not warns(), warns()
 model = build.make_model(sc)[0]
 curls = [n for n in model.panels if n.startswith(f"VFold{uid}c") and n.endswith("Curl")]
@@ -80,7 +80,8 @@ for c in curls:
     assert p.parent == c[:-4] and model.fold_kind[frozenset((c, p.parent))] == "skip"
     angs = [abs(math.degrees(p.hinge.fn(t))) for t in (180.0, 179.0, 150.0, 110.0, 70.0,
                                                          30.0, 1.0)]
-    assert angs[0] < 0.5 and angs[-1] < 0.5, angs  # flat open, flat shut
+    # flat open, all but flat shut (since v0.76 it keeps clear right down)
+    assert angs[0] < 0.5 and angs[-1] < 3.0, angs
     assert max(angs) > 10.0, angs  # it curls on the way
 # no slits: each floor one piece of paper (plus its curl)
 for n in model.panels:

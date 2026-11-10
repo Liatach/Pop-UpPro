@@ -3160,6 +3160,12 @@ class Model:
                             (wB if wkey == "WL" else wC, hgt))
 
         lid = m.get("lid", "PEAK")
+        troof = m.get("roof", "NONE")
+        if troof == "GABLE":
+            self.warn(f"{lab}: a gabled roof goes on castle towers; no roof")
+            troof = "NONE"
+        if troof != "NONE" or (m.get("collar") and m.get("collar_dir") == "IN"):
+            lid = "NONE"  # (the tower roof or tapered top takes its place)
         if lid != "NONE" and not square:
             self.warn(f"{lab}: a lid creased corner to corner only folds flat on a square "
                       f"base; this one is left open (set the widths equal for a lid)")
@@ -3230,6 +3236,61 @@ class Model:
         tears = [t for t in self.samples if not self.crease(key, t)[3]]
         if tears:
             self.warn(f"{lab}: cannot fold below {max(tears):.0f} degrees")
+        if troof != "NONE" or m.get("collar"):
+            self._cube_tower(m, piece, parts, wB, wC, hgt, troof)
+
+    def _cube_tower(self, m, piece, parts, wB, wC, hgt, troof):
+        """A tower's roof (pointed or flat) or collar on a cube: the cube is a
+        tower whose front corner closes on the fold, like a castle's crease
+        tower, so the same V-folds and collars go on it. Its front walls are
+        the corner's two walls; its back walls the tower's inner ones."""
+        lab = m["label"]
+        tr = min(90.0, 0.5 * self.tmax)
+        c, uL, uR, P3 = parts(tr)
+        names = {"B": f"{piece}.B", "C": f"{piece}.C", "A": f"{piece}.A", "D": f"{piece}.D"}
+        P = self.panels
+
+        def T_on(pn, O, x_dir, y_dir):
+            """Virtual (x along x_dir, y up) -> panel pn's pattern, from where
+            it is at the reference opening (it moves rigidly with it)."""
+            return P[pn].asm(tr).inverted() @ frame(O, x_dir, y_dir)
+
+        best = None
+        for left, right, ul, ur, wl, wr in (("C", "B", uR, uL, wC, wB),
+                                            ("B", "C", uL, uR, wB, wC)):
+            T1 = T_on(names[left], P3, -ul, c)
+            T2 = T_on(names[right], P3, ur, c)
+            h = Host(self, names[left], 0.0, 0.0, names[right], 0.0, 0.0,
+                     f"{lab}: tower", T1, T2)
+            S, l, r, Y, nl, nr = h.dirs(tr)
+            if nl.dot(l + r) > 0 and nr.dot(l + r) > 0:  # (normals in, like a tower's)
+                best = (h, left, right, wl, wr)
+                break
+        if best is None:
+            return
+        h, left, right, a, b = best
+        h.finish()
+        h.tower_top = 0.0
+        h.key = m["uid"]
+        # the inner walls: from A (a along l) on toward r, and from B back
+        Cpt = P3 + a * (uR if left == "C" else uL) + b * (uL if left == "C" else uR)
+        AC = names["D"] if left == "C" else names["A"]
+        CB = names["A"] if left == "C" else names["D"]
+        l_, r_ = (uR, uL) if left == "C" else (uL, uR)
+        # at the back corner C: left along AC back to A (-r), right along CB to B (-l)
+        TC = (T_on(AC, Cpt, r_, c), T_on(CB, Cpt, -l_, c))
+        base = f"{piece}t"
+        self.__dict__.setdefault("_tw", {})[base] = dict(AC=AC, CB=CB, TC=TC)
+        self.placed[m["uid"]] = h
+        # (their tabs glue over the cube's closing tab at the back corner)
+        for w_ in ("roof", "collar"):
+            self.stack_ok.add(frozenset((lab, f"{lab} {w_}")))
+        if troof in ("POINTED", "FLAT"):
+            mm = dict(m, roof_below=0.0)
+            self._tower_roof(mm, h, base, a, b, 0.0, hgt, float(m.get("tab", 10.0)),
+                             flat=troof == "FLAT")
+        if m.get("collar"):
+            self._tower_collar(m, h, base, a, b, 0.0, hgt, float(m.get("tab", 10.0)))
 
     # ----------------------------------------------------- parallel strips
     def normals_out(self, host):
@@ -3574,7 +3635,7 @@ class Model:
         # which pair of the tower's corners closes as the card shuts
         S1, l1, r1, _, _, _ = host.dirs(max(2.0, 0.1 * tr))
         opening = l1.angle(r1) > l0.angle(r0)
-        AC, CB = f"{base}.AC", f"{base}.CB"
+        AC, CB = self._tw_pair(base)
         if AC not in self.panels or CB not in self.panels:
             return
         rt = min(tab, 0.4 * w)
@@ -3622,13 +3683,24 @@ class Model:
         elif eave > 0:
             self._tower_ledge(m, made, eave, Y0)
 
+    def _tw_pair(self, base):
+        """A tower's two inner walls (the box fold's panels; a cube's back walls)."""
+        o = self.__dict__.get("_tw", {}).get(base)
+        return (o["AC"], o["CB"]) if o else (f"{base}.AC", f"{base}.CB")
+
     def _tower_vcorners(self, host, base, a, b, y0, lab, what, opening, S, A, B, C):
         """The tower's two corners that close to 0 as the card shuts (where a
         V-fold folds flat), each as a Host with its corner point and the
         points along its left and right walls: A and B in a tube's side
         corners, S and C on a crease."""
-        AC, CB = f"{base}.AC", f"{base}.CB"
+        AC, CB = self._tw_pair(base)
         R = Matrix.Rotation(math.pi, 4, "Y")
+        o = self.__dict__.get("_tw", {}).get(base)
+        if o and not opening:  # (a cube: its back walls' own placements)
+            return ((Host(self, host.p1, 0.0, 0.0, host.p2, 0.0, 0.0,
+                          f"{lab}: {what} corner S", host.T1, host.T2), S, A, B),
+                    (Host(self, AC, 0.0, 0.0, CB, 0.0, 0.0, f"{lab}: {what} corner C",
+                          *o["TC"]), C, A, B))
         if opening:
             return (
                 # at A: the box's top panel (left) and the wall back towards the corner
@@ -3680,7 +3752,7 @@ class Model:
             self.warn(f"{lab}: a collar goes on the tower above the castle's walls "
                       f"({host.tower_top - y0:.0f} mm up it at least); raised to that")
             yv = host.tower_top
-        gap = 0.5 * max(0.0, float(m.get("collar_gap", 1.5)))
+        gap = 0.5 * max(0.0, float(m.get("collar_gap", 0.75)))
         S = S0 + yv * Y0
         A = S + a * l0
         B = S + b * r0
@@ -3688,7 +3760,7 @@ class Model:
         mid = 0.5 * (S + C)
         S1, l1, r1, _, _, _ = host.dirs(max(2.0, 0.1 * tr))
         opening = l1.angle(r1) > l0.angle(r0)
-        if f"{base}.AC" not in self.panels or f"{base}.CB" not in self.panels:
+        if any(n not in self.panels for n in self._tw_pair(base)):
             return
         ring = [S, A, C, B]
         corners = self._tower_vcorners(host, base, a, b, y0, lab, "collar", opening,
@@ -3707,7 +3779,8 @@ class Model:
         if tiers > 1 and rail_h <= 0:
             self.warn(f"{lab}: collar tiers stand on railings; give it a railing")
             tiers = 1
-        if inward and tiers > 1:
+        alt = bool(m.get("collar_alternate", False))
+        if inward and tiers > 1 and not alt:
             # each tier leans in as far again: they meet in the middle
             fit = max(1, int(0.48 * min(a, b) / max(1e-6, cw * math.sin(beta)) + 1e-6))
             if tiers > fit:
@@ -3718,9 +3791,10 @@ class Model:
             last = tier == tiers - 1
             if tier > 0:  # (its tabs glue down the railing below)
                 rt = max(1.5, min(rt, rail_h - 0.5))
-            got = self._collar_tier(m, tier, ring, corners, Y0, inward, cw, beta, rt,
+            inw = inward != (alt and tier % 2 == 1)  # (alternating: every other one turned)
+            got = self._collar_tier(m, tier, ring, corners, Y0, inw, cw, beta, rt,
                                     yv if tier == 0 else rail_h, gap, rail_h, host, last,
-                                    flip=not inward)
+                                    flip=not inw)
             short = got is None or (rail_h > 0 and len(got[1]) < 2)
             if short and tier > 0:
                 self.warn(f"{lab}: only {tier} collar tier{'s' if tier > 1 else ''} fit "
@@ -3942,9 +4016,17 @@ class Model:
             sm = 0.5 * (P_ + E) + Vector((keep[0][0], keep[0][1])) * 2.0
             seam_in = Vector((sm.x, sm.y, 0.0))
 
-            def turn(t, pa=pa, pb=pb, Pi=Pi, Pinv=Pinv, fl3=fl3, cache=cache, pbp=pbp,
-                     seam_in=seam_in):
-                k_ = float(t)
+            # the flap's points off the seam itself (on it, it can't move)
+            fl3 = [q for q in fl3 if abs((Pinv @ q).y) > 0.6] or fl3
+            seam3 = [Vector((P_.x + f_ * (E.x - P_.x), P_.y + f_ * (E.y - P_.y), 0.0))
+                     for f_ in (0.0, 0.25, 0.5, 0.75, 1.0)]
+
+            def turn(t, sg, pa=pa, pb=pb, Pi=Pi, Pinv=Pinv, fl3=fl3, cache=cache, pbp=pbp,
+                     seam_in=seam_in, seam3=seam3):
+                """How far (radians, turning way sg) the end must curl at
+                opening t to keep clear of the other floor: 0 if it needn't,
+                None if it can't."""
+                k_ = (float(t), sg)
                 if k_ in cache:
                     return cache[k_]
                 Ma, Mb = pa.asm(t), pb.asm(t)
@@ -3962,6 +4044,11 @@ class Model:
                             return False
                     return True
 
+                # the clearance it keeps: 0.3 mm, or less where the floors
+                # themselves come closer than that at the seam (nearly shut)
+                dz = [-((Ma @ q) - o).dot(nb_) for q in seam3 if over_b(Ma @ q)]
+                need = min(0.3, max(0.02, 0.6 * min(dz))) if dz else 0.3
+
                 def worst(th):
                     R = Pi @ Matrix.Rotation(th, 4, "X") @ Pinv
                     w_ = -1e9
@@ -3972,44 +4059,59 @@ class Model:
                     return w_
 
                 best = 0.0
-                if worst(0.0) > -0.3:
-                    for sg in (1.0, -1.0):
-                        lo_, hi_ = 0.0, sg * math.radians(100.0)
-                        if worst(hi_) > -0.3:
-                            continue
+                if worst(0.0) > -need:
+                    lo_, hi_, best = 0.0, None, None
+                    for deg in (40.0, 80.0, 120.0, 160.0):
+                        if worst(sg * math.radians(deg)) <= -need:
+                            hi_ = sg * math.radians(deg)
+                            break
+                        lo_ = sg * math.radians(deg)
+                    if hi_ is not None:
                         for _ in range(30):
                             md = 0.5 * (lo_ + hi_)
-                            if worst(md) > -0.3:
+                            if worst(md) > -need:
                                 lo_ = md
                             else:
                                 hi_ = md
-                        if best == 0.0 or abs(hi_) < abs(best):
-                            best = hi_
+                        best = hi_
                 cache[k_] = best
                 return best
 
-            tg = [tr * i / 36.0 for i in range(37)]
+            tg = [tr * i / 72.0 for i in range(73)]
             env = {}
 
             def curl(t, turn=turn, tg=tg, env=env, Pi=Pi, Pinv=Pinv):
-                """How far it's curled: as far as it must be at each opening,
-                eased in and out (a curl doesn't spring straight back)."""
+                """How far it's curled: as far as it must be at each opening
+                (always the same way), easing back flat as the card shuts
+                rather than springing straight back."""
                 if "raw" not in env:
-                    env["raw"] = [turn(x) for x in tg]
-                raw = env["raw"]
+                    # the way that works most of the way (towards the tower)
+                    got = {}
+                    for sg in (1.0, -1.0):
+                        rs = [turn(x, sg) for x in tg]
+                        got[sg] = (sum(r_ is None for r_ in rs),
+                                   sum(abs(r_) for r_ in rs if r_ is not None), rs)
+                    sg = min(got, key=lambda k: got[k][:2])
+                    rs = got[sg][2]
+                    # (where it can't keep clear, as far as it got either side)
+                    for i, r_ in enumerate(rs):
+                        if r_ is None:
+                            nb2 = [abs(x) for x in rs[max(0, i - 3):i + 4] if x is not None]
+                            rs[i] = sg * max(nb2 + [math.radians(160.0) if not nb2 else 0.0])
+                    env["raw"] = [abs(r_) for r_ in rs]
+                    env["sg"] = sg
+                raw, sg = env["raw"], env["sg"]
                 W, step = 30.0, tg[1] - tg[0]
-                t_ = float(t)
-                best = 0.0
-                for x, r_ in zip(tg, raw):
-                    if t_ >= x:  # opening up from x: back as the floors part
-                        f_ = max(0.0, 1.0 - (t_ - x) / step)
-                    else:  # shutting from x: easing back flat
-                        f_ = max(0.0, 1.0 - (x - t_) / W)
-                    v = r_ * f_
-                    if abs(v) > abs(best):
-                        best = v
-                best *= min(1.0, t_ / 10.0)  # (flat when shut)
-                return Pi @ Matrix.Rotation(best, 4, "X") @ Pinv
+                t_ = max(0.0, min(tg[-1], float(t)))
+                i = min(len(tg) - 2, int(t_ / step))
+                f_ = (t_ - tg[i]) / step
+                best = raw[i] + f_ * (raw[i + 1] - raw[i])  # (as far as it must)
+                for x, r_ in zip(tg[i + 1:], raw[i + 1:]):
+                    if x - t_ >= W:
+                        break
+                    best = max(best, r_ * (1.0 - (x - t_) / W))
+                best *= min(1.0, t_ / 3.0)  # (flat when shut)
+                return Pi @ Matrix.Rotation(sg * best, 4, "X") @ Pinv
 
             def asm_f(t, pa=pa, curl=curl):
                 return pa.asm(t) @ curl(t)
@@ -4315,6 +4417,283 @@ class Model:
 
         return asm
 
+    def _cone(self, m, host, rt):
+        """A round tube whose walls lean in (or out) toward the top: a slice of
+        a cone, its top Top Radius across where its bottom is the strip
+        distance (the loop narrowed or flared). Its side walls are glued to the
+        strips like a tube's; every wall turns about the cone's point, which
+        rides up and down the mirror plane as the card opens (like a pyramid's
+        apex), so it folds flat. The round ends are facets whose turns between
+        them grow or shrink together, keeping the crease on the mirror plane.
+        Cut as one curved band (two if it wraps too far round)."""
+        uid, lab = m["uid"], m["label"]
+        a, y0 = float(m["x"]), float(m["y"])
+        D, hb = max(2.0, float(m["depth"])), float(m["height"])
+        n = ROUND_FACETS
+        if hb < 2.0:
+            self.warn(f"{lab}: too low to make; skipped")
+            return
+        H = hb * a / (a - rt)  # the cone's point above the card (below if it flares)
+        ym = y0 + 0.5 * D
+        f_top = hb / H  # how far along each line to the point the top is
+        if rt < 1.0:
+            self.warn(f"{lab}: comes to a point; made 1 mm across at the top")
+        if host.is_spine and (y0 - a < -1e-6 or y0 + D + a > self.H + 1e-6):
+            self.warn(f"{lab}: runs past the top or bottom of the card")
+        L = math.hypot(a, H)  # side wall, foot to point
+        sg = 1.0 if H > 0 else -1.0
+        # open flat (the design): its bottom on the card, half circles each end
+        Q0 = Vector((0.0, ym, H))
+        def at180(px, py):
+            return Vector((px, py, 0.0))
+        ph = [0.5 * math.pi * k / n for k in range(n + 1)]
+        frontL = [at180(-a * math.cos(p_), y0 - a * math.sin(p_)) for p_ in ph]  # CL .. F
+        backL = [at180(-a * math.cos(p_), y0 + D + a * math.sin(p_)) for p_ in ph]  # C0L .. B
+        CL0, C0L0 = frontL[0], backL[0]
+
+        def dirs(pts, Q):
+            return [(p_ - Q).normalized() for p_ in pts]
+
+        def turns(us, u_prev):
+            """Turn at each point of a chain on the sphere round the point (the
+            first relative to carrying on from u_prev), and the steps."""
+            out, steps = [], []
+            n_ = u_prev.cross(us[0])
+            T = n_.cross(us[0]).normalized()
+            for k in range(len(us) - 1):
+                p_, q_ = us[k], us[k + 1]
+                To = (q_ - q_.dot(p_) * p_).normalized()
+                tau = math.atan2(p_.dot(T.cross(To)), T.dot(To))
+                al = math.acos(max(-1.0, min(1.0, p_.dot(q_))))
+                out.append(tau)
+                steps.append(al)
+                T = (-math.sin(al) * p_ + math.cos(al) * To).normalized()
+            return out, steps
+
+        design = {}
+        for key, pts, prev in (("F", frontL, C0L0), ("B", backL, CL0)):
+            us = dirs(pts, Q0)
+            design[key] = turns(us, (prev - Q0).normalized())
+        lens = {"F": [(p_ - Q0).length for p_ in frontL],
+                "B": [(p_ - Q0).length for p_ in backL]}
+
+        def walk(u0, u_prev, taus, steps, kap):
+            n_ = u_prev.cross(u0)
+            T = n_.cross(u0).normalized()
+            p_ = u0
+            out = [u0]
+            for tau, al in zip(taus, steps):
+                T = (math.cos(kap * tau) * T + math.sin(kap * tau) * p_.cross(T)).normalized()
+                q_ = (math.cos(al) * p_ + math.sin(al) * T).normalized()
+                T = (-math.sin(al) * p_ + math.cos(al) * T).normalized()
+                p_ = q_
+                out.append(p_)
+            return out
+
+        cache = {}
+
+        def geo(t):
+            k_ = float(t)
+            g = cache.get(k_)
+            if g is not None:
+                return g
+            S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+            vq = a * cs + sg * math.sqrt(max(L * L - a * a * sn * sn, 0.0))
+            Q = S + vq * e + ym * Y
+            CL = S + a * cs * e - a * sn * xh + y0 * Y
+            C0L = S + a * cs * e - a * sn * xh + (y0 + D) * Y
+            res = {"Q": Q, "xh": xh, "S": S}
+            for key, u0p, uprev in (("F", CL, C0L), ("B", C0L, CL)):
+                u0 = (u0p - Q).normalized()
+                up = (uprev - Q).normalized()
+                taus, steps = design[key]
+
+                def g_(kap):
+                    return walk(u0, up, taus, steps, kap)[-1].dot(xh)
+                k1 = k_cache.get(key, 1.0)
+                # bracket the root near the last one
+                lo, hi = k1 - 0.05, k1 + 0.05
+                flo, fhi = g_(lo), g_(hi)
+                grow = 0.1
+                while flo * fhi > 0 and grow < 8.0:
+                    lo, hi = lo - grow, hi + grow
+                    flo, fhi = g_(lo), g_(hi)
+                    grow *= 2.0
+                if flo * fhi > 0:
+                    kap = k1
+                else:
+                    for _ in range(50):
+                        md = 0.5 * (lo + hi)
+                        fm = g_(md)
+                        if fm * flo > 0:
+                            lo, flo = md, fm
+                        else:
+                            hi = md
+                    kap = 0.5 * (lo + hi)
+                    k_cache[key] = kap
+                res[key] = walk(u0, up, taus, steps, kap)
+            if len(cache) > 4096:
+                cache.clear()
+            cache[k_] = res
+            return res
+
+        k_cache = {}
+
+        def mirror(u, xh):
+            return u - 2.0 * u.dot(xh) * xh
+
+        # the strip's lines to the point, in order round: the left side, the
+        # front left and right, the right side, the back right and left
+        # (key, index into the chain, mirrored)
+        seq = [("B", 0, False), ("F", 0, False)] + [("F", k, False) for k in range(1, n + 1)] + \
+            [("F", k, True) for k in range(n - 1, -1, -1)] + [("B", 0, True)] + \
+            [("B", k, True) for k in range(1, n + 1)] + [("B", k, False) for k in range(n - 1, -1, -1)]
+
+        def u_of(g, node):
+            key, k, mir = node
+            u = g[key][k]
+            return mirror(u, g["xh"]) if mir else u
+
+        def len_of(node):
+            return lens[node[0]][node[1]]
+
+        # unrolled about the point: each line's angle round from the last
+        g180 = geo(180.0)
+        U = [u_of(g180, nd) for nd in seq]
+        th0 = [0.0]
+        for i in range(1, len(U)):
+            th0.append(th0[-1] + math.acos(max(-1.0, min(1.0, U[i - 1].dot(U[i])))))
+        two = th0[-1] > math.radians(300.0)
+        i_split = 2 * n + 2  # (the back starts at the right side's back line)
+        piece = f"Tube{uid}"
+        pB = f"{piece}b" if two else piece
+        self.add_piece(Piece(piece, lab if not two else f"{lab} (front)", 1 + uid,
+                             (0.0, 0.0)))
+        if two:
+            self.add_piece(Piece(pB, f"{lab} (back)", 350 + uid, (0.0, 0.0)))
+        self.tubes[uid] = dict(host=host, a=a, y0=y0, D=D, wf=0.5 * math.pi * a,
+                               wb=0.5 * math.pi * a, sf=1.0, sb=1.0, h=hb, label=lab,
+                               rf=True, rb=True, nf=n, nb=n, cone=True, walls={})
+        flip = [1.0]
+
+        def ang(i, pnl):
+            """Line i's angle in panel pnl's pattern (the back's own strip
+            starts again at 0 when it's cut separately)."""
+            sh = th0[i_split] if (two and pnl >= i_split) else 0.0
+            return flip[0] * (th0[i] - sh)
+
+        def pt2(i, frac, pnl):
+            r_ = len_of(seq[i]) * frac
+            th_ = ang(i, pnl)
+            return (r_ * math.sin(th_), -r_ * math.cos(th_))
+
+        def d2(i, pnl):
+            th_ = ang(i, pnl)
+            return Vector((math.sin(th_), -math.cos(th_), 0.0))
+
+        def onward(i, pnl):  # across line i, toward line i+1 in panel pnl's pattern
+            th_ = ang(i, pnl)
+            return Vector((math.cos(th_), math.sin(th_))) * flip[0]
+
+        def make_asm(i):
+            Fp = frame(Vector((0.0, 0.0, 0.0)), d2(i, i), d2(i + 1, i)).inverted()
+
+            def asm(t, i=i, Fp=Fp):
+                g = geo(t)
+                return frame(g["Q"], u_of(g, seq[i]), u_of(g, seq[i + 1])) @ Fp
+            return asm
+
+        def quad(i):
+            return [pt2(i, 1.0, i), pt2(i + 1, 1.0, i), pt2(i + 1, 1.0 - f_top, i),
+                    pt2(i, 1.0 - f_top, i)]
+
+        # printed side out: the left side's printed face toward -xh
+        nrm = make_asm(0)(120.0).to_3x3() @ Vector((0.0, 0.0, 1.0))
+        if nrm.dot(geo(120.0)["xh"]) > 0:
+            flip[0] = -1.0
+
+        names, groups = [], []
+        for i in range(len(seq) - 1):
+            if i == 0:
+                nm, grp, lb = "FL_", "FL_", "left side"
+            elif i <= n:
+                nm, grp, lb = f"GFL{i}", "GFL", f"front left {i}"
+            elif i <= 2 * n:
+                nm, grp, lb = f"GFR{i - n}", "GFR", f"front right {i - n}"
+            elif i == 2 * n + 1:
+                nm, grp, lb = "FR_", "FR_", "right side"
+            elif i <= 3 * n + 1:
+                nm, grp, lb = f"GBR{i - 2 * n - 1}", "GBR", f"back right {i - 2 * n - 1}"
+            else:
+                nm, grp, lb = f"GBL{i - 3 * n - 1}", "GBL", f"back left {i - 3 * n - 1}"
+            names.append((nm, grp, lb))
+        P = {}
+        for i, (nm, grp, lb) in enumerate(names):
+            pc_ = pB if (two and i >= i_split) else piece
+            asm = make_asm(i)
+            poly = ccw(quad(i))
+            if nm in ("FL_", "FR_"):
+                par = host.p1 if nm == "FL_" else host.p2
+                hg = self._hinge_on(par, asm, pt2(i, 1.0, i), pt2(i + 1, 1.0, i))
+            else:
+                par = P[names[i - 1][0]].name
+                hg = self._hinge_on(par, asm, pt2(i, 1.0, i), pt2(i, 1.0 - f_top, i))
+            P[nm] = self.add(Panel(f"{piece}.{nm}", pc_, "panel", [poly], asm, par, hg,
+                                   f"{lab}: {lb}"))
+            if P[nm] is None:
+                self.warn(f"{lab}: too small to make")
+                return
+            P[nm].hinge.kink_ok = True
+            if i > 0 and names[i - 1][1] == grp and nm != grp:
+                pair = frozenset((P[names[i - 1][0]].name, P[nm].name))
+                self.fold_kind[pair] = "skip"
+                self.facets.add(pair)
+            if nm.startswith("G"):
+                self.smooth_panels.add(P[nm].name)
+        tb = float(m.get("tab", 10.0))
+        ch = min(0.3 * tb, 0.2 * abs(hb))
+        tbc = min(tb, 0.9 * D * min(1.0, 1.0 - f_top))  # (the side wall's narrow end)
+
+        def end_tab(name, src_i, line, beyond, target, into, pc_):
+            """A tab off panel src_i's edge on line (toward beyond, in its
+            pattern), glued inside target (into: across the shared edge, into
+            the target, in its pattern)."""
+            e0, e1 = pt2(line, 1.0, src_i), pt2(line, 1.0 - f_top, src_i)
+            ev = (Vector(e1) - Vector(e0)).normalized()
+            poly = [e0, e1, tuple(Vector(e1) + tbc * beyond - ch * ev),
+                    tuple(Vector(e0) + tbc * beyond + ch * ev)]
+            self.add(Panel(f"{piece}.{name}", pc_, "tab", [ccw(poly)],
+                           self._glue_asm(P[target], P[names[src_i][0]].asm, e0, e1,
+                                          tuple(beyond), tuple(into), below=True),
+                           P[target].name, None, f"{lab}: {name.lower()} tab"))
+
+        last = len(seq) - 1  # (the left side's back line again)
+        # closing tab off the last back facet, glued inside the left side
+        end_tab("Close", last - 1, last, onward(last, last - 1), "FL_", onward(0, 0), pB)
+        if two:  # the back strip's start, glued inside the right side
+            end_tab("Join", i_split, i_split, -onward(i_split, i_split), "FR_",
+                    -onward(i_split, i_split - 1), pB)
+        # base tabs under the side walls, folded in (towards the fold) or out
+        kk = 1.0 if m.get("tab_side", "IN") == "IN" else -1.0
+        for nm, i, pg, Tp, sx in (("FL_", 0, host.p1, host.T1, -1.0),
+                                  ("FR_", 2 * n + 1, host.p2, host.T2, 1.0)):
+            e0, e1 = pt2(i, 1.0, i), pt2(i + 1, 1.0, i)
+            ev = Vector(e1) - Vector(e0)
+            Lb = ev.length
+            ev = ev / Lb
+            out_ = Vector(e0) - Vector(pt2(i, 1.0 - f_top, i))
+            out_ = (out_ - out_.dot(ev) * ev).normalized()
+            c2 = min(0.3 * tb, 0.2 * Lb)
+            poly = [e0, e1, tuple(Vector(e1) + tb * out_ - c2 * ev),
+                    tuple(Vector(e0) + tb * out_ + c2 * ev)]
+            tgt = Tp.to_3x3() @ Vector((-sx * kk, 0.0, 0.0))
+            sd = "L" if sx < 0 else "R"
+            self.add(Panel(f"{piece}.Tab{sd}", piece, "tab", [ccw(poly)],
+                           self._glue_asm(self.panels[pg], P[nm].asm, e0, e1, tuple(out_),
+                                          (tgt.x, tgt.y)),
+                           pg, None, f"{lab}: base tab {sd}"))
+        self.line_frames[uid] = (piece, lambda q: q, None)
+
     def _tube(self, m, host):
         """Tube on two parallel sticking strips (Birmingham 51, 67, 68). The
         side walls are glued to strips at distance a either side of the fold;
@@ -4326,6 +4705,13 @@ class Model:
         D, hgt = float(m["depth"]), float(m["height"])
         rf = m.get("front_style", "OUT") == "ROUND"
         rb = m.get("back_style", "OUT") == "ROUND"
+        rt = float(m.get("cone_top", 0.0) or 0.0)
+        if rt > 0.05 and abs(rt - a) > 0.5:
+            if rf and rb and m.get("roof", "NONE") == "NONE":
+                self._cone(m, host, rt)
+                return
+            self.warn(f"{lab}: a different top radius needs a round front and back and no "
+                      f"roof; made straight up")
         wf, wb = max(float(m["front"]), a), max(float(m["back"]), a)
         if float(m["front"]) < a - 1e-6 or float(m["back"]) < a - 1e-6:
             self.warn(f"{lab}: front and back walls must be at least as wide as the strip "

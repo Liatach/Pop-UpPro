@@ -133,6 +133,12 @@ the front walls, creased along the diagonal and joined by a glue tab: it
 rises to a ridge (Peaked) or sinks into the box (Dipped) as the card closes.
 A flat one-piece lid can't fold, so the lid is always two triangles.
 
+A cube is a tower whose front corner closes on the fold, so it takes a
+castle tower's **Tower Roof** (Pointed or Flat, with Overhang) and **Collar**
+(balcony or tapered top, railings, tiers) too: the same settings as a
+tower's, in place of the lid. The roof's and collar's tabs glue over the
+cube's closing tab at the back corner (glue on glue is fine).
+
 ### Tubes and tethers (parallel sticking strips)
 
 A tube's side walls are glued to two strips parallel to the fold, the same
@@ -153,7 +159,8 @@ curve; a pointed roof needs straight walls. A tube's walls can't curve
 narrower than about 1.4 times the strip distance (Checks widens them).
 
 **Loop** (Birmingham 16, in the **+** menu): a ring of card on two tabs, a
-cylinder whose side walls are only as long as its tabs (**Side Length** 8 mm).
+cylinder whose side walls are short flats with a tab under each (**Side
+Length** 14 mm, so the tabs are wide enough to hold).
 The tabs glue down **Strip Distance** either side of the fold, mirrored, and
 that distance sets its size: open flat, the ring is about twice it across.
 It flattens to a lens as the card shuts, creased at its two ends (F and G).
@@ -161,6 +168,15 @@ Change the strip distance and set the front and back walls to a quarter of
 the new circle (Checks widens them if they're too short); wider walls make
 a taller oval. A tube's base tabs reach their full **Tab** size out from the
 wall however short the wall is.
+
+**Top Radius** (round front and back): a slice of a cone. The top is that far
+from the middle where the bottom is the strip distance: smaller and the walls
+lean in (a lampshade the right way up), bigger and they flare out (the panel
+shows the lean). Every wall turns about the cone's point, which rides up and
+down above the fold as the card opens (like a pyramid's apex), so it still
+shuts flat; the round ends' facets keep their crease on the middle line. It's
+cut as a curved band (two bands if it would wrap too far round to cut in one
+piece). No roof on a cone. 0: straight up (a plain loop or cylinder).
 
 **Balconies**: with a tube or cube selected, the **+** menu adds a
 **Balcony** on its left or right wall, or **Balconies on Both Side Walls**;
@@ -262,19 +278,19 @@ tube and **Fold** to an *Inside Corner*.
   fold) for **Collar Width**. At the two corners of the tower that close as
   the card shuts, the floors meeting there are one V-fold hung outside the
   corner, creased along the mitre: one L-shaped piece each. At the other
-  two the floors stop **Corner Gap** (1.5 mm) apart on the mitre. As the
+  two the floors stop **Corner Gap** (0.75 mm) apart on the mitre. As the
   card shuts each would pass through the other along a line turning about
   the tower's corner, so with **Slide Inside** one slides inside the other,
-  its end curling (just as far as it must, easing back flat as the card
-  shuts; no fold drawn there, it's a curl in the paper), or with **Notch**
+  its end curling (always the same way, just as far as it must at every
+  opening right down to shut, easing back flat as the card shuts; no fold
+  drawn there, it's a curl in the paper), or with **Notch**
   one is cut back so they never touch (a wedge-shaped gap when open). Any
   slope works, as long as it's the same both sides of the corner; the
   floors fold up flat against the walls above as the card shuts. Crease
   towers get one too.
   * **Railing**: a railing that tall stands on each floor's outer edge,
     upright like the walls as the floor turns, so it folds flat on it;
-    **Battlements** cuts notches along its top. (On a curling floor it stops
-    where the curl starts.)
+    **Battlements** cuts notches along its top.
   * **Shape: Tapered Top** turns it upside down (Kim's box with a tapered
     top): from the top of the walls the floors lean up and in, at most
     half-way across the tower, in place of a roof; with a railing on top
@@ -286,7 +302,9 @@ tube and **Fold** to an *Inside Corner*.
     on an upright seam where the curl starts. Out, they step out like a
     pagoda's balconies; tapering in, each leans in as far again, so only so
     many fit before they meet in the middle (narrower, steeper floors fit
-    more; Checks says how many). Battlements go on the top tier. At the back left corner they lie over the tube's own closing
+    more; Checks says how many). Battlements go on the top tier.
+    **Alternate Out and In** turns every other tier the other way: out, in,
+    out (or in, out, in), so the steps go in and out again. At the back left corner they lie over the tube's own closing
   tab: glue on glue is fine there.
 * The castle wall is one strip, so it must fit on one print sheet (the
   Castle preset does on A4); for a bigger castle set the tube's **Strips**

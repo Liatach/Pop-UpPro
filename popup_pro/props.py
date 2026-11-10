@@ -960,7 +960,7 @@ class PopupMech(bpy.types.PropertyGroup):
         ("NOTCH", "Notch", "One floor at each free corner is cut back so they never "
          "touch: a wedge-shaped gap there when open")], update=_changed)
     collar_gap: FloatProperty(name="Corner Gap", description="Collar: how far apart the "
-                              "floors stop at the free corners (mm)", default=1.5,
+                              "floors stop at the free corners (mm)", default=0.75,
                               min=0.0, soft_max=4.0, update=_changed)
     collar_dir: EnumProperty(name="Collar", items=[
         ("OUT", "Balcony", "The floors slope up and out from the walls"),
@@ -974,9 +974,18 @@ class PopupMech(bpy.types.PropertyGroup):
                               "on each one's railing, the same again, this many in all "
                               "(each needs a railing to hang on)", default=1, min=1,
                               max=6, update=_changed)
+    collar_alternate: BoolProperty(name="Alternate Out and In", description="Collar "
+                                   "tiers: each tier leans the other way from the one "
+                                   "below (out, in, out... or in, out, in...)",
+                                   default=False, update=_changed)
     collar_crenels: BoolProperty(name="Battlements", description="Collar railing: "
                                  "notches cut along its top", default=False,
                                  update=_changed)
+    cone_top: FloatProperty(name="Top Radius", description="Round tube (a loop or "
+                            "cylinder, round front and back): how far its top is from the "
+                            "middle, where its bottom is the strip distance; smaller leans "
+                            "the walls in (a cone), bigger flares them out. 0: straight up",
+                            default=0.0, min=0.0, soft_max=80.0, update=_changed)
     strips: IntProperty(name="Strips", description="Tube: its walls cut as one strip of "
                         "paper, or two (left side and front, right side and back) joined "
                         "by a tab, so a big tube or castle fits the print sheet",
@@ -1333,7 +1342,7 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="TUBE", x=self.x, depth=self.depth, height=self.height,
                      front=self.front, back=self.back, front_style=self.front_style,
                      back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
-                     strips=self.strips,
+                     strips=self.strips, cone_top=self.cone_top,
                      roof_height=self.roof_height, ridge=self.ridge,
                      roof_fold=self.roof_fold, eave=self.eave, rib=self.rib)
         elif self.kind == "ROOF":
@@ -1387,7 +1396,15 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "CUBE":
             d.update(type="CUBE", size=self.size, height=self.height, lid=self.lid,
                      size_r=self.size_r,
-                     tab_side=self.tab_side)
+                     tab_side=self.tab_side,
+                     roof=self.roof, roof_height=self.roof_height, eave=self.eave,
+                     roof_slope=self.roof_slope,
+                     collar=self.collar, collar_below=self.collar_below,
+                     collar_width=self.collar_width, collar_slope=self.collar_slope,
+                     collar_corner=self.collar_corner, collar_gap=self.collar_gap,
+                     collar_dir=self.collar_dir, collar_rail=self.collar_rail,
+                     collar_crenels=self.collar_crenels, collar_tiers=self.collar_tiers,
+                     collar_alternate=self.collar_alternate)
         elif self.kind == "FLAP":
             d.update(type="FLAP", side=self.side, x=self.x, hinge=self.hinge,
                      width=self.width, length=self.length, angle=self.angle,
@@ -1440,6 +1457,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      collar_corner=self.collar_corner, collar_gap=self.collar_gap,
                      collar_dir=self.collar_dir, collar_rail=self.collar_rail,
                      collar_crenels=self.collar_crenels, collar_tiers=self.collar_tiers,
+                     collar_alternate=self.collar_alternate,
                      battlements=self.battlements,
                      gable_turn=self.gable_turn,
                      width=self.width, height=self.height,

@@ -84,16 +84,19 @@ Paint flat or folded, import and position images or simply textures, then export
   asymmetric, glued away from the spine (arched), or on top of each other.
   Mouths and jaws.
 * Multiple quadrilaterals on angled glue lines.
-* Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids.
+* Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids,
+  or a tower's pointed or flat roof and collars.
   Angled box folds (Kim Lang's): glue lines turned and mirrored either side
   of the fold, with one crease or three (a shelf that folds down its centre),
   their panels tilting into new planes.
-* Tubes, cylinders, loops (Birmingham 16), pyramids and tents on parallel strips, with tethers and
+* Tubes, cylinders, loops (Birmingham 16) and cones (narrowing or flaring),
+  pyramids and tents on parallel strips, with tethers and
   roofs, and castles (square, pentagonal or hexagonal): towers up a tube's
   inside corners and creases with pyramid, overhanging gabled, or flat roofs
   (sunk behind battlements, or at the top with a ledge round them), and
   collars: balconies (with railings or battlements) that wrap all the way
-  round a tower, or tapered tops, stacked in tiers, and still fold flat. Balconies on arches, with
+  round a tower, or tapered tops, stacked in tiers (alternating out and in
+  if you like), and still fold flat. Balconies on arches, with
   railings, on tube and cube walls, in front of boxes and outside towers.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   pictures glued on any face, pull-tab flaps.
@@ -240,6 +243,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.76**: collars' sliding corners curl as far as they must right down to
+  shut (they gave up part-way and cut through); a 0.75 mm corner gap; tiers
+  alternating out and in; the loop with wider tabs, and as a slice of a cone
+  (Top Radius); tower roofs and collars on cubes.
 * **0.75**: Kim Lang's angled box folds, under Box Fold settings: the glue
   lines turned, with one crease or three; the loop (Birmingham 16), a ring
   on two tabs; collars stacked in tiers, out or tapering in, their railings
