@@ -84,20 +84,19 @@ Paint flat or folded, import and position images or simply textures, then export
   asymmetric, glued away from the spine (arched), or on top of each other.
   Mouths and jaws.
 * Multiple quadrilaterals on angled glue lines.
-* Box folds, box layers, straps (slanted, with peaks), 180° cubes with lids,
-  or a tower's pointed or flat roof and collars.
-  Angled box folds (Kim Lang's): glue lines turned and mirrored either side
-  of the fold, with one crease or three (a shelf that folds down its centre),
-  their panels tilting into new planes.
-* Tubes, cylinders, loops (Birmingham 16) and cones (narrowing or flaring),
-  pyramids and tents on parallel strips, with tethers and
-  roofs, and castles (square, pentagonal or hexagonal): towers up a tube's
-  inside corners and creases with pyramid, overhanging gabled, or flat roofs
-  (sunk behind battlements, or at the top with a ledge round them), and
-  collars: balconies (with railings or battlements) that wrap all the way
-  round a tower, or tapered tops, stacked in tiers (alternating out and in
-  if you like), and still fold flat. Balconies on arches, with
-  railings, on tube and cube walls, in front of boxes and outside towers.
+* Box folds, square or angled (Kim Lang's: the glue lines turned and
+  mirrored either side of the fold, with one crease or three, the panels
+  tilting into new planes); box layers; straps (slanted, with peaks).
+* 180° cubes with a lid, or a tower's pointed or flat roof, and collars.
+* Tubes, cylinders, loops (Birmingham 16) and cones that narrow or flare,
+  pyramids and tents on parallel strips, with tethers and roofs. Balconies
+  on arches, with railings, on tube and cube walls, in front of boxes and
+  outside towers.
+* Castles (square, pentagonal or hexagonal): towers in a tube's corners and
+  creases with pyramid, overhanging gabled, or flat roofs (sunk behind
+  battlements, or with a ledge round the top). Kim Lang's collars: balconies
+  with railings or battlements all the way round a tower, or tapered tops,
+  stacked in tiers stepping out and in, that still fold flat.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   pictures glued on any face, pull-tab flaps.
 * 45° folds: a raised platform (on or off the centre) and a rising sheet,
@@ -182,31 +181,42 @@ Sunflower is a good way to make them.
 * A floor can't turn a corner that opens out as the card closes unless it
   slopes, so a balcony round a tower is a collar (sloping, sliding at two
   corners); a tube's balconies go on its side walls.
+* Some options only go together where the paper can fold: pyramid and flat
+  tower roofs need a square tower; gabled roofs and sunken battlements are
+  for castle towers, not cubes; a cone has no roof; an angled box fold takes
+  no slant, peaks or railing. Checks says when one is left off.
 * Draw Anywhere strokes become paint when they go on the paper: they can't
   be edited as strokes afterwards (Ctrl Z takes them off), and a stroke
   that runs from one piece of paper onto another is painted on each.
-* Texture Paint (and with it Erase, painted holes and erasing a stand-up
-  picture's outline) is hidden from the panels for now: Draw Anywhere is
-  the way to paint.
+* Texture Paint itself is hidden from the panels: Draw Anywhere is the way
+  to paint, and Erase the Paper (in the Artwork panel) the way to rub it
+  see-through and cut painted holes.
 * Paint layers of your own on UDIM tiles are untested; Bake Art for Print is
   the safe route for printing.
 
 ## Roadmap
 
 * **Ink layers and editable strokes**: Draw Anywhere strokes kept as Grease
-  Pencil lying on the flat layout, editable any time, in layers you can
-  hide, reorder and fade, with the paper redrawn from them (**Update
-  Paper**), so nothing is baked in for good. Strokes that keep to the piece
-  they're on near folds and edges.
+  Pencil lying on the flat layout (carried round the folds by the rig, so
+  they show folded too), editable any time, in layers you can hide, reorder
+  and fade, with the paper redrawn from them (**Update Paper**), so nothing
+  is baked in for good. Strokes that keep to the piece they're on near folds
+  and edges.
 * **Tubes and castles, continued**: battlements and a drawbridge in a
-  tube's walls, and towers on other folds. Overhanging roofs on tubes, and
-  eaves on pyramid tower roofs; stand-ups on a tower's sunken platform (its
-  creases fold the wrong way up for them, so it needs a dish shaped for
-  it); collars round a whole tube or castle (its corners don't close in
-  pairs the way a tower's do), round boxes, upside down as cornices, and
-  on pillars; a balcony across a tube's front or back, if
-  a way can be found for its floor to fold there; crenellations along more kinds of edge; a cylinder's lid trimmed as the
-  book's (68).
+  tube's walls, and towers on other folds. Overhanging roofs on tubes, eaves
+  on pyramid tower roofs, gabled roofs on cubes; stand-ups on a tower's
+  sunken platform (its creases fold the wrong way up for them, so it needs a
+  dish shaped for it); a balcony across a tube's front or back, if a way can
+  be found for its floor to fold there; crenellations along more kinds of
+  edge; a cylinder's lid trimmed as the book's (68).
+* **Collars, continued**: round a whole tube or castle (its corners don't
+  close in pairs the way a tower's do), round box folds, upside down as
+  cornices, and on pillars; railings meeting at the corner without the
+  upright seam where the curl starts.
+* **Loops and cones, continued**: the loop made into an animal's head
+  (Birmingham 17); a cone's lean set as an angle; a lid on a cone.
+* **Angled box folds, continued**: on other folds (straps, towers, another
+  box), glued by inset tabs, and with peaks.
 * **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
   for cards that stand part open), everything flat or square at that angle
   instead of at 180°, which lets floors and ceilings go in a plain card.
@@ -235,8 +245,7 @@ Sunflower is a good way to make them.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals,
   moving arms.
 * **V-folds, continued** (Birmingham): the "bite" that sculpts a V-fold
-  into a curve or a point (12–15), the loop made into an animal's head
-  (17), and tall narrow sides that twist (19).
+  into a curve or a point (12–15), and tall narrow sides that twist (19).
 * **Zig-zags and quadrilaterals, continued** (Birmingham): slanted fold
   lines (47), boxes cut into the faces (46, 48), and a quadrilateral lifted
   on a V-fold (56).
@@ -254,13 +263,10 @@ Sunflower is a good way to make them.
 * **0.74**: the collar's free corners slide one inside the other, the end
   curling (no slits); railings and battlements on collars; the collar upside
   down as a tapered top; Erase the Paper back in the Artwork panel.
-* **0.73**: Kim Lang's collar: a sloping balcony floor all the way round a
-  tower, part-way up or at the top, V-folded at two corners and slit at the
-  other two, that folds flat.
-* **0.72**: towers up a tube's front and back creases, so castles can be
-  pentagonal or hexagonal; pointed roofs in a hexagon's corners too; flat
-  tower roofs, sunk behind battlements or at the top with a ledge round the
-  tower.
+* **0.72–0.73**: Kim Lang's collar, a sloping balcony floor all the way
+  round a tower that folds flat; towers up a tube's front and back creases,
+  so castles can be pentagonal or hexagonal; flat tower roofs, sunk behind
+  battlements or at the top with a ledge round the tower.
 * **0.71**: gabled tower roofs that overhang the walls (Birmingham 49: a rib
   between the gable tips, the roof stuck only to the rib); tubes and castles
   in two strips; balconies on arches with open railings, and balconies
