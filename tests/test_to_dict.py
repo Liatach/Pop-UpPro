@@ -12,7 +12,9 @@ to_dict for its kind is quietly ignored. Two checks:
 # families: core
 import ast
 import collections
+import importlib
 import os
+import pkgutil
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,7 +25,7 @@ import bpy  # noqa: E402
 bpy.ops.wm.read_factory_settings(use_empty=True)
 import popup_pro as addon  # noqa: E402
 from popup_pro import build, props  # noqa: E402
-from popup_pro.core import model as M  # noqa: E402
+from popup_pro import core  # noqa: E402
 
 # Properties the model doesn't need, and why. A new property goes in to_dict
 # (for every kind it applies to), not here, unless it truly never shapes paper.
@@ -124,7 +126,9 @@ def watched_dict(*a, **kw):
     return d
 
 
-M.dict = watched_dict  # (model.py's own name for dict, for this test only)
+# (each model module's own name for dict, for this test only)
+for _, name, _ in pkgutil.iter_modules(core.__path__):
+    importlib.import_module(f"popup_pro.core.{name}").dict = watched_dict
 
 addon.register()
 sc = bpy.context.scene
