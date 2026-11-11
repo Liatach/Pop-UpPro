@@ -2,6 +2,7 @@
 check the rig's deformation matches the kinematics at several angles, that
 every driver is a simple expression, sketch layers survive rebuilds, and the
 SVG export runs."""
+# families: core, export
 import math
 import os
 import sys

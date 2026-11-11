@@ -139,6 +139,9 @@ castle tower's **Tower Roof** (Pointed or Flat, with Overhang) and **Collar**
 tower's, in place of the lid. The roof's and collar's tabs glue over the
 cube's closing tab at the back corner (glue on glue is fine).
 
+![A cube with a pointed tower roof and a collar with a railing, at 175, 115
+and 55 degrees](images/cube_tower.jpg)
+
 ### Tubes and tethers (parallel sticking strips)
 
 A tube's side walls are glued to two strips parallel to the fold, the same
@@ -177,6 +180,9 @@ down above the fold as the card opens (like a pyramid's apex), so it still
 shuts flat; the round ends' facets keep their crease on the middle line. It's
 cut as a curved band (two bands if it would wrap too far round to cut in one
 piece). No roof on a cone. 0: straight up (a plain loop or cylinder).
+
+![A loop, and behind it a cone (a loop with a smaller Top Radius), at 175,
+115 and 55 degrees](images/loop_cone.jpg)
 
 **Balconies**: with a tube or cube selected, the **+** menu adds a
 **Balcony** on its left or right wall, or **Balconies on Both Side Walls**;
@@ -314,6 +320,9 @@ tube and **Fold** to an *Inside Corner*.
   the tower and its floor level with the top of the castle walls, on
   arches, with an open railing.
 
+![A castle tower with a collar in three tiers, railings and battlements, at
+175, 115 and 55 degrees](images/collar_tiers.jpg)
+
 ### Pyramids, tents and roofs
 
 See The Pop-Up Channel's [Tutorial 21](https://www.youtube.com/watch?v=jZDHbUhV6Ms).
@@ -383,6 +392,9 @@ a plain band with its ends cut along the glue lines.
 
 Slant, peaks, railings and 45° triangles aren't made on an angled box fold,
 and a box layer or a tower can't be angled.
+
+![Angled box folds with one crease (front) and three (behind), at 175, 115
+and 55 degrees](images/angled_box.jpg)
 
 ### The basic box: a second spine
 

@@ -1,6 +1,7 @@
 """Stage set kinematics (Birmingham 118, carousel stages): frames pull flat
 exactly when the stage is fully open, floors and ceilings lie flat there
 too and fold into the stage as it closes, and frames are cut to clear them."""
+# families: stage
 import math
 import os
 import sys

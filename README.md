@@ -319,8 +319,9 @@ Sunflower is a good way to make them.
 
 ## Development
 
-Tests run with `pip install bpy`: `python tests/test_core.py`, then each
-`tests/test_*.py` (one per release). How the solver and rig work is in the
+Tests run with `pip install bpy`: `python tests/run_all.py` runs them all,
+several at a time, and `python tests/run_all.py collars` only one family's
+(`--list` shows the families). How the solver and rig work is in the
 [guide](docs/guide.md#how-it-works).
 
 ## Licence

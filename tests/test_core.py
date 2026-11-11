@@ -1,6 +1,7 @@
 """Kinematics checks: hinge driver formulas match the solved geometry, and
 creases and glue lines stay closed at every open angle. Needs mathutils
 (run with Blender's Python or `pip install bpy`)."""
+# families: core
 import os
 import sys
 
