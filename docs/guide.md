@@ -270,7 +270,7 @@ tube and **Fold** to an *Inside Corner*.
   corners with the roof).
 * The tower's tabs stop short of the roof's tabs, which glue inside the
   walls under the roof's edges, and under the battlements' notches.
-* **Collar** (Kim Lang's, found in card): a balcony floor all the way round the tower,
+* **Collar**: a balcony floor all the way round the tower,
   part-way up it (**Collar Below Top**, but above the castle's walls) or at
   its top. Each side's floor is hinged on the outside of its wall by a
   strip glued down the wall, and slopes up and out (**Collar Slope**: 0 up
@@ -291,7 +291,7 @@ tube and **Fold** to an *Inside Corner*.
   * **Railing**: a railing that tall stands on each floor's outer edge,
     upright like the walls as the floor turns, so it folds flat on it;
     **Battlements** cuts notches along its top.
-  * **Shape: Tapered Top** turns it upside down (Kim's box with a tapered
+  * **Shape: Tapered Top** turns it upside down (a box with a tapered
     top): from the top of the walls the floors lean up and in, at most
     half-way across the tower, in place of a roof; with a railing on top
     it's a smaller tower standing on the taper.
@@ -358,7 +358,7 @@ the roof can **Overhang** the walls all round, like eaves.
 
 ### Angled box folds
 
-Kim Lang's, found in card. **Angled Glue Lines** (in a box fold's settings,
+**Angled Glue Lines** (in a box fold's settings,
 or **Box Fold (angled glue lines)** in the **+** menu) turns the strip's glue
 lines that many degrees, mirrored either side of the fold, so they run
 toward the fold and meet it below the strip (positive: the box widens

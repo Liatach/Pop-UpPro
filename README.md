@@ -84,7 +84,7 @@ Paint flat or folded, import and position images or simply textures, then export
   asymmetric, glued away from the spine (arched), or on top of each other.
   Mouths and jaws.
 * Multiple quadrilaterals on angled glue lines.
-* Box folds, square or angled (Kim Lang's: the glue lines turned and
+* Box folds, square or angled (the glue lines turned and
   mirrored either side of the fold, with one crease or three, the panels
   tilting into new planes); box layers; straps (slanted, with peaks).
 * 180° cubes with a lid, or a tower's pointed or flat roof, and collars.
@@ -94,12 +94,12 @@ Paint flat or folded, import and position images or simply textures, then export
   outside towers.
 * Castles (square, pentagonal or hexagonal): towers in a tube's corners and
   creases with pyramid, overhanging gabled, or flat roofs (sunk behind
-  battlements, or with a ledge round the top). Kim Lang's collars: balconies
+  battlements, or with a ledge round the top). Collars: balconies
   with railings or battlements all the way round a tower, or tapered tops,
   stacked in tiers stepping out and in, that still fold flat.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
-  pictures glued on any face, pull-tab flaps.
-* 45° folds: a raised platform (on or off the centre) and a rising sheet,
+  picture placemats glued on any face, pull-tab flaps.
+* 45° folds: a raised platform (on or off the centre), a rising sheet,
   propped square by 45° folds; the double 45° fold, its top piece twisting
   round; a jack in the box on a V-fold; triangles that leap out of a box's
   corners.
@@ -117,7 +117,7 @@ Paint flat or folded, import and position images or simply textures, then export
 * Align: line mechanisms up along the fold they share or across the whole
   card, or space them evenly; flaps on opposite pages mirror each other.
 * Live checks for tearing, poking through, sticking out and overlapping glue,
-  and a Plan View that squashes the card flat and see-through, a colour per
+  and a "Plan View" that squashes the card flat and see-through, a colour per
   mechanism, so overlaps in a busy build show plainly.
 
 **Art and output**
@@ -127,7 +127,7 @@ Paint flat or folded, import and position images or simply textures, then export
   (round a drawing, say) and cut what's erased out.
 * Outside glue tabs print the art of the part they glue onto, so they
   disappear into the picture.
-* A movement test with one Open slider, on a rig that needs no Python
+* A built in animated movement test with one Open slider, on a rig that needs no Python
   auto-run.
 * Render looks: Clean, Showcase, Dawn, Studio or your own; metallic, glossy
   or glowing parts with their art kept, and metallic images (foil
@@ -157,16 +157,14 @@ The mechanisms follow The Pop-Up Channel's video tutorials:
 * [360° pop-up book](https://www.youtube.com/watch?v=HKvsssZ9W0E) (the basic box and carousels; also [on Reddit](https://www.reddit.com/r/popupbooks/comments/1xcfeks/how_to_make_360_popup_book/))
 
 Duncan Birmingham's splendid book *Pop-Up! A Manual of Paper Mechanisms* covers them
-too, and the newer mechanisms follow it (its mechanism numbers are given in
-the guide and below).
+too.
 
 Pop-Up Pro is self-contained. Paint layers you set up yourself on the
-card's paper work alongside it: the fabulous
+card's paper work alongside it. The fabulous
 [Paint System](https://github.com/natapol2547/paintsystem) by Tawan
 Sunflower is a good way to make them.
 
 ## Constraints
-
 * One card (or carousel) per scene. Mechanisms stand on the spine or on the
   folds other mechanisms offer: the **+** menu lists what fits the one
   selected.
@@ -176,7 +174,7 @@ Sunflower is a good way to make them.
   layers; tubes, roofs and stand-up pictures don't take them yet.
   Asymmetric creases need their own matching crease on the other side
   (drawn with Mirror off).
-* A tube's (or castle's) walls are one or two strips of paper, each of which
+* A tube's (or a castle's) walls are built of one or two strips of paper, each of which
   must fit on one print sheet.
 * A floor can't turn a corner that opens out as the card closes unless it
   slopes, so a balcony round a tower is a collar (sloping, sliding at two
@@ -256,14 +254,14 @@ Sunflower is a good way to make them.
   shut (they gave up part-way and cut through); a 0.75 mm corner gap; tiers
   alternating out and in; the loop with wider tabs, and as a slice of a cone
   (Top Radius); tower roofs and collars on cubes.
-* **0.75**: Kim Lang's angled box folds, under Box Fold settings: the glue
+* **0.75**: Angled box folds, under Box Fold settings: the glue
   lines turned, with one crease or three; the loop (Birmingham 16), a ring
   on two tabs; collars stacked in tiers, out or tapering in, their railings
   running right round the curled corners.
 * **0.74**: the collar's free corners slide one inside the other, the end
   curling (no slits); railings and battlements on collars; the collar upside
   down as a tapered top; Erase the Paper back in the Artwork panel.
-* **0.72–0.73**: Kim Lang's collar, a sloping balcony floor all the way
+* **0.72–0.73**: Tower collars, a sloping balcony floor all the way
   round a tower that folds flat; towers up a tube's front and back creases,
   so castles can be pentagonal or hexagonal; flat tower roofs, sunk behind
   battlements or at the top with a ledge round the tower.
