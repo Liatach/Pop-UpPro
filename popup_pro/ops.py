@@ -182,232 +182,289 @@ class POPUP_OT_add(bpy.types.Operator):
         st = context.scene.popup
         if self.host and not any(x.uid == self.host for x in st.mechs):
             self.host = 0  # (a host that's gone: on the card, not skipped)
-        if self.kind in ("FRAME", "FLOOR", "CEILING"):
-            if st.stage_master is None and not self.host:
-                stages = [x for x in st.mechs if x.kind == "STAGE"]
-                act = st.mechs[st.active] if st.active < len(st.mechs) else None
-                in_stage = act is not None and (act.kind == "STAGE" or any(
-                    x.uid == act.host_uid for x in stages))
-                if self.kind == "FRAME" and not in_stage:
-                    stages = []  # a frame across the card's own fold
-                elif not stages:
-                    self.report({"ERROR"}, "Add a Stage Set first (or make a carousel)")
-                    return {"CANCELLED"}
-            if st.stage_master is None and not self.host and stages:
-                act = st.mechs[st.active] if st.active < len(st.mechs) else None
-                if act is not None and act.kind == "STAGE":
-                    self.host = act.uid
-                elif act is not None and act.host_uid and any(x.uid == act.host_uid
-                                                               for x in stages):
-                    self.host = act.host_uid
-                else:
-                    self.host = stages[-1].uid
-            same = [x for x in st.mechs if x.kind == self.kind and x.host_uid == self.host]
-            if self.kind == "FRAME" and len(same) >= 4:
-                self.report({"ERROR"}, "A stage has a staging frame and up to three frames")
-                return {"CANCELLED"}
-            if self.kind in ("FLOOR", "CEILING") and same:
-                self.report({"ERROR"}, f"This stage already has a {self.kind.lower()}")
-                return {"CANCELLED"}
+        if self.kind in ("FRAME", "FLOOR", "CEILING") and not self.pick_stage(st):
+            return {"CANCELLED"}
         # (by uid: adding to the list can move its items in memory)
         was_active = st.mechs[st.active].uid if 0 <= st.active < len(st.mechs) else None
         m = _add(st, self.kind)
         uid = m.uid
         if self.kind == "FRAME" and not self.host and st.stage_master is None:
-            # across the card's own fold: a layer that pulls flat as it opens
-            was = st.live
-            st["live"] = False
-            W_, H_ = st.card_dict()["W"], st.card_dict()["H"]
-            m.label = unique_label(st.mechs, "Frame", m)
-            n_ = sum(1 for x in st.mechs if x.kind == "FRAME" and not x.host_uid)
-            m.x = round(0.7 * W_ * (1.0 - 0.25 * (n_ - 1)), 1)  # (each one further in)
-            m.y, m.height = round(0.1 * H_, 1), round(0.75 * H_, 1)
-            st["live"] = was
+            _as_card_frame(st, m)
         if self.kind == "VFOLD" and self.variant == "ASYM":
-            was = st.live
-            st["live"] = False
-            m.symmetric = False
-            m.phi_l, m.phi_r, m.lean, m.fold_flat = 40.0, 75.0, 20.0, True
-            m.glue_r = m.glue
-            m.label = unique_label(st.mechs, "Asymmetric V-fold", m)
-            st["live"] = was
+            _as_asymmetric(st, m)
         if self.kind == "BOX" and self.variant == "STRAP":
-            # Pop-Up Tutorial 9: a glued box fold with equal sides lies flat
-            # when the card is open; its two glue folds are gullies away from
-            # the spine that open just like it, for pop-ups off the centre
-            was = st.live
-            st["live"] = False
-            H = st.card_dict()["H"]
-            m.height = m.depth = 35.0
-            m.width = 70.0
-            m.y = round(0.5 * H - 35.0, 1)
-            m["strap"] = True
-            m.label = unique_label(st.mechs, "Strap", m)
-            st["live"] = was
+            _as_strap(st, m)
         if self.kind == "ROOF" and self.variant == "VALLEY":
-            was = st.live
-            st["live"] = False
-            m.valley = True
-            m.y = round(0.3 * st.card_dict()["H"], 1)
-            m.label = unique_label(st.mechs, "Valley floor", m)
-            st["live"] = was
+            _as_valley(st, m)
         if self.kind == "BOX" and self.variant == "TOWERS" and self.host:
             # a tower up every inside corner of the tube (the castle's corners)
             _remove_new(st, uid)
             for fold in tube_corners(st, self.host):
                 _tower(st, self.host, fold)
-            _rebuild(self, context, force=st.rig is not None and not st.edited)
-            return {"FINISHED"}
+            return self.done(context, st)
         if self.kind == "PICTURE":
-            # on the selected mechanism's first face (or the right page)
-            from .props import pic_faces
-            act = next((x for x in st.mechs if x.uid == was_active and x.uid != uid
-                        and x.kind != "PICTURE"), None)
-            on = self.host or (act.uid if act is not None else 0)
-            was = st.live
-            st["live"] = False
-            m.host_uid = on
-            faces = pic_faces(st, on)
-            if self.side:
-                m.face = self.side
-            elif faces:
-                m.face = faces[0][0] if on else "Page.R"
-            else:
-                m.face = "Page.R"
-            if not on:
-                m.pic_x, m.pic_y = 0.0, 20.0
-            st["live"] = was
-            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
-            _rebuild(self, context, force=st.rig is not None and not st.edited)
-            return {"FINISHED"}
+            _place_picture(st, m, self.host, self.side, was_active)
+            return self.done(context, st, uid)
         if self.kind == "JACK" and not self.host:
-            # on the selected V-fold's crease, or (Birmingham 79) a new V-fold
-            # for its body
-            act = next((x for x in st.mechs if x.uid == was_active), None)
-            if act is not None and act.kind == "VFOLD" and not any(
-                    x.kind == "JACK" and x.host_uid == act.uid for x in st.mechs):
-                _put_on(st, uid, act.uid, "V")
-                st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
-                _rebuild(self, context, force=st.rig is not None and not st.edited)
-                return {"FINISHED"}
-            was = st.live
-            st["live"] = False
-            vf = _add(st, "VFOLD")
-            vf.phi_l, vf.alpha_l, vf.glue, vf.height = 60.0, 90.0, 40.0, 60.0
-            vf.y = round(0.4 * st.card_dict()["H"], 1)
-            vf.label = unique_label(st.mechs, "Jack's body", vf)
-            st["live"] = was
-            _put_on(st, uid, vf.uid, "V")
-            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
-            _rebuild(self, context, force=st.rig is not None and not st.edited)
-            return {"FINISHED"}
+            _place_jack(st, uid, was_active)
+            return self.done(context, st, uid)
         if self.kind == "BOX" and self.variant == "ANGLED" and not self.host:
-            was = st.live
-            st["live"] = False
-            m.fan_angle = 20.0
-            m.label = unique_label(st.mechs, "Angled box fold", m)
-            st["live"] = was
+            _as_angled(st, m)
         if self.kind == "TUBE" and self.variant == "LOOP":
-            # Birmingham 16: a band curving round both ways from two short flat
-            # sides glued down on tabs, the tabs' distance out setting its size
-            was = st.live
-            st["live"] = False
-            m.x, m.depth, m.height, m.tab = 25.0, 14.0, 20.0, 8.0
-            m.front_style = m.back_style = "ROUND"
-            m.label = unique_label(st.mechs, "Loop", m)
-            st["live"] = was
+            _as_loop(st, m)
         if self.kind == "TUBE" and self.variant == "CASTLE":
-            # Birmingham's parallel castle: a box-shaped tube (front and back as
-            # wide as the strips are apart) with a roofed tower in each corner
-            was = st.live
-            st["live"] = False
-            H = st.card_dict()["H"]
-            # (one strip round all six walls: kept within an A4 sheet)
-            m.x = m.front = m.back = 34.0
-            m.depth, m.height, m.roof = 64.0, 40.0, "NONE"
-            m.y = round(0.5 * H - 32.0, 1)
-            m.label = unique_label(st.mechs, "Castle", m)
-            st["live"] = was
+            _as_castle(st, m)
             for fold in ("KFL", "KFR", "KBR", "KBL"):
                 _tower(st, uid, fold)
-            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
-            _rebuild(self, context, force=st.rig is not None and not st.edited)
-            return {"FINISHED"}
+            return self.done(context, st, uid)
         if self.host and self.kind != "PICTURE":
             if self.side:
                 next(x for x in st.mechs if x.uid == uid)["side"] = 1 if self.side == "L" else 0
             _put_on(st, uid, self.host, self.fold)
         if self.kind == "BOX" and self.variant == "BALCONIES" and self.host:
-            # one on each side wall of a tube or cube
             _remove_new(st, uid)
-            new = []
-            for fold in ("WL", "WR"):
-                m = _add(st, "BOX")
-                _put_on(st, m.uid, self.host, fold)
-                _balcony(st, m.uid, self.host)
-                new.append(m.uid)
-            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == new[0])
-            _rebuild(self, context, force=st.rig is not None and not st.edited)
-            return {"FINISHED"}
+            new = _side_balconies(st, self.host)
+            return self.done(context, st, new[0])
         if self.kind == "BOX" and self.variant == "TOWER_BALCONIES" and self.host:
-            # a balcony on the side wall outside each tower, the length of the
-            # tower along the wall, its floor at the top of the castle's walls
             _remove_new(st, uid)
-            # (by value: adding to the list moves its items in memory)
-            h = next(x for x in st.mechs if x.uid == self.host)
-            hd, hh = h.depth, h.height
-            towers = [(max(x.height, x.depth), x.wall, x.label) for x in st.mechs
-                      if x.kind == "BOX" and x.host_uid == self.host and
-                      x.wall in ("KFL", "KFR", "KBR", "KBL")]  # (by a side wall)
-            new = []
-            for size, wall, tlab in towers:
-                span = min(size, hd)
-                side = "WL" if wall in ("KFL", "KBL") else "WR"
-                # (the left wall's foot runs back to front, the right's front to back)
-                at_start = wall in ("KBL", "KFR")
-                nu = _add(st, "BOX").uid
-                _put_on(st, nu, self.host, side)
-                _balcony(st, nu, self.host)
-                m = next(x for x in st.mechs if x.uid == nu)
-                was = st.live
-                st["live"] = False
-                m.width = round(span, 1)
-                m.y = 0.0 if at_start else round(hd - span, 1)
-                m.height = round(hh, 1)
-                m.rail = round(min(12.0, 0.3 * hh), 1)
-                m.bays = max(1, min(6, int(span // 12)))
-                m.label = f"{tlab} balcony"
-                st["live"] = was
-                new.append(nu)
+            new = _tower_balconies(st, self.host)
             if not new:
                 self.report({"ERROR"}, "No towers in this tube's corners")
                 return {"CANCELLED"}
-            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == new[0])
-            _rebuild(self, context, force=st.rig is not None and not st.edited)
-            return {"FINISHED"}
+            return self.done(context, st, new[0])
         if self.kind == "BOX" and self.variant == "BALCONY" and self.host:
             _balcony(st, uid, self.host)
         if self.kind == "VFOLD" and self.variant == "TOP" and self.host:
-            # Birmingham 21-22: stuck on top of the V-fold it stands on, whose
-            # top is cut to a point and whose own tabs (A) stick under it
-            h = next(x for x in st.mechs if x.uid == self.host)
-            was = st.live
-            st["live"] = False
-            m = next(x for x in st.mechs if x.uid == uid)
-            m.on_top = True
-            m.y = round(h.height, 1)
-            m.top_angle = m.top_angle_r = 50.0
-            m.top_piece = m.top_piece_r = 70.0
-            # small enough to fold away inside the lifting piece's height
-            m.glue = m.height = round(max(10.0, 0.4 * h.height), 1)
-            m.tab = min(h.tab, round(0.3 * m.glue, 1))
-            st["live"] = was
+            _as_top(st, uid, self.host)
         if self.kind == "STAGE":  # a staging frame at the front, one frame behind
             for _ in range(2):
                 _put_on(st, _add(st, "FRAME").uid, uid, "A")
             st.active = next(i for i, x in enumerate(st.mechs) if x.uid == uid)
+        return self.done(context, st)
+
+    def pick_stage(self, st):
+        """A frame, floor or ceiling goes in a stage: the selected one, or the
+        last made (a frame with no stage about goes across the card's own
+        fold). False, with the reason reported, if it can't be added."""
+        if st.stage_master is None and not self.host:
+            stages = [x for x in st.mechs if x.kind == "STAGE"]
+            act = st.mechs[st.active] if st.active < len(st.mechs) else None
+            in_stage = act is not None and (act.kind == "STAGE" or any(
+                x.uid == act.host_uid for x in stages))
+            if self.kind == "FRAME" and not in_stage:
+                stages = []  # a frame across the card's own fold
+            elif not stages:
+                self.report({"ERROR"}, "Add a Stage Set first (or make a carousel)")
+                return False
+        if st.stage_master is None and not self.host and stages:
+            act = st.mechs[st.active] if st.active < len(st.mechs) else None
+            if act is not None and act.kind == "STAGE":
+                self.host = act.uid
+            elif act is not None and act.host_uid and any(x.uid == act.host_uid
+                                                           for x in stages):
+                self.host = act.host_uid
+            else:
+                self.host = stages[-1].uid
+        same = [x for x in st.mechs if x.kind == self.kind and x.host_uid == self.host]
+        if self.kind == "FRAME" and len(same) >= 4:
+            self.report({"ERROR"}, "A stage has a staging frame and up to three frames")
+            return False
+        if self.kind in ("FLOOR", "CEILING") and same:
+            self.report({"ERROR"}, f"This stage already has a {self.kind.lower()}")
+            return False
+        return True
+
+    def done(self, context, st, active=None):
+        """Select the mechanism with this id (if one is given), rebuild, finish."""
+        if active is not None:
+            st.active = next(i for i, x in enumerate(st.mechs) if x.uid == active)
         _rebuild(self, context, force=st.rig is not None and not st.edited)
         return {"FINISHED"}
+
+
+def _as_card_frame(st, m):
+    """A frame across the card's own fold: a layer that pulls flat as it opens."""
+    was = st.live
+    st["live"] = False
+    W_, H_ = st.card_dict()["W"], st.card_dict()["H"]
+    m.label = unique_label(st.mechs, "Frame", m)
+    n_ = sum(1 for x in st.mechs if x.kind == "FRAME" and not x.host_uid)
+    m.x = round(0.7 * W_ * (1.0 - 0.25 * (n_ - 1)), 1)  # (each one further in)
+    m.y, m.height = round(0.1 * H_, 1), round(0.75 * H_, 1)
+    st["live"] = was
+
+
+def _as_asymmetric(st, m):
+    """An asymmetric V-fold that folds flat."""
+    was = st.live
+    st["live"] = False
+    m.symmetric = False
+    m.phi_l, m.phi_r, m.lean, m.fold_flat = 40.0, 75.0, 20.0, True
+    m.glue_r = m.glue
+    m.label = unique_label(st.mechs, "Asymmetric V-fold", m)
+    st["live"] = was
+
+
+def _as_strap(st, m):
+    """A strap: a box fold with equal sides, its glue folds gullies off the centre."""
+    # Pop-Up Tutorial 9: a glued box fold with equal sides lies flat
+    # when the card is open; its two glue folds are gullies away from
+    # the spine that open just like it, for pop-ups off the centre
+    was = st.live
+    st["live"] = False
+    H = st.card_dict()["H"]
+    m.height = m.depth = 35.0
+    m.width = 70.0
+    m.y = round(0.5 * H - 35.0, 1)
+    m["strap"] = True
+    m.label = unique_label(st.mechs, "Strap", m)
+    st["live"] = was
+
+
+def _as_valley(st, m):
+    """A roof upside down: a valley floor."""
+    was = st.live
+    st["live"] = False
+    m.valley = True
+    m.y = round(0.3 * st.card_dict()["H"], 1)
+    m.label = unique_label(st.mechs, "Valley floor", m)
+    st["live"] = was
+
+
+def _as_angled(st, m):
+    """A box fold with angled glue lines."""
+    was = st.live
+    st["live"] = False
+    m.fan_angle = 20.0
+    m.label = unique_label(st.mechs, "Angled box fold", m)
+    st["live"] = was
+
+
+def _as_loop(st, m):
+    """A loop: a ring on two tabs."""
+    # Birmingham 16: a band curving round both ways from two short flat
+    # sides glued down on tabs, the tabs' distance out setting its size
+    was = st.live
+    st["live"] = False
+    m.x, m.depth, m.height, m.tab = 25.0, 14.0, 20.0, 8.0
+    m.front_style = m.back_style = "ROUND"
+    m.label = unique_label(st.mechs, "Loop", m)
+    st["live"] = was
+
+
+def _as_castle(st, m):
+    """A castle's walls (its towers are added after)."""
+    # Birmingham's parallel castle: a box-shaped tube (front and back as
+    # wide as the strips are apart) with a roofed tower in each corner
+    was = st.live
+    st["live"] = False
+    H = st.card_dict()["H"]
+    # (one strip round all six walls: kept within an A4 sheet)
+    m.x = m.front = m.back = 34.0
+    m.depth, m.height, m.roof = 64.0, 40.0, "NONE"
+    m.y = round(0.5 * H - 32.0, 1)
+    m.label = unique_label(st.mechs, "Castle", m)
+    st["live"] = was
+
+
+def _as_top(st, uid, host):
+    """A V-fold on top of the V-fold it stands on."""
+    # Birmingham 21-22: stuck on top of the V-fold it stands on, whose
+    # top is cut to a point and whose own tabs (A) stick under it
+    h = next(x for x in st.mechs if x.uid == host)
+    was = st.live
+    st["live"] = False
+    m = next(x for x in st.mechs if x.uid == uid)
+    m.on_top = True
+    m.y = round(h.height, 1)
+    m.top_angle = m.top_angle_r = 50.0
+    m.top_piece = m.top_piece_r = 70.0
+    # small enough to fold away inside the lifting piece's height
+    m.glue = m.height = round(max(10.0, 0.4 * h.height), 1)
+    m.tab = min(h.tab, round(0.3 * m.glue, 1))
+    st["live"] = was
+
+
+def _place_picture(st, m, host, side, was_active):
+    """Glue a new picture on a face: the one asked for, or the first face of
+    the mechanism that was selected, or the right page."""
+    from .props import pic_faces
+    act = next((x for x in st.mechs if x.uid == was_active and x.uid != m.uid
+                and x.kind != "PICTURE"), None)
+    on = host or (act.uid if act is not None else 0)
+    was = st.live
+    st["live"] = False
+    m.host_uid = on
+    faces = pic_faces(st, on)
+    if side:
+        m.face = side
+    elif faces:
+        m.face = faces[0][0] if on else "Page.R"
+    else:
+        m.face = "Page.R"
+    if not on:
+        m.pic_x, m.pic_y = 0.0, 20.0
+    st["live"] = was
+
+
+def _place_jack(st, uid, was_active):
+    """Stand a new jack in the box on the selected V-fold's crease, or
+    (Birmingham 79) on a new V-fold made for its body."""
+    act = next((x for x in st.mechs if x.uid == was_active), None)
+    if act is not None and act.kind == "VFOLD" and not any(
+            x.kind == "JACK" and x.host_uid == act.uid for x in st.mechs):
+        _put_on(st, uid, act.uid, "V")
+        return
+    was = st.live
+    st["live"] = False
+    vf = _add(st, "VFOLD")
+    vf.phi_l, vf.alpha_l, vf.glue, vf.height = 60.0, 90.0, 40.0, 60.0
+    vf.y = round(0.4 * st.card_dict()["H"], 1)
+    vf.label = unique_label(st.mechs, "Jack's body", vf)
+    st["live"] = was
+    _put_on(st, uid, vf.uid, "V")
+
+
+def _side_balconies(st, host):
+    """A balcony on each side wall of a tube or cube; their ids."""
+    new = []
+    for fold in ("WL", "WR"):
+        m = _add(st, "BOX")
+        _put_on(st, m.uid, host, fold)
+        _balcony(st, m.uid, host)
+        new.append(m.uid)
+    return new
+
+
+def _tower_balconies(st, host):
+    """A balcony on the side wall outside each corner tower; their ids."""
+    # (by value: adding to the list moves its items in memory)
+    h = next(x for x in st.mechs if x.uid == host)
+    hd, hh = h.depth, h.height
+    towers = [(max(x.height, x.depth), x.wall, x.label) for x in st.mechs
+              if x.kind == "BOX" and x.host_uid == host and
+              x.wall in ("KFL", "KFR", "KBR", "KBL")]  # (by a side wall)
+    new = []
+    for size, wall, tlab in towers:
+        span = min(size, hd)
+        side = "WL" if wall in ("KFL", "KBL") else "WR"
+        # (the left wall's foot runs back to front, the right's front to back)
+        at_start = wall in ("KBL", "KFR")
+        nu = _add(st, "BOX").uid
+        _put_on(st, nu, host, side)
+        _balcony(st, nu, host)
+        m = next(x for x in st.mechs if x.uid == nu)
+        was = st.live
+        st["live"] = False
+        m.width = round(span, 1)
+        m.y = 0.0 if at_start else round(hd - span, 1)
+        m.height = round(hh, 1)
+        m.rail = round(min(12.0, 0.3 * hh), 1)
+        m.bays = max(1, min(6, int(span // 12)))
+        m.label = f"{tlab} balcony"
+        st["live"] = was
+        new.append(nu)
+    return new
 
 
 def _remove_new(st, uid):

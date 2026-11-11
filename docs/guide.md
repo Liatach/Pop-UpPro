@@ -1355,7 +1355,9 @@ on, and what its tabs glue to.
 
 ## How it works
 
-* `core/model.py` solves each mechanism as rigid panels on a *host*: a fold
+* `core/model.py`, with a module beside it for each family of mechanisms
+  (`core/vfolds.py`, `core/tubes.py`, `core/collars.py` and so on), solves
+  each mechanism as rigid panels on a *host*: a fold
   between two panels whose opening always equals the card's. Every box
   fold makes three new hosts. A box is a parallelogram (each panel stays
   parallel to one side of its host). V-folds, beaks and both jaws of a

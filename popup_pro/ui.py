@@ -79,6 +79,25 @@ class POPUP_MT_add(bpy.types.Menu):
     bl_idname = "POPUP_MT_add"
 
     def draw(self, context):
+        st = context.scene.popup
+        self.draw_basics(st)
+        if not st.mechs or st.active >= len(st.mechs):
+            return
+        h = st.mechs[st.active]  # the selected mechanism: what can go on it
+        if h.kind in ("FLOOR", "CEILING"):
+            self.draw_in_corners(h)
+        elif h.kind in ("ZIGZAG", "QUADS") or h.kind == "VFOLD" and h.shape != "FAN":
+            self.draw_on_vfold(h)
+        elif h.kind == "STAGE":
+            self.draw_in_stage(h)
+        if h.kind in ("CUBE", "TUBE"):
+            self.draw_outside_walls(st, h)
+        if h.kind in ("BOX", "BOXCUT", "STANDUP"):
+            self.draw_on_box(h)
+
+    def draw_basics(self, st):
+        """What can always be added: every mechanism on the card's fold, and the
+        stage's parts."""
         for k, name in (("VFOLD", "V-fold"), ("MOUTH", "Mouth (cut in)"),
                         ("BOX", "Box Fold / Strap (glued strip)"),
                         ("BOXCUT", "Box Layer (cut in)"),
@@ -112,7 +131,6 @@ class POPUP_MT_add(bpy.types.Menu):
                 op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
                                           icon=KIND_ICON[k])
                 op.kind, op.variant = "VFOLD", "ASYM"
-        st = context.scene.popup
         if st.stage_master is None:
             self.layout.operator("popup.add", text="Frame (across the fold, pulls flat)",
                                  icon=KIND_ICON["FRAME"]).kind = "FRAME"
@@ -130,134 +148,136 @@ class POPUP_MT_add(bpy.types.Menu):
         op = self.layout.operator("popup.add", text="Valley Floor (roof upside down)",
                                   icon=KIND_ICON["ROOF"])
         op.kind, op.variant = "ROOF", "VALLEY"
-        if st.mechs and st.active < len(st.mechs) and \
-                st.mechs[st.active].kind in ("FLOOR", "CEILING"):
-            h = st.mechs[st.active]
-            self.layout.separator()
-            self.layout.label(text=f"In the corners of {h.label}:")
-            for k, name in (("BOX", "Box Fold"), ("VFOLD", "V-fold"), ("CUBE", "Cube")):
-                for side, wall in (("L", "left wall"), ("R", "right wall")):
-                    op = self.layout.operator("popup.add", text=f"{name}, {wall}",
-                                              icon=KIND_ICON[k])
-                    op.kind, op.host, op.side = k, h.uid, side
-            op = self.layout.operator("popup.add", text="V-fold on its crease",
-                                      icon=KIND_ICON["VFOLD"])
-            op.kind, op.host, op.fold = "VFOLD", h.uid, "V"
-        elif st.mechs and st.active < len(st.mechs) and (
-                st.mechs[st.active].kind in ("ZIGZAG", "QUADS") or
-                st.mechs[st.active].kind == "VFOLD" and st.mechs[st.active].shape != "FAN"):
-            h = st.mechs[st.active]
-            # (halves glued along a line: a V-fold's)
-            glued = h.kind == "VFOLD" and h.shape not in ("M", "ZIGZAG")
-            self.layout.separator()
-            self.layout.label(text=f"On {h.label}:")
-            for kind, text in (("BOX", "Box Fold on the Crease"),
-                               ("BOXCUT", "Box Layer cut in the Crease"),
-                               ("VFOLD", "V-fold on the Crease"),
-                               ("MOUTH", "Mouth cut in the Crease"),
-                               ("STANDUP", "Stand-up on the Crease")):
-                op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
-                op.kind, op.host, op.fold = kind, h.uid, "V"
-                if kind == "VFOLD" and glued:
-                    op = self.layout.operator("popup.add", text="V-fold on Top (tabs A)",
-                                              icon=KIND_ICON[kind])
-                    op.kind, op.host, op.fold, op.variant = kind, h.uid, "V", "TOP"
-            for kind, text in (("CUBE", "Cube in the V (on the Crease)"),
-                               ("TUBE", "Tube in the V (on the Crease)")):
-                op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
-                op.kind, op.host, op.fold = kind, h.uid, "V"
-            if glued:
-                self.layout.label(text="On its glue folds (off-centre):")
-            for fold, where in ((("FL", "in front, left"), ("FR", "in front, right"),
-                                ("BL", "behind, left"), ("BR", "behind, right")) if glued else ()):
-                for kind, name in (("STANDUP", "Stand-up"), ("CUBE", "Cube"),
-                                   ("TUBE", "Tube"), ("VFOLD", "V-fold"),
-                                   ("BOX", "Box Fold")):
-                    if fold[0] == "B" and kind != "STANDUP":
-                        continue  # inside the V there's little room: stand-ups only
-                    op = self.layout.operator("popup.add", text=f"{name} {where}",
-                                              icon=KIND_ICON[kind])
-                    op.kind, op.host, op.fold = kind, h.uid, fold
-        elif st.mechs and st.active < len(st.mechs) and st.mechs[st.active].kind == "STAGE":
-            h = st.mechs[st.active]
-            self.layout.separator()
-            self.layout.label(text=f"In {h.label}:")
-            for k, name in (("FRAME", "Frame"), ("CEILING", "Ceiling")):
-                op = self.layout.operator("popup.add", text=name, icon=KIND_ICON[k])
-                op.kind, op.host = k, h.uid
-        if st.mechs and st.active < len(st.mechs) and \
-                st.mechs[st.active].kind in ("CUBE", "TUBE"):
-            h = st.mechs[st.active]
-            self.layout.separator()
-            self.layout.label(text=f"Outside the walls of {h.label}:")
-            for wall, where in (("L", "left wall"), ("R", "right wall")):
-                for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
-                                   ("BOX", "Box Fold"), ("BALCONY", "Balcony"),
-                                   ("STANDUP", "Stand-up")):
-                    op = self.layout.operator("popup.add", text=f"{name}, {where}",
-                                              icon=KIND_ICON["BOX" if kind == "BALCONY"
-                                                             else kind])
-                    op.kind, op.host, op.fold = ("BOX" if kind == "BALCONY" else kind,
-                                                 h.uid, "W" + wall)
-                    if kind == "BALCONY":
-                        op.variant = "BALCONY"
-            op = self.layout.operator("popup.add", text="Balconies on Both Side Walls",
+
+    def draw_in_corners(self, h):
+        """With a floor or ceiling selected: what stands where it meets a wall."""
+        self.layout.separator()
+        self.layout.label(text=f"In the corners of {h.label}:")
+        for k, name in (("BOX", "Box Fold"), ("VFOLD", "V-fold"), ("CUBE", "Cube")):
+            for side, wall in (("L", "left wall"), ("R", "right wall")):
+                op = self.layout.operator("popup.add", text=f"{name}, {wall}",
+                                          icon=KIND_ICON[k])
+                op.kind, op.host, op.side = k, h.uid, side
+        op = self.layout.operator("popup.add", text="V-fold on its crease",
+                                  icon=KIND_ICON["VFOLD"])
+        op.kind, op.host, op.fold = "VFOLD", h.uid, "V"
+
+    def draw_on_vfold(self, h):
+        """With a V-fold, zig-zag or quadrilaterals selected: what stands on its
+        crease and (a V-fold's) glue folds."""
+        glued = h.kind == "VFOLD" and h.shape not in ("M", "ZIGZAG")
+        self.layout.separator()
+        self.layout.label(text=f"On {h.label}:")
+        for kind, text in (("BOX", "Box Fold on the Crease"),
+                           ("BOXCUT", "Box Layer cut in the Crease"),
+                           ("VFOLD", "V-fold on the Crease"),
+                           ("MOUTH", "Mouth cut in the Crease"),
+                           ("STANDUP", "Stand-up on the Crease")):
+            op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
+            op.kind, op.host, op.fold = kind, h.uid, "V"
+            if kind == "VFOLD" and glued:
+                op = self.layout.operator("popup.add", text="V-fold on Top (tabs A)",
+                                          icon=KIND_ICON[kind])
+                op.kind, op.host, op.fold, op.variant = kind, h.uid, "V", "TOP"
+        for kind, text in (("CUBE", "Cube in the V (on the Crease)"),
+                           ("TUBE", "Tube in the V (on the Crease)")):
+            op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
+            op.kind, op.host, op.fold = kind, h.uid, "V"
+        if glued:
+            self.layout.label(text="On its glue folds (off-centre):")
+        for fold, where in ((("FL", "in front, left"), ("FR", "in front, right"),
+                            ("BL", "behind, left"), ("BR", "behind, right")) if glued else ()):
+            for kind, name in (("STANDUP", "Stand-up"), ("CUBE", "Cube"),
+                               ("TUBE", "Tube"), ("VFOLD", "V-fold"),
+                               ("BOX", "Box Fold")):
+                if fold[0] == "B" and kind != "STANDUP":
+                    continue  # inside the V there's little room: stand-ups only
+                op = self.layout.operator("popup.add", text=f"{name} {where}",
+                                          icon=KIND_ICON[kind])
+                op.kind, op.host, op.fold = kind, h.uid, fold
+
+    def draw_in_stage(self, h):
+        """With a stage set selected: its frames and ceiling."""
+        self.layout.separator()
+        self.layout.label(text=f"In {h.label}:")
+        for k, name in (("FRAME", "Frame"), ("CEILING", "Ceiling")):
+            op = self.layout.operator("popup.add", text=name, icon=KIND_ICON[k])
+            op.kind, op.host = k, h.uid
+
+    def draw_outside_walls(self, st, h):
+        """With a cube or tube selected: what stands outside its walls, balconies,
+        and a tube's towers."""
+        self.layout.separator()
+        self.layout.label(text=f"Outside the walls of {h.label}:")
+        for wall, where in (("L", "left wall"), ("R", "right wall")):
+            for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
+                               ("BOX", "Box Fold"), ("BALCONY", "Balcony"),
+                               ("STANDUP", "Stand-up")):
+                op = self.layout.operator("popup.add", text=f"{name}, {where}",
+                                          icon=KIND_ICON["BOX" if kind == "BALCONY"
+                                                         else kind])
+                op.kind, op.host, op.fold = ("BOX" if kind == "BALCONY" else kind,
+                                             h.uid, "W" + wall)
+                if kind == "BALCONY":
+                    op.variant = "BALCONY"
+        op = self.layout.operator("popup.add", text="Balconies on Both Side Walls",
+                                  icon=KIND_ICON["BOX"])
+        op.kind, op.host, op.variant = "BOX", h.uid, "BALCONIES"
+        if h.kind == "TUBE" and any(x.kind == "BOX" and x.host_uid == h.uid and
+                                    x.wall.startswith("K") for x in st.mechs):
+            op = self.layout.operator("popup.add", text="Balconies Outside the Towers",
                                       icon=KIND_ICON["BOX"])
-            op.kind, op.host, op.variant = "BOX", h.uid, "BALCONIES"
-            if h.kind == "TUBE" and any(x.kind == "BOX" and x.host_uid == h.uid and
-                                        x.wall.startswith("K") for x in st.mechs):
-                op = self.layout.operator("popup.add", text="Balconies Outside the Towers",
+            op.kind, op.host, op.variant = "BOX", h.uid, "TOWER_BALCONIES"
+        if h.kind == "TUBE":
+            self.layout.label(text=f"Towers in the corners of {h.label}:")
+            op = self.layout.operator("popup.add", text="Tower in Every Inside Corner",
+                                      icon=KIND_ICON["BOX"])
+            op.kind, op.host, op.variant = "BOX", h.uid, "TOWERS"
+            folds = [("KFL", "front left corner"), ("KFR", "front right corner"),
+                     ("KBR", "back right corner"), ("KBL", "back left corner")]
+            if h.front_style == "OUT" and h.front > h.x + 0.5:
+                folds.append(("KF", "front crease"))
+            if h.back_style == "OUT" and h.back > h.x + 0.5:
+                folds.append(("KB", "back crease"))
+            for fold, where in folds:
+                op = self.layout.operator("popup.add", text=f"Tower, {where}",
                                           icon=KIND_ICON["BOX"])
-                op.kind, op.host, op.variant = "BOX", h.uid, "TOWER_BALCONIES"
-            if h.kind == "TUBE":
-                self.layout.label(text=f"Towers in the corners of {h.label}:")
-                op = self.layout.operator("popup.add", text="Tower in Every Inside Corner",
+                op.kind, op.host, op.fold = "BOX", h.uid, fold
+
+    def draw_on_box(self, h):
+        """With a box fold, box layer or stand-up selected: what stands on top of
+        it, in front of it, and in a strap's valleys."""
+        self.layout.separator()
+        self.layout.label(text=f"On {h.label}:")
+        for kind, fold, text in (("BOXCUT", "C", "Inset Box Layer"),
+                                 ("BOXCUT", "A", "Box Layer on Top"),
+                                 ("BOXCUT", "B", "Box Layer in Front"),
+                                 ("BOX", "A", "Box Fold on Top"),
+                                 ("BOX", "B", "Box Fold in Front"),
+                                 ("STANDUP", "A", "Stand-up on Top"),
+                                 ("STANDUP", "B", "Stand-up in Front"),
+                                 ("CUBE", "A", "Cube on Top"),
+                                 ("CUBE", "B", "Cube in Front"),
+                                 ("TUBE", "A", "Tube on Top"),
+                                 ("TUBE", "B", "Tube in Front"),
+                                 ("VFOLD", "A", "V-fold on Top"),
+                                 ("VFOLD", "B", "V-fold in Front")):
+            if kind == "BOXCUT" and h.kind != "BOXCUT" and fold != "C":
+                continue  # cut-ins need one piece of paper across the fold
+            if kind == "BOXCUT" and h.kind == "STANDUP":
+                continue  # cut-ins need one piece of paper across the fold
+            op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
+            op.kind, op.host, op.fold = kind, h.uid, fold
+            if kind == "BOX" and fold == "B":
+                op = self.layout.operator("popup.add", text="Balcony in Front",
                                           icon=KIND_ICON["BOX"])
-                op.kind, op.host, op.variant = "BOX", h.uid, "TOWERS"
-                folds = [("KFL", "front left corner"), ("KFR", "front right corner"),
-                         ("KBR", "back right corner"), ("KBL", "back left corner")]
-                if h.front_style == "OUT" and h.front > h.x + 0.5:
-                    folds.append(("KF", "front crease"))
-                if h.back_style == "OUT" and h.back > h.x + 0.5:
-                    folds.append(("KB", "back crease"))
-                for fold, where in folds:
-                    op = self.layout.operator("popup.add", text=f"Tower, {where}",
-                                              icon=KIND_ICON["BOX"])
-                    op.kind, op.host, op.fold = "BOX", h.uid, fold
-        if st.mechs and st.active < len(st.mechs):
-            h = st.mechs[st.active]
-            if h.kind in ("BOX", "BOXCUT", "STANDUP"):
-                self.layout.separator()
-                self.layout.label(text=f"On {h.label}:")
-                for kind, fold, text in (("BOXCUT", "C", "Inset Box Layer"),
-                                         ("BOXCUT", "A", "Box Layer on Top"),
-                                         ("BOXCUT", "B", "Box Layer in Front"),
-                                         ("BOX", "A", "Box Fold on Top"),
-                                         ("BOX", "B", "Box Fold in Front"),
-                                         ("STANDUP", "A", "Stand-up on Top"),
-                                         ("STANDUP", "B", "Stand-up in Front"),
-                                         ("CUBE", "A", "Cube on Top"),
-                                         ("CUBE", "B", "Cube in Front"),
-                                         ("TUBE", "A", "Tube on Top"),
-                                         ("TUBE", "B", "Tube in Front"),
-                                         ("VFOLD", "A", "V-fold on Top"),
-                                         ("VFOLD", "B", "V-fold in Front")):
-                    if kind == "BOXCUT" and h.kind != "BOXCUT" and fold != "C":
-                        continue  # cut-ins need one piece of paper across the fold
-                    if kind == "BOXCUT" and h.kind == "STANDUP":
-                        continue  # cut-ins need one piece of paper across the fold
-                    op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
-                    op.kind, op.host, op.fold = kind, h.uid, fold
-                    if kind == "BOX" and fold == "B":
-                        op = self.layout.operator("popup.add", text="Balcony in Front",
-                                                  icon=KIND_ICON["BOX"])
-                        op.kind, op.host, op.fold, op.variant = "BOX", h.uid, "B", "BALCONY"
-                if h.kind == "BOX" and h.peaks > 1:
-                    for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
-                                       ("STANDUP", "Stand-up")):
-                        op = self.layout.operator("popup.add", text=f"{name} in a Valley",
-                                                  icon=KIND_ICON[kind])
-                        op.kind, op.host, op.fold = kind, h.uid, "VAL"
+                op.kind, op.host, op.fold, op.variant = "BOX", h.uid, "B", "BALCONY"
+        if h.kind == "BOX" and h.peaks > 1:
+            for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
+                               ("STANDUP", "Stand-up")):
+                op = self.layout.operator("popup.add", text=f"{name} in a Valley",
+                                          icon=KIND_ICON[kind])
+                op.kind, op.host, op.fold = kind, h.uid, "VAL"
 
 
 def draw_anim(box, sc, st, to):
@@ -530,6 +550,17 @@ def _align(lay, st):
         row.operator("popup.align", text="Across", icon="ALIGN_JUSTIFY").how = "DIST_H"
 
 
+# the Mechanisms panel: kinds with a layout all their own (methods of the panel)
+_OWN_PANELS = {"TUBE": "draw_tube", "PICTURE": "draw_picture", "STAGE": "draw_stage",
+               "FRAME": "draw_frame", "FLOOR": "draw_floor", "CEILING": "draw_floor",
+               "PYRAMID": "draw_pyramid", "ROOF": "draw_roof", "TETHER": "draw_tether"}
+# kinds placed on a fold (Stands On and Position first), then their own settings;
+# anything else is a box fold
+_PLACED_PANELS = {"CUBE": "draw_cube", "MOUTH": "draw_mouth", "PLATFORM": "draw_platform",
+                  "RISER": "draw_riser", "JACK": "draw_jack", "ZIGZAG": "draw_linkage",
+                  "QUADS": "draw_linkage", "DOUBLE45": "draw_double45", "STANDUP": "draw_standup"}
+
+
 class POPUP_PT_mechs(_Base, bpy.types.Panel):
     bl_label = "Mechanisms"
     bl_order = 2
@@ -561,152 +592,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         if m.kind == "FLAP":
             self.draw_flap(context, col, m)
             return
-        if m.kind == "TUBE":
-            _where(col, st, m)
-            col.prop(m, "y", text="Position")
-            col.prop(m, "x", text="Strip Distance")
-            col.prop(m, "depth", text="Length Along Fold")
-            col.prop(m, "height")
-            col.prop(m, "front")
-            col.prop(m, "front_style")
-            col.prop(m, "back")
-            col.prop(m, "back_style")
-            if "ROUND" in (m.front_style, m.back_style):
-                import math as _m
-                col.label(text=f"Round: {0.5 * _m.pi * m.x:.1f} mm makes a half circle",
-                          icon="INFO")
-            if m.kind == "TUBE" and m.front_style == "ROUND" and m.back_style == "ROUND":
-                col.prop(m, "cone_top")
-                if m.cone_top > 0.05 and abs(m.cone_top - m.x) > 0.5:
-                    import math as _m
-                    lean = _m.degrees(_m.atan2(m.x - m.cone_top, max(m.height, 0.1)))
-                    col.label(text=f"Walls lean {'in' if lean > 0 else 'out'} "
-                              f"{abs(lean):.0f}° (half circles each end)", icon="INFO")
-            col.prop(m, "strips")
-            col.prop(m, "roof")
-            if m.roof == "POINTED":
-                col.prop(m, "roof_height")
-                col.prop(m, "ridge")
-            elif m.roof == "FLAT":
-                col.prop(m, "roof_fold")
-                col.prop(m, "eave")
-                if m.roof_fold == "DIP":
-                    col.prop(m, "rib")
-            _tabs(self.layout, m)
-            self.draw_warnings(context, m)
-            return
-        if m.kind == "PICTURE":
-            col.prop(m, "pic_on")
-            col.prop(m, "pic_face")
-            col.prop(m, "pic_side")
-            col.prop(m, "pic_x", text="X (corner, across)")
-            col.prop(m, "pic_y", text="Y (corner, up)")
-            col.prop(m, "img_w", text="Width")
-            col.prop(m, "img_h", text="Height")
-            col.prop(m, "pic_turn")
-            col.label(text="Draw on it, or erase its art to shape it", icon="INFO")
-            self.draw_warnings(context, m)
-            return
-        if m.kind == "STAGE":
-            col.prop(m, "y", text="Position")
-            col.prop(m, "phi_l", text="Glue Angle")
-            col.label(text=f"Opens to {2 * m.phi_l:.0f}° when the card is flat", icon="INFO")
-            col.prop(m, "glue", text="Glue Length (half width)")
-            col.prop(m, "height")
-            _tabs(self.layout, m)
-            self.draw_warnings(context, m)
-            return
-        if m.kind == "FRAME":
-            import math as _m
-            master = st.stage_master
-            tmax = 360.0 / master.popup.stage_count if master else 180.0
-            host = next((h for h in st.mechs if h.uid == m.host_uid), None)
-            if host is not None and host.kind == "STAGE":
-                tmax = 2 * host.phi_l
-                col.prop(m, "host", text="Stage")
-            col.prop(m, "x", text="Depth")
-            col.prop(m, "y", text="Bottom")
-            col.prop(m, "height")
-            col.label(text=f"Width {2 * m.x * _m.sin(_m.radians(tmax / 2)):.1f} mm "
-                           f"(flat at {tmax:.0f}°)", icon="INFO")
-            _tabs(self.layout, m, side=False)
-            self.draw_warnings(context, m)
-            return
-        if m.kind in ("FLOOR", "CEILING"):
-            if st.stage_master is None:
-                col.prop(m, "host", text="Stage")
-            col.prop(m, "depth")
-            col.prop(m, "lead")
-            _tabs(self.layout, m, side=False)
-            self.draw_warnings(context, m)
-            return
-        if m.kind == "PYRAMID":
-            _where(col, st, m)
-            col.prop(m, "y", text="Position")
-            col.prop(m, "x", text="Strip Distance")
-            col.prop(m, "depth", text="Length Along Fold")
-            col.prop(m, "height")
-            col.prop(m, "ridge")
-            col.prop(m, "front", text="Front Width")
-            col.prop(m, "front_style")
-            col.prop(m, "back", text="Back Width")
-            col.prop(m, "back_style")
-            _tabs(self.layout, m)
-            self.draw_warnings(context, m)
-            return
-        if m.kind == "ROOF":
-            v = m.valley
-            info = {}
-            if st.rig is not None:
-                try:
-                    import json
-                    info = json.loads(st.rig.get("pop_meta", "{}")).get("roofs", {}).get(
-                        str(m.uid), {})
-                except (ValueError, TypeError, AttributeError):
-                    info = {}
-            col.prop(m, "valley")
-            col.prop(m, "y", text="Position")
-            col.prop(m, "phi_l", text="Glue Angle (slope)")
-            row = col.row()
-            row.prop(m, "glue", text="Glue Length (eaves)")
-            if info and info.get("eaves", 0) < m.glue - 0.05:
-                c = col.column()
-                c.scale_y = 0.7
-                c.label(text=f"    reaches the card's edge at {info['eaves']:.0f} mm",
-                        icon="INFO")
-            col.prop(m, "height", text="Fold Length (valley)" if v else "Fold Length (ridge)")
-            if info and info.get("fit", 1e9) < 1e8:
-                c = col.column()
-                c.scale_y = 0.7
-                c.label(text=f"    fits the shut card up to {info['fit']:.0f} mm",
-                        icon="ERROR" if m.height > info["fit"] + 0.05 else "INFO")
-            col.prop(m, "level", text="Level Valley" if v else "Level Ridge")
-            sub = col.row()
-            if m.level:
-                sub.label(text=f"Piece Angle: {info['alpha']:.1f}° (set for level)"
-                          if info else "Piece Angle: set for level")
-            else:
-                sub.prop(m, "alpha_l", text="Piece Angle")
-            col.label(text="Cuts the background away " + ("below the glue lines"
-                      if v else "to a gable along the eaves"), icon="INFO")
-            _tabs(self.layout, m, side=False)
-            _draw_lines(self.layout, context, m)
-            self.draw_warnings(context, m)
-            return
-        if m.kind == "TETHER":
-            col.prop(m, "from_tube")
-            col.prop(m, "from_pt")
-            col.prop(m, "to")
-            if m.to == "TUBE":
-                col.prop(m, "to_tube")
-                col.prop(m, "to_pt")
-            else:
-                col.prop(m, "to_y")
-            col.prop(m, "height")
-            col.prop(m, "bend")
-            col.prop(m, "slack")
-            _tabs(self.layout, m, side=m.to != "TUBE", side_text="Foot Tab Side")
-            self.draw_warnings(context, m)
+        own = _OWN_PANELS.get(m.kind)
+        if own:
+            getattr(self, own)(context, st, col, m)
             return
         hm = _where(col, st, m)
         joint = hm is not None and hm.kind in ("FLOOR", "CEILING")
@@ -718,232 +606,412 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.label(text="At the top of the lifting piece's crease", icon="INFO")
         else:
             col.prop(m, "y", text="Position")
-        if m.kind == "CUBE":
-            col.prop(m, "size", text="Width" if m.size_r <= 0 else "Width Left")
-            col.prop(m, "size_r", text="Width Right (0 = square)" if m.size_r <= 0
-                     else "Width Right")
-            col.prop(m, "height")
-            row = col.row()
-            row.active = (m.size_r <= 0 or abs(m.size_r - m.size) < 1e-6) and m.roof in \
-                ("NONE", "GABLE")
-            row.prop(m, "lid")
-            _tower_top(col, m, cube=True)
-        elif m.kind == "MOUTH":
-            col.prop(m, "jaw")
-            col.prop(m, "upper")
-            col.prop(m, "lower")
-        elif m.kind == "PLATFORM":
-            col.prop(m, "width", text="Length Along Fold")
-            col.prop(m, "height", text="Leg Height")
-            col.prop(m, "depth", text="Out Left" if m.depth_r > 0 else "Out Each Side")
-            col.prop(m, "depth_r", text="Out Right (0 = same)")
-            col.prop(m, "brace")
-            if m.brace != "NONE":
-                col.prop(m, "brace_size")
-        elif m.kind == "RISER":
-            col.prop(m, "width", text="Width Along Fold")
-            col.prop(m, "height", text="Sheet Height")
-            col.prop(m, "brace_size")
-            col.label(text="Shape the sheet by erasing its art (Paint, Erase)", icon="INFO")
-        elif m.kind == "JACK":
-            col.prop(m, "height", text="Fold Spacing (G)")
-            col.prop(m, "depth", text="Arm Reach")
-            col.label(text="Draw the figure; erase its art to shape it", icon="INFO")
-        elif m.kind in ("ZIGZAG", "QUADS"):
-            col.label(text="Glue lines meet the spine at Position")
-            col.prop(m, "phi_l", text="Glue Angle")
-            col.prop(m, "x", text="Glued From")
-            col.prop(m, "width", text="Glue Length (end walls)")
-            if m.kind == "ZIGZAG":
-                col.prop(m, "faces", text="Faces (end in, mm)")
-                col.prop(m, "jut")
-                col.prop(m, "height")
-            else:
-                col.prop(m, "q_back1")
-                col.prop(m, "q_back2")
-                col.prop(m, "q_side", text="Side (back crease to front)")
-                col.prop(m, "q_front", text="Front (to centre)")
-                col.prop(m, "height", text="Back Height")
-                col.prop(m, "q_side_h")
-                col.prop(m, "q_front_h")
-                col.label(text="Side's face to the strip: worked out so it folds flat",
-                          icon="INFO")
-            col.prop(m, "cut_bottoms")
-        elif m.kind == "DOUBLE45":
-            col.prop(m, "width", text="Arm Width")
-            col.prop(m, "height", text="Arm Length")
-            col.prop(m, "depth", text="Top Piece Length")
-            col.label(text="Top piece longer than both arms together", icon="INFO")
-        elif m.kind == "STANDUP":
-            flat = m.stand == "FLAT"
-            col.prop(m, "stand")
-            col.prop(m, "width", text="Leg Width" if flat else (
-                "Tail Width" if m.stand == "TAIL" else "Bridge Width"))
-            col.prop(m, "height", text="Height Above Floor" if flat else "Bridge Height")
-            col.prop(m, "depth", text="Leg Out From Back" if flat else "Out From Back")
-            col.prop(m, "img_w")
-            col.prop(m, "img_h", text="Picture Depth" if flat else "Picture Height")
-            col.label(text="Shape the picture by erasing its art (Paint, Erase)",
-                      icon="INFO")
-        elif m.kind == "VFOLD":
-            col.prop(m, "shape")
-            if m.shape == "ZIGZAG":
-                col.prop(m, "height", text="Wall Height")
-                col.prop(m, "phi_l", text="Glue Angle")
-                col.prop(m, "glue_from", text="Glued From")
-                col.prop(m, "glue", text="Glue Length (end walls)")
-                col.prop(m, "faces_n")
-                col.prop(m, "faces_uneven")
-                if m.faces_uneven:
-                    col.prop(m, "faces", text="Widths (mm, from the glued wall in)")
-                else:
-                    col.prop(m, "face_w")
-                col.prop(m, "jut")
-                col.prop(m, "cut_bottoms")
-                _tabs(self.layout, m, side=False)
-                self.draw_warnings(context, m)
-                return
-            if m.shape == "M":
-                col.prop(m, "height", text="Fold Length")
-                col.prop(m, "phi_l", text="Glue Angle (B)")
-                col.prop(m, "alpha_l", text="Piece Angle (A)")
-                col.prop(m, "glue", text="Glue Length to the Bend")
-                col.prop(m, "m_d", text="Angle D (= C on the page)" if not m.m_free else
-                         "Angle D")
-                col.prop(m, "m_e", text="Angle E (= F)" if not m.m_free else "Angle E")
-                col.prop(m, "m_free")
-                if m.m_free:
-                    col.prop(m, "m_c")
-                    col.prop(m, "m_f")
-                col.prop(m, "m_outer_h", text="Crease Length (D and H)")
-                col.prop(m, "m_outer_len", text="Outer Glue Length")
-                col.prop(m, "glue_from")
-                _tabs(self.layout, m)
-                self.draw_warnings(context, m)
-                return
-            fan = m.shape == "FAN"
-            col.prop(m, "height", text="Radius" if fan else "Fold Length")
-            if fan:
-                col.prop(m, "fan_pleats")
-                col.prop(m, "fan_spread")
-                col.prop(m, "fan_stand")
-                col.prop(m, "phi_l", text="Glue Angle")
-                col.prop(m, "glue_from", text="Glued From (hub cut away)")
-                if not m.host_uid:
-                    col.prop(m, "cut_above")
-                _tabs(self.layout, m)
-                self.draw_warnings(context, m)
-                return
-            else:
-                col.prop(m, "glue", text="Glue Length" if m.symmetric else "Glue Length L")
-                if not m.symmetric:
-                    col.prop(m, "glue_r")
-            col.prop(m, "symmetric")
-            top = m.on_top and m.host_uid and (m.vside == "V" or m.on_crease)
-            if top:
-                col.prop(m, "top_angle", text="Point Angle" if m.symmetric else "Point Angle L")
-                if not m.symmetric:
-                    col.prop(m, "top_angle_r")
-                col.prop(m, "top_piece",
-                         text="Top Piece Angle" if m.symmetric else "Top Piece Angle L")
-                if not m.symmetric:
-                    col.prop(m, "top_piece_r")
-                col.prop(m, "top_below")
-                col.label(text="Point Angle over 90 makes a V-shaped top", icon="INFO")
-            else:
-                col.prop(m, "phi_l", text="Glue Angle" if m.symmetric else "Glue Angle L")
-            if not m.symmetric and not top:
-                col.prop(m, "phi_r")
-                col.prop(m, "fold_flat")
-            if top:
-                pass
-            elif not m.symmetric and m.fold_flat:
-                col.prop(m, "lean")
-                d = m.to_dict()
-                col.label(text=f"Piece angles {d['alpha_l']:.0f}° L, {d['alpha_r']:.0f}° R; "
-                          f"leans {'right' if m.phi_r > m.phi_l else 'left'}", icon="INFO")
-            else:
-                col.prop(m, "alpha_l", text="Piece Angle" if m.symmetric else "Piece Angle L")
-                if not m.symmetric:
-                    col.prop(m, "alpha_r")
-            if not m.host_uid:
-                col.prop(m, "cut_above")
-            if m.host_uid and (m.vside == "V" or m.on_crease):
-                col.prop(m, "on_top")
-            each = not m.symmetric or m.arch_uneven
-            col.prop(m, "glue_from", text="Glued From L" if each else "Glued From")
-            if each:
-                col.prop(m, "glue_from_r")
-            if m.glue_from > 0 or (each and m.glue_from_r > 0):
-                if m.symmetric:
-                    col.prop(m, "arch_uneven")
-                    if m.arch_uneven:
-                        col.prop(m, "glue_r")
-                col.prop(m, "arch")
-                col.prop(m, "arch_shape")
-            _tabs(self.layout, m)
-            _draw_lines(self.layout, context, m)
-        else:
-            tower = m.kind == "BOX" and hm is not None and hm.kind == "TUBE" and \
-                m.wall.startswith("K")
-            col.prop(m, "width", text="Tower Height" if tower else "Length Along Fold")
-            if joint:
-                # which side of the joint each width lies on
-                flat = "Along Floor" if hm.kind == "FLOOR" else "Along Ceiling"
-                wall_first = (hm.kind == "FLOOR") == (m.side == "R")
-                left, right = ("Up Wall", flat) if wall_first else (flat, "Up Wall")
-                if hm.kind == "CEILING":
-                    left = left.replace("Up Wall", "Down Wall")
-                    right = right.replace("Up Wall", "Down Wall")
-            elif tower:  # along each wall from the corner
-                left, right = "Along Wall (left)", "Along Wall (right)"
-            else:
-                left, right = "Width Left", "Width Right"
-            if m.kind == "BOX" and not joint and not tower:
-                col.prop(m, "strap")
-            if m.kind == "BOX" and not joint and not tower and abs(m.fan_angle) > 0.05:
-                col.prop(m, "height", text="Out From Fold (bottom)" if m.fan_angle > 0
-                         else "Out From Fold (bottom, narrowing up)")
-            elif m.kind == "BOX" and m.strap and not joint:
-                col.prop(m, "height", text="Width Each Side")
-            else:
-                col.prop(m, "height", text=left)
-                col.prop(m, "depth", text=right)
-            if tower:  # up a tube's inside corner
-                _tower_top(col, m)
-            angled = m.kind == "BOX" and not tower and not joint and abs(m.fan_angle) > 0.05
-            if m.kind == "BOX" and not tower and not joint:
-                col.prop(m, "fan_angle")
-                if angled:
-                    col.prop(m, "fan_creases")
-                    col.prop(m, "fan_crease")
-            if m.kind in ("BOX", "BOXCUT") and not tower and not angled:
-                col.prop(m, "slant")
-            if m.kind == "BOX" and not tower and not angled:
-                col.prop(m, "peaks")
-                if m.peaks <= 1:
-                    col.prop(m, "support")
-                    if m.support == "ARCHES":
-                        col.prop(m, "bays")
-                    col.prop(m, "rail")
-                    if m.rail > 0:
-                        col.prop(m, "rail_open")
-            if m.kind in ("BOX", "BOXCUT") and not tower and not joint and not angled:
-                col.prop(m, "tri45")
-                if m.tri45 != "NONE":
-                    col.prop(m, "tri_size")
-                    col.prop(m, "tri_pic_layout")
-                    row = col.row(align=True)
-                    row.label(text="Pictures on them")
-                    for w_, t_ in (("LEFT", "Left"), ("RIGHT", "Right"), ("BOTH", "Both")):
-                        op = row.operator("popup.tri_pictures", text=t_)
-                        op.uid, op.which = m.uid, w_
+        if m.kind == "VFOLD":
+            self.draw_vfold(context, col, m)
+            return
+        getattr(self, _PLACED_PANELS.get(m.kind, "draw_box"))(col, m, hm, joint)
         if m.kind in ("CUBE", "STANDUP", "BOX", "PLATFORM", "RISER", "DOUBLE45", "ZIGZAG",
                       "QUADS"):
             _tabs(self.layout, m, side=m.kind == "CUBE")
         if m.kind in ("BOX", "BOXCUT"):
             _draw_lines(self.layout, context, m)
         self.draw_warnings(context, m)
+
+    def draw_tube(self, context, st, col, m):
+        """Tubes, cylinders, loops and cones."""
+        _where(col, st, m)
+        col.prop(m, "y", text="Position")
+        col.prop(m, "x", text="Strip Distance")
+        col.prop(m, "depth", text="Length Along Fold")
+        col.prop(m, "height")
+        col.prop(m, "front")
+        col.prop(m, "front_style")
+        col.prop(m, "back")
+        col.prop(m, "back_style")
+        if "ROUND" in (m.front_style, m.back_style):
+            import math as _m
+            col.label(text=f"Round: {0.5 * _m.pi * m.x:.1f} mm makes a half circle",
+                      icon="INFO")
+        if m.kind == "TUBE" and m.front_style == "ROUND" and m.back_style == "ROUND":
+            col.prop(m, "cone_top")
+            if m.cone_top > 0.05 and abs(m.cone_top - m.x) > 0.5:
+                import math as _m
+                lean = _m.degrees(_m.atan2(m.x - m.cone_top, max(m.height, 0.1)))
+                col.label(text=f"Walls lean {'in' if lean > 0 else 'out'} "
+                          f"{abs(lean):.0f}° (half circles each end)", icon="INFO")
+        col.prop(m, "strips")
+        col.prop(m, "roof")
+        if m.roof == "POINTED":
+            col.prop(m, "roof_height")
+            col.prop(m, "ridge")
+        elif m.roof == "FLAT":
+            col.prop(m, "roof_fold")
+            col.prop(m, "eave")
+            if m.roof_fold == "DIP":
+                col.prop(m, "rib")
+        _tabs(self.layout, m)
+        self.draw_warnings(context, m)
+
+    def draw_picture(self, context, st, col, m):
+        """A picture glued on a face."""
+        col.prop(m, "pic_on")
+        col.prop(m, "pic_face")
+        col.prop(m, "pic_side")
+        col.prop(m, "pic_x", text="X (corner, across)")
+        col.prop(m, "pic_y", text="Y (corner, up)")
+        col.prop(m, "img_w", text="Width")
+        col.prop(m, "img_h", text="Height")
+        col.prop(m, "pic_turn")
+        col.label(text="Draw on it, or erase its art to shape it", icon="INFO")
+        self.draw_warnings(context, m)
+
+    def draw_stage(self, context, st, col, m):
+        """A stage set standing in a card."""
+        col.prop(m, "y", text="Position")
+        col.prop(m, "phi_l", text="Glue Angle")
+        col.label(text=f"Opens to {2 * m.phi_l:.0f}° when the card is flat", icon="INFO")
+        col.prop(m, "glue", text="Glue Length (half width)")
+        col.prop(m, "height")
+        _tabs(self.layout, m)
+        self.draw_warnings(context, m)
+
+    def draw_frame(self, context, st, col, m):
+        """A stage's frame, or one across the card's fold."""
+        import math as _m
+        master = st.stage_master
+        tmax = 360.0 / master.popup.stage_count if master else 180.0
+        host = next((h for h in st.mechs if h.uid == m.host_uid), None)
+        if host is not None and host.kind == "STAGE":
+            tmax = 2 * host.phi_l
+            col.prop(m, "host", text="Stage")
+        col.prop(m, "x", text="Depth")
+        col.prop(m, "y", text="Bottom")
+        col.prop(m, "height")
+        col.label(text=f"Width {2 * m.x * _m.sin(_m.radians(tmax / 2)):.1f} mm "
+                       f"(flat at {tmax:.0f}°)", icon="INFO")
+        _tabs(self.layout, m, side=False)
+        self.draw_warnings(context, m)
+
+    def draw_floor(self, context, st, col, m):
+        """A stage's floor or ceiling."""
+        if st.stage_master is None:
+            col.prop(m, "host", text="Stage")
+        col.prop(m, "depth")
+        col.prop(m, "lead")
+        _tabs(self.layout, m, side=False)
+        self.draw_warnings(context, m)
+
+    def draw_pyramid(self, context, st, col, m):
+        """Pyramids and tents."""
+        _where(col, st, m)
+        col.prop(m, "y", text="Position")
+        col.prop(m, "x", text="Strip Distance")
+        col.prop(m, "depth", text="Length Along Fold")
+        col.prop(m, "height")
+        col.prop(m, "ridge")
+        col.prop(m, "front", text="Front Width")
+        col.prop(m, "front_style")
+        col.prop(m, "back", text="Back Width")
+        col.prop(m, "back_style")
+        _tabs(self.layout, m)
+        self.draw_warnings(context, m)
+
+    def draw_roof(self, context, st, col, m):
+        """A peaked roof, or a valley floor."""
+        v = m.valley
+        info = {}
+        if st.rig is not None:
+            try:
+                import json
+                info = json.loads(st.rig.get("pop_meta", "{}")).get("roofs", {}).get(
+                    str(m.uid), {})
+            except (ValueError, TypeError, AttributeError):
+                info = {}
+        col.prop(m, "valley")
+        col.prop(m, "y", text="Position")
+        col.prop(m, "phi_l", text="Glue Angle (slope)")
+        row = col.row()
+        row.prop(m, "glue", text="Glue Length (eaves)")
+        if info and info.get("eaves", 0) < m.glue - 0.05:
+            c = col.column()
+            c.scale_y = 0.7
+            c.label(text=f"    reaches the card's edge at {info['eaves']:.0f} mm",
+                    icon="INFO")
+        col.prop(m, "height", text="Fold Length (valley)" if v else "Fold Length (ridge)")
+        if info and info.get("fit", 1e9) < 1e8:
+            c = col.column()
+            c.scale_y = 0.7
+            c.label(text=f"    fits the shut card up to {info['fit']:.0f} mm",
+                    icon="ERROR" if m.height > info["fit"] + 0.05 else "INFO")
+        col.prop(m, "level", text="Level Valley" if v else "Level Ridge")
+        sub = col.row()
+        if m.level:
+            sub.label(text=f"Piece Angle: {info['alpha']:.1f}° (set for level)"
+                      if info else "Piece Angle: set for level")
+        else:
+            sub.prop(m, "alpha_l", text="Piece Angle")
+        col.label(text="Cuts the background away " + ("below the glue lines"
+                  if v else "to a gable along the eaves"), icon="INFO")
+        _tabs(self.layout, m, side=False)
+        _draw_lines(self.layout, context, m)
+        self.draw_warnings(context, m)
+
+    def draw_tether(self, context, st, col, m):
+        """A tether."""
+        col.prop(m, "from_tube")
+        col.prop(m, "from_pt")
+        col.prop(m, "to")
+        if m.to == "TUBE":
+            col.prop(m, "to_tube")
+            col.prop(m, "to_pt")
+        else:
+            col.prop(m, "to_y")
+        col.prop(m, "height")
+        col.prop(m, "bend")
+        col.prop(m, "slack")
+        _tabs(self.layout, m, side=m.to != "TUBE", side_text="Foot Tab Side")
+        self.draw_warnings(context, m)
+
+    def draw_cube(self, col, m, hm, joint):
+        """A cube's own settings."""
+        col.prop(m, "size", text="Width" if m.size_r <= 0 else "Width Left")
+        col.prop(m, "size_r", text="Width Right (0 = square)" if m.size_r <= 0
+                 else "Width Right")
+        col.prop(m, "height")
+        row = col.row()
+        row.active = (m.size_r <= 0 or abs(m.size_r - m.size) < 1e-6) and m.roof in \
+            ("NONE", "GABLE")
+        row.prop(m, "lid")
+        _tower_top(col, m, cube=True)
+
+    def draw_mouth(self, col, m, hm, joint):
+        """A mouth's own settings."""
+        col.prop(m, "jaw")
+        col.prop(m, "upper")
+        col.prop(m, "lower")
+
+    def draw_platform(self, col, m, hm, joint):
+        """A platform's own settings."""
+        col.prop(m, "width", text="Length Along Fold")
+        col.prop(m, "height", text="Leg Height")
+        col.prop(m, "depth", text="Out Left" if m.depth_r > 0 else "Out Each Side")
+        col.prop(m, "depth_r", text="Out Right (0 = same)")
+        col.prop(m, "brace")
+        if m.brace != "NONE":
+            col.prop(m, "brace_size")
+
+    def draw_riser(self, col, m, hm, joint):
+        """A rising sheet's own settings."""
+        col.prop(m, "width", text="Width Along Fold")
+        col.prop(m, "height", text="Sheet Height")
+        col.prop(m, "brace_size")
+        col.label(text="Shape the sheet by erasing its art (Paint, Erase)", icon="INFO")
+
+    def draw_jack(self, col, m, hm, joint):
+        """A jack in the box's own settings."""
+        col.prop(m, "height", text="Fold Spacing (G)")
+        col.prop(m, "depth", text="Arm Reach")
+        col.label(text="Draw the figure; erase its art to shape it", icon="INFO")
+
+    def draw_linkage(self, col, m, hm, joint):
+        """A zig-zag's or multiple quadrilaterals' own settings."""
+        col.label(text="Glue lines meet the spine at Position")
+        col.prop(m, "phi_l", text="Glue Angle")
+        col.prop(m, "x", text="Glued From")
+        col.prop(m, "width", text="Glue Length (end walls)")
+        if m.kind == "ZIGZAG":
+            col.prop(m, "faces", text="Faces (end in, mm)")
+            col.prop(m, "jut")
+            col.prop(m, "height")
+        else:
+            col.prop(m, "q_back1")
+            col.prop(m, "q_back2")
+            col.prop(m, "q_side", text="Side (back crease to front)")
+            col.prop(m, "q_front", text="Front (to centre)")
+            col.prop(m, "height", text="Back Height")
+            col.prop(m, "q_side_h")
+            col.prop(m, "q_front_h")
+            col.label(text="Side's face to the strip: worked out so it folds flat",
+                      icon="INFO")
+        col.prop(m, "cut_bottoms")
+
+    def draw_double45(self, col, m, hm, joint):
+        """A double 45's own settings."""
+        col.prop(m, "width", text="Arm Width")
+        col.prop(m, "height", text="Arm Length")
+        col.prop(m, "depth", text="Top Piece Length")
+        col.label(text="Top piece longer than both arms together", icon="INFO")
+
+    def draw_standup(self, col, m, hm, joint):
+        """A stand-up's own settings."""
+        flat = m.stand == "FLAT"
+        col.prop(m, "stand")
+        col.prop(m, "width", text="Leg Width" if flat else (
+            "Tail Width" if m.stand == "TAIL" else "Bridge Width"))
+        col.prop(m, "height", text="Height Above Floor" if flat else "Bridge Height")
+        col.prop(m, "depth", text="Leg Out From Back" if flat else "Out From Back")
+        col.prop(m, "img_w")
+        col.prop(m, "img_h", text="Picture Depth" if flat else "Picture Height")
+        col.label(text="Shape the picture by erasing its art (Paint, Erase)",
+                  icon="INFO")
+
+    def draw_vfold(self, context, col, m):
+        """A V-fold's own settings (every shape), to the end of the panel."""
+        col.prop(m, "shape")
+        if m.shape == "ZIGZAG":
+            col.prop(m, "height", text="Wall Height")
+            col.prop(m, "phi_l", text="Glue Angle")
+            col.prop(m, "glue_from", text="Glued From")
+            col.prop(m, "glue", text="Glue Length (end walls)")
+            col.prop(m, "faces_n")
+            col.prop(m, "faces_uneven")
+            if m.faces_uneven:
+                col.prop(m, "faces", text="Widths (mm, from the glued wall in)")
+            else:
+                col.prop(m, "face_w")
+            col.prop(m, "jut")
+            col.prop(m, "cut_bottoms")
+            _tabs(self.layout, m, side=False)
+            self.draw_warnings(context, m)
+            return
+        if m.shape == "M":
+            col.prop(m, "height", text="Fold Length")
+            col.prop(m, "phi_l", text="Glue Angle (B)")
+            col.prop(m, "alpha_l", text="Piece Angle (A)")
+            col.prop(m, "glue", text="Glue Length to the Bend")
+            col.prop(m, "m_d", text="Angle D (= C on the page)" if not m.m_free else
+                     "Angle D")
+            col.prop(m, "m_e", text="Angle E (= F)" if not m.m_free else "Angle E")
+            col.prop(m, "m_free")
+            if m.m_free:
+                col.prop(m, "m_c")
+                col.prop(m, "m_f")
+            col.prop(m, "m_outer_h", text="Crease Length (D and H)")
+            col.prop(m, "m_outer_len", text="Outer Glue Length")
+            col.prop(m, "glue_from")
+            _tabs(self.layout, m)
+            self.draw_warnings(context, m)
+            return
+        fan = m.shape == "FAN"
+        col.prop(m, "height", text="Radius" if fan else "Fold Length")
+        if fan:
+            col.prop(m, "fan_pleats")
+            col.prop(m, "fan_spread")
+            col.prop(m, "fan_stand")
+            col.prop(m, "phi_l", text="Glue Angle")
+            col.prop(m, "glue_from", text="Glued From (hub cut away)")
+            if not m.host_uid:
+                col.prop(m, "cut_above")
+            _tabs(self.layout, m)
+            self.draw_warnings(context, m)
+            return
+        else:
+            col.prop(m, "glue", text="Glue Length" if m.symmetric else "Glue Length L")
+            if not m.symmetric:
+                col.prop(m, "glue_r")
+        col.prop(m, "symmetric")
+        top = m.on_top and m.host_uid and (m.vside == "V" or m.on_crease)
+        if top:
+            col.prop(m, "top_angle", text="Point Angle" if m.symmetric else "Point Angle L")
+            if not m.symmetric:
+                col.prop(m, "top_angle_r")
+            col.prop(m, "top_piece",
+                     text="Top Piece Angle" if m.symmetric else "Top Piece Angle L")
+            if not m.symmetric:
+                col.prop(m, "top_piece_r")
+            col.prop(m, "top_below")
+            col.label(text="Point Angle over 90 makes a V-shaped top", icon="INFO")
+        else:
+            col.prop(m, "phi_l", text="Glue Angle" if m.symmetric else "Glue Angle L")
+        if not m.symmetric and not top:
+            col.prop(m, "phi_r")
+            col.prop(m, "fold_flat")
+        if top:
+            pass
+        elif not m.symmetric and m.fold_flat:
+            col.prop(m, "lean")
+            d = m.to_dict()
+            col.label(text=f"Piece angles {d['alpha_l']:.0f}° L, {d['alpha_r']:.0f}° R; "
+                      f"leans {'right' if m.phi_r > m.phi_l else 'left'}", icon="INFO")
+        else:
+            col.prop(m, "alpha_l", text="Piece Angle" if m.symmetric else "Piece Angle L")
+            if not m.symmetric:
+                col.prop(m, "alpha_r")
+        if not m.host_uid:
+            col.prop(m, "cut_above")
+        if m.host_uid and (m.vside == "V" or m.on_crease):
+            col.prop(m, "on_top")
+        each = not m.symmetric or m.arch_uneven
+        col.prop(m, "glue_from", text="Glued From L" if each else "Glued From")
+        if each:
+            col.prop(m, "glue_from_r")
+        if m.glue_from > 0 or (each and m.glue_from_r > 0):
+            if m.symmetric:
+                col.prop(m, "arch_uneven")
+                if m.arch_uneven:
+                    col.prop(m, "glue_r")
+            col.prop(m, "arch")
+            col.prop(m, "arch_shape")
+        _tabs(self.layout, m)
+        _draw_lines(self.layout, context, m)
+        self.draw_warnings(context, m)
+
+    def draw_box(self, col, m, hm, joint):
+        """A box fold's, strap's, box layer's or tower's own settings."""
+        tower = m.kind == "BOX" and hm is not None and hm.kind == "TUBE" and \
+            m.wall.startswith("K")
+        col.prop(m, "width", text="Tower Height" if tower else "Length Along Fold")
+        if joint:
+            # which side of the joint each width lies on
+            flat = "Along Floor" if hm.kind == "FLOOR" else "Along Ceiling"
+            wall_first = (hm.kind == "FLOOR") == (m.side == "R")
+            left, right = ("Up Wall", flat) if wall_first else (flat, "Up Wall")
+            if hm.kind == "CEILING":
+                left = left.replace("Up Wall", "Down Wall")
+                right = right.replace("Up Wall", "Down Wall")
+        elif tower:  # along each wall from the corner
+            left, right = "Along Wall (left)", "Along Wall (right)"
+        else:
+            left, right = "Width Left", "Width Right"
+        if m.kind == "BOX" and not joint and not tower:
+            col.prop(m, "strap")
+        if m.kind == "BOX" and not joint and not tower and abs(m.fan_angle) > 0.05:
+            col.prop(m, "height", text="Out From Fold (bottom)" if m.fan_angle > 0
+                     else "Out From Fold (bottom, narrowing up)")
+        elif m.kind == "BOX" and m.strap and not joint:
+            col.prop(m, "height", text="Width Each Side")
+        else:
+            col.prop(m, "height", text=left)
+            col.prop(m, "depth", text=right)
+        if tower:  # up a tube's inside corner
+            _tower_top(col, m)
+        angled = m.kind == "BOX" and not tower and not joint and abs(m.fan_angle) > 0.05
+        if m.kind == "BOX" and not tower and not joint:
+            col.prop(m, "fan_angle")
+            if angled:
+                col.prop(m, "fan_creases")
+                col.prop(m, "fan_crease")
+        if m.kind in ("BOX", "BOXCUT") and not tower and not angled:
+            col.prop(m, "slant")
+        if m.kind == "BOX" and not tower and not angled:
+            col.prop(m, "peaks")
+            if m.peaks <= 1:
+                col.prop(m, "support")
+                if m.support == "ARCHES":
+                    col.prop(m, "bays")
+                col.prop(m, "rail")
+                if m.rail > 0:
+                    col.prop(m, "rail_open")
+        if m.kind in ("BOX", "BOXCUT") and not tower and not joint and not angled:
+            col.prop(m, "tri45")
+            if m.tri45 != "NONE":
+                col.prop(m, "tri_size")
+                col.prop(m, "tri_pic_layout")
+                row = col.row(align=True)
+                row.label(text="Pictures on them")
+                for w_, t_ in (("LEFT", "Left"), ("RIGHT", "Right"), ("BOTH", "Both")):
+                    op = row.operator("popup.tri_pictures", text=t_)
+                    op.uid, op.which = m.uid, w_
 
 
 def _group_head(lines, item):
