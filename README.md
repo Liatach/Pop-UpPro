@@ -261,68 +261,16 @@ Sunflower is a good way to make them.
 * **0.74**: the collar's free corners slide one inside the other, the end
   curling (no slits); railings and battlements on collars; the collar upside
   down as a tapered top; Erase the Paper back in the Artwork panel.
-* **0.72–0.73**: Tower collars, a sloping balcony floor all the way
-  round a tower that folds flat; towers up a tube's front and back creases,
-  so castles can be pentagonal or hexagonal; flat tower roofs, sunk behind
-  battlements or at the top with a ledge round the tower.
-* **0.71**: gabled tower roofs that overhang the walls (Birmingham 49: a rib
-  between the gable tips, the roof stuck only to the rib); tubes and castles
-  in two strips; balconies on arches with open railings, and balconies
-  outside a castle's towers.
-* **0.70**: cylinders (Birmingham 68: a tube's front or back curves round,
-  creased above the fold); balconies with railings on tube and cube walls
-  and in front of box folds; the M-fold reworked with the book's crease D and
-  panel E, so its outer panels actuate; the multiple quadrilaterals' back
-  faces set one by one and the front piece no longer cut needlessly.
-* **0.69**: V-fold on Top as Birmingham 21-22 (the top piece runs on below
-  the join, a V-shaped top, a third piece on the second; a lifting piece that
-  vanished from the mesh fixed); Zig-zag is now a V-fold shape (faces each
-  side and a face width); fans and M-folds take Glued From; shapes name
-  themselves; M-folds stand up by default and move without lag; lighter
-  bottom cuts (Bottoms: light, clear or square); zig-zag and quadrilateral
-  centre creases take other mechanisms.
-* **0.68**: zig-zag folds (Birmingham 45-48) and multiple quadrilaterals (57)
-  on angled sticking strips, their bottoms cut away where they'd dip into a
-  page; the M-fold (28-29); V-fold on Top reworked as the book has it (the
-  lifting piece cut to a point, its tabs A under the top piece); glued-away
-  arches with Round, Square or Pointed cuts and uneven sides.
-* **0.67**: V-folds glued away from the spine (Glued From, the piece arched
-  away between the tabs, each side its own distance); a V-fold on top of a
-  V-fold, the lower one's halves growing points to carry its tabs.
-* **0.61–0.66**: the double 45° fold, its top piece twisting without passing
-  through itself; the jack in the box on any V-fold; 45° triangles in a box
-  fold's corners; pictures glued on any face; the stand-up's rolled tail;
-  visibility per mechanism; frames across an ordinary card's fold; widths
-  that grow one way; pyramids on other folds.
-* **0.56–0.60**: Align (along a fold or across the card) and a see-through
-  Plan View; castle towers in a tube's corners with pyramid roofs that fold
-  flat; self-contained for Blender Extensions; Draw Anywhere with Grease
-  Pencil, across folds, painted into the paper.
-* **0.46–0.55**: 45° folds (Platform, Rising Sheet); part materials (metallic,
-  glossy, glow) and metallic images; outside tabs that carry the art; folds
-  that share vertices; the Studio look; colour history; painting tidied up.
-* **0.40–0.45**: Grease Pencil sketching end to end; concertinas and fans;
-  painting the card flat or folded without stopping.
-* **0.32–0.39**: render looks; openings on any face, turned; crease and cut
-  shapes you can flip, turn and move; door flaps; Duplicate; sheets sized to
-  fit; painting sessions with Erase and painted holes.
-* **0.24–0.31**: Set Up Scene; bake guards; images on pieces; picture-book
-  sizes; off-centre pop-ups (straps, V-fold glue folds), slanted straps and
-  peaks; images that wrap round cubes; the card camera.
-* **0.17–0.23**: asymmetric V-folds and mechanisms on a V-fold's crease;
-  floors and ceilings from card creases; peaked roofs; Solid Paper.
-* **0.10–0.16**: carousels and stage sets; openings and holes; extra creases
-  and cuts on V-folds and boxes; parallelogram stand-ups; True Colours.
-* **0.3–0.9**: Pop-up Mechanics becomes Pop-Up Pro; the closing stop and export
-  options; the 180° cube and pull-tab flaps; tubes and tethers; pyramids,
-  tents and roofs; reverse sides and the assembly page; the basic box.
+
+Earlier versions are in the [changelog](CHANGELOG.md).
 
 ## Development
 
 Tests run with `pip install bpy`: `python tests/run_all.py` runs them all,
 several at a time, and `python tests/run_all.py collars` only one family's
-(`--list` shows the families). How the solver and rig work is in the
-[guide](docs/guide.md#how-it-works).
+(`--list` shows the families). `python scripts/since_upload.py` shows what
+has changed since the last upload here. How the solver and rig work is in
+the [guide](docs/guide.md#how-it-works).
 
 ## Licence
 
