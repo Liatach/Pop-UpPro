@@ -250,6 +250,16 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.77**: where mechanisms stand, tidied. Stands On lists only what a kind
+  can stand on (zig-zags and quadrilaterals now, not fans or angled box
+  folds) and picking from it starts on a fold that works; the + menu no
+  longer offers what would be skipped (towers in a round tube end, an inset
+  on a strap with several peaks, anything on an angled box fold) and offers
+  a platform's top. Fixed: Fold did nothing after adding onto a V-fold's
+  crease from the menu; V-folds, cubes and double 45s on a stand-up's folds
+  ("Rebuild failed"); a mouth on a zig-zag's or quadrilaterals' crease
+  (skipped as overlapping); things on a platform now fit it. Warnings name
+  the fold that isn't there.
 * **0.76**: collars' sliding corners curl as far as they must right down to
   shut (they gave up part-way and cut through); a 0.75 mm corner gap; tiers
   alternating out and in; the loop with wider tabs, and as a slice of a cone
@@ -258,9 +268,6 @@ Sunflower is a good way to make them.
   lines turned, with one crease or three; the loop (Birmingham 16), a ring
   on two tabs; collars stacked in tiers, out or tapering in, their railings
   running right round the curled corners.
-* **0.74**: the collar's free corners slide one inside the other, the end
-  curling (no slits); railings and battlements on collars; the collar upside
-  down as a tapered top; Erase the Paper back in the Artwork panel.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

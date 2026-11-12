@@ -95,7 +95,8 @@ print("exported", len(files), "files")
 # the roof is only a spine when it dips
 box.roof_fold = "PEAK"
 build.rebuild(sc, force=True)
-assert "its host is missing" in st.warnings, st.warnings
+# (v0.77: the warning names the tube and says what to do)
+assert "has no roof crease to stand on" in st.warnings, st.warnings
 print("peaked roof refused as a host")
 addon.unregister()
 print("V08 OK")

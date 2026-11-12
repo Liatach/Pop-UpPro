@@ -3,6 +3,16 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.77**: where mechanisms stand, tidied. Stands On lists only what a kind
+  can stand on (zig-zags and quadrilaterals now, not fans or angled box
+  folds) and picking from it starts on a fold that works; the + menu no
+  longer offers what would be skipped (towers in a round tube end, an inset
+  on a strap with several peaks, anything on an angled box fold) and offers
+  a platform's top. Fixed: Fold did nothing after adding onto a V-fold's
+  crease from the menu; V-folds, cubes and double 45s on a stand-up's folds
+  ("Rebuild failed"); a mouth on a zig-zag's or quadrilaterals' crease
+  (skipped as overlapping); things on a platform now fit it. Warnings name
+  the fold that isn't there.
 * **0.76**: collars' sliding corners curl as far as they must right down to
   shut (they gave up part-way and cut through); a 0.75 mm corner gap; tiers
   alternating out and in; the loop with wider tabs, and as a slice of a cone

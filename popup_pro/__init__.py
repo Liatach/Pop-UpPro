@@ -21,6 +21,8 @@ def register():
     holes.subscribe()
     if holes.subscribe not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(holes.subscribe)
+    if props.on_load not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(props.on_load)
 
 
 def unregister():
@@ -30,6 +32,8 @@ def unregister():
     holes.unsubscribe()
     if holes.subscribe in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(holes.subscribe)
+    if props.on_load in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(props.on_load)
     ui.unregister()
     images.unregister()
     scene_setup.unregister()

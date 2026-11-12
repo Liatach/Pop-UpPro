@@ -4,10 +4,8 @@ onto a stand-in layout that notes every call, so this runs without a window
 and can check what was offered: every kind's panel shows its settings, the
 Add menu offers every kind, and every Add it offers works."""
 # families: ui
-import inspect
 import os
 import sys
-import types
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -16,51 +14,15 @@ import bpy  # noqa: E402
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 import popup_pro as addon  # noqa: E402
-from popup_pro import props, ui  # noqa: E402
+from popup_pro import build, props, ui  # noqa: E402
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_stub import adds_offered, draw, props_shown  # noqa: E402
 
 addon.register()
 sc = bpy.context.scene
 st = sc.popup
 st.live = False
-
-
-class Layout:
-    """Stands in for a UILayout: any call is noted and gives another one
-    (lay.panel gives a header and a body), any attribute can be set."""
-
-    def __init__(self, log, path="layout"):
-        object.__setattr__(self, "log", log)
-        object.__setattr__(self, "path", path)
-
-    def __getattr__(self, name):
-        def call(*args, **kw):
-            child = f"{self.path}.{name}{len(self.log)}"
-            self.log.append((self.path, name, args, kw))
-            if name in ("panel", "panel_prop"):
-                return Layout(self.log, child), Layout(self.log, child)
-            return Layout(self.log, child)
-        return call
-
-    def __setattr__(self, name, value):
-        self.log.append((self.path, "set", (name, value), {}))
-
-
-class Drawn:
-    """Stands in for a panel or menu: its class's own methods, on our layout."""
-
-    def __init__(self, cls, layout):
-        self._cls, self.layout = cls, layout
-
-    def __getattr__(self, name):
-        a = inspect.getattr_static(self._cls, name)
-        return types.MethodType(a, self) if isinstance(a, types.FunctionType) else \
-            getattr(self._cls, name)
-
-
-def draw(cls):
-    log = []
-    cls.draw(Drawn(cls, Layout(log)), bpy.context)
-    return log
 
 
 def add(kind, **kw):
@@ -83,8 +45,9 @@ def tower(fold):
 
 
 def setup(name):
-    """A card with this on it, selected."""
+    """A card with this on it, selected (the same ids every time)."""
     st.mechs.clear()
+    st["pop_next_uid"] = 1
     if name in ("FLOOR", "CEILING", "FRAME"):
         add("STAGE")
         m = add(name)
@@ -111,20 +74,6 @@ def setup(name):
         m = add(name)
     select(m)
     return m
-
-
-def props_shown(log):
-    return [e[2][1] for e in log if e[1] == "prop" and len(e[2]) > 1]
-
-
-def adds_offered(log):
-    """The settings of each popup.add the menu offers."""
-    out = []
-    for i, e in enumerate(log):
-        if e[1] == "operator" and e[2][0] == "popup.add":
-            op = f"{e[0]}.operator{i}"
-            out.append({s[2][0]: s[2][1] for s in log if s[0] == op and s[1] == "set"})
-    return out
 
 
 kinds = [k[0] for k in props.KINDS]
@@ -174,16 +123,23 @@ print(f"{draws} panels drawn over {len(kinds) + 4} set-ups")
 
 # ---- every Add the menu offers, with each kind selected, works
 made = 0
-for name in ["VFOLD", "BOX", "BOXCUT", "CUBE", "TUBE", "STANDUP", "STAGE", "FLOOR", "QUADS",
+# (a ceiling, not a floor: in a card the stage stands on the card, which is its floor)
+for name in ["VFOLD", "BOX", "BOXCUT", "CUBE", "TUBE", "STANDUP", "STAGE", "CEILING", "QUADS",
              "castle", "strap with peaks"]:
     setup(name)
     extra = adds_offered(draw(ui.POPUP_MT_add))[len(basics):]
     assert extra, name  # (something goes on each of these)
     for kw in extra:
-        setup(name)
+        h = setup(name)
         n = len(st.mechs)
+        assert kw["host"] == h.uid, (name, kw)
         assert bpy.ops.popup.add(**kw) == {"FINISHED"}, (name, kw)
-        assert len(st.mechs) > n, (name, kw)
+        new = list(st.mechs)[n:]
+        # it stands on what was selected, and the model doesn't skip it
+        assert new and any(x.host_uid == kw["host"] for x in new), (name, kw)
+        skipped = [w for w in build.make_model(sc)[0].warnings if "skipped" in w
+                   and any(w.startswith(x.label) or x.label + ":" in w for x in new)]
+        assert not skipped, (name, kw, skipped)
         draw(ui.POPUP_PT_mechs)
         made += 1
 st.mechs.clear()

@@ -255,8 +255,13 @@ class Model(BoxFolds, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, 
                                         and not lid and not stage and not joint
                                         and not (parent["type"] == "TUBE" and
                                                  m.get("wall") in ("L", "R") + CORNERS)):
-                    self.warn(f"{m['label']}: its host is missing (a box, or a tube with a "
-                              f"dipped flat roof); skipped")
+                    if parent is not None and parent["type"] == "TUBE":
+                        self.warn(f"{m['label']}: {parent['label']} has no roof crease to "
+                                  f"stand on (give it a Flat roof with a Dip, or pick a "
+                                  f"wall as the Fold); skipped")
+                    else:
+                        self.warn(f"{m['label']}: its host is missing (a box, or a tube "
+                                  f"with a dipped flat roof); skipped")
                     ok = False
                 elif parent["type"] == "TUBE" and m.get("wall") in CORNERS and (
                         m["type"] != "BOX" or m.get("style") == "CUT"):
@@ -309,6 +314,19 @@ class Model(BoxFolds, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, 
                         hm["type"] in ("VFOLD", "ZIGZAG", "QUADS") and fold != "V":
                     self.warn(f"{m['label']}: {hm['label']} has no glue folds to stand on "
                               f"(its halves aren't glued along a line); put it on the crease")
+                elif hm is not None and hm["uid"] in self.placed and hm["type"] == "BOX":
+                    # the box is there; the fold asked for isn't
+                    if abs(float(hm.get("fan_angle", 0.0) or 0.0)) > 0.05:
+                        why = "is an angled box fold, which nothing stands on yet"
+                    elif fold == "V":
+                        why = ("has no valley to stand in (a strap with two or more Peaks "
+                               "has); pick another Fold")
+                    elif fold == "C":
+                        why = ("has no inset fold (with several Peaks its top doesn't meet "
+                               "its front); pick a Valley")
+                    else:
+                        why = "has no such fold"
+                    self.warn(f"{m['label']}: {hm['label']} {why}; skipped")
                 else:
                     self.warn(f"{m['label']}: its host was skipped; skipped too")
                 continue

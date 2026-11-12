@@ -170,12 +170,45 @@ def _descendants(mechs, uid):
     return out
 
 
+def crease_only(m):
+    """A host with only its centre crease to stand on: no glue folds in front
+    of or behind a half."""
+    return m.kind in ("ZIGZAG", "QUADS") or (m.kind == "VFOLD" and m.shape == "ZIGZAG")
+
+
+def is_angled(m, mechs):
+    """A box fold built with angled glue lines (it has no folds to stand on).
+    A tower's Glue Angle is ignored, so a tower isn't one."""
+    if m.kind != "BOX" or abs(m.fan_angle) <= 0.05:
+        return False
+    host = next((h for h in mechs if h.uid == m.host_uid), None) if m.host_uid else None
+    return not (host is not None and host.kind == "TUBE" and m.wall.startswith("K"))
+
+
+def default_fold(m, host):
+    """Picked from Stands On: start on a fold of the host this kind can stand
+    on (the Add menu picks its own)."""
+    cut_in = m.kind in ("BOXCUT", "MOUTH")
+    if host.kind in ("VFOLD", "ZIGZAG", "QUADS"):
+        if crease_only(host) or cut_in or m.kind == "JACK":
+            m["vside"] = 4  # on the crease
+            m["on_crease"] = True
+    elif host.kind == "BOX" and cut_in:
+        # cut-ins need one piece of paper across the fold: a glued box's
+        # inset fold, or a valley of a strap with several peaks
+        m["fold"] = 3 if host.peaks > 1 else 2
+    elif host.kind == "TUBE" and m.wall == "NONE" and not (
+            host.roof == "FLAT" and host.roof_fold == "DIP"):
+        m["wall"] = 1  # no roof crease to stand on: outside the left wall
+
+
 def host_items(self, context):
     global _host_items
     items = [("0", "Card Spine", "Sit on the card's centre fold", "SNAP_MIDPOINT", 0)]
     st = context.scene.popup if context and context.scene else None
     if st is not None:
         bad = _descendants(st.mechs, self.uid) | {self.uid}
+        cut_in = self.kind in ("BOXCUT", "MOUTH")  # (cut across a fold of one piece of paper)
         for m in st.mechs:
             if self.kind in ("FLAP", "TETHER", "ROOF", "PICTURE") or m.uid in bad:
                 continue
@@ -184,11 +217,29 @@ def host_items(self, context):
                     items.append((str(m.uid), m.label, f"Stand in {m.label}",
                                   "IMAGE_BACKGROUND", m.uid))
                 continue
+            if self.kind == "JACK":  # only on a V-fold's crease (not a fan's)
+                if m.kind == "VFOLD" and m.shape != "FAN":
+                    items.append((str(m.uid), m.label, f"On {m.label}'s crease",
+                                  "MOD_TRIANGULATE", m.uid))
+                continue
+            if m.kind == "VFOLD" and m.shape == "FAN":
+                continue  # a fan's pleats carry nothing
             if m.kind == "VFOLD" and self.kind in ("STANDUP", "BOX", "BOXCUT", "VFOLD",
-                                                   "MOUTH", "CUBE", "TUBE", "PYRAMID",
-                                                   "JACK"):
-                items.append((str(m.uid), m.label, f"On {m.label}: its crease, or in "
-                              f"front of or behind a half", "MOD_TRIANGULATE", m.uid))
+                                                   "MOUTH", "CUBE", "TUBE", "PYRAMID"):
+                if crease_only(m):
+                    items.append((str(m.uid), m.label, f"On {m.label}'s centre crease",
+                                  "MOD_TRIANGULATE", m.uid))
+                else:
+                    items.append((str(m.uid), m.label, f"On {m.label}: its crease, or in "
+                                  f"front of or behind a half", "MOD_TRIANGULATE", m.uid))
+            elif m.kind in ("ZIGZAG", "QUADS") and self.kind in (
+                    "STANDUP", "BOX", "BOXCUT", "VFOLD", "MOUTH", "CUBE", "TUBE", "PYRAMID"):
+                items.append((str(m.uid), m.label, f"On {m.label}'s centre crease",
+                              "MOD_SCREW" if m.kind == "ZIGZAG" else "MOD_LATTICE", m.uid))
+            elif is_angled(m, st.mechs):
+                continue  # nothing stands on an angled box fold (yet)
+            elif m.kind == "STANDUP" and cut_in:
+                continue  # a stand-up's folds join separate pieces of paper
             elif m.kind in ("BOX", "BOXCUT", "STANDUP"):
                 items.append((str(m.uid), m.label, f"Sit on a fold of {m.label}",
                               "MESH_CUBE" if m.kind != "STANDUP" else "OUTLINER_OB_IMAGE",
@@ -196,6 +247,8 @@ def host_items(self, context):
             elif m.kind == "PLATFORM":
                 items.append((str(m.uid), m.label, f"Stand on top of {m.label}, on the "
                               f"valley above the fold", "MOD_SOLIDIFY", m.uid))
+            elif m.kind in ("FLOOR", "CEILING") and cut_in:
+                continue  # it meets its walls along glue tabs: separate pieces of paper
             elif m.kind in ("FLOOR", "CEILING"):
                 items.append((str(m.uid), m.label, f"Sit in the corner where {m.label} "
                               f"meets a wall", "TRIA_DOWN_BAR" if m.kind == "FLOOR"
@@ -246,6 +299,7 @@ def fit_to_host(m, st):
         st["live"] = False
         try:
             m["on_crease"] = True  # a jack is cut into the top of the crease
+            m["vside"] = 4
             _fit_jack(m, host)
         finally:
             st["live"] = was
@@ -266,8 +320,12 @@ def fit_to_host(m, st):
             m.y = round(0.3 * L, 1)
             if m.kind in ("BOX", "BOXCUT"):
                 m.width, m.height, m.depth = round(0.4 * L, 1), round(k, 1), round(k, 1)
-            elif m.kind in ("VFOLD", "MOUTH"):
+            elif m.kind == "VFOLD":
                 m.glue = m.height = round(k, 1)
+            elif m.kind == "MOUTH":  # a small one, half way up, clear of the bottom
+                m.jaw = round(0.6 * k, 1)
+                m.upper = m.lower = round(min(0.15 * L, 0.6 * k), 1)
+                m.y = round(0.5 * L, 1)
             elif m.kind in ("CUBE", "TUBE"):
                 m.size = m.height = round(k, 1)
             elif m.kind == "STANDUP":
@@ -397,10 +455,12 @@ def fit_to_host(m, st):
         finally:
             st["live"] = was
         return
-    if host is None or host.kind not in ("BOX", "BOXCUT", "TUBE", "STANDUP"):
+    if host is None or host.kind not in ("BOX", "BOXCUT", "TUBE", "STANDUP", "PLATFORM"):
         return
     if host.kind == "TUBE":  # the roof's crease: a half each side, as long as the tube
         room, w = host.x, host.depth
+    elif host.kind == "PLATFORM":  # the valley in its top: a half each side, Out wide
+        room, w = min(host.depth, host.depth_r or host.depth), host.width
     else:
         a, b, w = host.height, host.depth, host.width  # left page, right page, along spine
         room = {"A": b, "B": a, "C": min(a, b)}.get(m.fold, min(a, b))
@@ -410,6 +470,8 @@ def fit_to_host(m, st):
     try:
         if host.kind == "STANDUP":
             w = host.img_w  # the picture is what there is room on (from its bridge's start)
+            hy = host.y
+        elif host.kind == "PLATFORM":
             hy = host.y
         else:
             hy = host.y
@@ -484,6 +546,9 @@ def _host_set(self, value):
     self.host_uid = value
     st = bpy.context.scene.popup
     if value:
+        host = next((h for h in st.mechs if h.uid == value), None)
+        if host is not None:
+            default_fold(self, host)
         fit_to_host(self, st)
     live.schedule(bpy.context.scene)
 
@@ -492,6 +557,32 @@ def _fold_changed(self, context):
     if self.host_uid:
         fit_to_host(self, context.scene.popup)
     live.schedule(context.scene)
+
+
+def _vside_changed(self, context):
+    # (On the Crease, a floor's or ceiling's checkbox, says the same thing)
+    self["on_crease"] = self.vside == "V"
+    _fold_changed(self, context)
+
+
+def _on_crease_changed(self, context):
+    if self.on_crease != (self.vside == "V"):
+        self["vside"] = 4 if self.on_crease else 0
+    _changed(self, context)
+
+
+@bpy.app.handlers.persistent
+def on_load(*_args):
+    for scene in bpy.data.scenes:
+        sync_folds(scene)
+
+
+def sync_folds(scene):
+    """Older files: On the Crease could be left on, unseen, while Fold showed
+    a half (the crease won). Show what is built."""
+    for m in scene.popup.mechs:
+        if m.on_crease and m.vside != "V":
+            m["vside"] = 4
 
 
 def _line_siblings(ln):
@@ -1266,7 +1357,7 @@ class PopupMech(bpy.types.PropertyGroup):
                              "right half"),
                             ("V", "On the Crease", "Across the V-fold's own centre crease, "
                              "between its halves: the V-fold is its spine")],
-                        update=_fold_changed)
+                        update=_vside_changed)
     cut_above: BoolProperty(name="Cut Away Background Above", default=False,
                             update=_changed,
                             description="A V-fold on the card's spine whose glue lines fall "
@@ -1282,7 +1373,7 @@ class PopupMech(bpy.types.PropertyGroup):
                         description="Work out the roof's piece angle so its ridge runs "
                         "level when the card (or stage) is fully open. Off: set the Piece "
                         "Angle yourself (bigger tilts the ridge up)")
-    on_crease: BoolProperty(name="On the Crease", default=False, update=_changed,
+    on_crease: BoolProperty(name="On the Crease", default=False, update=_on_crease_changed,
                             description="Stand on the floor's (ceiling's) centre crease "
                             "instead of in a corner. Only V-folds can: from the stage side "
                             "the crease is a mountain fold")

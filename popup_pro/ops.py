@@ -199,7 +199,11 @@ class POPUP_OT_add(bpy.types.Operator):
         if self.kind == "BOX" and self.variant == "TOWERS" and self.host:
             # a tower up every inside corner of the tube (the castle's corners)
             _remove_new(st, uid)
-            for fold in tube_corners(st, self.host):
+            corners = tube_corners(st, self.host)
+            if not corners:
+                self.report({"ERROR"}, "This tube has no inside corners (its ends are round)")
+                return {"CANCELLED"}
+            for fold in corners:
                 _tower(st, self.host, fold)
             return self.done(context, st)
         if self.kind == "PICTURE":
@@ -473,11 +477,15 @@ def _remove_new(st, uid):
 
 
 def tube_corners(st, host):
-    """A tube's inside corners a tower can stand in: the four where the
-    sides meet the front and back, and its front and back creases when they
-    point out."""
+    """A tube's inside corners a tower can stand in: where the sides meet the
+    front and the back (unless that end is round), and its front and back
+    creases when they point out."""
     h = next(x for x in st.mechs if x.uid == host)
-    out = ["KFL", "KFR", "KBR", "KBL"]
+    out = []
+    if h.front_style != "ROUND":  # (a round end has no corners)
+        out += ["KFL", "KFR"]
+    if h.back_style != "ROUND":
+        out += ["KBR", "KBL"]
     if h.front_style == "OUT" and h.front > h.x + 0.5:
         out.append("KF")
     if h.back_style == "OUT" and h.back > h.x + 0.5:

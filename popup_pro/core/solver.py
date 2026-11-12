@@ -189,7 +189,13 @@ class Solver:
                 err = max(err, abs(d))
             h.check = err
             if err > 2e-3:  # 0.002 rad: under 0.1 mm on a 50 mm panel
-                raise ValueError(f"{name}: driver formula is off by {err:.2e} rad")
+                # no short formula after all: what it stands on doesn't turn
+                # evenly with the card (a stand-up's folds under a V-fold or a
+                # cube). Follow the solved fold itself, sampled
+                h.kind = "TABLE"
+                h.host_bound = True
+                self.__dict__.setdefault("refit", []).append(name)
+                self._table_hinge(name, h)
 
     def _valid_samples(self, p):
         """Angles where the paper can actually follow (no tearing)."""

@@ -83,6 +83,7 @@ class POPUP_MT_add(bpy.types.Menu):
         self.draw_basics(st)
         if not st.mechs or st.active >= len(st.mechs):
             return
+        from .props import is_angled
         h = st.mechs[st.active]  # the selected mechanism: what can go on it
         if h.kind in ("FLOOR", "CEILING"):
             self.draw_in_corners(h)
@@ -92,8 +93,10 @@ class POPUP_MT_add(bpy.types.Menu):
             self.draw_in_stage(h)
         if h.kind in ("CUBE", "TUBE"):
             self.draw_outside_walls(st, h)
-        if h.kind in ("BOX", "BOXCUT", "STANDUP"):
+        if h.kind in ("BOX", "BOXCUT", "STANDUP") and not is_angled(h, st.mechs):
             self.draw_on_box(h)
+        if h.kind == "PLATFORM":
+            self.draw_on_platform(h)
 
     def draw_basics(self, st):
         """What can always be added: every mechanism on the card's fold, and the
@@ -228,19 +231,18 @@ class POPUP_MT_add(bpy.types.Menu):
             op = self.layout.operator("popup.add", text="Balconies Outside the Towers",
                                       icon=KIND_ICON["BOX"])
             op.kind, op.host, op.variant = "BOX", h.uid, "TOWER_BALCONIES"
-        if h.kind == "TUBE":
+        from .ops import tube_corners
+        corners = tube_corners(st, h.uid) if h.kind == "TUBE" else []
+        if corners:  # (round ends have none)
             self.layout.label(text=f"Towers in the corners of {h.label}:")
             op = self.layout.operator("popup.add", text="Tower in Every Inside Corner",
                                       icon=KIND_ICON["BOX"])
             op.kind, op.host, op.variant = "BOX", h.uid, "TOWERS"
-            folds = [("KFL", "front left corner"), ("KFR", "front right corner"),
-                     ("KBR", "back right corner"), ("KBL", "back left corner")]
-            if h.front_style == "OUT" and h.front > h.x + 0.5:
-                folds.append(("KF", "front crease"))
-            if h.back_style == "OUT" and h.back > h.x + 0.5:
-                folds.append(("KB", "back crease"))
-            for fold, where in folds:
-                op = self.layout.operator("popup.add", text=f"Tower, {where}",
+            names = {"KFL": "front left corner", "KFR": "front right corner",
+                     "KBR": "back right corner", "KBL": "back left corner",
+                     "KF": "front crease", "KB": "back crease"}
+            for fold in corners:
+                op = self.layout.operator("popup.add", text=f"Tower, {names[fold]}",
                                           icon=KIND_ICON["BOX"])
                 op.kind, op.host, op.fold = "BOX", h.uid, fold
 
@@ -266,6 +268,8 @@ class POPUP_MT_add(bpy.types.Menu):
                 continue  # cut-ins need one piece of paper across the fold
             if kind == "BOXCUT" and h.kind == "STANDUP":
                 continue  # cut-ins need one piece of paper across the fold
+            if fold == "C" and h.kind == "BOX" and h.peaks > 1:
+                continue  # several peaks: the top doesn't meet the front (use a valley)
             op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
             op.kind, op.host, op.fold = kind, h.uid, fold
             if kind == "BOX" and fold == "B":
@@ -278,6 +282,15 @@ class POPUP_MT_add(bpy.types.Menu):
                 op = self.layout.operator("popup.add", text=f"{name} in a Valley",
                                           icon=KIND_ICON[kind])
                 op.kind, op.host, op.fold = kind, h.uid, "VAL"
+
+    def draw_on_platform(self, h):
+        """With a platform selected: what stands in the valley of its top."""
+        self.layout.separator()
+        self.layout.label(text=f"On top of {h.label}:")
+        for kind, name in (("BOX", "Box Fold"), ("VFOLD", "V-fold"), ("CUBE", "Cube"),
+                           ("TUBE", "Tube"), ("STANDUP", "Stand-up")):
+            op = self.layout.operator("popup.add", text=name, icon=KIND_ICON[kind])
+            op.kind, op.host, op.fold = kind, h.uid, "A"
 
 
 def draw_anim(box, sc, st, to):
@@ -362,13 +375,17 @@ def _tower_top(col, m, cube=False):
 
 def _where(col, st, m):
     """Where a mechanism stands: the same few words for every kind."""
+    from .props import crease_only
     col.prop(m, "host", text="Stands On")
     hm = next((h for h in st.mechs if h.uid == m.host_uid), None) if m.host_uid else None
     if hm is not None and hm.kind in ("BOX", "BOXCUT", "STANDUP"):
         col.prop(m, "fold", text="Fold")
         if hm.kind == "BOX" and m.fold == "V":
             col.prop(m, "gully")
-    if hm is not None and hm.kind == "VFOLD":
+    if hm is not None and (crease_only(hm) or m.kind == "JACK" and hm.kind == "VFOLD"):
+        # only one place to stand: nothing to choose
+        col.label(text="On its centre crease", icon="INFO")
+    elif hm is not None and hm.kind == "VFOLD":
         col.prop(m, "vside", text="Fold")
     if hm is not None and hm.kind in ("CUBE", "TUBE"):
         col.prop(m, "wall", text="Fold")

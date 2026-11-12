@@ -750,8 +750,9 @@ See [Tutorial 7](https://www.youtube.com/watch?v=IkJAnmS-2ZE) and [Tutorial 22](
 
 ![Presets on a V-fold: reverse point, step, jaw and projection](images/creases.jpg)
 
-A V-fold's piece can carry extra fold lines and cuts, set in the V-fold's
-**Extra creases and cuts** box. Lines are measured on the piece itself:
+A V-fold's piece can carry extra fold lines and cuts, set under **Creases
+and cuts** in the **Creases, Cuts and Holes** panel with the V-fold
+selected. Lines are measured on the piece itself:
 **X** across from the centre fold (the left half is negative), **Y** up the
 centre fold from the V point, in mm. Mark the left half and keep **Mirror**
 on to copy each line onto the right half; turn it off for one-sided cuts.
@@ -833,7 +834,7 @@ See [Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc), [Tutorial 6](http
 a picture on a bridge with a small one in front, a flying carpet with a figure
 on it](images/castle_standups.jpg)
 
-Box folds and box layers have the same **Extra creases and cuts** box. Here
+Box folds and box layers take creases and cuts the same way. Here
 **X** is measured from the box's front-top fold (negative over the top,
 positive down the front) and **Y** along the box from its end. **Mirror** flips
 a line end to end. Score lines never cross cut lines, and cut lines begin and
@@ -1105,6 +1106,28 @@ round it to read as a step or a recess. Each mechanism's warnings show under
 its settings. Cut-in mechanisms (box layers, mouths) need both sides of the fold
 to be one piece of paper: any fold of a box layer, or the inset fold of a
 glued box. Glued mechanisms can go anywhere.
+
+**Stands On** lists only what the selected kind can stand on, and picking
+from it starts on a fold that works (a box layer or mouth on a glued box
+starts Inset, or in a valley of a strap with several peaks; on a V-fold, on
+its crease). The **+** menu, with a mechanism selected, offers what goes on
+it. What stands where:
+
+| Stands on | Fold | What can stand there |
+|---|---|---|
+| Card spine | | Everything |
+| Box fold, strap, box layer, tower | On Top, In Front, Inset; a strap with several peaks has **Valley**s (pick one with **Gully**) and no Inset | Every kind but a jack in the box. Box layers and mouths only where the fold is one piece of paper |
+| Stand-up | On Top, In Front, Inset | Every glued kind (no box layers, mouths or jack) |
+| V-fold (panels, beak, asymmetric, M-fold) | On the Crease; In Front or Behind, Left or Right | On the crease: box folds, box layers, V-folds, mouths, cubes, tubes, pyramids, stand-ups, the jack in the box. In front of or behind a half: stand-ups, box folds, cubes, tubes, pyramids, V-folds |
+| Zig-zag (the shape or the mechanism), multiple quadrilaterals | Its centre crease, the only one | As a V-fold's crease, without the jack |
+| Cube, tube | Outside the Left or Right wall | Box folds, V-folds, cubes, tubes, pyramids, stand-ups. A tube also takes towers up its inside corners (a round end has none) and, with a flat roof that dips, anything on the roof's crease |
+| Platform | The valley in its top | Every kind but a jack in the box |
+| Floor, ceiling (in a stage) | The corner with the Left or Right wall; V-folds also **On the Crease** | Every glued kind |
+| Stage set | | Its frames, floor and ceiling |
+
+Nothing stands on a fan or on an angled box fold. A V-fold, cube or double
+45° on a stand-up's folds has no short formula to follow, so its folds are
+sampled like a tower's.
 
 ![Stacked boxes, inset, beak and mouth](images/stacked.png)
 
