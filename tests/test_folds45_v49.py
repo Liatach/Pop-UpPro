@@ -3,7 +3,6 @@ Platform (legs either side of the fold, top folding in a valley above it,
 on or off the centre, propped by 45 degree folds) and the Rising Sheet (a
 sheet half way between the pages, a 45 degree fold on each face)."""
 # families: folds45
-import math
 import os
 import sys
 import tempfile

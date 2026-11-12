@@ -341,8 +341,7 @@ class BoxFolds:
             n = n.normalized() if n.length > 1e-9 else nl.normalized()
             return O, dL, dR, n, l, r, Y, nl, nr
 
-        cb, sb = math.cos(be), math.sin(be)
-        cm = math.cos(2.0 * mu)
+        cb = math.cos(be)
         tr = max(30.0, min(120.0, self.t_ref))
         O, dL, dR, n, l, r, Y, nl, nr = page(tr)
         gap = (l + r).normalized()

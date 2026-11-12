@@ -85,7 +85,6 @@ class ZigZags:
             nHp, nFci = npm(Hp), npm(Fc.inverted())
             nFk, nFki = npm(Fk), npm(Fk.inverted())
             X = np.array([*(P + h * 10.0), 0.0, 1.0])
-            Xo = np.array([*(P + e2 * 10.0), 0.0, 1.0])
             frames = {}
 
             def at(t):
@@ -252,7 +251,6 @@ class ZigZags:
             n_out = Vector((-e2.y, e2.x))
             if n_out.dot(h) > 0:
                 n_out = -n_out
-            c0 = min(float(m.get("glue_from", 0.0) or 0.0), g2 - 3.0) if False else 0.0
             ins = min(0.5 * tab, 0.3 * g2)
             tp = [P[:], Et[:], (Et + n_out * tab - e2 * ins)[:], (P + n_out * tab + e2 * ins)[:]]
             lift = host.lift[1 if side == "R" else 0] * TAB_LIFT

@@ -17,7 +17,7 @@ from mathutils import Vector  # noqa: E402
 bpy.ops.wm.read_factory_settings(use_empty=True)
 import popup_pro as addon  # noqa: E402
 from popup_pro import build, export_svg, live  # noqa: E402
-from popup_pro.core.geom import v3, poly_area  # noqa: E402
+from popup_pro.core.geom import v3  # noqa: E402
 
 addon.register()
 sc = bpy.context.scene
@@ -65,7 +65,6 @@ def cross(model, na, nb, t):
     points."""
     pa, pb = model.panels[na], model.panels[nb]
     Ma, Mb = pa.asm(t), pb.asm(t)
-    Mbi = Mb.inverted()
     o, n = Mb.translation, (Mb.to_3x3() @ Vector((0, 0, 1))).normalized()
     return [((Ma @ v3(q)) - o).dot(n) for poly in pa.polys for q in poly]
 

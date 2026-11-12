@@ -359,7 +359,7 @@ class Tubes:
         if nrm.dot(geo(120.0)["xh"]) > 0:
             flip[0] = -1.0
 
-        names, groups = [], []
+        names = []
         for i in range(len(seq) - 1):
             if i == 0:
                 nm, grp, lb = "FL_", "FL_", "left side"

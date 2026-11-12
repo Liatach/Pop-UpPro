@@ -3,7 +3,6 @@ walls on angled sticking strips with every crease square to their bottoms;
 and the v0.67 follow-ups (V-fold on top, arch shapes, the M-fold) are in
 test_vfolds_v67."""
 # families: zigzags
-import math
 import os
 import sys
 import tempfile
@@ -16,9 +15,8 @@ from mathutils import Vector  # noqa: E402
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 import popup_pro as addon  # noqa: E402
-from popup_pro import build, export_svg  # noqa: E402
+from popup_pro import build  # noqa: E402
 from popup_pro.core.geom import v3  # noqa: E402
-from popup_pro.core.model import Model  # noqa: E402
 
 addon.register()
 sc = bpy.context.scene
@@ -60,7 +58,6 @@ def shut_spread(model):
 
 
 
-from popup_pro.core.geom import poly_area  # noqa: E402
 
 svg = os.path.join(tempfile.mkdtemp(), "t.svg")
 

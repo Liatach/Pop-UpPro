@@ -17,7 +17,6 @@ scale, and X a left-right mirror for the back (seen from behind, the image
 reads the right way round)."""
 import math
 import os
-import tempfile
 
 import bpy
 from bpy.props import (BoolProperty, EnumProperty, FloatProperty, IntProperty,
@@ -626,7 +625,6 @@ class POPUP_OT_add_image(bpy.types.Operator):
 
     def execute(self, context):
         sc = context.scene
-        st = sc.popup
         try:
             img = bpy.data.images.load(bpy.path.abspath(self.filepath), check_existing=True)
         except RuntimeError as ex:

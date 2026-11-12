@@ -62,7 +62,7 @@ assert bpy.ops.popup.build() == {"FINISHED"}
 assert not st.warnings, st.warnings
 model = build.make_model(sc)[0]
 assert any(not v["straight"] for v in model.tethers.values()), "expected a creased tether"
-print("tethers:", {model.mechs[i]["label"] if False else k: (v["straight"], round(v["length"], 1))
+print("tethers:", {k: (v["straight"], round(v["length"], 1))
                    for k, v in model.tethers.items()})
 rig, card = st.rig, st.card
 s = 1 / st.mm_per_unit

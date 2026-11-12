@@ -47,7 +47,7 @@ def build_layout(model, margin=8.0, gap=6.0):
 
     # sheet 1: the card, centred
     s0 = new_sheet(card_sheet)
-    W, H = model.W, model.H
+    H = model.H
     prints["Card"] = place(0.0, s0.origin[0] + card_sheet[0] / 2.0,
                            s0.origin[1] + (card_sheet[1] - H) / 2.0)
     on_sheet["Card"] = 0

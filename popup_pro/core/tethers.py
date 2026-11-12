@@ -106,7 +106,7 @@ class Tethers:
         d0 = min(d0, dmin)
         # When shut it folds back on itself past one end; pick the end that
         # keeps that fold on the card (nearest the middle).
-        pa0, pb0 = endA(T_MIN), endB(T_MIN)
+        pa0, _pb0 = endA(T_MIN), endB(T_MIN)
         past = []
         for longA in (True, False):
             la, lb = (0.5 * (L + d0), 0.5 * (L - d0)) if longA else (0.5 * (L - d0), 0.5 * (L + d0))

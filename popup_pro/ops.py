@@ -1364,7 +1364,6 @@ class POPUP_OT_done_painting(bpy.types.Operator):
 
     def execute(self, context):
         sc = context.scene
-        st = sc.popup
         if context.mode != "OBJECT":
             try:
                 bpy.ops.object.mode_set(mode="OBJECT")

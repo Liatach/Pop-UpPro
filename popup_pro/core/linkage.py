@@ -451,7 +451,6 @@ def build(model, m, host, plan, pieces, lab, tab):
     for i, pc in enumerate(pieces):
         model.add_piece(Piece(f"{base}.{pc['key']}", f"{lab}: {pc['label']}", slot + 100 * i,
                               (0.0, 0.3 * 297.0)))
-    s, c = math.sin(plan.C), math.cos(plan.C)
     # virtual strip points, each side (for the glued walls' hinges and tabs)
     vpts = {"A.R": plan.vA, "B.R": plan.vB, "A.L": (-plan.vA[0], plan.vA[1]),
             "B.L": (-plan.vB[0], plan.vB[1])}
@@ -518,7 +517,6 @@ def build(model, m, host, plan, pieces, lab, tab):
                                 f"{lab}: {pc['label']} tab"))
 
     # tabs where pieces meet: glued flat on the other piece's wall
-    tref = 90.0
     for pc in pieces:
         ns = pc["nodes"]
         for end in ("first", "last"):

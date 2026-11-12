@@ -122,7 +122,7 @@ tt = st.mechs[-1]
 tt.from_uid, tt.from_pt, tt.to, tt.to_y = t.uid, "CF", "RIGHT", 20.0
 build.rebuild(sc, force=True)
 assert not [w for w in warns() if "Traceback" in w], warns()
-faces_in_mesh(f"Teth")
+faces_in_mesh("Teth")
 st.active = len(st.mechs) - 1
 bpy.ops.popup.remove()
 print("tether at a round front's crease")

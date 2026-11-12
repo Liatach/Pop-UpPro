@@ -11,7 +11,6 @@ object edits the flat paper, and the folded card follows.
 """
 
 import json
-import math
 
 import bmesh
 import bpy
@@ -56,8 +55,8 @@ def art_uv(model, piece, q):
     return (tu + min(max(u, 0.0), 0.999), tv + min(max(v, 0.0), 0.999))
 
 
-TILE_UV = "PopupTile"
-T_SHARE = 5.0  # degrees: folds checked closed from here up to full open  # each piece's own place in the art (bake target, export)
+TILE_UV = "PopupTile"  # each piece's own place in the art (bake target, export)
+T_SHARE = 5.0  # degrees: folds checked closed from here up to full open
 
 
 def tab_art(model):

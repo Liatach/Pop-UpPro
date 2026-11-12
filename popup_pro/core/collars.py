@@ -22,7 +22,7 @@ class Collars:
         curling its end out of the way. Any slope short of level works, the
         same both sides of each corner. A railing (battlements optional)
         stands on each floor's outer edge, upright like the walls."""
-        uid, lab = m["uid"], m["label"]
+        lab = m["label"]
         tr = self.tmax
         S0, l0, r0, Y0, nl, nr = host.dirs(tr)
         top = y0 + w
@@ -48,7 +48,6 @@ class Collars:
         A = S + a * l0
         B = S + b * r0
         C = A + b * r0
-        mid = 0.5 * (S + C)
         S1, l1, r1, _, _, _ = host.dirs(max(2.0, 0.1 * tr))
         opening = l1.angle(r1) > l0.angle(r0)
         if any(n not in self.panels for n in self._tw_pair(base)):

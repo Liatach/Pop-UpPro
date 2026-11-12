@@ -10,13 +10,12 @@ Layers: art, sketch, glue, guides, valley, mountain, cut, labels.
 """
 
 import base64
-import math
 import os
 import tempfile
 from xml.sax.saxutils import escape
 
 import bpy
-from mathutils import Matrix, Vector
+from mathutils import Vector
 
 from . import live
 from .naming import N

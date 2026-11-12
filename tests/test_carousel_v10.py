@@ -19,7 +19,6 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 import popup_pro as addon  # noqa: E402
 from mathutils import Vector  # noqa: E402
 from popup_pro import art, build, carousel, export_svg, holes, live  # noqa: E402
-from popup_pro.core.layout import build_layout  # noqa: E402
 from popup_pro.naming import N  # noqa: E402
 from popup_pro.ops import _add  # noqa: E402
 

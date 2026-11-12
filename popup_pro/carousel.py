@@ -87,7 +87,6 @@ def rebuild_stage(scene):
 
 def new_stage(master, index):
     """A stage scene for the carousel, with a staging frame and one frame."""
-    from . import build
     from .ops import _add
     sc = bpy.data.scenes.new(f"{master.name} · Stage {index}")
     st = sc.popup
@@ -261,7 +260,7 @@ def _sync():
 
 
 def goto(context, scene):
-    from .ops import painting, stale_paint_view
+    from .ops import painting
     try:
         if painting(context):  # finish painting here before leaving the stage
             bpy.ops.popup.done_painting()

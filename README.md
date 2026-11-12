@@ -11,7 +11,7 @@ them.**
 
 1. Download `popup_pro-x.y.z.zip` from
    [Releases](https://github.com/Liatach/Pop-UpPro/releases) and install it
-   in Blender 4.3 or later: **Edit → Preferences → Get Extensions → ⌄ →
+   in Blender 5.0 or later: **Edit → Preferences → Get Extensions → ⌄ →
    Install from Disk**. Or simply drag the zip into Blender.
 2. In the 3D view press **N** and open the **Pop-Up** tab.
 3. Pick a card size and press **Build Card**, or **Make Carousel** for a
@@ -35,37 +35,37 @@ Every setting is explained in more detail in the [guide](docs/guide.md).
 
 <!-- SHOT: box layer + box layer on top, Battlements / Pointed Tower presets, a door flap on the front, two stand-ups (one in front of the other). Showcase look. -->
 ### Castle
-![Castle](docs/images/castle%20card%20sml.gif)
+![Castle](docs/images/castle%20card%20sml.webp)
 
 Stacked box layers with battlements, a spire and a hinged door, and parallelogram stand-ups in front.
 
 <!-- SHOT: strap Peaks 3 with cubes in two valleys; a slanted strap; asym V-fold with a box on its crease. Showcase look, ~110° open. -->
 ### Off the centre
-![Off the centre](docs/images/cubes%20on%20an%20offset%20strap.gif)
+![Off the centre](docs/images/cubes%20on%20an%20offset%20strap.webp)
 
 A strap with three peaks carrying cubes in its valleys, a slanted strap, and an asymmetric V-fold leaning a tower to one side.
 
 ### Stacking
-![Stacked boxes and insets](docs/images/stacked%20boxes%20and%20insets%20sml.gif)
+![Stacked boxes and insets](docs/images/stacked%20boxes%20and%20insets%20sml.webp)
 
 Box layers stacked on box layers, glued boxes on top and insets pushed into their corners.
 
 <!-- SHOT: hexagon tube with pointed roof, tent, pyramid, tethers between them; basic box (flat Dip roof + rib) with a V-fold on its roof. Dawn look. -->
 ### Village
-![Village](docs/images/cube%20village.gif)
+![Village](docs/images/cube%20village.webp)
 
 Tubes and pyramids on parallel strips, tied together with tethers, and a basic box whose roof is a second spine.
 
 <!-- SHOT: 5-stage carousel at ~300°, staging frame with an arch, window Through Everything Behind, a floor with a V-fold on its crease, peaked-roof background. Dawn look. -->
 ### Carousel
-![Carousel](docs/images/carousel%20example.gif)
+![Carousel](docs/images/carousel%20example.webp)
 
 Five stages opening right round, with frames, windows cut through every layer, floors and a peaked roof.
 
 <!-- SHOT: a mouth, two Jaw V-folds facing each other, a beak V-fold, a flap mid-pull. Could be a GIF. -->
 ### Creatures & Characters
-![The Sneeze](docs/images/the%20sneeze.gif)
-![A talkative Bird](docs/images/birdface.gif)
+![The Sneeze](docs/images/the%20sneeze.webp)
+![A talkative Bird](docs/images/birdface.webp)
 
 Mouths, jaws and beaks that chomp as the card opens, eyes that move and more.
 
@@ -250,6 +250,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.77.1**: needs Blender 5.0 or later (the manifest said 4.3, but on
+  Blender 4.x Draw Anywhere, the sketch layers, Set Up Scene and the rig's
+  folding don't work: tested on 4.3, 4.5, 5.0 and 5.2). No change to how
+  it works on 5.x; unused code cleared out with a linter.
 * **0.77**: where mechanisms stand, tidied. Stands On lists only what a kind
   can stand on (zig-zags and quadrilaterals now, not fans or angled box
   folds) and picking from it starts on a fold that works; the + menu no
@@ -264,10 +268,6 @@ Sunflower is a good way to make them.
   shut (they gave up part-way and cut through); a 0.75 mm corner gap; tiers
   alternating out and in; the loop with wider tabs, and as a slice of a cone
   (Top Radius); tower roofs and collars on cubes.
-* **0.75**: Angled box folds, under Box Fold settings: the glue
-  lines turned, with one crease or three; the loop (Birmingham 16), a ring
-  on two tabs; collars stacked in tiers, out or tapering in, their railings
-  running right round the curled corners.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 
@@ -276,7 +276,11 @@ Earlier versions are in the [changelog](CHANGELOG.md).
 Tests run with `pip install bpy`: `python tests/run_all.py` runs them all,
 several at a time, and `python tests/run_all.py collars` only one family's
 (`--list` shows the families). `python scripts/since_upload.py` shows what
-has changed since the last upload here. How the solver and rig work is in
+has changed since the last upload here. `scripts/build.sh` builds the zip
+(with Blender, or with that same Python), `ruff check` lints
+(`pip install ruff`; settings in `ruff.toml`), and
+`scripts/gif_to_webp.sh` turns a GIF for this page into an animated WebP a
+tenth of the size. How the solver and rig work is in
 the [guide](docs/guide.md#how-it-works).
 
 ## Licence

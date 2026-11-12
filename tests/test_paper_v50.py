@@ -9,7 +9,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 import bpy  # noqa: E402
-from mathutils import Vector  # noqa: E402
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 import popup_pro as addon  # noqa: E402

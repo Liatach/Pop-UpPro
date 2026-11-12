@@ -57,7 +57,6 @@ class Solver:
                 except ValueError:
                     # the host can't hold this pose (paper would tear there):
                     # follow it as best we can and say so
-                    p = self.panels[name]
                     M = h.Hp.inverted() @ self.rel(name, t) @ h.Fc
                     cache[t] = angle_from_roty(M)
                     bad.append(t)

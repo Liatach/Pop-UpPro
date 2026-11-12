@@ -170,7 +170,7 @@ class Roofs:
         # second layer folded back round the end, glued behind the first
         G = frame(Vector((2 * y2, 0.0, -2 * TAB_LIFT)), (-1, 0, 0), (0, 1, 0))
         asm2 = (lambda t, G=G: asm1(t) @ G)
-        W2 = self.add(Panel(f"{piece}.W2", piece, "panel", [[(y2, 0), (y2 + L, 0),
+        self.add(Panel(f"{piece}.W2", piece, "panel", [[(y2, 0), (y2 + L, 0),
                                                              (y2 + L, hgt), (y2, hgt)]],
                             asm2, W1.name, None, f"{lab}: rib back"))
         c = min(0.3 * w, 0.2 * L)

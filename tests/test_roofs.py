@@ -2,7 +2,6 @@
 stays glued, end tabs sit on their slope, and nets never overlap
 themselves, for pyramids, hexagonal pyramids, tents, hips and tube caps."""
 # families: roofs
-import math
 import os
 import sys
 

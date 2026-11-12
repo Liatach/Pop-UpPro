@@ -3,7 +3,6 @@ piece's edge trims its outline in the print (cut on export), openings can be
 cut in any piece (roofs and ribs included), and holes that cut a fold right
 through are flagged."""
 # families: holes, paint, export
-import math
 import os
 import sys
 import tempfile

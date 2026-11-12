@@ -3,6 +3,10 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.77.1**: needs Blender 5.0 or later (the manifest said 4.3, but on
+  Blender 4.x Draw Anywhere, the sketch layers, Set Up Scene and the rig's
+  folding don't work: tested on 4.3, 4.5, 5.0 and 5.2). No change to how
+  it works on 5.x; unused code cleared out with a linter.
 * **0.77**: where mechanisms stand, tidied. Stands On lists only what a kind
   can stand on (zig-zags and quadrilaterals now, not fans or angled box
   folds) and picking from it starts on a fold that works; the + menu no

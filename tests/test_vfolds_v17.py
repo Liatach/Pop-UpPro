@@ -2,7 +2,6 @@
 angles and a Lean, forwards or pointing backwards), and mechanisms standing
 on a V-fold's own crease, carried off the card's centre."""
 # families: vfolds, hosts
-import math
 import os
 import sys
 

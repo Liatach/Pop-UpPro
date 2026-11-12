@@ -15,7 +15,7 @@ import numpy as np  # noqa: E402
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 import popup_pro as addon  # noqa: E402
-from popup_pro import art, bakecheck, build  # noqa: E402
+from popup_pro import art, bakecheck  # noqa: E402
 from popup_pro.export_svg import _tile_pngs  # noqa: E402
 from popup_pro.naming import N  # noqa: E402
 

@@ -273,7 +273,6 @@ def ink_material():
 
 
 def ensure_sketch(scene):
-    st = scene.popup
     obj = bpy.data.objects.get(N(scene, SKETCH))
     if obj is None or obj.type != "GREASEPENCIL":
         gp = bpy.data.grease_pencils.new(N(scene, SKETCH))

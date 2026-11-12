@@ -4,10 +4,17 @@
     python tests/run_all.py collars loops   only those families
     python tests/run_all.py v76 roofs       a family or part of a file's name
     python tests/run_all.py --list          the families and their tests
+    python tests/run_all.py --python /path/to/python --hard-exit
+                                            with another Blender's bpy (see below)
 
 Run it with a Python that has bpy (`pip install bpy`). Each test is its own
 script and runs in its own process; its output goes to tests/out/logs/. The
 exit code is 0 only if every test passed.
+
+To check the oldest Blender the manifest allows, make a venv with that
+version's bpy (`pip install bpy==5.0.1`, on the Python it needs) and pass its
+python with --python. The bpy modules of older Blenders can crash or hang as
+Python shuts down, after a test has finished: --hard-exit skips that.
 
 Tests are named test_<family>_v<release>.py after the family they are mostly
 about, and each has a `# families: a, b, c` line under its docstring naming
@@ -27,6 +34,24 @@ OUT = os.path.join(HERE, "out")
 LOGS = os.path.join(OUT, "logs")
 TIMES = os.path.join(OUT, "durations.json")
 TAG = re.compile(r"^# families:\s*(.+)$", re.M)
+# --hard-exit: run the test, then leave at once, skipping Blender's shutdown
+# (the bpy modules of older Blenders crash or hang there, after the test is done)
+HARD_EXIT = """
+import os, runpy, sys, traceback
+path = sys.argv[1]
+sys.argv = [path]
+rc = 0
+try:
+    runpy.run_path(path, run_name="__main__")
+except SystemExit as e:
+    rc = e.code if isinstance(e.code, int) else int(bool(e.code))
+except BaseException:
+    traceback.print_exc()
+    rc = 1
+sys.stdout.flush()
+sys.stderr.flush()
+os._exit(rc)
+"""
 
 
 def families(path):
@@ -56,12 +81,13 @@ def wanted(tests, filters):
     return out
 
 
-def run_one(name, python, timeout):
+def run_one(name, python, timeout, hard_exit=False):
     log = os.path.join(LOGS, name[:-3] + ".log")
     t0 = time.time()
+    cmd = [python, "-c", HARD_EXIT] if hard_exit else [python]
     with open(log, "w", encoding="utf-8") as f:
         try:
-            rc = subprocess.run([python, os.path.join(HERE, name)], stdout=f,
+            rc = subprocess.run(cmd + [os.path.join(HERE, name)], stdout=f,
                                 stderr=subprocess.STDOUT, timeout=timeout,
                                 cwd=os.path.dirname(HERE)).returncode
         except subprocess.TimeoutExpired:
@@ -86,6 +112,9 @@ def main():
                     help="the Python to run tests with (default: this one)")
     ap.add_argument("--timeout", type=float, default=1800.0,
                     help="seconds before a test is stopped (default 1800)")
+    ap.add_argument("--hard-exit", action="store_true",
+                    help="leave each test without Blender's shutdown (for the bpy of an "
+                         "older Blender, which can crash or hang there)")
     ap.add_argument("--tail", type=int, default=15,
                     help="lines of a failed test's log to show (default 15)")
     a = ap.parse_args()
@@ -122,7 +151,7 @@ def main():
     t0 = time.time()
     failed, done = [], 0
     with ThreadPoolExecutor(jobs) as pool:
-        futs = [pool.submit(run_one, n, a.python, a.timeout) for n in names]
+        futs = [pool.submit(run_one, n, a.python, a.timeout, a.hard_exit) for n in names]
         for fut in as_completed(futs):
             name, rc, secs, log = fut.result()
             done += 1

@@ -1,0 +1,21 @@
+# Lint with `ruff check` (pip install ruff). Not needed to run or build the
+# add-on; it catches unused imports, undefined names and the like.
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E741",  # l, O, I as names: l and r are the left and right of a fold throughout
+    "E731",  # small lambdas given names
+    "E402",  # imports after sys.path and factory-settings set-up (tests, scripts)
+    "E501",  # line length isn't enforced: lines are kept to 100, bar some long strings
+             # and one-line set-ups in tests
+]
+
+[lint.per-file-ignores]
+# Blender properties are annotations that are calls, with enum items as
+# strings: pyflakes reads those as broken type hints
+"popup_pro/*.py" = ["F722", "F821"]
+# everything that used to be in model.py is still exported from it
+"popup_pro/core/model.py" = ["F401"]

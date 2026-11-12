@@ -2,7 +2,6 @@
 their tips, a roof stuck only to the rib), tubes and castles in two strips,
 balconies on arches with open railings, balconies outside a castle's towers."""
 # families: towers, roofs, tubes, balconies
-import math
 import os
 import sys
 import tempfile

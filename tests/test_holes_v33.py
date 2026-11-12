@@ -89,7 +89,6 @@ assert "warn" not in str(st.get("pop_warnings", "")).lower() or True
 print("all v33 checks pass")
 
 # ---- box presets: flip across the fold, turn and move the whole shape
-import importlib  # noqa: E402
 st.active = 0
 n0 = len(box.lines)
 assert bpy.ops.popup.add_line(preset="BATTLEMENTS") == {"FINISHED"}

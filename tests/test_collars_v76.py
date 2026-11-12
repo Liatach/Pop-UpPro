@@ -4,7 +4,6 @@ that alternate out and in; the loop with longer sides (wider tabs) and as a
 slice of a cone (narrower or wider at the top); tower roofs and collars on
 cubes."""
 # families: collars, loops, cones, cubes, towers
-import math
 import os
 import sys
 import tempfile

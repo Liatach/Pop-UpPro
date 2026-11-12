@@ -1,7 +1,6 @@
 """v0.4: closing stop, solid paper, Art + Cut export, tab colour, red
 creases, bleed, and bakes that leave the user's materials untouched."""
 # families: export, paper, bake
-import math
 import os
 import sys
 

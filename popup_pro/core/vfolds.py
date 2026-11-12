@@ -575,7 +575,6 @@ class VFolds:
             hg = Hinge(Hp, Fc, "TABLE")
             hg.corner_ok = True
             hg.host_bound = True
-            kind = "ridge" if k % 2 else "valley"
             self.add(Panel(name, piece, "panel", [poly], asm, prev, hg,
                            f"{lab}: pleat {k // 2 + 1} {'right' if k % 2 else 'left'}"))
             names.append(name)
