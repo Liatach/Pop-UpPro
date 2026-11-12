@@ -3,6 +3,11 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.78**: a cone's **Lean** as an angle (it and Top Radius set each
+  other) and a lid on a cone (a Flat roof, peaked or dipped); a collar's
+  railing runs into the curled corner as one strip, bending where the curl
+  starts instead of splitting there; clicking a warning in Checks selects
+  the mechanism it's about.
 * **0.77.1**: needs Blender 5.0 or later (the manifest said 4.3, but on
   Blender 4.x Draw Anywhere, the sketch layers, Set Up Scene and the rig's
   folding don't work: tested on 4.3, 4.5, 5.0 and 5.2). No change to how

@@ -61,6 +61,16 @@ def loop_cone():
     return (0, 105, 12), 250
 
 
+def cone_lid():
+    a = add("TUBE", variant="LOOP")
+    a.y, a.height, a.depth = 55.0, 30.0, 20.0
+    a.cone_lean, a.roof = 20.0, "FLAT"
+    b = add("TUBE", variant="LOOP")
+    b.y, b.height, b.depth = 135.0, 30.0, 20.0
+    b.cone_lean, b.roof, b.roof_fold = 20.0, "FLAT", "DIP"
+    return (0, 95, 18), 240
+
+
 def angled_box():
     a = add("BOX", variant="ANGLED")
     a.y = 60.0
@@ -78,8 +88,8 @@ def cube_tower():
     return (0, 103, 34), 165
 
 
-SCENES = dict(collar_tiers=collar_tiers, loop_cone=loop_cone, angled_box=angled_box,
-              cube_tower=cube_tower)
+SCENES = dict(collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+              angled_box=angled_box, cube_tower=cube_tower)
 
 
 def tint(card):

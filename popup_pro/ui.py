@@ -651,11 +651,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                       icon="INFO")
         if m.kind == "TUBE" and m.front_style == "ROUND" and m.back_style == "ROUND":
             col.prop(m, "cone_top")
-            if m.cone_top > 0.05 and abs(m.cone_top - m.x) > 0.5:
-                import math as _m
-                lean = _m.degrees(_m.atan2(m.x - m.cone_top, max(m.height, 0.1)))
-                col.label(text=f"Walls lean {'in' if lean > 0 else 'out'} "
-                          f"{abs(lean):.0f}° (half circles each end)", icon="INFO")
+            col.prop(m, "cone_lean")  # (the same thing, as an angle)
         col.prop(m, "strips")
         col.prop(m, "roof")
         if m.roof == "POINTED":
@@ -1345,10 +1341,18 @@ class POPUP_PT_checks(_Base, bpy.types.Panel):
         if not ws:
             self.layout.label(text="Folds flat, opens flat, no collisions found")
         else:
+            from .ops import warned_mech
             col = self.layout.column(align=True)
             col.alert = True
             for w in ws:
-                col.label(text=w, icon="ERROR")
+                m = warned_mech(st, w)
+                if m is None:
+                    col.label(text=w, icon="ERROR")
+                else:  # click it to select the mechanism it's about
+                    row = col.row()
+                    row.alignment = "LEFT"
+                    row.operator("popup.select_warned", text=w, icon="ERROR",
+                                 emboss=False).uid = m.uid
         _plan_view(self.layout, st)
 
 

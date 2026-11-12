@@ -68,7 +68,8 @@ start, see the [README](../README.md).
 6. **Checks** sits right under the card panel. Its header says *all clear*,
    or turns red with how many things to fix: paper that would tear, panels
    poking through a page, pieces sticking out of the closed card, pieces
-   too big for the sheet. **Plan View** at its foot shows the card squashed
+   too big for the sheet. Click one to select the mechanism it's about.
+   **Plan View** at its foot shows the card squashed
    flat and see-through, to see what overlaps what ([Plan View](#plan-view)).
 7. **Artwork**: **Draw Anywhere** draws on the card with Grease Pencil, folded
    or flat, across folds, and puts it on the paper ([Artwork that stays on
@@ -179,10 +180,20 @@ shows the lean). Every wall turns about the cone's point, which rides up and
 down above the fold as the card opens (like a pyramid's apex), so it still
 shuts flat; the round ends' facets keep their crease on the middle line. It's
 cut as a curved band (two bands if it would wrap too far round to cut in one
-piece). No roof on a cone. 0: straight up (a plain loop or cylinder).
+piece). 0: straight up (a plain loop or cylinder). **Lean** is the same
+setting as an angle, the walls' lean in from upright (less than 0 flares
+them out): set either and the other follows, Top Radius = Strip Distance -
+Height x tan(Lean). A cone takes a **Flat** roof as a lid, the shape of its
+top, in two halves hinged on the side walls' tops: **Peak** stands it up as
+the card shuts, **Dip** tucks it down inside (the walls must be at least as
+tall as Top Radius), and **Eave** lets a peaked lid overhang. No other roof
+on a cone.
 
 ![A loop, and behind it a cone (a loop with a smaller Top Radius), at 175,
 115 and 55 degrees](images/loop_cone.jpg)
+
+![Cones with lids: peaked in front, dipped behind, at 175, 115 and 55
+degrees](images/cone_lid.jpg)
 
 **Balconies**: with a tube or cube selected, the **+** menu adds a
 **Balcony** on its left or right wall, or **Balconies on Both Side Walls**;
@@ -304,8 +315,9 @@ tube and **Fold** to an *Inside Corner*.
   * **Tiers** (with a railing): another collar hung on the railings' tops,
     and another on that one's, up to six: the same width and slope, each
     tier's tabs glued down the railing below. On a curling corner the
-    railing runs right into the corner along the curl, meeting its own part
-    on an upright seam where the curl starts. Out, they step out like a
+    railing runs right into the corner as one strip: it bends on the
+    upright line where the curl starts, and is cut free of the curl's edge
+    there so the curl can turn under it. Out, they step out like a
     pagoda's balconies; tapering in, each leans in as far again, so only so
     many fit before they meet in the middle (narrower, steeper floors fit
     more; Checks says how many). Battlements go on the top tier.

@@ -563,6 +563,35 @@ def _put_on(st, uid, host, fold="A"):
     st["live"] = was
 
 
+def warned_mech(st, warning):
+    """The mechanism a warning is about (they start with its label: "Tube 1:",
+    "Tube 1 roof:", "Tube 1 and Cube 2 ..."), or None."""
+    best = None
+    for m in st.mechs:
+        lab = m.label
+        if warning.startswith(lab) and warning[len(lab):len(lab) + 1] in (":", " ") and (
+                best is None or len(lab) > len(best.label)):
+            best = m
+    return best
+
+
+class POPUP_OT_select_warned(bpy.types.Operator):
+    """Select the mechanism this is about, to see its settings"""
+    bl_idname = "popup.select_warned"
+    bl_label = "Select Its Mechanism"
+    bl_options = {"REGISTER", "UNDO", "INTERNAL"}
+
+    uid: IntProperty()
+
+    def execute(self, context):
+        st = context.scene.popup
+        for i, m in enumerate(st.mechs):
+            if m.uid == self.uid:
+                st.active = i
+                return {"FINISHED"}
+        return {"CANCELLED"}
+
+
 class POPUP_OT_remove(bpy.types.Operator):
     """Remove the selected mechanism"""
     bl_idname = "popup.remove"
@@ -2239,7 +2268,7 @@ class POPUP_OT_visibility(bpy.types.Operator):
         return {"FINISHED"}
 
 
-classes = (POPUP_OT_visibility, POPUP_OT_tri_pictures, POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
+classes = (POPUP_OT_select_warned, POPUP_OT_visibility, POPUP_OT_tri_pictures, POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
            POPUP_OT_remove_line, POPUP_OT_draw_lines,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,

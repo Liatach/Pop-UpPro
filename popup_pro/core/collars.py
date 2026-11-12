@@ -426,9 +426,9 @@ class Collars:
     def _collar_rails(self, m, floors, curls, rh, host, last=True):
         """A railing on each collar floor's outer edge, standing upright (like
         the walls) as the floor turns, so it folds flat on it; on a floor
-        whose end curls it carries on along the curl, meeting its own part
-        on an upright line where the curl starts, so it runs right into the
-        corner. Battlements cut along the top tier's if asked. Returns each
+        whose end curls it carries on into the corner as the same strip,
+        bending on the upright line where the curl starts and cut free of
+        the curl's edge, which turns under it. Battlements cut along the top tier's if asked. Returns each
         floor's railing (name, start, way along, way up, in its pattern)."""
         lab = m["label"]
         cren = bool(m.get("collar_crenels", False)) and last
@@ -496,10 +496,30 @@ class Collars:
                 if len(onc) >= 2:
                     u1 = max((q - q0).dot(d) for q in onc)
                     if u1 > L_ + 0.5:
+                        # one strip with the floor's own railing, bending on
+                        # the upright line where the curl starts (no split
+                        # there): it keeps that line, and leans along the
+                        # curl's edge as nearly as an upright strip can, free
+                        # of the curl itself (the curl turns under it)
+                        seam = q0 + d * L_
+
+                        def asm_c(t, f=rp.asm, cp=cp, seam=seam, d=d, nrm=nrm):
+                            M1 = f(t)
+                            R1 = M1.to_3x3()
+                            up = (R1 @ Vector((nrm.x, nrm.y, 0.0))).normalized()
+                            e = cp.asm(t).to_3x3() @ Vector((d.x, d.y, 0.0))
+                            e = e - e.dot(up) * up
+                            if e.length < 1e-6:
+                                e = R1 @ Vector((d.x, d.y, 0.0))
+                            Fp = frame(Vector((seam.x, seam.y, 0.0)), (d.x, d.y, 0.0),
+                                       (nrm.x, nrm.y, 0.0))
+                            return frame(M1 @ v3(seam), e.normalized(), up) @ Fp.inverted()
+
                         rc = self.add(Panel(f"{cn}Rail", half.piece, "panel",
-                                            parts(L_, u1), make_asm(cp), cn,
-                                            Hinge(hf, hf, "TABLE", {}),
+                                            parts(L_, u1), asm_c, rp.name, None,
                                             f"{lab}: collar railing"))
+                        rc.hinge = self._hinge_on(rp.name, asm_c, tuple(seam),
+                                                  tuple(seam + nrm * rh))
                         rc.hinge.host_bound = True
                         rc.hinge.kink_ok = True
                         pr = frozenset((rp.name, rc.name))

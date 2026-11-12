@@ -553,6 +553,19 @@ def _host_set(self, value):
     live.schedule(bpy.context.scene)
 
 
+def _cone_lean_get(self):
+    if self.cone_top <= 0.05:
+        return 0.0  # (Top Radius 0: straight up)
+    return math.degrees(math.atan2(self.x - self.cone_top, max(self.height, 0.1)))
+
+
+def _cone_lean_set(self, value):
+    if abs(value) < 0.05:
+        self.cone_top = 0.0
+    else:  # (never to a point: 1 mm across at the least)
+        self.cone_top = max(1.0, self.x - self.height * math.tan(math.radians(value)))
+
+
 def _fold_changed(self, context):
     if self.host_uid:
         fit_to_host(self, context.scene.popup)
@@ -1077,6 +1090,12 @@ class PopupMech(bpy.types.PropertyGroup):
                             "middle, where its bottom is the strip distance; smaller leans "
                             "the walls in (a cone), bigger flares them out. 0: straight up",
                             default=0.0, min=0.0, soft_max=80.0, update=_changed)
+    cone_lean: FloatProperty(name="Lean", description="Round tube: how far its walls lean "
+                             "in from upright (a cone), in degrees; less than 0 flares "
+                             "them out. Another way to set Top Radius (they change "
+                             "together): Top Radius = Strip Distance - Height x tan(Lean)",
+                             min=-80.0, max=80.0, soft_min=-45.0, soft_max=45.0,
+                             precision=1, get=_cone_lean_get, set=_cone_lean_set)
     strips: IntProperty(name="Strips", description="Tube: its walls cut as one strip of "
                         "paper, or two (left side and front, right side and back) joined "
                         "by a tab, so a big tube or castle fits the print sheet",

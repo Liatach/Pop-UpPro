@@ -209,10 +209,9 @@ Sunflower is a good way to make them.
   edge; a cylinder's lid trimmed as the book's (68).
 * **Collars, continued**: round a whole tube or castle (its corners don't
   close in pairs the way a tower's do), round box folds, upside down as
-  cornices, and on pillars; railings meeting at the corner without the
-  upright seam where the curl starts.
+  cornices, and on pillars.
 * **Loops and cones, continued**: the loop made into an animal's head
-  (Birmingham 17); a cone's lean set as an angle; a lid on a cone.
+  (Birmingham 17).
 * **Angled box folds, continued**: on other folds (straps, towers, another
   box), glued by inset tabs, and with peaks.
 * **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
@@ -229,7 +228,6 @@ Sunflower is a good way to make them.
   * The Add menu grouped by where things go (on the spine, on a V-fold, on
     a floor or ceiling, in a stage); it already offers what fits the
     selected host, but the list has grown long.
-  * Clicking a warning in Checks selects the mechanism it's about.
 * Door flaps on cubes, tubes and stand-up pictures.
 * **Tabs that carry the art**, continued: outside tabs (V-folds with Tab
   Side Outside) already print the art of the part they glue onto. Next:
@@ -250,6 +248,11 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.78**: a cone's **Lean** as an angle (it and Top Radius set each
+  other) and a lid on a cone (a Flat roof, peaked or dipped); a collar's
+  railing runs into the curled corner as one strip, bending where the curl
+  starts instead of splitting there; clicking a warning in Checks selects
+  the mechanism it's about.
 * **0.77.1**: needs Blender 5.0 or later (the manifest said 4.3, but on
   Blender 4.x Draw Anywhere, the sketch layers, Set Up Scene and the rig's
   folding don't work: tested on 4.3, 4.5, 5.0 and 5.2). No change to how
@@ -264,10 +267,6 @@ Sunflower is a good way to make them.
   ("Rebuild failed"); a mouth on a zig-zag's or quadrilaterals' crease
   (skipped as overlapping); things on a platform now fit it. Warnings name
   the fold that isn't there.
-* **0.76**: collars' sliding corners curl as far as they must right down to
-  shut (they gave up part-way and cut through); a 0.75 mm corner gap; tiers
-  alternating out and in; the loop with wider tabs, and as a slice of a cone
-  (Top Radius); tower roofs and collars on cubes.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

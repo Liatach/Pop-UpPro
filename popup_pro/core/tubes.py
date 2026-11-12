@@ -440,6 +440,94 @@ class Tubes:
                                           (tgt.x, tgt.y)),
                            pg, None, f"{lab}: base tab {sd}"))
         self.line_frames[uid] = (piece, lambda q: q, None)
+        if m.get("roof", "NONE") == "FLAT" and rt >= 1.0:
+            r_ = 1.0 - f_top  # (the top's size over the bottom's: rt / a)
+            iR = 2 * n + 1
+            self._cone_lid(
+                m, P["FL_"], P["FR_"], rt, ym - 0.5 * r_ * D, ym + 0.5 * r_ * D,
+                # each side wall's top edge (back end, front end) and a point
+                # on its foot, in its own pattern
+                (pt2(0, r_, 0), pt2(1, r_, 0), pt2(0, 1.0, 0)),
+                (pt2(iR + 1, r_, iR), pt2(iR, r_, iR), pt2(iR, 1.0, iR)))
+
+    def _cone_lid(self, m, wl, wr, rt, y1, y2, edge_l, edge_r):
+        """A lid on a cone: a flat roof the shape of its top, in two halves
+        creased down the middle, each hinged on a side wall's top edge by a
+        tab folded in off the wall and glued underneath.
+
+        The side walls' tops are Top Radius x sin(t/2) from the mirror plane,
+        so a half Top Radius wide reaches it Top Radius x cos(t/2) above
+        (Peak) or below (Dip) its hinge, just as a tube's flat roof does: flat
+        when the card is open, standing up or tucked inside when shut."""
+        uid, lab = m["uid"], f"{m['label']} lid"
+        k = 1.0 if m.get("roof_fold", "PEAK") == "PEAK" else -1.0
+        eave = max(float(m.get("eave", 0.0)), 0.0)
+        hb = float(m["height"])
+        if k < 0 and rt > abs(hb) + 1e-6:
+            self.warn(f"{lab}: a dipped lid tucks {rt:.0f} mm down inside walls only "
+                      f"{abs(hb):.0f} mm tall; use Peak or taller walls")
+        if k < 0 and eave > 0:
+            self.warn(f"{lab}: a dipped lid can't overhang; made without its eave")
+            eave = 0.0
+        piece = f"Roof{uid}"
+        self.add_piece(Piece(piece, lab, 300 + uid, (0.0, 0.5 * (y1 + y2))))
+        # left half when open: the top's half circles each end (the cone's own
+        # facets), a straight edge on the wall; x = -rt on the hinge, 0 on the crease
+        R = rt + eave
+        ph = [0.5 * math.pi * i / ROUND_FACETS for i in range(ROUND_FACETS + 1)]
+        polyL = [(-R * math.cos(p), y2 + R * math.sin(p)) for p in reversed(ph)] + \
+            [(-R * math.cos(p), y1 - R * math.sin(p)) for p in ph]
+        polyR = [(-x, y) for x, y in polyL]
+
+        def place(t):
+            A = wl.asm(t) @ v3(edge_l[0])  # the walls' top edges, at their back ends
+            B = wl.asm(t) @ v3(edge_l[1])
+            A2 = wr.asm(t) @ v3(edge_r[0])
+            Y = (A - B).normalized()
+            X = A2 - A
+            d = 0.5 * X.length
+            e = X.cross(Y).normalized()
+            if e.dot(A - wl.asm(t) @ v3(edge_l[2])) * (1.0 if hb > 0 else -1.0) < 0:
+                e = -e  # (up: from the walls' feet to their tops)
+            C = 0.5 * (A + A2) + k * math.sqrt(max(rt * rt - d * d, 0.0)) * e
+            return C - y2 * Y, (C - A) / rt, (A2 - C) / rt, Y
+
+        def asm_L(t):
+            O, dL, dR, Y = place(t)
+            return frame(O, dL, Y)
+
+        def asm_R(t):
+            O, dL, dR, Y = place(t)
+            return frame(O, dR, Y)
+
+        HL = self.add(Panel(f"{piece}.L", piece, "panel", [polyL], asm_L, wl.name, None,
+                            f"{lab}: left half"))
+        HR = self.add(Panel(f"{piece}.R", piece, "panel", [polyR], asm_R, wr.name, None,
+                            f"{lab}: right half"))
+        if HL is None or HR is None:
+            self.warn(f"{lab}: too small to make")
+            return
+        HL.hinge = self._hinge_on(wl.name, asm_L, (-rt, y2), (-rt, y1))
+        HR.hinge = self._hinge_on(wr.name, asm_R, (rt, y1), (rt, y2))
+        HL.hinge.kink_ok = HR.hinge.kink_ok = True  # (as the cone's own walls)
+        # tabs folded in off the wall tops, glued under the halves
+        w = min(float(m.get("tab", 10.0)), rt - 1.0)
+        if w < 3.0:
+            self.warn(f"{lab}: too narrow at the top for the lid's tabs")
+            return
+        for sd, wall, half, (q0, q1, foot), into in (("L", wl, HL, edge_l, (1.0, 0.0)),
+                                                     ("R", wr, HR, edge_r, (-1.0, 0.0))):
+            e0, e1 = Vector(q0), Vector(q1)
+            ev = (e1 - e0).normalized()
+            up = 0.5 * (e0 + e1) - Vector(foot)
+            up = (up - up.dot(ev) * ev).normalized()  # past the top, in the wall's pattern
+            c = min(0.3 * w, 0.2 * (e1 - e0).length)
+            poly = [tuple(e0), tuple(e1), tuple(e1 + w * up - c * ev),
+                    tuple(e0 + w * up + c * ev)]
+            self.add(Panel(f"Tube{uid}.Top{sd}", wall.piece, "tab", [ccw(poly)],
+                           self._glue_asm(half, wall.asm, tuple(e0), tuple(e1), tuple(up),
+                                          into, below=True),
+                           half.name, None, f"{lab}: tab {sd}"))
 
     def _tube(self, m, host):
         """Tube on two parallel sticking strips (Birmingham 51, 67, 68). The
@@ -454,11 +542,11 @@ class Tubes:
         rb = m.get("back_style", "OUT") == "ROUND"
         rt = float(m.get("cone_top", 0.0) or 0.0)
         if rt > 0.05 and abs(rt - a) > 0.5:
-            if rf and rb and m.get("roof", "NONE") == "NONE":
+            if rf and rb and m.get("roof", "NONE") in ("NONE", "FLAT"):
                 self._cone(m, host, rt)
                 return
-            self.warn(f"{lab}: a different top radius needs a round front and back and no "
-                      f"roof; made straight up")
+            self.warn(f"{lab}: a different top radius needs a round front and back, and "
+                      f"no roof or a flat one (a lid); made straight up")
         wf, wb = max(float(m["front"]), a), max(float(m["back"]), a)
         if float(m["front"]) < a - 1e-6 or float(m["back"]) < a - 1e-6:
             self.warn(f"{lab}: front and back walls must be at least as wide as the strip "
