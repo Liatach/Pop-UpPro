@@ -134,14 +134,17 @@ class POPUP_MT_add(bpy.types.Menu):
                 op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
                                           icon=KIND_ICON[k])
                 op.kind, op.variant = "VFOLD", "ASYM"
-        if st.stage_master is None:
+        if not st.part_open:
             self.layout.operator("popup.add", text="Frame (across the fold, pulls flat)",
                                  icon=KIND_ICON["FRAME"]).kind = "FRAME"
+        if st.stage_master is None:
             self.layout.operator("popup.add", text="Stage Set (V-fold)",
                                  icon=KIND_ICON["STAGE"]).kind = "STAGE"
-        if st.stage_master is not None:
+        if st.part_open:
+            # the card is the stage: a carousel's, or one that Opens To under 180
             self.layout.separator()
-            self.layout.label(text="Stage:")
+            self.layout.label(text="Stage:" if st.stage_master is not None else
+                              f"In the card (opens to {st.open_max:.0f}°):")
             for k, name in (("FRAME", "Frame"), ("FLOOR", "Floor"), ("CEILING", "Ceiling")):
                 self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
         if st.stage_master is None:
@@ -435,6 +438,7 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
             col.prop(st, "page_depth")
             col.prop(st, "spine_length")
         col.prop(st, "hold")
+        col.prop(st, "opens_to")
         row = self.layout.row(align=True)
         row.scale_y = 1.3
         row.operator("popup.build", text="Build Card" if st.rig is None else "Rebuild",
@@ -447,7 +451,8 @@ class POPUP_PT_card(_Base, bpy.types.Panel):
             box = self.layout.box()
             box.prop(rig, '["pop_open"]', text="Open", slider=True)
             row = box.row(align=True)
-            for a in (0, 45, 90, 135, 180):
+            top = st.open_max  # (quarters of the way open)
+            for a in (0, 45, 90, 135, 180) if top > 179.5 else [round(top * k / 4) for k in range(5)]:
                 row.operator("popup.set_open", text=f"{a}°").angle = a
             draw_anim(box, context.scene, st, "anim_to")
             _paper(box, st, rig)
@@ -691,8 +696,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
     def draw_frame(self, context, st, col, m):
         """A stage's frame, or one across the card's fold."""
         import math as _m
-        master = st.stage_master
-        tmax = 360.0 / master.popup.stage_count if master else 180.0
+        tmax = st.open_max
         host = next((h for h in st.mechs if h.uid == m.host_uid), None)
         if host is not None and host.kind == "STAGE":
             tmax = 2 * host.phi_l
@@ -708,7 +712,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
     def draw_floor(self, context, st, col, m):
         """A stage's floor or ceiling."""
         if st.stage_master is None:
-            col.prop(m, "host", text="Stage")
+            col.prop(m, "host", text="Stage" if not st.part_open else "In")
         col.prop(m, "depth")
         col.prop(m, "lead")
         _tabs(self.layout, m, side=False)

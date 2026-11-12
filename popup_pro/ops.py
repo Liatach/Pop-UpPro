@@ -249,8 +249,10 @@ class POPUP_OT_add(bpy.types.Operator):
     def pick_stage(self, st):
         """A frame, floor or ceiling goes in a stage: the selected one, or the
         last made (a frame with no stage about goes across the card's own
-        fold). False, with the reason reported, if it can't be added."""
-        if st.stage_master is None and not self.host:
+        fold). In a carousel stage, or a card that Opens To under 180, the
+        card itself is the stage. False, with the reason reported, if it
+        can't be added."""
+        if not st.part_open and not self.host:
             stages = [x for x in st.mechs if x.kind == "STAGE"]
             act = st.mechs[st.active] if st.active < len(st.mechs) else None
             in_stage = act is not None and (act.kind == "STAGE" or any(
@@ -260,7 +262,7 @@ class POPUP_OT_add(bpy.types.Operator):
             elif not stages:
                 self.report({"ERROR"}, "Add a Stage Set first (or make a carousel)")
                 return False
-        if st.stage_master is None and not self.host and stages:
+        if not st.part_open and not self.host and stages:
             act = st.mechs[st.active] if st.active < len(st.mechs) else None
             if act is not None and act.kind == "STAGE":
                 self.host = act.uid
@@ -700,7 +702,7 @@ class POPUP_OT_set_open(bpy.types.Operator):
             context.view_layer.update()
             return {"FINISHED"}
         rig = st.rig
-        rig["pop_open"] = self.angle
+        rig["pop_open"] = min(self.angle, st.open_max)
         rig.update_tag()
         context.view_layer.update()
         return {"FINISHED"}
@@ -756,7 +758,7 @@ class POPUP_OT_animate(bpy.types.Operator):
     def execute(self, context):
         sc = context.scene
         st = sc.popup
-        rig, prop, top = st.rig, '["pop_open"]', min(st.anim_to, 180.0)
+        rig, prop, top = st.rig, '["pop_open"]', min(st.anim_to, st.open_max)
         if st.is_carousel or st.stage_master is not None:
             from . import carousel  # the carousel's Open drives every stage
             master = st.stage_master or sc

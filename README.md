@@ -105,6 +105,8 @@ Paint flat or folded, import and position images or simply textures, then export
   corners.
 * Carousels of 2 to 9 stages with frames, floors, ceilings and roofs, or one
   stage set standing in an ordinary card.
+* Cards that stand part open (**Opens To** 90° or 120°, say), with frames,
+  floors and ceilings straight in the card.
 
 **Building**
 * Stack anything on anything: boxes on boxes, V-folds on V-folds, cubes in
@@ -214,9 +216,6 @@ Sunflower is a good way to make them.
   (Birmingham 17).
 * **Angled box folds, continued**: on other folds (straps, towers, another
   box), glued by inset tabs, and with peaks.
-* **Opens To**: a maximum opening for an ordinary card (say 90° or 120°,
-  for cards that stand part open), everything flat or square at that angle
-  instead of at 180°, which lets floors and ceilings go in a plain card.
 * **Rising Sheet, continued**: 45° supports you can slide along the sheet,
   and slotted sheets: a second sheet slotted through the first, its slot
   locked to the page so the top piece tethers the other to it, the slot at
@@ -248,6 +247,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.79**: **Opens To**, for a card that stands part open (90° or 120°,
+  say): the Open slider and movement test stop there, and frames, floors
+  and ceilings go straight in the card, flat when it is fully open, as in
+  a carousel's stage.
 * **0.78**: a cone's **Lean** as an angle (it and Top Radius set each
   other) and a lid on a cone (a Flat roof, peaked or dipped); a collar's
   railing runs into the curled corner as one strip, bending where the curl
@@ -257,16 +260,6 @@ Sunflower is a good way to make them.
   Blender 4.x Draw Anywhere, the sketch layers, Set Up Scene and the rig's
   folding don't work: tested on 4.3, 4.5, 5.0 and 5.2). No change to how
   it works on 5.x; unused code cleared out with a linter.
-* **0.77**: where mechanisms stand, tidied. Stands On lists only what a kind
-  can stand on (zig-zags and quadrilaterals now, not fans or angled box
-  folds) and picking from it starts on a fold that works; the + menu no
-  longer offers what would be skipped (towers in a round tube end, an inset
-  on a strap with several peaks, anything on an angled box fold) and offers
-  a platform's top. Fixed: Fold did nothing after adding onto a V-fold's
-  crease from the menu; V-folds, cubes and double 45s on a stand-up's folds
-  ("Rebuild failed"); a mouth on a zig-zag's or quadrilaterals' crease
-  (skipped as overlapping); things on a platform now fit it. Warnings name
-  the fold that isn't there.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

@@ -8,7 +8,9 @@ start, see the [README](../README.md).
 1. **Card**: A5 (A4 folded, the default), A6, 150 mm square or custom.
    **Opens**: *Picture Book* (the default) opens both pages out from the
    spine, like a book on its spine; *Right Page Flat* or *Left Page Flat*
-   keeps one page on the table while the other turns over.
+   keeps one page on the table while the other turns over. **Opens To** is
+   how far it opens: 180° (flat on the table) unless it is a card that
+   stands part open (below).
 2. **Build Card**. The first build adds a cube to play with, sets the scene
    up (below), puts a camera past the bottom end of the spine, looking down
    along it so the whole card shows as it unfurls, and keys a movement test:
@@ -560,6 +562,24 @@ its crease](images/card_ceiling.jpg)
 * **Export** (in the carousel panel) writes every stage's sheets, named by
   stage, plus a carousel page with the joins and building order. With shared
   pages, the leaf sheets replace each stage's card sheet.
+
+### A card that stands part open (Opens To)
+
+![A card that opens to 120 degrees, at 120, 80 and 40: a floor, a ceiling,
+a low frame across the front and a box fold](images/opens_120.jpg)
+
+Set the card's **Opens To** under 180° (90° or 120°, say) for a card that
+stands part open, like a corner or a little theatre. Everything is then
+worked out to be fully open at that angle: the **Open** slider and the
+movement test stop there, and the card itself is the stage, as each stage
+of a carousel is. The **+** menu offers **Frame**, **Floor** and
+**Ceiling** straight *In the card*: a frame is Depth × sin(half the angle)
+each side, so it pulls flat exactly as the card reaches Opens To, and the
+floor and ceiling lie flat then too and fold up into the card as it shuts
+(they need Opens To under 150°). Every other mechanism goes in as usual; a
+box fold on the card's fold is square when the card is at 90°. Back at
+180°, floors and ceilings are skipped with a warning (flat, they would
+have to lie in the pages), and frames across the fold pull flat at 180°.
 
 ### Stage set in a card (a carousel stage as a V-fold)
 

@@ -137,8 +137,9 @@ class Stages:
         if om > 150.0:
             # flat at 180 it would have to lie in the page planes a moment
             # later: paper can't do that, so floors need three stages or more
-            self.warn(f"{m['label']}: floors and ceilings need a stage angle under 150 "
-                      f"degrees (three or more stages); skipped")
+            self.warn(f"{m['label']}: floors and ceilings need a card or stage that opens "
+                      f"to under 150 degrees (set Opens To, or a carousel of three or "
+                      f"more stages); skipped")
             return
         depth = min(float(m.get("depth", Wd)), Wd)
         al = 0.5 * om

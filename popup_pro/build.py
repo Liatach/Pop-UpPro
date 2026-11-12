@@ -153,8 +153,12 @@ def ensure_objects(scene):
     if "pop_open" not in rig:
         rig["pop_open"] = 90.0
     ui = rig.id_properties_ui("pop_open")
-    ui.update(min=0.0, max=180.0, soft_min=0.0, soft_max=180.0, subtype="NONE",
-              description="How far the card is open, in degrees (0 closed, 180 flat)")
+    top = 180.0 if st.stage_master is not None else st.opens_to  # (a carousel drives its stages)
+    ui.update(min=0.0, max=top, soft_min=0.0, soft_max=top, subtype="NONE",
+              description="How far the card is open, in degrees (0 closed; Opens To is "
+                          "as far as it goes, 180 flat)")
+    if rig["pop_open"] > top:
+        rig["pop_open"] = top
     if st.card is None or st.card.name not in bpy.data.objects:
         me = st.layout.data if st.layout else bpy.data.meshes.new(N(scene, "Pop-up Paper"))
         st.card = bpy.data.objects.new(N(scene, "Pop-up Card"), me)
@@ -341,12 +345,13 @@ def build_mesh(mesh, model, layout, s, holes=None):
 TERM = "{0:.9g}{1:+.9g}*cos(radians(max(T,0.05))){2:+.9g}*sin(radians(max(T,0.05)))"
 
 
-def open_expr(t0):
+def open_expr(t0, top=180.0):
     """The real open angle as an expression in the Open slider t: with a
-    closing stop t0, Open 0..180 maps onto t0..180 degrees."""
+    closing stop t0, Open 0..top maps onto t0..top degrees (top: 180, or
+    what the card Opens To)."""
     if t0 <= 1e-6:
         return "t"
-    return f"({t0:.6g}{(180.0 - t0) / 180.0:+.9g}*t)"
+    return f"({t0:.6g}{(top - t0) / top:+.9g}*t)"
 
 
 def _var(d, name, id_type, idb, path):
@@ -369,7 +374,7 @@ def _fresh(fc):
     return d
 
 
-def _driver(rig, pb, hinge, const, t0=0.0):
+def _driver(rig, pb, hinge, const, t0=0.0, top=180.0):
     """Bone driver. Spherical (V-fold) hinges read three helper properties on
     the armature data, each driven by the open angle, to stay within
     Blender's 256-character expression limit."""
@@ -381,7 +386,7 @@ def _driver(rig, pb, hinge, const, t0=0.0):
             arm[prop] = 0.0
             hd = _fresh(arm.driver_add(f'["{prop}"]'))
             _var(hd, "t", "OBJECT", rig, '["pop_open"]')
-            full = TERM.format(*hinge.parts[key]).replace("T", open_expr(t0))
+            full = TERM.format(*hinge.parts[key]).replace("T", open_expr(t0, top))
             if len(full) > 255:
                 raise RuntimeError(f"driver for {pb.name} is too long")
             hd.expression = full
@@ -393,7 +398,7 @@ def _driver(rig, pb, hinge, const, t0=0.0):
     if hinge.kind == "TABLE":
         # The driver gives the real open angle; its curve maps that to the
         # hinge angle solved when the card was built.
-        d.expression = open_expr(t0)
+        d.expression = open_expr(t0, top)
         fc = pb.id_data.animation_data.drivers.find(f'pose.bones["{pb.name}"].rotation_euler', index=1)
         kps = fc.keyframe_points
         # New drivers come with placeholder keys (0,0) and (1,1): reuse them
@@ -411,9 +416,9 @@ def _driver(rig, pb, hinge, const, t0=0.0):
         return d
     expr = hinge.expr
     if hinge.kind == "LINEAR":
-        expr = expr.replace("radians(t)", f"radians({open_expr(t0)})")
+        expr = expr.replace("radians(t)", f"radians({open_expr(t0, top)})")
     elif hinge.kind == "EXPR":
-        expr = expr.replace("radians(T)", f"radians({open_expr(t0)})")
+        expr = expr.replace("radians(T)", f"radians({open_expr(t0, top)})")
     full = f"{const:.9g}+({expr})"
     if len(full) > 255:  # Blender truncates silently
         raise RuntimeError(f"driver for {pb.name} is too long ({len(full)} characters)")
@@ -421,7 +426,7 @@ def _driver(rig, pb, hinge, const, t0=0.0):
     return d
 
 
-def _free_drivers(rig, pb, model, name, rest, pp, pf, s, t0):
+def _free_drivers(rig, pb, model, name, rest, pp, pf, s, t0, top=180.0):
     """A part glued to nothing (a bending strip's far end): its whole pose,
     position and turn, tabulated every degree as six driver curves."""
     keys = []
@@ -436,7 +441,7 @@ def _free_drivers(rig, pb, model, name, rest, pp, pf, s, t0):
         for i in range(3):
             d = _fresh(pb.driver_add(path, i))
             _var(d, "t", "OBJECT", rig, '["pop_open"]')
-            d.expression = open_expr(t0)
+            d.expression = open_expr(t0, top)
             fc = rig.animation_data.drivers.find(f'pose.bones["{pb.name}"].{path}', index=i)
             kps = fc.keyframe_points
             n = len(keys)
@@ -472,13 +477,13 @@ from .core.model import Model as _M  # noqa: E402
 LIFT_FROM, LIFT_SPAN = _M.LIFT_FROM, _M.LIFT_SPAN  # degrees before full open
 
 
-def _lift_drivers(rig, pb, K, lift, tmax, t0, d=None):
+def _lift_drivers(rig, pb, K, lift, tmax, t0, d=None, top=180.0):
     """Raise a part off the panel it hangs from (along that panel's normal)
     as the card nears fully open: a glued strip shown resting on its tabs,
     folded down level with its hinge while the card closes."""
     v = K.to_3x3() @ (Vector((0.0, 0.0, 1.0)) if d is None else d)
     base = K.to_translation()
-    T = open_expr(t0)
+    T = open_expr(t0, top)
     for i in range(3):
         if abs(v[i] * lift) < 1e-9:
             continue
@@ -489,6 +494,7 @@ def _lift_drivers(rig, pb, K, lift, tmax, t0, d=None):
 
 
 def build_rig(scene, rig, model, layout, s, t0=0.0):
+    top = model.tmax  # (the Open slider runs 0..top, onto t0..top)
     view_layer = bpy.context.view_layer
     prev_active = view_layer.objects.active
     prev_mode = bpy.context.mode
@@ -550,15 +556,15 @@ def build_rig(scene, rig, model, layout, s, t0=0.0):
         pb.location = K.to_translation()
         pb.rotation_euler = e
         if getattr(p, "free", False):
-            _free_drivers(rig, pb, model, name, rest, pp, panel_frame(p), s, t0)
+            _free_drivers(rig, pb, model, name, rest, pp, panel_frame(p), s, t0, top)
         elif p.hinge is not None and p.hinge.kind == "SLIDE":
             _slide_drivers(rig, pb, p.hinge, K, s)
         elif p.hinge is not None:
-            _driver(rig, pb, p.hinge, e.y, t0)
+            _driver(rig, pb, p.hinge, e.y, t0, top)
         if getattr(p, "lift", 0.0) and p.hinge is not None:
             _lift_drivers(rig, pb, K, p.lift * s, model.tmax, t0,
                           None if p.lift_dir is None else
-                          p.hinge.Hp.to_3x3().inverted() @ p.lift_dir)
+                          p.hinge.Hp.to_3x3().inverted() @ p.lift_dir, top)
     rig.hide_set(hidden)
     if prev_active is not None and prev_active.name in view_layer.objects:
         view_layer.objects.active = prev_active

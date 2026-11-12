@@ -3,6 +3,10 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.79**: **Opens To**, for a card that stands part open (90° or 120°,
+  say): the Open slider and movement test stop there, and frames, floors
+  and ceilings go straight in the card, flat when it is fully open, as in
+  a carousel's stage.
 * **0.78**: a cone's **Lean** as an angle (it and Top Radius set each
   other) and a lid on a cone (a Flat roof, peaked or dipped); a collar's
   railing runs into the curled corner as one strip, bending where the curl

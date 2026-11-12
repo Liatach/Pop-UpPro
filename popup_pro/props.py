@@ -572,6 +572,16 @@ def _fold_changed(self, context):
     live.schedule(context.scene)
 
 
+def _opens_to_changed(self, context):
+    rig = self.rig
+    if rig is not None and "pop_open" in rig:
+        top = self.open_max
+        rig.id_properties_ui("pop_open").update(max=top, soft_max=top)
+        if rig["pop_open"] > top:
+            rig["pop_open"] = top
+    _changed(self, context)
+
+
 def _vside_changed(self, context):
     # (On the Crease, a floor's or ceiling's checkbox, says the same thing)
     self["on_crease"] = self.vside == "V"
@@ -1783,6 +1793,13 @@ class PopupSettings(bpy.types.PropertyGroup):
                               default=148.5, min=20.0, soft_max=400.0, update=_changed)
     spine_length: FloatProperty(name="Spine Length", default=210.0, min=20.0,
                                 soft_max=400.0, update=_changed)
+    opens_to: FloatProperty(
+        name="Opens To", description="How far the card opens (degrees). 180: flat on the "
+        "table. Less, for a card that stands part open (90 or 120, say): everything is "
+        "worked out to be fully open at this angle, and frames, floors and ceilings can "
+        "go straight in the card, pulling flat as it gets there (floors and ceilings "
+        "need under 150)", default=180.0, min=30.0, max=180.0, step=500, precision=0,
+        update=_opens_to_changed)
     hold: EnumProperty(name="Opens", description="How the card opens: like a picture "
                        "book, both pages turning out from the spine, or one page flat on "
                        "the table while the other turns over", items=[
@@ -2056,11 +2073,25 @@ class PopupSettings(bpy.types.PropertyGroup):
             sheet = (2 * W, H)
         else:
             W, H, sheet, _, _ = CARD_PRESETS[self.size]
-        tmax = 180.0
-        return dict(W=W, H=H, hold=self.hold, sheet=sheet,
+        tmax = self.opens_to
+        return dict(W=W, H=H, hold=self.hold, sheet=sheet, tmax=tmax,
                     piece_sheet=PAPERS[self.paper][0],
                     thickness=self.paper_thickness if self.solid_paper else 0.0,
                     lines=self.shape_lines(W, H, tmax) + lines, doors=self.doors())
+
+    @property
+    def open_max(self):
+        """How far this card (or carousel stage) opens, in degrees."""
+        master = self.stage_master
+        if master is not None and master != self.id_data:
+            return 360.0 / master.popup.stage_count
+        return self.opens_to
+
+    @property
+    def part_open(self):
+        """Fully open short of flat (a carousel stage, or Opens To under 180):
+        frames, floors and ceilings can go straight in the card."""
+        return self.open_max < 179.5
 
     def doors(self):
         from .core.openings import opening_dict
