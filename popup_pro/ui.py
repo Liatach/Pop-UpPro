@@ -79,118 +79,131 @@ class POPUP_MT_add(bpy.types.Menu):
     bl_idname = "POPUP_MT_add"
 
     def draw(self, context):
+        """A column for each place things go: on the card's fold (two columns,
+        by family), in a stage, and on the selected mechanism."""
+        from .props import is_angled
         st = context.scene.popup
-        self.draw_basics(st)
+        row = self.layout.row()
+        self.draw_on_fold(row.column(), row.column())
+        self.draw_stage(row.column(), st)
         if not st.mechs or st.active >= len(st.mechs):
             return
-        from .props import is_angled
         h = st.mechs[st.active]  # the selected mechanism: what can go on it
+        takes = (h.kind in ("FLOOR", "CEILING", "ZIGZAG", "QUADS", "STAGE", "CUBE", "TUBE",
+                            "PLATFORM")
+                 or h.kind == "VFOLD" and h.shape != "FAN"
+                 or h.kind in ("BOX", "BOXCUT", "STANDUP") and not is_angled(h, st.mechs))
+        if not takes:
+            return
+        lay = row.column()
+        lay.label(text="On What's Selected", icon=KIND_ICON.get(h.kind, "DOT"))
         if h.kind in ("FLOOR", "CEILING"):
-            self.draw_in_corners(h)
+            self.draw_in_corners(lay, h)
         elif h.kind in ("ZIGZAG", "QUADS") or h.kind == "VFOLD" and h.shape != "FAN":
-            self.draw_on_vfold(h)
+            self.draw_on_vfold(lay, h)
         elif h.kind == "STAGE":
-            self.draw_in_stage(h)
+            self.draw_in_stage(lay, h)
         if h.kind in ("CUBE", "TUBE"):
-            self.draw_outside_walls(st, h)
+            self.draw_outside_walls(lay, st, h)
         if h.kind in ("BOX", "BOXCUT", "STANDUP") and not is_angled(h, st.mechs):
-            self.draw_on_box(h)
+            self.draw_on_box(lay, h)
         if h.kind == "PLATFORM":
-            self.draw_on_platform(h)
+            self.draw_on_platform(lay, h)
 
-    def draw_basics(self, st):
-        """What can always be added: every mechanism on the card's fold, and the
-        stage's parts."""
-        for k, name in (("VFOLD", "V-fold"), ("MOUTH", "Mouth (cut in)"),
-                        ("BOX", "Box Fold / Strap (glued strip)"),
-                        ("BOXCUT", "Box Layer (cut in)"),
-                        ("CUBE", "Cube (180°)"), ("FLAP", "Pull-tab Flap"),
-                        ("TUBE", "Tube (parallel strips)"), ("CASTLE", None), ("LOOP", None),
-                        ("TETHER", "Tether"),
-                        ("PYRAMID", "Pyramid / Tent (parallel strips)"),
-                        ("STANDUP", "Stand-up (parallelogram)"),
-                        ("PLATFORM", "Platform (45° folds)"),
-                        ("RISER", "Rising Sheet (45° folds)"),
-                        ("DOUBLE45", "Double 45° Fold (twisting top)"),
-                        ("QUADS", "Multiple Quadrilaterals (angled strips)"),
-                        ("JACK", "Jack in the Box (on a V-fold)"),
-                        ("PICTURE", "Picture (glued on a face)")):
-            if k == "CASTLE":  # a tube with a tower in each inside corner
-                op = self.layout.operator("popup.add", text="Castle (tube with corner towers)",
-                                          icon=KIND_ICON["TUBE"])
-                op.kind, op.variant = "TUBE", "CASTLE"
-                continue
-            if k == "LOOP":  # Birmingham 16: a ring on two tabs
-                op = self.layout.operator("popup.add", text="Loop (ring on two tabs)",
-                                          icon=KIND_ICON["TUBE"])
-                op.kind, op.variant = "TUBE", "LOOP"
-                continue
-            self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
-            if k == "BOX":
-                op = self.layout.operator("popup.add", text="Box Fold (angled glue lines)",
-                                          icon=KIND_ICON[k])
-                op.kind, op.variant = "BOX", "ANGLED"
-            if k == "VFOLD":
-                op = self.layout.operator("popup.add", text="V-fold (asymmetric)",
-                                          icon=KIND_ICON[k])
-                op.kind, op.variant = "VFOLD", "ASYM"
+    @staticmethod
+    def _adds(lay, heading, entries):
+        """A heading and its Adds: (text, kind) or (text, kind, variant) each."""
+        lay.label(text=heading)
+        for text, kind, *variant in entries:
+            op = lay.operator("popup.add", text=text, icon=KIND_ICON[kind])
+            op.kind = kind
+            if variant:
+                op.variant = variant[0]
+
+    def draw_on_fold(self, one, two):
+        """Everything that goes on the card's fold, by family, in two columns."""
+        one.label(text="On the Card's Fold", icon="MOD_TRIANGULATE")
+        self._adds(one, "V-folds:", (
+            ("V-fold", "VFOLD"), ("V-fold (asymmetric)", "VFOLD", "ASYM"),
+            ("Mouth (cut in)", "MOUTH"), ("Jack in the Box (on a V-fold)", "JACK"),
+            ("Multiple Quadrilaterals (angled strips)", "QUADS")))
+        one.separator()
+        self._adds(one, "Box folds:", (
+            ("Box Fold / Strap (glued strip)", "BOX"),
+            ("Box Fold (angled glue lines)", "BOX", "ANGLED"),
+            ("Box Layer (cut in)", "BOXCUT"), ("Stand-up (parallelogram)", "STANDUP")))
+        one.separator()
+        self._adds(one, "45° folds:", (
+            ("Platform (45° folds)", "PLATFORM"), ("Rising Sheet (45° folds)", "RISER"),
+            ("Double 45° Fold (twisting top)", "DOUBLE45")))
+        two.label(text="")
+        self._adds(two, "Cubes and tubes:", (
+            ("Cube (180°)", "CUBE"), ("Tube (parallel strips)", "TUBE"),
+            ("Castle (tube with corner towers)", "TUBE", "CASTLE"),
+            ("Loop (ring on two tabs)", "TUBE", "LOOP"),
+            ("Pyramid / Tent (parallel strips)", "PYRAMID"), ("Tether", "TETHER")))
+        two.separator()
+        self._adds(two, "Roofs:", (
+            ("Roof (peaked, cuts a gable)", "ROOF"),
+            ("Valley Floor (roof upside down)", "ROOF", "VALLEY")))
+        two.separator()
+        self._adds(two, "On a page or a face:", (
+            ("Pull-tab Flap", "FLAP"), ("Picture (glued on a face)", "PICTURE")))
+
+    def draw_stage(self, lay, st):
+        """Stages: a stage set in a card, a frame across the fold; and, when
+        the card is itself the stage (a carousel's, or one that Opens To
+        under 180), its frames, floor and ceiling."""
+        lay.label(text="Stage", icon=KIND_ICON["STAGE"])
         if not st.part_open:
-            self.layout.operator("popup.add", text="Frame (across the fold, pulls flat)",
-                                 icon=KIND_ICON["FRAME"]).kind = "FRAME"
+            lay.operator("popup.add", text="Frame (across the fold, pulls flat)",
+                         icon=KIND_ICON["FRAME"]).kind = "FRAME"
         if st.stage_master is None:
-            self.layout.operator("popup.add", text="Stage Set (V-fold)",
-                                 icon=KIND_ICON["STAGE"]).kind = "STAGE"
+            lay.operator("popup.add", text="Stage Set (V-fold)",
+                         icon=KIND_ICON["STAGE"]).kind = "STAGE"
         if st.part_open:
-            # the card is the stage: a carousel's, or one that Opens To under 180
-            self.layout.separator()
-            self.layout.label(text="Stage:" if st.stage_master is not None else
-                              f"In the card (opens to {st.open_max:.0f}°):")
+            lay.separator()
+            lay.label(text="In this stage:" if st.stage_master is not None else
+                      f"In the card (opens to {st.open_max:.0f}°):")
             for k, name in (("FRAME", "Frame"), ("FLOOR", "Floor"), ("CEILING", "Ceiling")):
-                self.layout.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
-        if st.stage_master is None:
-            self.layout.separator()
-        self.layout.operator("popup.add", text="Roof (peaked, cuts a gable)",
-                             icon=KIND_ICON["ROOF"]).kind = "ROOF"
-        op = self.layout.operator("popup.add", text="Valley Floor (roof upside down)",
-                                  icon=KIND_ICON["ROOF"])
-        op.kind, op.variant = "ROOF", "VALLEY"
+                lay.operator("popup.add", text=name, icon=KIND_ICON[k]).kind = k
 
-    def draw_in_corners(self, h):
+    def draw_in_corners(self, lay, h):
         """With a floor or ceiling selected: what stands where it meets a wall."""
-        self.layout.separator()
-        self.layout.label(text=f"In the corners of {h.label}:")
+        lay.separator()
+        lay.label(text=f"In the corners of {h.label}:")
         for k, name in (("BOX", "Box Fold"), ("VFOLD", "V-fold"), ("CUBE", "Cube")):
             for side, wall in (("L", "left wall"), ("R", "right wall")):
-                op = self.layout.operator("popup.add", text=f"{name}, {wall}",
+                op = lay.operator("popup.add", text=f"{name}, {wall}",
                                           icon=KIND_ICON[k])
                 op.kind, op.host, op.side = k, h.uid, side
-        op = self.layout.operator("popup.add", text="V-fold on its crease",
+        op = lay.operator("popup.add", text="V-fold on its crease",
                                   icon=KIND_ICON["VFOLD"])
         op.kind, op.host, op.fold = "VFOLD", h.uid, "V"
 
-    def draw_on_vfold(self, h):
+    def draw_on_vfold(self, lay, h):
         """With a V-fold, zig-zag or quadrilaterals selected: what stands on its
         crease and (a V-fold's) glue folds."""
         glued = h.kind == "VFOLD" and h.shape not in ("M", "ZIGZAG")
-        self.layout.separator()
-        self.layout.label(text=f"On {h.label}:")
+        lay.separator()
+        lay.label(text=f"On {h.label}:")
         for kind, text in (("BOX", "Box Fold on the Crease"),
                            ("BOXCUT", "Box Layer cut in the Crease"),
                            ("VFOLD", "V-fold on the Crease"),
                            ("MOUTH", "Mouth cut in the Crease"),
                            ("STANDUP", "Stand-up on the Crease")):
-            op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
+            op = lay.operator("popup.add", text=text, icon=KIND_ICON[kind])
             op.kind, op.host, op.fold = kind, h.uid, "V"
             if kind == "VFOLD" and glued:
-                op = self.layout.operator("popup.add", text="V-fold on Top (tabs A)",
+                op = lay.operator("popup.add", text="V-fold on Top (tabs A)",
                                           icon=KIND_ICON[kind])
                 op.kind, op.host, op.fold, op.variant = kind, h.uid, "V", "TOP"
         for kind, text in (("CUBE", "Cube in the V (on the Crease)"),
                            ("TUBE", "Tube in the V (on the Crease)")):
-            op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
+            op = lay.operator("popup.add", text=text, icon=KIND_ICON[kind])
             op.kind, op.host, op.fold = kind, h.uid, "V"
         if glued:
-            self.layout.label(text="On its glue folds (off-centre):")
+            lay.label(text="On its glue folds (off-centre):")
         for fold, where in ((("FL", "in front, left"), ("FR", "in front, right"),
                             ("BL", "behind, left"), ("BR", "behind, right")) if glued else ()):
             for kind, name in (("STANDUP", "Stand-up"), ("CUBE", "Cube"),
@@ -198,62 +211,62 @@ class POPUP_MT_add(bpy.types.Menu):
                                ("BOX", "Box Fold")):
                 if fold[0] == "B" and kind != "STANDUP":
                     continue  # inside the V there's little room: stand-ups only
-                op = self.layout.operator("popup.add", text=f"{name} {where}",
+                op = lay.operator("popup.add", text=f"{name} {where}",
                                           icon=KIND_ICON[kind])
                 op.kind, op.host, op.fold = kind, h.uid, fold
 
-    def draw_in_stage(self, h):
+    def draw_in_stage(self, lay, h):
         """With a stage set selected: its frames and ceiling."""
-        self.layout.separator()
-        self.layout.label(text=f"In {h.label}:")
+        lay.separator()
+        lay.label(text=f"In {h.label}:")
         for k, name in (("FRAME", "Frame"), ("CEILING", "Ceiling")):
-            op = self.layout.operator("popup.add", text=name, icon=KIND_ICON[k])
+            op = lay.operator("popup.add", text=name, icon=KIND_ICON[k])
             op.kind, op.host = k, h.uid
 
-    def draw_outside_walls(self, st, h):
+    def draw_outside_walls(self, lay, st, h):
         """With a cube or tube selected: what stands outside its walls, balconies,
         and a tube's towers."""
-        self.layout.separator()
-        self.layout.label(text=f"Outside the walls of {h.label}:")
+        lay.separator()
+        lay.label(text=f"Outside the walls of {h.label}:")
         for wall, where in (("L", "left wall"), ("R", "right wall")):
             for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
                                ("BOX", "Box Fold"), ("BALCONY", "Balcony"),
                                ("STANDUP", "Stand-up")):
-                op = self.layout.operator("popup.add", text=f"{name}, {where}",
+                op = lay.operator("popup.add", text=f"{name}, {where}",
                                           icon=KIND_ICON["BOX" if kind == "BALCONY"
                                                          else kind])
                 op.kind, op.host, op.fold = ("BOX" if kind == "BALCONY" else kind,
                                              h.uid, "W" + wall)
                 if kind == "BALCONY":
                     op.variant = "BALCONY"
-        op = self.layout.operator("popup.add", text="Balconies on Both Side Walls",
+        op = lay.operator("popup.add", text="Balconies on Both Side Walls",
                                   icon=KIND_ICON["BOX"])
         op.kind, op.host, op.variant = "BOX", h.uid, "BALCONIES"
         if h.kind == "TUBE" and any(x.kind == "BOX" and x.host_uid == h.uid and
                                     x.wall.startswith("K") for x in st.mechs):
-            op = self.layout.operator("popup.add", text="Balconies Outside the Towers",
+            op = lay.operator("popup.add", text="Balconies Outside the Towers",
                                       icon=KIND_ICON["BOX"])
             op.kind, op.host, op.variant = "BOX", h.uid, "TOWER_BALCONIES"
         from .ops import tube_corners
         corners = tube_corners(st, h.uid) if h.kind == "TUBE" else []
         if corners:  # (round ends have none)
-            self.layout.label(text=f"Towers in the corners of {h.label}:")
-            op = self.layout.operator("popup.add", text="Tower in Every Inside Corner",
+            lay.label(text=f"Towers in the corners of {h.label}:")
+            op = lay.operator("popup.add", text="Tower in Every Inside Corner",
                                       icon=KIND_ICON["BOX"])
             op.kind, op.host, op.variant = "BOX", h.uid, "TOWERS"
             names = {"KFL": "front left corner", "KFR": "front right corner",
                      "KBR": "back right corner", "KBL": "back left corner",
                      "KF": "front crease", "KB": "back crease"}
             for fold in corners:
-                op = self.layout.operator("popup.add", text=f"Tower, {names[fold]}",
+                op = lay.operator("popup.add", text=f"Tower, {names[fold]}",
                                           icon=KIND_ICON["BOX"])
                 op.kind, op.host, op.fold = "BOX", h.uid, fold
 
-    def draw_on_box(self, h):
+    def draw_on_box(self, lay, h):
         """With a box fold, box layer or stand-up selected: what stands on top of
         it, in front of it, and in a strap's valleys."""
-        self.layout.separator()
-        self.layout.label(text=f"On {h.label}:")
+        lay.separator()
+        lay.label(text=f"On {h.label}:")
         for kind, fold, text in (("BOXCUT", "C", "Inset Box Layer"),
                                  ("BOXCUT", "A", "Box Layer on Top"),
                                  ("BOXCUT", "B", "Box Layer in Front"),
@@ -273,26 +286,26 @@ class POPUP_MT_add(bpy.types.Menu):
                 continue  # cut-ins need one piece of paper across the fold
             if fold == "C" and h.kind == "BOX" and h.peaks > 1:
                 continue  # several peaks: the top doesn't meet the front (use a valley)
-            op = self.layout.operator("popup.add", text=text, icon=KIND_ICON[kind])
+            op = lay.operator("popup.add", text=text, icon=KIND_ICON[kind])
             op.kind, op.host, op.fold = kind, h.uid, fold
             if kind == "BOX" and fold == "B":
-                op = self.layout.operator("popup.add", text="Balcony in Front",
+                op = lay.operator("popup.add", text="Balcony in Front",
                                           icon=KIND_ICON["BOX"])
                 op.kind, op.host, op.fold, op.variant = "BOX", h.uid, "B", "BALCONY"
         if h.kind == "BOX" and h.peaks > 1:
             for kind, name in (("CUBE", "Cube"), ("TUBE", "Tube"), ("VFOLD", "V-fold"),
                                ("STANDUP", "Stand-up")):
-                op = self.layout.operator("popup.add", text=f"{name} in a Valley",
+                op = lay.operator("popup.add", text=f"{name} in a Valley",
                                           icon=KIND_ICON[kind])
                 op.kind, op.host, op.fold = kind, h.uid, "VAL"
 
-    def draw_on_platform(self, h):
+    def draw_on_platform(self, lay, h):
         """With a platform selected: what stands in the valley of its top."""
-        self.layout.separator()
-        self.layout.label(text=f"On top of {h.label}:")
+        lay.separator()
+        lay.label(text=f"On top of {h.label}:")
         for kind, name in (("BOX", "Box Fold"), ("VFOLD", "V-fold"), ("CUBE", "Cube"),
                            ("TUBE", "Tube"), ("STANDUP", "Stand-up")):
-            op = self.layout.operator("popup.add", text=name, icon=KIND_ICON[kind])
+            op = lay.operator("popup.add", text=name, icon=KIND_ICON[kind])
             op.kind, op.host, op.fold = kind, h.uid, "A"
 
 

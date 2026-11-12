@@ -224,9 +224,6 @@ Sunflower is a good way to make them.
   * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
     Background Above and Level Ridge; floors, ceilings and the background
     folding in sit together as one "Stage" section.
-  * The Add menu grouped by where things go (on the spine, on a V-fold, on
-    a floor or ceiling, in a stage); it already offers what fits the
-    selected host, but the list has grown long.
 * Door flaps on cubes, tubes and stand-up pictures.
 * **Tabs that carry the art**, continued: outside tabs (V-folds with Tab
   Side Outside) already print the art of the part they glue onto. Next:
@@ -247,6 +244,9 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.80**: the **+** menu in columns, one for each place things go: on the
+  card's fold (V-folds, box folds, 45° folds, cubes and tubes, roofs), in a
+  stage, and on what's selected.
 * **0.79**: **Opens To**, for a card that stands part open (90° or 120°,
   say): the Open slider and movement test stop there, and frames, floors
   and ceilings go straight in the card, flat when it is fully open, as in
@@ -256,10 +256,6 @@ Sunflower is a good way to make them.
   railing runs into the curled corner as one strip, bending where the curl
   starts instead of splitting there; clicking a warning in Checks selects
   the mechanism it's about.
-* **0.77.1**: needs Blender 5.0 or later (the manifest said 4.3, but on
-  Blender 4.x Draw Anywhere, the sketch layers, Set Up Scene and the rig's
-  folding don't work: tested on 4.3, 4.5, 5.0 and 5.2). No change to how
-  it works on 5.x; unused code cleared out with a linter.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

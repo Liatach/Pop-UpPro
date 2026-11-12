@@ -15,7 +15,9 @@ start, see the [README](../README.md).
    up (below), puts a camera past the bottom end of the spine, looking down
    along it so the whole card shows as it unfurls, and keys a movement test:
    press **Play**, or drag the timeline.
-3. **Mechanisms**: add, remove and tune them. With **Live Rebuild** on (the
+3. **Mechanisms**: add, remove and tune them. The **+** menu has a column
+   for each place things go: on the card's fold (by family), in a stage,
+   and on whatever is selected. With **Live Rebuild** on (the
    clock icon) the card updates as you drag values. Tick the box beside a
    mechanism to pick it as well as the active one, then use **Align** (under
    the list) to line them up or space them evenly ([Align](#align)).

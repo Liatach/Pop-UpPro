@@ -3,6 +3,9 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.80**: the **+** menu in columns, one for each place things go: on the
+  card's fold (V-folds, box folds, 45° folds, cubes and tubes, roofs), in a
+  stage, and on what's selected.
 * **0.79**: **Opens To**, for a card that stands part open (90° or 120°,
   say): the Open slider and movement test stop there, and frames, floors
   and ceilings go straight in the card, flat when it is fully open, as in

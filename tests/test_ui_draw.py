@@ -92,6 +92,21 @@ for c in others:
     draw(c)
 print(f"empty card: the Add menu offers {len(offered)} kinds")
 
+# the menu is in columns, one for each place things go
+log = draw(ui.POPUP_MT_add)
+heads = [e[3].get("text") for e in log if e[1] == "label"]
+assert heads[0] == "On the Card's Fold" and "Stage" in heads, heads
+assert "On What's Selected" not in heads
+assert sum(1 for e in log if e[1] == "column") == 3, [e[1] for e in log][:8]  # (fold x 2, stage)
+setup("VFOLD")
+log = draw(ui.POPUP_MT_add)
+heads = [e[3].get("text") for e in log if e[1] == "label"]
+assert heads.index("Stage") < heads.index("On What's Selected"), heads
+assert sum(1 for e in log if e[1] == "column") == 4
+setup("FLAP")  # (nothing goes on a flap: no fourth column)
+assert sum(1 for e in draw(ui.POPUP_MT_add) if e[1] == "column") == 3
+st.mechs.clear()
+
 # ---- every kind selected: its panel, with each setting tried, and the menu
 draws = 0
 for name in kinds + ["tower", "castle", "strap with peaks", "box on a floor"]:
