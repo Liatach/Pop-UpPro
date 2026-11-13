@@ -1690,7 +1690,7 @@ def _brush_sections(lay, context):
                     U.prop_unified_color(body, context, brush, "color", text="")
                     if sc.popup.colour_history is not None:
                         body.label(text="Colour History")
-                        body.template_palette(sc.popup, "colour_history", color=True)
+                        body.template_palette(sc.popup, "colour_history")
             elif key == "popup_paint_brush":
                 if U is not None and brush is not None:
                     U.prop_unified(body, context, brush, "size", unified_name="use_unified_size",
@@ -1766,7 +1766,7 @@ def _palettes(box, context, gpp):
     recent = context.scene.popup.colour_history
     box.label(text="Used lately:")
     if recent is not None and len(recent.colors):
-        box.template_palette(context.scene.popup, "colour_history", color=True)
+        box.template_palette(context.scene.popup, "colour_history")
     else:
         r = box.row()
         r.enabled = False
@@ -1778,7 +1778,7 @@ def _palettes(box, context, gpp):
         r.enabled = False
         r.label(text="Pick a palette, or New for one of your own")
     elif gpp.palette != recent:
-        box.template_palette(gpp, "palette", color=True)
+        box.template_palette(gpp, "palette")
 
 
 def _header_done(self, context):

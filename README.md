@@ -245,6 +245,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.81.3**: **Used lately** and **Palette** now show while drawing (and
+  Colour History while painting): an error in how the swatches were drawn
+  cut the panel short, hiding them and the brush size, strength and ink
+  layers below.
 * **0.81.2**: while drawing, **Used lately** fills in as you draw (each
   stroke's colour, at once), and it and **Palette** are always shown, with a
   line saying what goes there while they're empty. **Done Drawing** is at
@@ -255,12 +259,6 @@ Sunflower is a good way to make them.
   colour and swap, Mix Factor, **Used lately** (colours you've drawn with,
   the latest first: click one to draw with it again) and a palette of your
   own.
-* **0.81**: **Ink Layers**. What you draw with Draw Anywhere is kept as
-  Grease Pencil strokes on layers you can hide, fade, reorder and remove,
-  and **Edit Ink** lays them out on the flat layout to change; the paper
-  is redrawn from them, so nothing is baked in. **Whole Strokes While
-  Drawing** shows strokes in front of the card as you draw, not cut by
-  the paper.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

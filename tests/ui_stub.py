@@ -6,6 +6,9 @@ import types
 import bpy
 
 
+_FUNCS = bpy.types.UILayout.bl_rna.functions
+
+
 class Layout:
     """Stands in for a UILayout: any call is noted and gives another one
     (lay.panel gives a header and a body), any attribute can be set."""
@@ -16,6 +19,12 @@ class Layout:
 
     def __getattr__(self, name):
         def call(*args, **kw):
+            fn = _FUNCS.get(name)
+            if fn is not None:  # a real UILayout call: only settings it has
+                ok = [p.identifier for p in fn.parameters if not p.is_output]
+                bad = [k for k in kw if k not in ok]
+                assert not bad and len(args) <= len(ok), \
+                    f"UILayout.{name}: no {bad or 'such argument'} (it takes {ok})"
             child = f"{self.path}.{name}{len(self.log)}"
             self.log.append((self.path, name, args, kw))
             if name in ("panel", "panel_prop"):

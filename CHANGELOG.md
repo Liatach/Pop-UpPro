@@ -3,6 +3,10 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.81.3**: **Used lately** and **Palette** now show while drawing (and
+  Colour History while painting): an error in how the swatches were drawn
+  cut the panel short, hiding them and the brush size, strength and ink
+  layers below.
 * **0.81.2**: while drawing, **Used lately** fills in as you draw (each
   stroke's colour, at once), and it and **Palette** are always shown, with a
   line saying what goes there while they're empty. **Done Drawing** is at
