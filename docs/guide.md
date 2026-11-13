@@ -219,10 +219,14 @@ Width** along it). **Muzzle Length** is how far it rises past the wall and
 just its dart; it folds further back as the loop opens, and lies flat back
 when the front has opened as far as the dart allows. Past that real card
 curves and this can't follow: Checks says so (narrow the dart or the
-muzzle). The loop's tabs are the book's glued ears, and its join at the back
-the strap under the chin. Draw the face on it, and erase its art to shape it.
+muzzle). The loop's base tabs become the book's glued **ears**: pointed, out
+from the loop, **Ear Size** from the wall's foot; its join at the back is
+the strap under the chin. From the **+** menu it comes a little conical
+(**Lean** 15°, narrower at the nose); a muzzle goes on a straight loop, a
+cone or a tube alike. Draw the face on it, and erase its art to shape it.
 
-![An animal face on a loop, at 175, 130 and 80 degrees](images/animal_face.jpg)
+![An animal face on a slightly conical loop, at 175, 130 and 80
+degrees](images/animal_face.jpg)
 
 ![Cones with lids: peaked in front, dipped behind, at 175, 115 and 55
 degrees](images/cone_lid.jpg)

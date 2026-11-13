@@ -245,6 +245,8 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.82.1**: the animal face comes a little conical, a muzzle goes on
+  cones too, and its base tabs are ears (**Ear Size**), out from the loop.
 * **0.82**: more of Birmingham's mechanisms. **Pop-up House** (49): a cube
   takes a gabled roof, with the book's sizes in the **+** menu. **Slotted
   Cross Piece** on a rising sheet (81): the two 45° folds as one piece
@@ -256,11 +258,6 @@ Sunflower is a good way to make them.
   Colour History while painting): an error in how the swatches were drawn
   cut the panel short, hiding them and the brush size, strength and ink
   layers below.
-* **0.81.2**: while drawing, **Used lately** fills in as you draw (each
-  stroke's colour, at once), and it and **Palette** are always shown, with a
-  line saying what goes there while they're empty. **Done Drawing** is at
-  the top of Artwork while you draw on the card, and no longer in Creases,
-  Cuts and Holes (where it stays for drawn creases, cuts and holes).
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

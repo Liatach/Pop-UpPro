@@ -165,6 +165,17 @@ st["pop_next_uid"] = 1
 # ---- an animal face: a loop with a muzzle
 f = add("TUBE", variant="FACE")
 assert f.muzzle and f.front_style == "ROUND" and f.label.startswith("Face")
+assert f.cone_lean == 15.0  # (a little conical, narrower at the nose)
+M = built("Tube")
+for t in M.samples:  # on a cone: the two halves share the crease's top and the seam's tip
+    L, R = world(M, "Tube1.NoseL", t), world(M, "Tube1.NoseR", t)
+    shared = [w for w in L if min((w - v).length for v in R) < 0.02]
+    assert len(shared) == 2 and all(abs(w.x) < 0.02 for w in shared), (t, shared)
+ear = M.panels["Tube1.TabL"]  # its base tabs are ears, out from the loop
+assert len(ear.polys[0]) == 5
+xs = [w.x for w in world(M, "Tube1.TabL", M.tmax)]
+assert min(xs) < -(f.x + 0.9 * f.face_ear) and max(xs) < -f.x + 0.5, xs
+f.cone_lean = 0.0  # ---- and on a straight loop
 M = built("Tube")
 uc = f.depth + M.tubes[1]["wf"]  # the front crease, along the strip
 leans = []

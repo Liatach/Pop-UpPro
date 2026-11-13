@@ -1001,6 +1001,11 @@ class PopupMech(bpy.types.PropertyGroup):
                          "carries on up past the front crease as a muzzle, folded back "
                          "over the loop by a dart (Birmingham 17)", default=False,
                          update=_changed)
+    face_ear: FloatProperty(name="Ear Size", description="Animal face: its base tabs are "
+                            "ears, glued to the pages out from the loop; how far they "
+                            "reach from the wall's foot", default=22.0, min=4.0,
+                            soft_max=80.0, subtype="DISTANCE", unit="LENGTH",
+                            update=_changed)
     face_width: FloatProperty(name="Muzzle Width", description="How far the muzzle runs "
                               "along the wall each side of the front crease", default=18.0,
                               min=3.0, soft_max=80.0, subtype="DISTANCE", unit="LENGTH",
@@ -1516,7 +1521,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      strips=self.strips, cone_top=self.cone_top,
                      roof_height=self.roof_height, ridge=self.ridge,
                      roof_fold=self.roof_fold, eave=self.eave, rib=self.rib,
-                     face=self.muzzle, face_width=self.face_width, face_len=self.face_len,
+                     face=self.muzzle, face_ear=self.face_ear, face_width=self.face_width, face_len=self.face_len,
                      face_dart=self.face_dart)
         elif self.kind == "ROOF":
             d.update(type="ROOF", phi_l=self.phi_l, alpha_l=self.alpha_l, glue=self.glue,

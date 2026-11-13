@@ -356,6 +356,7 @@ def _as_face(st, m):
     was = st.live
     st["live"] = False
     m.height, m.muzzle = 35.0, True
+    m.cone_lean = 15.0  # (a little conical: narrower at the nose)
     m.label = unique_label(st.mechs, "Face", m)
     st["live"] = was
 

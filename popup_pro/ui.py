@@ -679,6 +679,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "face_width")
                 col.prop(m, "face_len")
                 col.prop(m, "face_dart")
+                col.prop(m, "face_ear")
         col.prop(m, "strips")
         col.prop(m, "roof")
         if m.roof == "POINTED":

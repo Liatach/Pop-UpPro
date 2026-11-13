@@ -422,6 +422,16 @@ class Tubes:
                     -onward(i_split, i_split - 1), pB)
         # base tabs under the side walls, folded in (towards the fold) or out
         kk = 1.0 if m.get("tab_side", "IN") == "IN" else -1.0
+        if m.get("face"):
+            kk = -1.0  # (ears: out from the loop)
+            j = max(1, min(n, round(float(m.get("face_width", 18.0)) /
+                                    max(1e-6, (Vector(pt2(n, 1.0 - f_top, n)) -
+                                               Vector(pt2(n + 1, 1.0 - f_top, n))).length))))
+            top = pt2(n + 1, 1.0 - f_top, n)
+            up2 = Vector(top) - Vector(pt2(n + 1, 1.0, n))
+            self._muzzle(m, piece, P[names[n][0]], P[names[n + 1][0]], top, tuple(up2),
+                         (P[names[n + 1 - j][0]], pt2(n + 1 - j, 1.0 - f_top, n + 1 - j)),
+                         (P[names[n + j][0]], pt2(n + 1 + j, 1.0 - f_top, n + j)))
         for nm, i, pg, Tp, sx in (("FL_", 0, host.p1, host.T1, -1.0),
                                   ("FR_", 2 * n + 1, host.p2, host.T2, 1.0)):
             e0, e1 = pt2(i, 1.0, i), pt2(i + 1, 1.0, i)
@@ -433,6 +443,8 @@ class Tubes:
             c2 = min(0.3 * tb, 0.2 * Lb)
             poly = [e0, e1, tuple(Vector(e1) + tb * out_ - c2 * ev),
                     tuple(Vector(e0) + tb * out_ + c2 * ev)]
+            if m.get("face"):
+                poly = self.ear(e0, e1, out_, float(m.get("face_ear", 22.0)))
             tgt = Tp.to_3x3() @ Vector((-sx * kk, 0.0, 0.0))
             sd = "L" if sx < 0 else "R"
             self.add(Panel(f"{piece}.Tab{sd}", piece, "tab", [ccw(poly)],
@@ -698,6 +710,8 @@ class Tubes:
                            None, f"{lab}: joining tab"))
         # base tabs under the side walls, folded in (towards the fold) or out
         k = 1.0 if m.get("tab_side", "IN") == "IN" else -1.0
+        if m.get("face"):
+            k = -1.0  # (ears: out from the loop)
         for side, u0, u1, T, parent, Tp in (
             ("L", u[0], u[1], frame(Vector((-a, y0 + D, TAB_LIFT)), (0, -1, 0), (-k, 0, 0)),
              host.p1, host.T1),
@@ -708,6 +722,9 @@ class Tubes:
             tbb = float(m.get("tab", 10.0))  # (out from the wall: not limited by its length)
             c2 = min(0.3 * tbb, 0.2 * D)
             poly = [(u0 + c2, -tbb), (u0, 0), (u1, 0), (u1 - c2, -tbb)]
+            if m.get("face"):
+                poly = self.ear((u0, 0.0), (u1, 0.0), (0.0, -1.0),
+                                float(m.get("face_ear", 22.0)))
             sgn = -1.0 if side == "L" else 1.0
             n2 = (sgn * T[0][0], sgn * T[0][1])
             poly = clip_halfplane(poly, n2, 0.5 - sgn * T[0][3])

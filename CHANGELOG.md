@@ -3,6 +3,8 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.82.1**: the animal face comes a little conical, a muzzle goes on
+  cones too, and its base tabs are ears (**Ear Size**), out from the loop.
 * **0.82**: more of Birmingham's mechanisms. **Pop-up House** (49): a cube
   takes a gabled roof, with the book's sizes in the **+** menu. **Slotted
   Cross Piece** on a rising sheet (81): the two 45° folds as one piece
