@@ -275,7 +275,8 @@ for roof, collar, d_ in (("POINTED", False, "OUT"), ("FLAT", False, "OUT"),
 print("tower roofs and collars on cubes")
 c.roof = "GABLE"
 build.rebuild(sc, force=True)
-assert any("gabled roof goes on castle towers" in w for w in warns()), warns()
+# (v0.82: a cube takes a gabled roof too, Birmingham 49's house)
+assert not any("gabled roof" in w for w in warns()), warns()
 
 addon.unregister()
 print("V76 OK")

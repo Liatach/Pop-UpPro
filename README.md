@@ -245,6 +245,13 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.82**: more of Birmingham's mechanisms. **Pop-up House** (49): a cube
+  takes a gabled roof, with the book's sizes in the **+** menu. **Slotted
+  Cross Piece** on a rising sheet (81): the two 45° folds as one piece
+  slotted across the sheet, free to rise past it. **Box with Ends** (82): a
+  box on one page pulled up by a 45° fold from the other, its ends filled
+  in by pairs of 45° folds. **Animal Face** (17): a loop whose top carries
+  on as a muzzle, folded back into a nose by a dart.
 * **0.81.3**: **Used lately** and **Palette** now show while drawing (and
   Colour History while painting): an error in how the swatches were drawn
   cut the panel short, hiding them and the brush size, strength and ink
@@ -254,11 +261,6 @@ Sunflower is a good way to make them.
   line saying what goes there while they're empty. **Done Drawing** is at
   the top of Artwork while you draw on the card, and no longer in Creases,
   Cuts and Holes (where it stays for drawn creases, cuts and holes).
-* **0.81.1**: while drawing, the colour wheel in Artwork now sets the colour
-  you draw with (it showed a colour Draw mode doesn't use). With it: a second
-  colour and swap, Mix Factor, **Used lately** (colours you've drawn with,
-  the latest first: click one to draw with it again) and a palette of your
-  own.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

@@ -124,7 +124,7 @@ class VFolds:
             return
         # art tile: the V point sits low in the tile, the halves rise above it
         self.add_piece(Piece(piece, lab, m["slot"] if "slot" in m else 1 + uid, (0.0, 0.3 * 297.0)))
-        if not (0 <= yP <= H):
+        if not (0 <= yP <= H) and not m.get("free_y"):
             self.warn(f"{lab}: the V point is off the card")
 
         uLf = (-math.sin(phl), math.cos(phl))

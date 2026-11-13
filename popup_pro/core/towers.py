@@ -55,7 +55,7 @@ class Towers:
         rise = max(1.0, float(m.get("roof_height", 0.0) or 0.6 * min(a, b)))
         eave = max(0.0, float(m.get("eave", 0.0) or 0.0))
         turn = bool(m.get("gable_turn", False))
-        AC, CB = f"{base}.AC", f"{base}.CB"
+        AC, CB = self._tw_pair(base)
         if AC not in self.panels or CB not in self.panels:
             return
         top = y0 + w
@@ -67,26 +67,72 @@ class Towers:
             wall, Tw, lo, hi = host.p2, host.T2, 0.0, b
             inner, ilo, ihi = AC, 0.0, b
             span, L = b, a
+        Tin, itop = Matrix.Identity(4), w
+        if base in self.__dict__.get("_tw", {}):
+            # a cube's back wall: the wall itself moved across the house, so
+            # the wall's own coordinates carry over to it
+            S, l, r, Y, nl, nr = host.dirs(self.t_ref)
+            shift = Matrix.Translation(L * (l if turn else r))
+            Tin = self.panels[inner].asm(self.t_ref).inverted() @ shift @ \
+                self.panels[wall].asm(self.t_ref) @ Tw
+            ilo, ihi, itop = lo, hi, top
         # the gables (box pattern: u across, v up the corner from y0)
         pw = self.panels[wall]
         pw.polys = [ccw(q) for q in self._peak(pw.polys, Tw, lo, hi, top, rise)]
         pin = self.panels[inner]
-        pin.polys = [ccw(q) for q in self._peak(pin.polys, Matrix.Identity(4), ilo, ihi, w, rise)]
+        pin.polys = [ccw(q) for q in self._peak(pin.polys, Tin, ilo, ihi, itop, rise)]
 
         def wpt(t, x, y):  # a point on the wall gable, virtual coordinates
             return self.panels[wall].asm(t) @ (Tw @ Vector((x, y, 0.0)))
 
         def geo(t):
             E1 = wpt(t, 0.5 * (lo + hi), top + rise)
-            E2 = self.panels[inner].asm(t) @ Vector((0.5 * (ilo + ihi), w + rise, 0.0))
+            E2 = self.panels[inner].asm(t) @ (Tin @ Vector((0.5 * (ilo + ihi), itop + rise, 0.0)))
             v = (E2 - E1).normalized()
             S, l, r, Y, nl, nr = host.dirs(t)
             ds = []
             for x in (lo, hi):
                 d = wpt(t, x, top) - E1
                 d = d - d.dot(v) * v
-                ds.append(d.normalized())
+                ds.append(rest(t, E1, v, d.normalized()))
             return E1, E2, v, Y, ds
+
+        reach = {}  # (set once the roof's size is known)
+
+        def rest(t, E1, v, d):
+            """A roof half hangs on its gables' slopes (d, down from the
+            ridge), unless a page is in the way: then it rests on the page,
+            turned up about the ridge just far enough."""
+            if not reach:
+                return d
+            _, _, nl, nr = self.dirs(t)
+            ends = [E1 + x * v for x in reach["x"]]
+
+            def clear(dd):
+                return min((e + reach["s"] * dd).dot(n) for e in ends for n in (nl, nr))
+
+            if clear(d) >= 0.0:
+                return d
+            k = v.cross(d)
+            if clear(d + 0.02 * k) < clear(d - 0.02 * k):
+                k = -k
+
+            def at(a_):
+                return d * math.cos(a_) + k * math.sin(a_)
+
+            N = 48
+            ok = next((i for i in range(1, N + 1) if clear(at(math.pi * i / N)) >= 0.0), None)
+            if ok is None:  # (no room anywhere: where it's least in the way)
+                return at(max((math.pi * i / N for i in range(N + 1)),
+                              key=lambda a_: clear(at(a_)))).normalized()
+            lo_, hi_ = math.pi * (ok - 1) / N, math.pi * ok / N
+            for _ in range(30):
+                mid = 0.5 * (lo_ + hi_)
+                if clear(d * math.cos(mid) + k * math.sin(mid)) >= 0.0:
+                    hi_ = mid
+                else:
+                    lo_ = mid
+            return (d * math.cos(hi_) + k * math.sin(hi_)).normalized()
 
         tr = self.t_ref
         E1, E2, v, Y, ds = geo(tr)
@@ -141,6 +187,7 @@ class Towers:
         fp = f"GRoof{uid}"
         self.add_piece(Piece(fp, f"{lab} roof", 450 + uid, (0.5 * L, 0.0)))
         Sx = S0 + eave
+        reach.update(x=(-eave, L + eave), s=Sx)
         halfA = [(-eave, 0.0), (L + eave, 0.0), (L + eave, Sx), (-eave, Sx)]
         halfB = [(-eave, -Sx), (L + eave, -Sx), (L + eave, 0.0), (-eave, 0.0)]
 
@@ -158,6 +205,7 @@ class Towers:
         RB = self.add(Panel(f"{fp}.B", fp, "panel", [halfB], asm_B, RA.name,
                             Hinge(ridge, ridge, "TABLE", {}), f"{lab}: roof"))
         RA.hinge.host_bound = RB.hinge.host_bound = True
+        RA.hinge.kink_ok = RB.hinge.kink_ok = True  # (a half lifts off its gables onto a page)
         # tabs on top of the rib, folded either way and stuck under the halves
         tw = min(tb, 0.4 * S0)
         g = min(2.0, 0.1 * L)

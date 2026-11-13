@@ -105,6 +105,9 @@ KINDS = [
     ("QUADS", "Multiple Quadrilaterals", "A back zig-zag on angled sticking strips with a "
      "front strip across the spine, joined each side by a side piece into a quadrilateral "
      "that folds flat (Birmingham 57)", "MOD_LATTICE", 21),
+    ("BOXEND", "Box with Ends", "A box glued to one page, one wall rising from the fold, "
+     "pulled up by a 45° fold from the other page; pairs of 45° folds fill in its ends "
+     "(Birmingham 82)", "MESH_CUBE", 22),
 ]
 
 POINTS = [
@@ -994,6 +997,46 @@ class PopupMech(bpy.types.PropertyGroup):
         ("BOTH", "Both Ends", "45° folds at both ends of each leg"),
         ("NONE", "None", "No props: the legs flop (add your own)")],
         description="The 45° folds that prop the legs square when the card is flat")
+    muzzle: BoolProperty(name="Animal Face", description="Loop or tube: the top edge "
+                         "carries on up past the front crease as a muzzle, folded back "
+                         "over the loop by a dart (Birmingham 17)", default=False,
+                         update=_changed)
+    face_width: FloatProperty(name="Muzzle Width", description="How far the muzzle runs "
+                              "along the wall each side of the front crease", default=18.0,
+                              min=3.0, soft_max=80.0, subtype="DISTANCE", unit="LENGTH",
+                              update=_changed)
+    face_len: FloatProperty(name="Muzzle Length", description="How far the muzzle rises "
+                            "past the wall's top, up the front crease's line",
+                            default=22.0, min=3.0, soft_max=80.0, subtype="DISTANCE",
+                            unit="LENGTH", update=_changed)
+    face_dart: FloatProperty(name="Nose Dart", description="Animal face: the angle cut out "
+                             "each side of the front crease's line above the wall; its "
+                             "edges stuck together fold the muzzle back over the loop. "
+                             "Wider folds it further, and stops the front opening so far",
+                             default=15.0, min=0.0, max=60.0, update=_changed)
+    box_side: EnumProperty(name="Page", items=[
+        ("L", "Left", "The box sits on the left page; the 45° fold pulls from the right"),
+        ("R", "Right", "The box sits on the right page; the 45° fold pulls from the left")],
+        default="R", description="Which page a box with ends is glued to", update=_changed)
+    box_ends: EnumProperty(name="Closed Ends", items=[
+        ("BOTH", "Both", "Both ends filled in"),
+        ("FRONT", "Front", "Only the end nearest the bottom of the card"),
+        ("BACK", "Back", "Only the end nearest the top of the card"),
+        ("NONE", "Open", "An open box, pulled up by its 45° fold")],
+        default="BOTH", description="Which ends of the box are filled in by pairs of 45° "
+        "folds, cut along the end's diagonal", update=_changed)
+    slotted: BoolProperty(name="Slotted Cross Piece", description="Rising sheet: the two "
+                          "45° folds are one piece standing square across the sheet, "
+                          "slotted into it (2 mm slots) and free to rise above the "
+                          "folds: Birmingham 81's flowers", default=False, update=_changed)
+    cross_height: FloatProperty(name="Cross Piece Height", description="How far the slotted "
+                                "cross piece rises from the fold (0: one and a half times "
+                                "the sheet)", default=0.0, min=0.0, soft_max=200.0,
+                                subtype="DISTANCE", unit="LENGTH", update=_changed)
+    cross_width: FloatProperty(name="Cross Piece Width", description="Width of the slotted "
+                               "cross piece above its 45° folds (never narrower than the "
+                               "two folds)", default=0.0, min=0.0, soft_max=200.0,
+                               subtype="DISTANCE", unit="LENGTH", update=_changed)
     brace_size: FloatProperty(name="45° Fold Size", default=15.0, min=2.0, soft_max=60.0,
                               update=_changed,
                               description="Length of each 45° fold's glue edges (mm)")
@@ -1123,7 +1166,7 @@ class PopupMech(bpy.types.PropertyGroup):
         ("POINTED", "Pointed", "Pyramid or ridge roof (set Roof Height and Ridge)"),
         ("FLAT", "Flat", "Flat roof creased down the middle above the fold, optionally "
          "overhanging the walls"),
-        ("GABLE", "Gabled", "Towers: gable ends on two faces, a rib between their tips and "
+        ("GABLE", "Gabled", "Towers and cubes: gable ends on two faces, a rib between their tips and "
          "a roof stuck only to the rib, overhanging the walls (Birmingham 49)")],
         update=_changed)
     gable_turn: BoolProperty(name="Turn Roof", description="Gabled tower roof: put the "
@@ -1472,7 +1515,9 @@ class PopupMech(bpy.types.PropertyGroup):
                      back_style=self.back_style, tab_side=self.tab_side, roof=self.roof,
                      strips=self.strips, cone_top=self.cone_top,
                      roof_height=self.roof_height, ridge=self.ridge,
-                     roof_fold=self.roof_fold, eave=self.eave, rib=self.rib)
+                     roof_fold=self.roof_fold, eave=self.eave, rib=self.rib,
+                     face=self.muzzle, face_width=self.face_width, face_len=self.face_len,
+                     face_dart=self.face_dart)
         elif self.kind == "ROOF":
             d.update(type="ROOF", phi_l=self.phi_l, alpha_l=self.alpha_l, glue=self.glue,
                      height=self.height, level=self.level, tab_side=self.tab_side,
@@ -1484,9 +1529,14 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="PLATFORM", width=self.width, height=self.height,
                      depth=self.depth, depth_r=self.depth_r, brace=self.brace,
                      brace_size=self.brace_size)
+        elif self.kind == "BOXEND":
+            d.update(type="BOXEND", width=self.width, height=self.height, depth=self.depth,
+                     brace_size=self.brace_size, box_side=self.box_side,
+                     box_ends=self.box_ends)
         elif self.kind == "RISER":
             d.update(type="RISER", width=self.width, height=self.height,
-                     brace_size=self.brace_size)
+                     brace_size=self.brace_size, slotted=self.slotted,
+                     cross_height=self.cross_height, cross_width=self.cross_width)
         elif self.kind == "PICTURE":
             d.update(type="PICTURE", face=self.face, x=self.pic_x, y=self.pic_y, img_w=self.img_w,
                      img_h=self.img_h, turn=self.pic_turn, pic_side=self.pic_side)
@@ -1526,6 +1576,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      size_r=self.size_r,
                      tab_side=self.tab_side,
                      roof=self.roof, roof_height=self.roof_height, eave=self.eave,
+                     gable_turn=self.gable_turn,
                      roof_slope=self.roof_slope,
                      collar=self.collar, collar_below=self.collar_below,
                      collar_width=self.collar_width, collar_slope=self.collar_slope,

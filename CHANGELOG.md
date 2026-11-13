@@ -3,6 +3,13 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.82**: more of Birmingham's mechanisms. **Pop-up House** (49): a cube
+  takes a gabled roof, with the book's sizes in the **+** menu. **Slotted
+  Cross Piece** on a rising sheet (81): the two 45° folds as one piece
+  slotted across the sheet, free to rise past it. **Box with Ends** (82): a
+  box on one page pulled up by a 45° fold from the other, its ends filled
+  in by pairs of 45° folds. **Animal Face** (17): a loop whose top carries
+  on as a muzzle, folded back into a nose by a dart.
 * **0.81.3**: **Used lately** and **Palette** now show while drawing (and
   Colour History while painting): an error in how the swatches were drawn
   cut the panel short, hiding them and the brush size, strength and ink

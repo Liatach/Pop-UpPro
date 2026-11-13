@@ -13,7 +13,7 @@ class Folds45:
     """45 degree fold builders. Mixed into Model (model.py)."""
 
     # ------------------------------------------------------- 45 degree folds
-    def _brace(self, owner, k, host, y, size, lean, tab, lab):
+    def _brace(self, owner, k, host, y, size, lean, tab, lab, free_y=False):
         """A 45 degree fold (Birmingham 80, 81): a small V-fold in the corner
         between two panels, its glue lines square to their fold and its two
         piece angles 45 degrees. It folds flat as the corner closes and
@@ -26,6 +26,7 @@ class Folds45:
                          # tabs on the brace's own side of its point (its glue lines
                          # are square to the fold, so "inside" is +Y)
                          tab_side="IN" if lean > 0 else "OUT", pref=(0.0, lean),
+                         free_y=free_y,  # (its host's own coordinates: no card to be off)
                          slot=500 + 4 * owner + k), host)
 
     def _bisector(self, host, t):
@@ -187,8 +188,30 @@ class Folds45:
             S, l, r, Y, nl, nr = host.dirs(t)
             return frame(S + y0 * Y + lift2 * TAB_LIFT * nr, -r, Y)
 
+        slotted = bool(m.get("slotted"))
+        g = float(m.get("brace_size", 15.0) or 15.0)
+        sheet_polys = [[(0, 0), (h, 0), (h, w), (0, w)]]
+        if slotted:
+            # Birmingham 81's adaptation: the two 45 degree folds are one
+            # piece standing square across the sheet, the two interlocked
+            # by slots (2 mm wide) where they cross
+            room = min(h, 0.5 * w - 2.0, self.W if host.is_spine else g)
+            if g > room + 1e-6:
+                g = max(2.0, room)
+                self.warn(f"{lab}: 45° folds made {g:.0f} mm to fit the sheet")
+            hc = max(g + 2.0, float(m.get("cross_height", 0.0) or 0.0) or 1.5 * h)
+            sw, ym = 1.0, 0.5 * w  # (half the slot's width; where it is across the sheet)
+            # the taller piece is slotted from its foot, the shorter from its top
+            mid = min(g, 0.5 * min(h, hc))
+            s0, s1 = (0.0, mid) if h >= hc else (mid, h)
+            sheet_polys = [[(0, 0), (h, 0), (h, ym - sw), (0, ym - sw)],
+                           [(0, ym + sw), (h, ym + sw), (h, w), (0, w)]]
+            for a_, b_ in ((0.0, s0), (s1, h)):
+                if b_ - a_ > 1e-6:
+                    sheet_polys.append([(a_, ym - sw), (b_, ym - sw), (b_, ym + sw),
+                                        (a_, ym + sw)])
         sheet = self.add(Panel(f"{base}.Sheet", piece, "panel",
-                               [[(0, 0), (h, 0), (h, w), (0, w)]], asm_sheet, host.p1,
+                               sheet_polys, asm_sheet, host.p1,
                                Hinge(host.T1 @ hinge_frame_2d((0.0, y0), (0, 1)),
                                      hinge_frame_2d((0, 0), (0, 1)), "TABLE"),
                                f"{lab}: sheet"))
@@ -203,7 +226,10 @@ class Folds45:
                        [[(-tb, half + 0.5 + ch), (0, half + 0.5), (0, w), (-tb, w - ch)]],
                        asm_tab_r, host.p2, None, f"{lab}: tab right"))
         self.line_frames[uid] = (piece, lambda q: (q[0], q[1]), (0.0, h, 0.0, w))
-        g = float(m.get("brace_size", 15.0) or 15.0)
+        if slotted:
+            self._riser_cross(m, host, sheet, base, g, hc, y0 + ym, sw,
+                              (mid, hc) if h >= hc else (0.0, mid))
+            return
         room = min(h, 0.5 * w - 1.0, self.W if host.is_spine else g)
         if g > room + 1e-6:
             g = max(2.0, room)
@@ -225,6 +251,80 @@ class Folds45:
                 hg = self.panels[name].hinge
                 if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
                     hg.kind = "TABLE"
+
+    def _riser_cross(self, m, host, sheet, base, g, hc, yc, sw, slot):
+        """The slotted piece across a rising sheet (Birmingham 81): its
+        middle stands in the sheet's slot, square to the fold when the card
+        is flat and turning flat against the sheet as it shuts; a 45 degree
+        triangle each side of its foot folds down onto a page, where a tab
+        glues it (left: up the card from it; right: down)."""
+        uid, lab = m["uid"], m["label"]
+        tb = min(float(m.get("tab", 10.0)), 0.6 * g)
+        cw = max(2.0 * g, float(m.get("cross_width", 0.0) or 0.0))
+        piece = f"{base}x"
+        self.add_piece(Piece(piece, f"{lab} cross piece", 500 + 4 * uid, (0.5 * hc, 0.0)))
+        lift1, lift2 = host.lift
+        r2 = math.sqrt(2.0)
+
+        def geo(t):
+            S, l, r, Y, nl, nr = host.dirs(t)
+            b = self._bisector(host, t)
+            c = max(0.0, min(1.0, l.dot(b)))  # cos of the corner each side
+            a_ = math.sqrt(0.5) / (1.0 + c)
+            s_ = math.sqrt(max(0.0, c / (1.0 + c)))
+            cL = a_ * (l + b) + s_ * Y
+            cR = a_ * (r + b) - s_ * Y
+            d = cR - cR.dot(b) * b
+            if d.length < 1e-9:
+                d = r - r.dot(b) * b
+            return S + yc * Y, l, r, Y, nl, nr, b, cL.normalized(), cR.normalized(), d.normalized()
+
+        def asm_x(t):
+            P, l, r, Y, nl, nr, b, cL, cR, d = geo(t)
+            return frame(P, b, d)
+
+        def asm_l(t):
+            P, l, r, Y, nl, nr, b, cL, cR, d = geo(t)
+            return frame(P, r2 * cL - l, -l)
+
+        def asm_r(t):
+            P, l, r, Y, nl, nr, b, cL, cR, d = geo(t)
+            return frame(P, r2 * cR - r, r)
+
+        def asm_tl(t):
+            P, l, r, Y, nl, nr, b, cL, cR, d = geo(t)
+            return frame(P + lift1 * TAB_LIFT * nl, -Y, -l)
+
+        def asm_tr(t):
+            P, l, r, Y, nl, nr, b, cL, cR, d = geo(t)
+            return frame(P + lift2 * TAB_LIFT * nr, Y, r)
+
+        a0, a1 = slot  # the cross piece's own slot, up its middle line
+        polys = []
+        for sg in (-1.0, 1.0):
+            polys.append([(0.0, sg * sw), (g, sg * sw), (g, sg * g)])  # 45 degree triangle
+            polys.append([(g, sg * sw), (hc, sg * sw), (hc, sg * 0.5 * cw), (g, sg * 0.5 * cw)])
+        for x0, x1 in ((0.0, a0), (a1, hc)):
+            if x1 - x0 > 1e-6:
+                polys.append([(x0, -sw), (x1, -sw), (x1, sw), (x0, sw)])
+        slot_line = hinge_frame_2d((0.0, 0.0), (1.0, 0.0))
+        cross = self.add(Panel(f"{piece}.Cross", piece, "panel", polys, asm_x, sheet.name,
+                               Hinge(hinge_frame_2d((0.0, yc - float(m["y"])), (1.0, 0.0)),
+                                     slot_line, "TABLE"), f"{lab}: cross piece"))
+        cross.hinge.kink_ok = True
+        self.fold_kind[frozenset((sheet.name, cross.name))] = "cut"  # (slots, not a fold)
+        ch = 0.3 * tb
+        for side, sg, asm_f, asm_t, page in (("L", -1.0, asm_l, asm_tl, host.p1),
+                                             ("R", 1.0, asm_r, asm_tr, host.p2)):
+            crease = hinge_frame_2d((0.0, 0.0), (1.0, sg))
+            self.add(Panel(f"{piece}.Foot{side}", piece, "panel",
+                           [[(0.0, sg * sw), (g, sg * g), (0.0, sg * g)]], asm_f, cross.name,
+                           Hinge(crease, crease, "TABLE"),
+                           f"{lab}: 45° fold {'left' if side == 'L' else 'right'}"))
+            self.add(Panel(f"{piece}.Tab{side}", piece, "tab",
+                           [[(0.0, sg * sw), (0.0, sg * g), (-tb, sg * (g - ch)),
+                             (-tb, sg * (sw + ch))]], asm_t, page, None,
+                           f"{lab}: 45° fold tab {'left' if side == 'L' else 'right'}"))
 
     def _tri45(self, m, hc, which, y0, w, a, b, k, base, lab):
         """Birmingham 74: a pair of small triangles cut into the corner of a

@@ -84,6 +84,7 @@ DEFAULTS = {
     "PLATFORM": dict(y=70.0, width=60.0, height=35.0, depth=30.0, tab=10.0,
                      brace_size=15.0),
     "RISER": dict(y=60.0, width=70.0, height=80.0, tab=12.0, brace_size=20.0),
+    "BOXEND": dict(y=75.0, width=60.0, height=30.0, depth=40.0, tab=8.0, brace_size=20.0),
     "DOUBLE45": dict(y=105.0, width=30.0, height=45.0, depth=104.0, tab=10.0),
     "JACK": dict(y=30.0, width=60.0, height=25.0, depth=25.0, tab=10.0),
     "ZIGZAG": dict(y=80.0, phi_l=120.0, x=20.0, width=25.0, height=50.0, faces="30", tab=10.0),
@@ -97,7 +98,7 @@ NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
          "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
          "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof",
-         "PLATFORM": "Platform", "RISER": "Rising sheet", "DOUBLE45": "Double 45",
+         "PLATFORM": "Platform", "RISER": "Rising sheet", "BOXEND": "Box with ends", "DOUBLE45": "Double 45",
          "JACK": "Jack in the box", "PICTURE": "Picture", "ZIGZAG": "Zig-zag",
          "QUADS": "Quadrilaterals"}
 
@@ -214,8 +215,12 @@ class POPUP_OT_add(bpy.types.Operator):
             return self.done(context, st, uid)
         if self.kind == "BOX" and self.variant == "ANGLED" and not self.host:
             _as_angled(st, m)
-        if self.kind == "TUBE" and self.variant == "LOOP":
+        if self.kind == "TUBE" and self.variant in ("LOOP", "FACE"):
             _as_loop(st, m)
+        if self.kind == "TUBE" and self.variant == "FACE":
+            _as_face(st, m)
+        if self.kind == "CUBE" and self.variant == "HOUSE":
+            _as_house(st, m)
         if self.kind == "TUBE" and self.variant == "CASTLE":
             _as_castle(st, m)
             for fold in ("KFL", "KFR", "KBR", "KBL"):
@@ -343,6 +348,27 @@ def _as_angled(st, m):
     st["live"] = False
     m.fan_angle = 20.0
     m.label = unique_label(st.mechs, "Angled box fold", m)
+    st["live"] = was
+
+
+def _as_face(st, m):
+    """Birmingham 17's animal face: a taller loop with a muzzle."""
+    was = st.live
+    st["live"] = False
+    m.height, m.muzzle = 35.0, True
+    m.label = unique_label(st.mechs, "Face", m)
+    st["live"] = was
+
+
+def _as_house(st, m):
+    """Birmingham 49's pop-up house, at the book's suggested sizes."""
+    was = st.live
+    st["live"] = False
+    # walls 65 x 45 and 35 high, gable tops 55 above the base; the roof 75
+    # along its ridge (5 past each gable)
+    m.size, m.size_r, m.height = 45.0, 65.0, 35.0
+    m.roof, m.roof_height, m.eave, m.gable_turn = "GABLE", 20.0, 5.0, True
+    m.label = unique_label(st.mechs, "House", m)
     st["live"] = was
 
 

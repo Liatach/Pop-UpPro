@@ -129,9 +129,6 @@ class Cubes:
 
         lid = m.get("lid", "PEAK")
         troof = m.get("roof", "NONE")
-        if troof == "GABLE":
-            self.warn(f"{lab}: a gabled roof goes on castle towers; no roof")
-            troof = "NONE"
         if troof != "NONE" or (m.get("collar") and m.get("collar_dir") == "IN"):
             lid = "NONE"  # (the tower roof or tapered top takes its place)
         if lid != "NONE" and not square:
@@ -253,6 +250,8 @@ class Cubes:
         # (their tabs glue over the cube's closing tab at the back corner)
         for w_ in ("roof", "collar"):
             self.stack_ok.add(frozenset((lab, f"{lab} {w_}")))
+        if troof == "GABLE":  # (Birmingham 49: the pop-up house)
+            self._tower_gable(m, h, base, a, b, 0.0, hgt, float(m.get("tab", 10.0)))
         if troof in ("POINTED", "FLAT"):
             mm = dict(m, roof_below=0.0)
             self._tower_roof(mm, h, base, a, b, 0.0, hgt, float(m.get("tab", 10.0)),

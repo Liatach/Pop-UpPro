@@ -147,6 +147,17 @@ cube's closing tab at the back corner (glue on glue is fine).
 ![A cube with a pointed tower roof and a collar with a railing, at 175, 115
 and 55 degrees](images/cube_tower.jpg)
 
+**Pop-up House** (Birmingham 49, in the **+** menu) is a cube with a
+rectangular base and **Tower Roof: Gabled**, at the book's sizes: walls 65
+by 45 mm and 35 high, gables 20 higher, the roof 5 mm past the walls. Two
+facing walls get gable ends (**Turn Roof** for the other pair), a rib joins
+their tips, and the roof, creased along its ridge, is stuck only to tabs on
+the rib. Its halves rest on the gables' slopes, and lift off them onto a
+page where the closing card would otherwise push through them. A gabled roof
+takes the place of a cube's lid.
+
+![The pop-up house at 175, 115 and 55 degrees](images/house.jpg)
+
 ### Tubes and tethers (parallel sticking strips)
 
 A tube's side walls are glued to two strips parallel to the fold, the same
@@ -195,6 +206,23 @@ on a cone.
 
 ![A loop, and behind it a cone (a loop with a smaller Top Radius), at 175,
 115 and 55 degrees](images/loop_cone.jpg)
+
+**Animal Face** (Birmingham 17, in the **+** menu; or tick it on any loop
+or tube) is the book's next step from the loop: the top edge carries on up
+past the front crease as a muzzle, and a bite taken out of the end of the
+crease, its edges stuck together, folds the muzzle back over the loop into a
+nose. Stiff paper can't curve, so the bite is a dart between two flat
+facets, one each side of the front crease, each creased off the wall's top
+(straight across the curve of a round wall, from the crease to **Muzzle
+Width** along it). **Muzzle Length** is how far it rises past the wall and
+**Nose Dart** the angle cut out each side. Shut, the muzzle leans back by
+just its dart; it folds further back as the loop opens, and lies flat back
+when the front has opened as far as the dart allows. Past that real card
+curves and this can't follow: Checks says so (narrow the dart or the
+muzzle). The loop's tabs are the book's glued ears, and its join at the back
+the strap under the chin. Draw the face on it, and erase its art to shape it.
+
+![An animal face on a loop, at 175, 130 and 80 degrees](images/animal_face.jpg)
 
 ![Cones with lids: peaked in front, dipped behind, at 175, 115 and 55
 degrees](images/cone_lid.jpg)
@@ -967,7 +995,28 @@ piece, listed under the mechanism's name).
   (front left, back right). Its foot is glued down by two tabs, the front
   half onto the left page and the back half onto the right. **Sheet
   Height** and **Width Along Fold** size it; shape it into a tree or
-  flowers by erasing its art.
+  flowers by erasing its art. **Slotted Cross Piece** is the book's second
+  version: the two 45° folds become one piece standing square across the
+  sheet, the two interlocked by 2 mm slots (the taller piece slotted from
+  its foot, the shorter from its top), so it can rise past the folds
+  (**Cross Piece Height** and **Width**). Its two feet fold down onto the
+  pages and are glued there: stick those first, then the sheet's tabs.
+
+  ![A rising sheet with a slotted cross piece in front, a plain one behind,
+  at 175, 115 and 55 degrees](images/slotted_sheet.jpg)
+* **Box with Ends** (mechanism 82): a box glued to one page only (**Page**),
+  one wall rising from the fold itself. Both its feet are on the same page,
+  so a 45° fold from the other page pulls it up: the box lies flat on its
+  page until the card is half open, then rises, and stands square when the
+  card is flat. **Closed Ends** fills each end with two more 45° folds, in
+  the two corners that close as the box flattens, cut along the end's
+  diagonal; one face of each is part of the box, the other has a tab (onto
+  the page, and inside the far wall). **Length Along Fold**, **Width** and
+  **Wall Height** size it. The book's two small flaps that tuck behind the
+  diagonal aren't drawn: leave a little extra there if you want them.
+
+  ![Boxes with ends, on the right page (both ends closed) and the left (one
+  end), at 175, 135 and 95 degrees](images/box_ends.jpg)
 
 The rest use the other kind of 45° fold: one whose glue angle and piece
 angle are both 45°. It lies flat while its host is flat and its crease

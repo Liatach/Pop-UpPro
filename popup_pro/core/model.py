@@ -28,9 +28,11 @@ import math
 
 from mathutils import Matrix, Vector
 
+from .boxends import BoxEnds
 from .boxes import BoxFolds
 from .collars import Collars
 from .cubes import Cubes
+from .faces import Faces
 from .flaps import Flaps
 from .folds45 import Folds45
 from .geom import Z, ccw, clip_halfplane, frame, hinge_frame_2d, rot_y, v3
@@ -50,7 +52,7 @@ from .base import (arcade, _card, CARD_PRESETS, CORNERS, halfplanes, Hinge, Host
                    unit2)
 
 
-class Model(BoxFolds, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
+class Model(BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
             Roofs, Stages, Tethers, Flaps, Solver):
     def __init__(self, card, mechs):
         self.card = dict(card)
@@ -346,6 +348,8 @@ class Model(BoxFolds, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, 
                 self._platform(m, host)
             elif m["type"] == "RISER":
                 self._riser(m, host)
+            elif m["type"] == "BOXEND":
+                self._boxend(m, host)
             elif m["type"] == "DOUBLE45":
                 self._double45(m, host)
             elif m["type"] == "ZIGZAG":

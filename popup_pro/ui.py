@@ -8,7 +8,7 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "PYRAMID": "CONE", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
              "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND",
              "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME", "PLATFORM": "MOD_SOLIDIFY",
-             "RISER": "OUTLINER_OB_FORCE_FIELD", "DOUBLE45": "ORIENTATION_GIMBAL",
+             "RISER": "OUTLINER_OB_FORCE_FIELD", "BOXEND": "MESH_CUBE", "DOUBLE45": "ORIENTATION_GIMBAL",
              "ZIGZAG": "MOD_SCREW", "QUADS": "MOD_LATTICE",
              "JACK": "OUTLINER_OB_ARMATURE", "PICTURE": "IMAGE_DATA"}
 
@@ -135,12 +135,15 @@ class POPUP_MT_add(bpy.types.Menu):
         one.separator()
         self._adds(one, "45° folds:", (
             ("Platform (45° folds)", "PLATFORM"), ("Rising Sheet (45° folds)", "RISER"),
-            ("Double 45° Fold (twisting top)", "DOUBLE45")))
+            ("Double 45° Fold (twisting top)", "DOUBLE45"),
+            ("Box with Ends (on one page, 45° folds)", "BOXEND")))
         two.label(text="")
         self._adds(two, "Cubes and tubes:", (
-            ("Cube (180°)", "CUBE"), ("Tube (parallel strips)", "TUBE"),
+            ("Cube (180°)", "CUBE"), ("Pop-up House (cube, gabled roof)", "CUBE", "HOUSE"),
+            ("Tube (parallel strips)", "TUBE"),
             ("Castle (tube with corner towers)", "TUBE", "CASTLE"),
             ("Loop (ring on two tabs)", "TUBE", "LOOP"),
+            ("Animal Face (loop with a muzzle)", "TUBE", "FACE"),
             ("Pyramid / Tent (parallel strips)", "PYRAMID"), ("Tether", "TETHER")))
         two.separator()
         self._adds(two, "Roofs:", (
@@ -359,7 +362,7 @@ def _tower_top(col, m, cube=False):
     col.prop(m, "roof", text="Tower Roof" if cube else "Roof")
     if m.roof == "POINTED":
         col.prop(m, "roof_height")
-    elif m.roof == "GABLE" and not cube:
+    elif m.roof == "GABLE":
         col.prop(m, "roof_height", text="Gable Height")
         col.prop(m, "eave")
         col.prop(m, "gable_turn")
@@ -592,7 +595,7 @@ _OWN_PANELS = {"TUBE": "draw_tube", "PICTURE": "draw_picture", "STAGE": "draw_st
 # kinds placed on a fold (Stands On and Position first), then their own settings;
 # anything else is a box fold
 _PLACED_PANELS = {"CUBE": "draw_cube", "MOUTH": "draw_mouth", "PLATFORM": "draw_platform",
-                  "RISER": "draw_riser", "JACK": "draw_jack", "ZIGZAG": "draw_linkage",
+                  "RISER": "draw_riser", "BOXEND": "draw_boxend", "JACK": "draw_jack", "ZIGZAG": "draw_linkage",
                   "QUADS": "draw_linkage", "DOUBLE45": "draw_double45", "STANDUP": "draw_standup"}
 
 
@@ -646,7 +649,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             return
         getattr(self, _PLACED_PANELS.get(m.kind, "draw_box"))(col, m, hm, joint)
         if m.kind in ("CUBE", "STANDUP", "BOX", "PLATFORM", "RISER", "DOUBLE45", "ZIGZAG",
-                      "QUADS"):
+                      "QUADS", "BOXEND"):
             _tabs(self.layout, m, side=m.kind == "CUBE")
         if m.kind in ("BOX", "BOXCUT"):
             _draw_lines(self.layout, context, m)
@@ -670,6 +673,12 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         if m.kind == "TUBE" and m.front_style == "ROUND" and m.back_style == "ROUND":
             col.prop(m, "cone_top")
             col.prop(m, "cone_lean")  # (the same thing, as an angle)
+        if m.kind == "TUBE":
+            col.prop(m, "muzzle")
+            if m.muzzle:
+                col.prop(m, "face_width")
+                col.prop(m, "face_len")
+                col.prop(m, "face_dart")
         col.prop(m, "strips")
         col.prop(m, "roof")
         if m.roof == "POINTED":
@@ -830,11 +839,24 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         if m.brace != "NONE":
             col.prop(m, "brace_size")
 
+    def draw_boxend(self, col, m, hm, joint):
+        """A box with ends' own settings."""
+        col.prop(m, "box_side")
+        col.prop(m, "width", text="Length Along Fold")
+        col.prop(m, "depth", text="Width (out from the fold)")
+        col.prop(m, "height", text="Wall Height")
+        col.prop(m, "box_ends")
+        col.prop(m, "brace_size", text="Pulling 45° Fold Size")
+
     def draw_riser(self, col, m, hm, joint):
         """A rising sheet's own settings."""
         col.prop(m, "width", text="Width Along Fold")
         col.prop(m, "height", text="Sheet Height")
         col.prop(m, "brace_size")
+        col.prop(m, "slotted")
+        if m.slotted:
+            col.prop(m, "cross_height", text="Cross Piece Height (0 = auto)")
+            col.prop(m, "cross_width", text="Cross Piece Width (0 = the folds)")
         col.label(text="Shape the sheet by erasing its art (Paint, Erase)", icon="INFO")
 
     def draw_jack(self, col, m, hm, joint):

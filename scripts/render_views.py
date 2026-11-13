@@ -88,7 +88,37 @@ def cube_tower():
     return (0, 103, 34), 165
 
 
-SCENES = dict(collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+def house():
+    m = add("CUBE")
+    m.y, m.size, m.size_r, m.height = 70.0, 45.0, 65.0, 35.0
+    m.roof, m.roof_height, m.eave, m.gable_turn = "GABLE", 20.0, 5.0, True
+    return (0, 115, 25), 260
+
+
+def slotted_sheet():
+    a = add("RISER")
+    a.y, a.width, a.height, a.brace_size = 50.0, 70.0, 30.0, 18.0
+    a.slotted, a.cross_height, a.cross_width = True, 55.0, 50.0
+    b = add("RISER")
+    b.y, b.width, b.height = 140.0, 50.0, 45.0
+    return (0, 115, 20), 270
+
+
+def box_ends():
+    a = add("BOXEND")
+    a.y = 40.0
+    b = add("BOXEND")
+    b.y, b.box_side, b.depth, b.height, b.box_ends = 125.0, "L", 30.0, 30.0, "FRONT"
+    return (0, 105, 12), 270, (0.3, -0.8, 0.55), (175.0, 135.0, 95.0)
+
+
+def animal_face():
+    a = add("TUBE", variant="FACE")
+    a.y = 80.0
+    return (0, 85, 20), 170, (0.25, -0.75, 0.6), (175.0, 130.0, 80.0)
+
+
+SCENES = dict(house=house, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 
@@ -113,7 +143,11 @@ def tint(card):
 
 def render(name):
     st.mechs.clear()
-    target, dist = SCENES[name]()
+    res = SCENES[name]()
+    target, dist = res[:2]
+    # (a scene can ask for its own viewpoint and openings)
+    VIEW = Vector(res[2]).normalized() if len(res) > 2 else globals()["VIEW"]
+    OPENINGS = res[3] if len(res) > 3 else globals()["OPENINGS"]
     bpy.ops.popup.build()
     build.rebuild(sc, force=True)
     if st.warnings:

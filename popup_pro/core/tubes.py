@@ -667,6 +667,8 @@ class Tubes:
         # where a point sits along the strip, on the wall a tether glues to
         self.tubes[uid]["walls"] = {nm: (P[nm].name, w_["u0"], w_["u1"]) + w_["ends"]
                                     for nm, w_ in walls.items()}
+        if m.get("face"):
+            self._tube_face(m, piece, P, u[2], hgt, nf, wf)
         # closing tab on the back-left wall, glued inside the left side
         ch = min(0.3 * tb, 0.2 * hgt)
         close = [(u[6], 0), (u[6] + tb, ch), (u[6] + tb, hgt - ch), (u[6], hgt)]
