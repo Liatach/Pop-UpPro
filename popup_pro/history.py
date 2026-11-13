@@ -49,12 +49,42 @@ def note(scene, color):
     return True
 
 
+_seen = {}  # scene name -> strokes on the Draw Anywhere layer when last looked
+
+
+def _ink_drawn(context):
+    """Drawing anywhere (Grease Pencil): when a stroke has just been added
+    in a colour of its own, note that colour."""
+    from . import art
+    from .ops import drawing_anywhere
+    sc = context.scene
+    if not drawing_anywhere(context):
+        _seen.pop(sc.name, None)
+        return
+    obj, free = art.free_layer(sc, create=False)
+    dr = art._drawing_of(free, sc) if free is not None else None
+    n = len(dr.strokes) if dr is not None else 0
+    was = _seen.get(sc.name)
+    _seen[sc.name] = n
+    if was is None or n <= was:
+        return
+    gpp = context.tool_settings.gpencil_paint
+    brush = gpp.brush
+    if brush is None or gpp.color_mode != "VERTEXCOLOR" or \
+            getattr(brush, "gpencil_brush_type", "DRAW") not in ("DRAW", "FILL"):
+        return
+    note(sc, tuple(brush.color))
+
+
 @bpy.app.handlers.persistent
 def _on_update(scene, depsgraph=None):
     try:
+        context = bpy.context
+        if context.mode == "PAINT_GREASE_PENCIL":
+            _ink_drawn(context)
+            return
         if depsgraph is not None and not depsgraph.id_type_updated("IMAGE"):
             return
-        context = bpy.context
         if context.mode != "PAINT_TEXTURE":
             return
         from .ops import painting, painting_into

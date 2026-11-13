@@ -1245,7 +1245,9 @@ class POPUP_PT_openings(_Base, bpy.types.Panel):
     def draw(self, context):
         st = context.scene.popup
         lay = self.layout
-        if _drawing(context):
+        from .ops import drawing_anywhere
+        if _drawing(context) and not drawing_anywhere(context):
+            # (drawing art anywhere has its Done Drawing in Artwork)
             r = lay.row()
             r.alert = True
             r.scale_y = 1.4
@@ -1484,14 +1486,14 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
             c.scale_y = 0.8
             c.label(text="Drawing on the card, folded or flat", icon="CHECKMARK")
             c.label(text="Strokes go onto the paper when you're done")
-            lay.prop(st, "ink_in_front")
-            _ink_colour(lay, context)
             row = lay.row(align=True)
             row.scale_y = 1.3
             row.operator("popup.ink_paper", icon="TEXTURE")
             r = row.row(align=True)
             r.alert = True
             r.operator("popup.done_drawing", icon="CHECKMARK")
+            lay.prop(st, "ink_in_front")
+            _ink_colour(lay, context)
             _ink_layers(lay, context)
         elif on:
             meta = live.meta(st.rig)
@@ -1762,14 +1764,21 @@ def _palettes(box, context, gpp):
     """The colours used lately (noted as strokes go on the paper), and a
     palette of your own: click a swatch to draw with it."""
     recent = context.scene.popup.colour_history
+    box.label(text="Used lately:")
     if recent is not None and len(recent.colors):
-        col = box.column(align=True)
-        col.label(text="Used lately:")
-        col.template_palette(context.scene.popup, "colour_history", color=True)
-    col = box.column(align=True)
-    col.template_ID(gpp, "palette", new="palette.new")
-    if gpp.palette is not None and gpp.palette != recent:
-        col.template_palette(gpp, "palette", color=True)
+        box.template_palette(context.scene.popup, "colour_history", color=True)
+    else:
+        r = box.row()
+        r.enabled = False
+        r.label(text="Colours you draw with show here")
+    box.label(text="Palette:")
+    box.template_ID(gpp, "palette", new="palette.new")
+    if gpp.palette is None:
+        r = box.row()
+        r.enabled = False
+        r.label(text="Pick a palette, or New for one of your own")
+    elif gpp.palette != recent:
+        box.template_palette(gpp, "palette", color=True)
 
 
 def _header_done(self, context):

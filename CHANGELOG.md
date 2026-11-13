@@ -3,6 +3,11 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.81.2**: while drawing, **Used lately** fills in as you draw (each
+  stroke's colour, at once), and it and **Palette** are always shown, with a
+  line saying what goes there while they're empty. **Done Drawing** is at
+  the top of Artwork while you draw on the card, and no longer in Creases,
+  Cuts and Holes (where it stays for drawn creases, cuts and holes).
 * **0.81.1**: while drawing, the colour wheel in Artwork now sets the colour
   you draw with (it showed a colour Draw mode doesn't use). With it: a second
   colour and swap, Mix Factor, **Used lately** (colours you've drawn with,

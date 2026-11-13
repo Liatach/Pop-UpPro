@@ -290,6 +290,24 @@ if bpy.context.mode == "PAINT_GREASE_PENCIL" and gpp.brush is not None:
     assert any(e[1] == "operator" and e[2][0] == "paint.brush_colors_flip" for e in log)
     assert any(e[1] == "template_ID" and e[2][1] == "palette" for e in log)
     print("the panel's colour is the brush's own, with a palette")
+    # v0.81.2: a stroke drawn is noted at once, in the brush's colour;
+    # Done Drawing is in Artwork (at the top), not in Creases, Cuts and Holes
+    from popup_pro import history
+    gpp.brush.color = (1.0, 0.5, 0.0)
+    history._ink_drawn(bpy.context)  # (looks: nothing new yet)
+    draw(line(20, 60, 60, 60))
+    history._ink_drawn(bpy.context)
+    c0 = tuple(st.colour_history.colors[0].color)
+    assert abs(c0[0] - 1) < 0.01 and abs(c0[1] - 0.5) < 0.01 and c0[2] < 0.01, c0
+    n = len(st.colour_history.colors)
+    history._ink_drawn(bpy.context)  # (no new stroke: nothing noted)
+    assert len(st.colour_history.colors) == n
+    ops_in = lambda P: [e[2][0] for e in draw_panel(P) if e[1] == "operator"]  # noqa: E731
+    a_ops = ops_in(ui.POPUP_PT_art)
+    assert "popup.done_drawing" in a_ops and \
+        a_ops.index("popup.done_drawing") < 3, a_ops[:6]
+    assert "popup.done_drawing" not in ops_in(ui.POPUP_PT_openings)
+    print("a stroke's colour is noted as it is drawn; Done Drawing is in Artwork")
 else:
     print("(no Draw mode without a window: the panel's colour not checked here)")
 draw(line(20, 40, 60, 40))
