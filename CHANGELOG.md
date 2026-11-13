@@ -3,6 +3,12 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.81**: **Ink Layers**. What you draw with Draw Anywhere is kept as
+  Grease Pencil strokes on layers you can hide, fade, reorder and remove,
+  and **Edit Ink** lays them out on the flat layout to change; the paper
+  is redrawn from them, so nothing is baked in. **Whole Strokes While
+  Drawing** shows strokes in front of the card as you draw, not cut by
+  the paper.
 * **0.80**: the **+** menu in columns, one for each place things go: on the
   card's fold (V-folds, box folds, 45° folds, cubes and tubes, roofs), in a
   stage, and on what's selected.

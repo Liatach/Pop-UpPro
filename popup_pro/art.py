@@ -517,22 +517,27 @@ def _tile_frames(scene):
     return out
 
 
-def _render_strokes(scene, strokes, frame, size, gp_src, layer_src):
-    """Render strokes (rest space) flat, straight down onto one art tile,
-    only over the patch they cover: (x0, y0, RGBA pixels (h, w, 4), straight
-    alpha), or None."""
+def _render_strokes(scene, layers, frame, size, materials):
+    """Render layers of strokes (rest space) flat, straight down onto one art
+    tile, only over the patch they cover: (x0, y0, RGBA pixels (h, w, 4),
+    straight alpha), or None. layers: [(layer to take opacity, tint and
+    blend from, [(points, stroke attributes, cyclic)])], bottom first;
+    materials: what the strokes' material_index counts through."""
     import numpy as np
     num, o, eu, ev = frame
     W_, H_ = size
     # the patch: the strokes' bounds on the tile, with room for the brush
     Lu, Lv = eu.length, ev.length
     us, vs, rad = [], [], 0.0
-    for pts, _a, _c in strokes:
-        for r, rd, _op, _col in pts:
-            d = r - o
-            us.append(d.dot(eu) / (Lu * Lu))
-            vs.append(d.dot(ev) / (Lv * Lv))
-            rad = max(rad, rd)
+    for _layer, strokes in layers:
+        for pts, _a, _c in strokes:
+            for r, rd, _op, _col in pts:
+                d = r - o
+                us.append(d.dot(eu) / (Lu * Lu))
+                vs.append(d.dot(ev) / (Lv * Lv))
+                rad = max(rad, rd)
+    if not us:
+        return None
     pad_u = (4.0 * rad + 0.02 * Lu) / Lu
     pad_v = (4.0 * rad + 0.02 * Lv) / Lv
     x0 = max(0, int(math.floor((min(us) - pad_u) * W_)))
@@ -551,30 +556,18 @@ def _render_strokes(scene, strokes, frame, size, gp_src, layer_src):
     try:
         tmp.collection.objects.link(ob)
         tmp.collection.objects.link(cam)
-        for m in gp_src.materials:
+        for m in materials:
             gp.materials.append(m)
-        lay = gp.layers.new("ink")
-        lay.use_lights = False
-        for k in ("opacity", "tint_color", "tint_factor", "radius_offset", "blend_mode"):
-            try:
-                setattr(lay, k, getattr(layer_src, k))
-            except (AttributeError, TypeError, ValueError):
-                pass
-        dr = lay.frames.new(tmp.frame_current).drawing
-        for pts, attrs, cyc in strokes:
-            dr.add_strokes([len(pts)])
-            ns = dr.strokes[len(dr.strokes) - 1]
-            for q, (r, rad, op, col) in zip(ns.points, pts):
-                q.position = r
-                q.radius = rad
-                q.opacity = op
-                q.vertex_color = col
-            for a_, v in attrs.items():
+        for layer_src, strokes in layers:
+            lay = gp.layers.new("ink")
+            lay.use_lights = False
+            for k in ("opacity", "tint_color", "tint_factor", "radius_offset", "blend_mode"):
                 try:
-                    setattr(ns, a_, v)
+                    setattr(lay, k, getattr(layer_src, k))
                 except (AttributeError, TypeError, ValueError):
                     pass
-            ns.cyclic = cyc
+            dr = lay.frames.new(tmp.frame_current).drawing
+            put_strokes(dr, strokes)
         # an orthographic camera straight down onto the patch
         x = eu.normalized()
         zc = Vector((0.0, 0.0, 1.0))
@@ -618,10 +611,34 @@ def _render_strokes(scene, strokes, frame, size, gp_src, layer_src):
         bpy.data.scenes.remove(tmp)
 
 
-def _paint_tiles(img, layers):
+def put_strokes(drawing, strokes):
+    """Add strokes to a drawing: [(points (position, radius, opacity, vertex
+    colour), stroke attributes, cyclic)]. Returns the first new stroke's
+    index."""
+    first = len(drawing.strokes)
+    for pts, attrs, cyc in strokes:
+        drawing.add_strokes([len(pts)])
+        ns = drawing.strokes[len(drawing.strokes) - 1]
+        for q, (r, rad, op, col) in zip(ns.points, pts):
+            q.position = r
+            q.radius = rad
+            q.opacity = op
+            q.vertex_color = col
+        for a_, v in attrs.items():
+            try:
+                setattr(ns, a_, v)
+            except (AttributeError, TypeError, ValueError):
+                pass
+        ns.cyclic = cyc
+    return first
+
+
+def _paint_tiles(img, layers, under=None):
     """Lay RGBA patches over tiles of a packed UDIM image: {tile: [(x0, y0,
     (h, w, 4))]} (straight alpha; the paper's own alpha, holes and all, is
-    kept)."""
+    kept). under(tile number, pixels (h, w, 4)): called for each tile before
+    its patches go on, to change what is underneath (the ink layers put
+    back the paper as it was before any ink)."""
     import numpy as np
     tmpd = tempfile.mkdtemp(prefix="popup_art_")
     base = os.path.join(tmpd, "art")
@@ -638,6 +655,8 @@ def _paint_tiles(img, layers):
             dst = np.empty(w * h * 4, dtype=np.float32)
             t.pixels.foreach_get(dst)
             dst = dst.reshape(h, w, 4)
+            if under is not None:
+                under(num, dst)
             for x0, y0, px in src:
                 ph, pw = px.shape[:2]
                 ph, pw = min(ph, h - y0), min(pw, w - x0)
@@ -675,7 +694,8 @@ def paint_free(scene):
     art (brushes, textures and colours as drawn), so they show on the
     folded card and the flat layout alike and print with the art. Strokes
     are split where they run onto another piece of paper; points off the
-    paper are left out. The loose layer is emptied. Returns (strokes
+    paper are left out. The strokes themselves are kept, on the active ink
+    layer (ink.py), and the loose layer is emptied. Returns (strokes
     painted, points dropped)."""
     st = scene.popup
     obj, free = free_layer(scene, create=False)
@@ -711,19 +731,18 @@ def paint_free(scene):
             by_piece.setdefault(pc, []).append((pts, attrs, bool(s.cyclic) and len(segs) == 1))
     frames = _tile_frames(scene)
     sizes = {t.number: tuple(t.size) for t in img.tiles}
-    layers, made = {}, 0
-    for pc, strokes in by_piece.items():
+    made = 0
+    for pc in list(by_piece):
         fr = frames.get(pc)
         if fr is None or fr[0] not in sizes:
-            dropped += sum(len(p) for p, _a, _c in strokes)
-            continue
-        got = _render_strokes(scene, strokes, fr, sizes[fr[0]], obj.data, free)
-        if got is None:
-            continue
-        layers.setdefault(fr[0], []).append(got)
-        made += len(strokes)
-    if layers:
-        _paint_tiles(img, layers)
-        refresh_material(scene)
+            dropped += sum(len(p) for p, _a, _c in by_piece.pop(pc))
+        else:
+            made += len(by_piece[pc])
+    if by_piece:
+        # kept as strokes on the active ink layer (so they can be changed,
+        # hidden and reordered later), and the paper redrawn where they fell
+        from . import ink
+        touched = ink.add_strokes(scene, by_piece, list(obj.data.materials))
+        ink.update_paper(scene, touched)
     src.remove_strokes()
     return made, dropped

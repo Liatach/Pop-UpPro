@@ -572,6 +572,14 @@ def _fold_changed(self, context):
     live.schedule(context.scene)
 
 
+def _ink_in_front_changed(self, context):
+    from . import art
+    from .naming import N
+    obj = bpy.data.objects.get(N(context.scene, art.SKETCH))
+    if obj is not None and obj.mode == "PAINT_GREASE_PENCIL":
+        obj.show_in_front = self.ink_in_front
+
+
 def _opens_to_changed(self, context):
     rig = self.rig
     if rig is not None and "pop_open" in rig:
@@ -1793,6 +1801,13 @@ class PopupSettings(bpy.types.PropertyGroup):
                               default=148.5, min=20.0, soft_max=400.0, update=_changed)
     spine_length: FloatProperty(name="Spine Length", default=210.0, min=20.0,
                                 soft_max=400.0, update=_changed)
+    ink_in_front: BoolProperty(
+        name="Whole Strokes While Drawing", description="Draw Anywhere: show the strokes "
+        "in front of the card while you draw. A Grease Pencil stroke is a row of little "
+        "pictures that face you, so on paper seen at a slant the paper cuts through "
+        "them (the stepped, shadowed look); in front, they show whole, and also "
+        "through anything standing before them. Either way they go flat onto the "
+        "paper when you're done", default=True, update=_ink_in_front_changed)
     opens_to: FloatProperty(
         name="Opens To", description="How far the card opens (degrees). 180: flat on the "
         "table. Less, for a card that stands part open (90 or 120, say): everything is "

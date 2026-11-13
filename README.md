@@ -127,6 +127,8 @@ Paint flat or folded, import and position images or simply textures, then export
   the same paper), or place images that wrap round cubes and tubes; either
   way the art stays on the paper as it folds. Erase the paper see-through
   (round a drawing, say) and cut what's erased out.
+* **Ink Layers**: what you draw is kept as strokes on layers to hide, fade,
+  reorder and edit, and the paper is redrawn from them.
 * Outside glue tabs print the art of the part they glue onto, so they
   disappear into the picture.
 * A built in animated movement test with one Open slider, on a rig that needs no Python
@@ -185,9 +187,10 @@ Sunflower is a good way to make them.
   tower roofs need a square tower; gabled roofs and sunken battlements are
   for castle towers, not cubes; a cone has no roof; an angled box fold takes
   no slant, peaks or railing. Checks says when one is left off.
-* Draw Anywhere strokes become paint when they go on the paper: they can't
-  be edited as strokes afterwards (Ctrl Z takes them off), and a stroke
-  that runs from one piece of paper onto another is painted on each.
+* Draw Anywhere strokes are shown as paint once they are on the paper (a
+  stroke that runs from one piece of paper onto another is split between
+  them), and edited as strokes on the flat layout (**Edit Ink**), not on
+  the folded card.
 * Texture Paint itself is hidden from the panels: Draw Anywhere is the way
   to paint, and Erase the Paper (in the Artwork panel) the way to rub it
   see-through and cut painted holes.
@@ -196,12 +199,10 @@ Sunflower is a good way to make them.
 
 ## Roadmap
 
-* **Ink layers and editable strokes**: Draw Anywhere strokes kept as Grease
-  Pencil lying on the flat layout (carried round the folds by the rig, so
-  they show folded too), editable any time, in layers you can hide, reorder
-  and fade, with the paper redrawn from them (**Update Paper**), so nothing
-  is baked in for good. Strokes that keep to the piece they're on near folds
-  and edges.
+* **Ink layers, continued**: strokes put on the paper as each one is
+  finished (so they are never seen standing off it), editing them on the
+  folded card as well as the flat layout, and the paper redrawn by itself
+  when a layer's opacity changes.
 * **Tubes and castles, continued**: battlements and a drawbridge in a
   tube's walls, and towers on other folds. Overhanging roofs on tubes, eaves
   on pyramid tower roofs, gabled roofs on cubes; stand-ups on a tower's
@@ -244,6 +245,12 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.81**: **Ink Layers**. What you draw with Draw Anywhere is kept as
+  Grease Pencil strokes on layers you can hide, fade, reorder and remove,
+  and **Edit Ink** lays them out on the flat layout to change; the paper
+  is redrawn from them, so nothing is baked in. **Whole Strokes While
+  Drawing** shows strokes in front of the card as you draw, not cut by
+  the paper.
 * **0.80**: the **+** menu in columns, one for each place things go: on the
   card's fold (V-folds, box folds, 45° folds, cubes and tubes, roofs), in a
   stage, and on what's selected.
@@ -251,11 +258,6 @@ Sunflower is a good way to make them.
   say): the Open slider and movement test stop there, and frames, floors
   and ceilings go straight in the card, flat when it is fully open, as in
   a carousel's stage.
-* **0.78**: a cone's **Lean** as an angle (it and Top Radius set each
-  other) and a lid on a cone (a Flat roof, peaked or dipped); a collar's
-  railing runs into the curled corner as one strip, bending where the curl
-  starts instead of splitting there; clicking a warning in Checks selects
-  the mechanism it's about.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

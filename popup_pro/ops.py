@@ -926,6 +926,9 @@ class POPUP_OT_done_drawing(bpy.types.Operator):
                 pass
         _restore_view(context)
         _place_drawn(self, context.scene)
+        sk = bpy.data.objects.get(N(context.scene, art.SKETCH))
+        if sk is not None:
+            sk.show_in_front = False  # (lines sketched on panels sit on their panels)
         return {"FINISHED"}
 
 
@@ -980,11 +983,145 @@ class POPUP_OT_ink_new(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def _ink_report(op, scene, n):
+    if n:
+        op.report({"INFO"}, f"Paper redrawn on {n} piece{'s' if n != 1 else ''}")
+
+
+class POPUP_OT_ink_update(bpy.types.Operator):
+    """Redraw the paper from the ink layers (after changing a layer's
+    opacity, tint or blend, say). Hiding, reordering, adding and removing
+    layers here does it for you"""
+    bl_idname = "popup.ink_update"
+    bl_label = "Update Paper"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def execute(self, context):
+        from . import ink
+        _ink_report(self, context.scene, ink.update_paper(context.scene))
+        return {"FINISHED"}
+
+
+class POPUP_OT_ink_layer(bpy.types.Operator):
+    """Ink layers: add one, pick the one new strokes go on, show or hide
+    one, move it up or down, or remove it with its strokes"""
+    bl_idname = "popup.ink_layer"
+    bl_label = "Ink Layer"
+    bl_options = {"REGISTER", "UNDO"}
+    action: EnumProperty(items=[("ADD", "Add", ""), ("PICK", "Pick", ""), ("SHOW", "Show", ""),
+                                ("UP", "Up", ""), ("DOWN", "Down", ""),
+                                ("REMOVE", "Remove", "")], default="ADD")
+    index: IntProperty(default=-1)
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def execute(self, context):
+        from . import ink
+        sc = context.scene
+        if self.action == "ADD":
+            ink.new_layer(sc)
+            return {"FINISHED"}
+        obj = ink.ink_object(sc, create=False)
+        if obj is None or not 0 <= self.index < len(obj.data.layers):
+            return {"CANCELLED"}
+        gp = obj.data
+        la = gp.layers[self.index]
+        if self.action == "PICK":
+            gp.layers.active = la
+            return {"FINISHED"}
+        if self.action == "SHOW":
+            la.hide = not la.hide
+        elif self.action in ("UP", "DOWN"):
+            gp.layers.move(la, self.action)
+        elif self.action == "REMOVE":
+            gp.layers.remove(la)
+            if gp.layers.active is None and len(gp.layers):
+                gp.layers.active = gp.layers[len(gp.layers) - 1]
+        _ink_report(self, sc, ink.update_paper(sc))
+        return {"FINISHED"}
+
+
+class POPUP_OT_ink_edit(bpy.types.Operator):
+    """Edit the ink: every layer's strokes laid out on the flat layout, seen
+    straight down as they print, to move, reshape, erase or add to with any
+    Grease Pencil tool. Done Editing puts them back on the paper"""
+    bl_idname = "popup.ink_edit"
+    bl_label = "Edit Ink"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.popup.rig is not None
+
+    def execute(self, context):
+        from . import ink
+        sc = context.scene
+        st = sc.popup
+        if st.plan_view:
+            st.plan_view = False
+        _remember_view(context)
+        if context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        _place_drawn(self, sc)  # anything left on the Draw Anywhere layer
+        ink.active_layer(sc)
+        obj = ink.show(sc)
+        for o in context.selected_objects:
+            o.select_set(False)
+        obj.select_set(True)
+        context.view_layer.objects.active = obj
+        ts = sc.tool_settings
+        ts.gpencil_stroke_placement_view3d = "SURFACE"
+        ts.gpencil_surface_offset = art.OFFSET_MM / st.mm_per_unit
+        try:
+            bpy.ops.popup.view_layout()
+        except RuntimeError:
+            pass
+        try:
+            bpy.ops.object.mode_set(mode="EDIT")
+        except (RuntimeError, TypeError):
+            pass
+        return {"FINISHED"}
+
+
+class POPUP_OT_ink_done(bpy.types.Operator):
+    """Done editing the ink: the strokes go back onto the paper under them
+    (kept as strokes, on their layers) and the paper is redrawn"""
+    bl_idname = "popup.ink_done"
+    bl_label = "Done Editing"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        from . import ink
+        return ink.editing(context.scene)
+
+    def execute(self, context):
+        from . import ink
+        if context.mode != "OBJECT":
+            try:
+                bpy.ops.object.mode_set(mode="OBJECT")
+            except RuntimeError:
+                pass
+        kept, dropped = ink.absorb(context.scene)
+        _restore_view(context)
+        self.report({"INFO"}, f"{kept} stroke{'s' if kept != 1 else ''} on the paper" +
+                    (f"; {dropped} point(s) off the paper left out" if dropped else ""))
+        return {"FINISHED"}
+
+
 class POPUP_OT_draw_anywhere(bpy.types.Operator):
     """Draw with Grease Pencil anywhere on the card, folded or flat, across
     folds, with any brush. When you're done (or press Put on the Paper) the
-    strokes are painted into the paper itself, flat on each piece: they show
-    on the folded card and the flat layout alike and print with the art"""
+    strokes are drawn into the paper itself, flat on each piece: they show
+    on the folded card and the flat layout alike and print with the art.
+    They are kept as strokes too, on the active ink layer, to hide, reorder
+    or edit later"""
     bl_idname = "popup.draw_anywhere"
     bl_label = "Draw Anywhere"
     bl_options = {"REGISTER", "UNDO"}
@@ -1001,6 +1138,9 @@ class POPUP_OT_draw_anywhere(bpy.types.Operator):
         _remember_view(context)
         if context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
+        from . import ink
+        if ink.editing(sc):
+            ink.absorb(sc)
         _place_drawn(self, sc)  # anything left from last time
         obj, layer = art.free_layer(sc)
         obj.data.layers.active = layer
@@ -1011,6 +1151,7 @@ class POPUP_OT_draw_anywhere(bpy.types.Operator):
         obj.hide_set(False)
         obj.select_set(True)
         context.view_layer.objects.active = obj
+        obj.show_in_front = st.ink_in_front  # (whole strokes, not cut by the paper)
         ts = sc.tool_settings
         ts.gpencil_stroke_placement_view3d = "SURFACE"
         ts.gpencil_surface_offset = art.OFFSET_MM / st.mm_per_unit
@@ -2275,7 +2416,7 @@ classes = (POPUP_OT_select_warned, POPUP_OT_visibility, POPUP_OT_tri_pictures, P
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_draw_anywhere, POPUP_OT_ink_paper, POPUP_OT_ink_new, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_erase_paper, POPUP_OT_light_layers, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_draw_anywhere, POPUP_OT_ink_paper, POPUP_OT_ink_new, POPUP_OT_ink_update, POPUP_OT_ink_layer, POPUP_OT_ink_edit, POPUP_OT_ink_done, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_erase_paper, POPUP_OT_light_layers, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

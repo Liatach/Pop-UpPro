@@ -1407,6 +1407,50 @@ def _plan_view(lay, st):
             col.label(text=f"and {len(found) - 6} more")
 
 
+def _ink_layers(lay, context):
+    """The ink layers, top one first: which one new strokes go on, show or
+    hide, opacity, order; Edit Ink and Update Paper."""
+    from . import ink
+    sc = context.scene
+    layers = ink.layers(sc)
+    obj = ink.ink_object(sc, create=False)
+    active = obj.data.layers.active if obj is not None else None
+    box = lay.box()
+    row = box.row(align=True)
+    row.label(text=f"Ink Layers ({len(layers)})", icon="RENDERLAYERS")
+    row.operator("popup.ink_layer", text="", icon="ADD").action = "ADD"
+    if not layers:
+        c = box.column(align=True)
+        c.scale_y = 0.8
+        c.label(text="What you draw is kept as strokes here,")
+        c.label(text="to hide, reorder or edit later")
+        return
+    col = box.column(align=True)
+    for i in range(len(layers) - 1, -1, -1):
+        la = layers[i]
+        row = col.row(align=True)
+        op = row.operator("popup.ink_layer", text="", emboss=False,
+                          icon="RADIOBUT_ON" if la == active else "RADIOBUT_OFF")
+        op.action, op.index = "PICK", i
+        row.prop(la, "name", text="")
+        sub = row.row(align=True)
+        sub.scale_x = 0.55
+        sub.prop(la, "opacity", text="", slider=True)
+        op = row.operator("popup.ink_layer", text="",
+                          icon="HIDE_ON" if la.hide else "HIDE_OFF")
+        op.action, op.index = "SHOW", i
+        op = row.operator("popup.ink_layer", text="", icon="TRIA_UP")
+        op.action, op.index = "UP", i
+        op = row.operator("popup.ink_layer", text="", icon="TRIA_DOWN")
+        op.action, op.index = "DOWN", i
+        op = row.operator("popup.ink_layer", text="", icon="X")
+        op.action, op.index = "REMOVE", i
+    if not ink.editing(sc):
+        row = box.row(align=True)
+        row.operator("popup.ink_edit", icon="GREASEPENCIL")
+        row.operator("popup.ink_update", icon="FILE_REFRESH")
+
+
 class POPUP_PT_art(_Base, bpy.types.Panel):
     bl_label = "Artwork"
     bl_order = 4
@@ -1421,12 +1465,26 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
         col = lay.column(align=True)
         col.label(text="Draw (Grease Pencil)")
         from .ops import drawing_anywhere, sketching
+        from . import ink
         on = sketching(context)
-        if drawing_anywhere(context):
+        if ink.editing(context.scene):
+            c = col.column(align=True)
+            c.scale_y = 0.8
+            c.label(text="Editing the ink on the flat layout", icon="CHECKMARK")
+            c.label(text="Any Grease Pencil mode and tool: move, erase, draw")
+            _ink_layers(lay, context)
+            if context.mode == "PAINT_GREASE_PENCIL":
+                _ink_colour(lay, context)
+            r = lay.row()
+            r.alert = True
+            r.scale_y = 1.3
+            r.operator("popup.ink_done", icon="CHECKMARK")
+        elif drawing_anywhere(context):
             c = col.column(align=True)
             c.scale_y = 0.8
             c.label(text="Drawing on the card, folded or flat", icon="CHECKMARK")
             c.label(text="Strokes go onto the paper when you're done")
+            lay.prop(st, "ink_in_front")
             _ink_colour(lay, context)
             row = lay.row(align=True)
             row.scale_y = 1.3
@@ -1434,6 +1492,7 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
             r = row.row(align=True)
             r.alert = True
             r.operator("popup.done_drawing", icon="CHECKMARK")
+            _ink_layers(lay, context)
         elif on:
             meta = live.meta(st.rig)
             lab = next((p["label"] for p in meta["panels"] if p["name"] == on), on) \
@@ -1453,6 +1512,7 @@ class POPUP_PT_art(_Base, bpy.types.Panel):
             r = col.row()
             r.scale_y = 1.4
             r.operator("popup.draw_anywhere", icon="OUTLINER_OB_GREASEPENCIL")
+            _ink_layers(lay, context)
             head, body = lay.panel("popup_sketch_lines", default_closed=True)
             head.label(text="Lines on One Panel (vector)")
             if body is not None:

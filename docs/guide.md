@@ -1331,6 +1331,30 @@ mesh, no rig). So:
   on the folded card and the flat layout alike, lie flat on every fold and
   print with the art. Points off the paper are left out. (Texture Paint is
   hidden from the panels for now: Grease Pencil is the way to paint.)
+  While you draw, **Whole Strokes While Drawing** shows the strokes in
+  front of the card: a Grease Pencil stroke is a row of little pictures
+  that always face you, so on paper seen at a slant the paper would cut
+  through them (a stepped, shadowed look). They go flat onto the paper
+  when you're done either way.
+* **Ink Layers**: the strokes are kept as well, on a hidden object
+  (**Pop-up Ink Layers**), and the paper shows a picture drawn from them,
+  so nothing is baked in for good. New strokes go on the layer with the
+  dot; **+** adds a layer. Each layer has a name, an opacity, an eye (show
+  or hide), up and down (layers higher in the list are drawn over those
+  below) and **×** (remove it and its strokes). Hiding, reordering,
+  adding and removing redraw the paper; after changing an opacity (or a
+  layer's tint or blend, in Blender's own layer settings) press **Update
+  Paper**. So you can draw, test the movement, and carry on drawing or
+  change what you drew, as often as you like.
+  **Edit Ink** lays every layer's strokes out on the flat layout, seen
+  straight down, as they print, with the paper bare meanwhile: move,
+  reshape, erase or add to them with any Grease Pencil mode and tool, then
+  **Done Editing** puts each point back on the paper under it (a stroke
+  moved onto another piece is split between them; points moved off the
+  paper are left out) and redraws the paper. Strokes belong to their piece
+  of paper, so they stay put when you add mechanisms and the print layout
+  moves. Art put on the paper before 0.81 has no strokes to edit: it stays
+  as paint underneath the layers.
 * **Sketch on Panel** (under **Lines on One Panel**): pick a panel and press
   the button.
   It makes a layer on **Pop-up Sketch** parented to that panel's bone, sets

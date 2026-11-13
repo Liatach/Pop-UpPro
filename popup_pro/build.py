@@ -616,6 +616,9 @@ def write_meta(rig, model, layout, s):
 # ---------------------------------------------------------------- rebuild
 def rebuild(scene, force=False):
     st = scene.popup
+    if scene.get("pop_ink_editing"):  # the ink is out on the layout, which may move
+        from . import ink
+        ink.absorb(scene)
     s = 1.0 / st.mm_per_unit
     model, layout = make_model(scene)
     rig, card, lay = ensure_objects(scene)
