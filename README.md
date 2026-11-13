@@ -245,6 +245,11 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.81.1**: while drawing, the colour wheel in Artwork now sets the colour
+  you draw with (it showed a colour Draw mode doesn't use). With it: a second
+  colour and swap, Mix Factor, **Used lately** (colours you've drawn with,
+  the latest first: click one to draw with it again) and a palette of your
+  own.
 * **0.81**: **Ink Layers**. What you draw with Draw Anywhere is kept as
   Grease Pencil strokes on layers you can hide, fade, reorder and remove,
   and **Edit Ink** lays them out on the flat layout to change; the paper
@@ -254,10 +259,6 @@ Sunflower is a good way to make them.
 * **0.80**: the **+** menu in columns, one for each place things go: on the
   card's fold (V-folds, box folds, 45° folds, cubes and tubes, roofs), in a
   stage, and on what's selected.
-* **0.79**: **Opens To**, for a card that stands part open (90° or 120°,
-  say): the Open slider and movement test stop there, and frames, floors
-  and ceilings go straight in the card, flat when it is fully open, as in
-  a carousel's stage.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

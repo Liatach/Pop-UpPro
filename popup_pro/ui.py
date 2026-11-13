@@ -1720,11 +1720,20 @@ def _ink_colour(lay, context):
     brush = gpp.brush
     if gpp.color_mode == "VERTEXCOLOR":
         if brush is not None:
-            try:
-                U.prop_unified_color_picker(box, context, brush, "color", value_slider=True)
-                U.prop_unified_color(box, context, brush, "color", text="")
-            except Exception:  # (no colour wheel here: a plain swatch)
-                box.prop(brush, "color", text="")
+            # as Blender's own Colour panel has it: Draw mode's colour is the
+            # brush's own (the shared "unified" colour is for the other modes)
+            ups = getattr(gpp, "unified_paint_settings", None)
+            owner = brush if context.mode == "PAINT_GREASE_PENCIL" or ups is None \
+                or not ups.use_unified_color else ups
+            box.template_color_picker(owner, "color", value_slider=True)
+            row = box.row(align=True)
+            row.prop(owner, "color", text="")
+            row.prop(owner, "secondary_color", text="")
+            row.operator("paint.brush_colors_flip", icon="FILE_REFRESH", text="")
+            gs = getattr(brush, "gpencil_settings", None)
+            if gs is not None and getattr(brush, "gpencil_brush_type", "") in ("DRAW", "FILL"):
+                box.prop(gs, "vertex_color_factor", slider=True, text="Mix Factor")
+            _palettes(box, context, gpp)
     else:
         row = box.row()
         row.template_list("GPENCIL_UL_matslots", "", obj, "material_slots", obj,
@@ -1747,6 +1756,20 @@ def _ink_colour(lay, context):
                            pressure_name="use_pressure_strength", text="Strength", slider=True)
         except Exception:  # (brush settings differ between versions: never break the panel)
             pass
+
+
+def _palettes(box, context, gpp):
+    """The colours used lately (noted as strokes go on the paper), and a
+    palette of your own: click a swatch to draw with it."""
+    recent = context.scene.popup.colour_history
+    if recent is not None and len(recent.colors):
+        col = box.column(align=True)
+        col.label(text="Used lately:")
+        col.template_palette(context.scene.popup, "colour_history", color=True)
+    col = box.column(align=True)
+    col.template_ID(gpp, "palette", new="palette.new")
+    if gpp.palette is not None and gpp.palette != recent:
+        col.template_palette(gpp, "palette", color=True)
 
 
 def _header_done(self, context):

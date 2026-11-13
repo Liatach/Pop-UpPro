@@ -687,6 +687,22 @@ def _paint_tiles(img, layers, under=None):
     return new
 
 
+def _note_colours(scene, drawing):
+    """Colours drawn with (Color Attribute strokes) go in the colour history,
+    the latest first."""
+    from mathutils import Color
+    from . import history
+    try:
+        for s in drawing.strokes:
+            if not len(s.points):
+                continue
+            c = s.points[0].vertex_color
+            if c[3] > 0.01:  # (0: the ink's own colour, not one picked)
+                history.note(scene, tuple(Color(c[:3]).from_scene_linear_to_srgb()))
+    except Exception as ex:  # never get in the way of drawing
+        print(f"Pop-Up Pro: colour history: {ex}")
+
+
 def paint_free(scene):
     """Paint every stroke on the Draw Anywhere layer onto the paper itself:
     each point onto the paper under it (folded card or flat layout), then
@@ -711,6 +727,7 @@ def paint_free(scene):
     W = obj.matrix_world @ free.matrix_local
     dropped = 0
     by_piece = {}  # piece -> [(points, attrs, cyclic)]
+    _note_colours(scene, src)
     for s in src.strokes:
         attrs = {k: getattr(s, k) for k in _STROKE_ATTRS if hasattr(s, k)}
         if "fill_color" in attrs:

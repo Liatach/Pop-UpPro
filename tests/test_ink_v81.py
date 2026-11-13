@@ -272,5 +272,41 @@ acts = [(e[3].get("text"), e[3].get("icon")) for e in log if e[1] == "operator"
 assert any(e[1] == "label" and e[3].get("text") == "Ink Layers (1)" for e in log)
 assert len(acts) >= 7, acts
 
+
+# ---- v0.82: the colour in our panel is the one drawn with, and colours are remembered
+from ui_stub import Layout  # noqa: E402
+set_open(180.0)
+assert bpy.ops.popup.draw_anywhere() == {"FINISHED"}
+gpp = sc.tool_settings.gpencil_paint
+if bpy.context.mode == "PAINT_GREASE_PENCIL" and gpp.brush is not None:
+    gpp.color_mode = "VERTEXCOLOR"
+    gpp.unified_paint_settings.use_unified_color = True  # (Draw mode doesn't use it)
+    log = []
+    ui._ink_colour(Layout(log), bpy.context)
+    pick = [e for e in log if e[1] == "template_color_picker"]
+    assert len(pick) == 1 and pick[0][2][0] == gpp.brush and pick[0][2][1] == "color", pick
+    sw = [e[2][1] for e in log if e[1] == "prop" and e[2][0] == gpp.brush]
+    assert sw[:2] == ["color", "secondary_color"], sw
+    assert any(e[1] == "operator" and e[2][0] == "paint.brush_colors_flip" for e in log)
+    assert any(e[1] == "template_ID" and e[2][1] == "palette" for e in log)
+    print("the panel's colour is the brush's own, with a palette")
+else:
+    print("(no Draw mode without a window: the panel's colour not checked here)")
+draw(line(20, 40, 60, 40))
+dr = art._drawing_of(art.free_layer(sc)[1], sc)
+for p in dr.strokes[len(dr.strokes) - 1].points:
+    p.vertex_color = (0.0, 0.2140, 1.0, 1.0)  # (linear: sRGB 0, 0.5, 1)
+assert bpy.ops.popup.done_drawing() == {"FINISHED"}
+pal = st.colour_history
+assert pal is not None and len(pal.colors) >= 1
+c0 = tuple(pal.colors[0].color)
+assert abs(c0[0]) < 0.02 and abs(c0[1] - 0.5) < 0.02 and abs(c0[2] - 1.0) < 0.02, c0
+log = []
+ui._palettes(Layout(log), bpy.context, gpp)
+assert [e[2][1] for e in log if e[1] == "template_palette"][0] == "colour_history"
+c = at(art_px(), 40, 40)
+assert c[2] > 0.8 and c[0] < 0.3, c  # (and it is on the paper, blue)
+print("colours drawn with are remembered, the latest first")
+
 addon.unregister()
 print("V81 OK")

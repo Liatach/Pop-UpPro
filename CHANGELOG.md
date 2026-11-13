@@ -3,6 +3,11 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.81.1**: while drawing, the colour wheel in Artwork now sets the colour
+  you draw with (it showed a colour Draw mode doesn't use). With it: a second
+  colour and swap, Mix Factor, **Used lately** (colours you've drawn with,
+  the latest first: click one to draw with it again) and a palette of your
+  own.
 * **0.81**: **Ink Layers**. What you draw with Draw Anywhere is kept as
   Grease Pencil strokes on layers you can hide, fade, reorder and remove,
   and **Edit Ink** lays them out on the flat layout to change; the paper
