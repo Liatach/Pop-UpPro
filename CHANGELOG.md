@@ -3,6 +3,10 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.84**: **Slotted Cross Pieces** are mechanisms of their own on a
+  rising sheet, each sized and placed on its own, with feet that grow with
+  its width and can go on one page only. Older files' cross pieces are
+  made separate when opened.
 * **0.83**: Kim's notes on 0.82. The house's roof is pushed open by its
   walls, never through them. Slotted cross pieces: millimetres, **Slots
   Meet At**, a position along the sheet and up to four. **Cut Across

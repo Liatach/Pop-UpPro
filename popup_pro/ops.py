@@ -84,6 +84,7 @@ DEFAULTS = {
     "PLATFORM": dict(y=70.0, width=60.0, height=35.0, depth=30.0, tab=10.0,
                      brace_size=15.0),
     "RISER": dict(y=60.0, width=70.0, height=80.0, tab=12.0, brace_size=20.0),
+    "CROSS": dict(cross_width=30.0, cross_height=0.0, foot_size=0.0, tab=10.0),
     "BOXEND": dict(y=75.0, width=60.0, height=30.0, depth=40.0, tab=8.0, brace_size=20.0),
     "DOUBLE45": dict(y=105.0, width=30.0, height=45.0, depth=104.0, tab=10.0),
     "JACK": dict(y=30.0, width=60.0, height=25.0, depth=25.0, tab=10.0),
@@ -98,7 +99,7 @@ NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
          "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
          "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof",
-         "PLATFORM": "Platform", "RISER": "Rising sheet", "BOXEND": "Box with ends", "DOUBLE45": "Double 45",
+         "PLATFORM": "Platform", "RISER": "Rising sheet", "BOXEND": "Box with ends", "CROSS": "Cross piece", "DOUBLE45": "Double 45",
          "JACK": "Jack in the box", "PICTURE": "Picture", "ZIGZAG": "Zig-zag",
          "QUADS": "Quadrilaterals"}
 
@@ -367,6 +368,35 @@ def _as_face(st, m):
     m.cone_lean = 15.0  # (a little conical: narrower at the nose)
     m.label = unique_label(st.mechs, "Face", m)
     st["live"] = was
+
+
+def split_crosses(st, r):
+    """A rising sheet with its own Slotted Cross Pieces (older files): each
+    becomes a Slotted Cross Piece mechanism standing on it, sized on its own."""
+    if r.kind != "RISER" or not r.slotted:
+        return []
+    was = st.live
+    st["live"] = False
+    ru = r.uid
+    # (read it all first: adding to the list can move its items in memory)
+    n = max(1, min(4, r.cross_count))
+    gap = r.cross_gap or r.width / n
+    g = r.brace_size
+    vals = dict(cross_height=r.cross_height, slot_height=r.slot_height, tab=r.tab,
+                cross_width=max(2.0 * g, r.cross_width), foot_size=g)
+    base, pos = f"{r.label}: cross piece", r.cross_pos
+    made = []
+    for k in range(n):
+        c = _add(st, "CROSS")
+        c.host_uid = ru
+        c.cross_pos = pos + (k - 0.5 * (n - 1)) * gap
+        for key, v in vals.items():
+            setattr(c, key, v)
+        c.label = unique_label(st.mechs, base, c)
+        made.append(c.uid)
+    next(x for x in st.mechs if x.uid == ru).slotted = False
+    st["live"] = was
+    return made
 
 
 def _as_house(st, m):
@@ -1134,6 +1164,26 @@ class POPUP_OT_ink_edit(bpy.types.Operator):
             bpy.ops.object.mode_set(mode="EDIT")
         except (RuntimeError, TypeError):
             pass
+        return {"FINISHED"}
+
+
+class POPUP_OT_cross_split(bpy.types.Operator):
+    """Make this rising sheet's cross pieces separate Slotted Cross Piece
+    mechanisms, each sized and placed on its own"""
+    bl_idname = "popup.cross_split"
+    bl_label = "Make Separate Cross Pieces"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        st = context.scene.popup
+        if not st.mechs or st.active >= len(st.mechs):
+            return {"CANCELLED"}
+        made = split_crosses(st, st.mechs[st.active])
+        if not made:
+            return {"CANCELLED"}
+        if st.live:
+            from . import build
+            build.rebuild(context.scene)
         return {"FINISHED"}
 
 
@@ -2464,7 +2514,7 @@ classes = (POPUP_OT_select_warned, POPUP_OT_visibility, POPUP_OT_tri_pictures, P
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
-           POPUP_OT_build, POPUP_OT_draw_anywhere, POPUP_OT_ink_paper, POPUP_OT_ink_new, POPUP_OT_ink_update, POPUP_OT_ink_layer, POPUP_OT_ink_edit, POPUP_OT_ink_done, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_erase_paper, POPUP_OT_light_layers, POPUP_OT_set_open,
+           POPUP_OT_build, POPUP_OT_draw_anywhere, POPUP_OT_ink_paper, POPUP_OT_ink_new, POPUP_OT_ink_update, POPUP_OT_ink_layer, POPUP_OT_ink_edit, POPUP_OT_ink_done, POPUP_OT_cross_split, POPUP_OT_add, POPUP_OT_remove, POPUP_OT_duplicate, POPUP_OT_done_drawing, POPUP_OT_done_painting, POPUP_OT_paint_into, POPUP_OT_paint_erase, POPUP_OT_erase_paper, POPUP_OT_light_layers, POPUP_OT_set_open,
            POPUP_OT_animate, POPUP_OT_animate_pull, POPUP_OT_add_art, POPUP_OT_paint, POPUP_OT_sketch,
            POPUP_OT_bake, POPUP_OT_export_svg, POPUP_OT_view_layout)
 

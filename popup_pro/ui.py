@@ -8,7 +8,7 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "PYRAMID": "CONE", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
              "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND",
              "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME", "PLATFORM": "MOD_SOLIDIFY",
-             "RISER": "OUTLINER_OB_FORCE_FIELD", "BOXEND": "MESH_CUBE", "DOUBLE45": "ORIENTATION_GIMBAL",
+             "RISER": "OUTLINER_OB_FORCE_FIELD", "BOXEND": "MESH_CUBE", "CROSS": "SNAP_PERPENDICULAR", "DOUBLE45": "ORIENTATION_GIMBAL",
              "ZIGZAG": "MOD_SCREW", "QUADS": "MOD_LATTICE",
              "JACK": "OUTLINER_OB_ARMATURE", "PICTURE": "IMAGE_DATA"}
 
@@ -90,7 +90,7 @@ class POPUP_MT_add(bpy.types.Menu):
             return
         h = st.mechs[st.active]  # the selected mechanism: what can go on it
         takes = (h.kind in ("FLOOR", "CEILING", "ZIGZAG", "QUADS", "STAGE", "CUBE", "TUBE",
-                            "PLATFORM")
+                            "PLATFORM", "RISER")
                  or h.kind == "VFOLD" and h.shape != "FAN"
                  or h.kind in ("BOX", "BOXCUT", "STANDUP") and not is_angled(h, st.mechs))
         if not takes:
@@ -109,6 +109,9 @@ class POPUP_MT_add(bpy.types.Menu):
             self.draw_on_box(lay, h)
         if h.kind == "PLATFORM":
             self.draw_on_platform(lay, h)
+        if h.kind == "RISER":
+            op = lay.operator("popup.add", text="Slotted Cross Piece", icon=KIND_ICON["CROSS"])
+            op.kind, op.host, op.fold = "CROSS", h.uid, "A"
 
     @staticmethod
     def _adds(lay, heading, entries):
@@ -591,7 +594,8 @@ def _align(lay, st):
 # the Mechanisms panel: kinds with a layout all their own (methods of the panel)
 _OWN_PANELS = {"TUBE": "draw_tube", "PICTURE": "draw_picture", "STAGE": "draw_stage",
                "FRAME": "draw_frame", "FLOOR": "draw_floor", "CEILING": "draw_floor",
-               "PYRAMID": "draw_pyramid", "ROOF": "draw_roof", "TETHER": "draw_tether"}
+               "PYRAMID": "draw_pyramid", "ROOF": "draw_roof", "TETHER": "draw_tether",
+               "CROSS": "draw_cross"}
 # kinds placed on a fold (Stands On and Position first), then their own settings;
 # anything else is a box fold
 _PLACED_PANELS = {"CUBE": "draw_cube", "MOUTH": "draw_mouth", "PLATFORM": "draw_platform",
@@ -840,6 +844,18 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         if m.brace != "NONE":
             col.prop(m, "brace_size")
 
+    def draw_cross(self, context, st, col, m):
+        """A slotted cross piece: which sheet, where along it, its size."""
+        col.prop(m, "host", text="Stands On")
+        col.prop(m, "cross_pos", text="Position (from the middle)")
+        col.prop(m, "cross_height", text="Height (0 = 1.5 × sheet)")
+        col.prop(m, "cross_width", text="Width")
+        col.prop(m, "foot_size", text="Foot Size (0 = half the width)")
+        col.prop(m, "feet", expand=True)
+        col.prop(m, "slot_height", text="Slots Meet At (0 = auto)")
+        col.prop(m, "tab", text="Tab Size")
+        col.label(text="Shape it by erasing its art", icon="INFO")
+
     def draw_boxend(self, col, m, hm, joint):
         """A box with ends' own settings."""
         col.prop(m, "box_side")
@@ -856,16 +872,17 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         """A rising sheet's own settings."""
         col.prop(m, "width", text="Width Along Fold")
         col.prop(m, "height", text="Sheet Height")
-        col.prop(m, "brace_size")
-        col.prop(m, "slotted")
-        if m.slotted:
-            col.prop(m, "cross_height", text="Cross Piece Height (0 = auto)")
-            col.prop(m, "cross_width", text="Cross Piece Width (0 = the folds)")
-            col.prop(m, "slot_height", text="Slots Meet At (0 = auto)")
-            col.prop(m, "cross_count")
-            col.prop(m, "cross_pos")
-            if m.cross_count > 1:
-                col.prop(m, "cross_gap", text="Spacing (0 = even)")
+        st = bpy.context.scene.popup
+        crosses = [c for c in st.mechs if c.kind == "CROSS" and c.host_uid == m.uid]
+        if m.slotted:  # (older files: made separate at load, or here)
+            col.operator("popup.cross_split", icon="SNAP_PERPENDICULAR")
+        elif crosses:
+            col.label(text=f"Held up by {len(crosses)} cross piece"
+                      f"{'s' if len(crosses) > 1 else ''}", icon="SNAP_PERPENDICULAR")
+        else:
+            col.prop(m, "brace_size")
+        op = col.operator("popup.add", text="Add Slotted Cross Piece", icon="ADD")
+        op.kind, op.host, op.fold = "CROSS", m.uid, "A"
         col.label(text="Shape the sheet by erasing its art (Paint, Erase)", icon="INFO")
 
     def draw_jack(self, col, m, hm, joint):

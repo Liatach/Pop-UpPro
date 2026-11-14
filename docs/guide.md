@@ -1008,20 +1008,23 @@ piece, listed under the mechanism's name).
   (front left, back right). Its foot is glued down by two tabs, the front
   half onto the left page and the back half onto the right. **Sheet
   Height** and **Width Along Fold** size it; shape it into a tree or
-  flowers by erasing its art. **Slotted Cross Piece** is the book's second
-  version: the two 45° folds become one piece standing square across the
-  sheet, the two interlocked by 2 mm slots (the taller piece slotted from
-  its foot, the shorter from its top), so it can rise past the folds
-  (**Cross Piece Height** and **Width**). **Slots Meet At** sets how far
-  up the fold the two slots meet, **Cross Pieces** puts up to four on one
-  sheet, each with its own feet, **Cross Piece Position** moves them along
-  the sheet from its middle and **Spacing** sets how far apart they stand
-  (at least the 45° fold size, or their feet overlap). Its two feet fold
-  down onto the pages and are glued there: stick those first, then the
-  sheet's tabs (which skip the slots that run up from the sheet's foot).
+  flowers by erasing its art. **Slotted Cross Piece** (the **+** menu or
+  the sheet's own panel, with the sheet selected) is the book's second
+  version: a piece standing square across the sheet, the two interlocked by
+  2 mm slots (the taller piece slotted from its foot, the shorter from its
+  top), held by a 45° fold at its foot, so it can rise past the sheet. Each
+  is a mechanism of its own, standing on the sheet: **Position** along the
+  sheet from its middle, **Height**, **Width**, **Foot Size** (0: half the
+  width, so its feet grow with it), **Feet** (both pages, or one: the slot
+  holds the rest) and **Slots Meet At**. Add as many as you like; Checks
+  says if their feet overlap on a page. A sheet with cross pieces has no
+  45° folds of its own. Glue the feet down first, then the sheet's tabs
+  (which skip the slots that run up from its foot). Older files' cross
+  pieces become these when opened (or with **Make Separate Cross Pieces**).
 
-  ![A rising sheet with one slotted cross piece in front, and one with two
-  behind, at 175, 115 and 55 degrees](images/slotted_sheet.jpg)
+  ![A rising sheet with one wide cross piece in front, and one with two
+  behind (the small one on its left foot only), at 175, 115 and 55
+  degrees](images/slotted_sheet.jpg)
 * **Box with Ends** (mechanism 82): a box glued to one page only (**Page**),
   one wall rising from the fold itself. Both its feet are on the same page,
   so a 45° fold from the other page pulls it up: the box lies flat on its

@@ -245,6 +245,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.84**: **Slotted Cross Pieces** are mechanisms of their own on a
+  rising sheet, each sized and placed on its own, with feet that grow with
+  its width and can go on one page only. Older files' cross pieces are
+  made separate when opened.
 * **0.83**: Kim's notes on 0.82. The house's roof is pushed open by its
   walls, never through them. Slotted cross pieces: millimetres, **Slots
   Meet At**, a position along the sheet and up to four. **Cut Across
@@ -252,15 +256,6 @@ Sunflower is a good way to make them.
   Castle towers are laid out standing up, their faces' Y runs up them and
   a box fold added on a corner is named as a tower. **Box with Ends** gets
   the book's tuck flaps and an inside **Far Tab**.
-* **0.82.1**: the animal face comes a little conical, a muzzle goes on
-  cones too, and its base tabs are ears (**Ear Size**), out from the loop.
-* **0.82**: more of Birmingham's mechanisms. **Pop-up House** (49): a cube
-  takes a gabled roof, with the book's sizes in the **+** menu. **Slotted
-  Cross Piece** on a rising sheet (81): the two 45° folds as one piece
-  slotted across the sheet, free to rise past it. **Box with Ends** (82): a
-  box on one page pulled up by a 45° fold from the other, its ends filled
-  in by pairs of 45° folds. **Animal Face** (17): a loop whose top carries
-  on as a muzzle, folded back into a nose by a dart.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

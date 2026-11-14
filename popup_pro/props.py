@@ -108,6 +108,9 @@ KINDS = [
     ("BOXEND", "Box with Ends", "A box glued to one page, one wall rising from the fold, "
      "pulled up by a 45° fold from the other page; pairs of 45° folds fill in its ends "
      "(Birmingham 82)", "MESH_CUBE", 22),
+    ("CROSS", "Slotted Cross Piece", "A piece standing square across a rising sheet, "
+     "slotted into it, held by a 45° fold onto one page or both (Birmingham 81)",
+     "SNAP_PERPENDICULAR", 23),
 ]
 
 POINTS = [
@@ -215,6 +218,11 @@ def host_items(self, context):
         for m in st.mechs:
             if self.kind in ("FLAP", "TETHER", "ROOF", "PICTURE") or m.uid in bad:
                 continue
+            if self.kind == "CROSS" or m.kind == "RISER":  # (only cross pieces, on sheets)
+                if self.kind == "CROSS" and m.kind == "RISER":
+                    items.append((str(m.uid), m.label, f"Across {m.label}",
+                                  "OUTLINER_OB_FORCE_FIELD", m.uid))
+                continue
             if self.kind in ("FRAME", "FLOOR", "CEILING"):
                 if m.kind == "STAGE":
                     items.append((str(m.uid), m.label, f"Stand in {m.label}",
@@ -278,6 +286,23 @@ def fit_to_host(m, st):
     half the host's panels, centred along it, so there's paper left round it
     to read as a step or an inset."""
     host = next((h for h in st.mechs if h.uid == m.host_uid), None)
+    if m.kind == "CROSS":
+        # across the sheet's middle, or beside the cross pieces already there
+        if host is not None and host.kind == "RISER":
+            was = st.live
+            st["live"] = False
+            others = [c.cross_pos for c in st.mechs if c.kind == "CROSS" and c != m
+                      and c.host_uid == host.uid]
+            from .ops import unique_label
+            m.label = unique_label(st.mechs, f"{host.label}: cross piece", m)
+            m.cross_width = round(min(m.cross_width, max(10.0, 0.6 * host.height)), 1)
+            step = 0.5 * m.cross_width + 4.0
+            half = 0.5 * host.width - 3.0
+            if others:
+                hi, lo = max(others) + step, min(others) - step
+                m.cross_pos = round(hi if hi <= half else max(lo, -half), 1)
+            st["live"] = was
+        return
     if host is not None and host.kind in ("FLOOR", "CEILING"):
         # in the corner: clear of the floor's own tab along the wall
         k = max(host.tab + 12.0 + 3.0, 0.15 * host.depth)
@@ -613,10 +638,15 @@ def on_load(*_args):
 
 def sync_folds(scene):
     """Older files: On the Crease could be left on, unseen, while Fold showed
-    a half (the crease won). Show what is built."""
+    a half (the crease won). Show what is built. And a rising sheet's own
+    Slotted Cross Pieces become mechanisms of their own (v0.84)."""
     for m in scene.popup.mechs:
         if m.on_crease and m.vside != "V":
             m["vside"] = 4
+    from .ops import split_crosses
+    st = scene.popup
+    for u in [m.uid for m in st.mechs if m.kind == "RISER" and m.slotted]:
+        split_crosses(st, next(x for x in st.mechs if x.uid == u))
 
 
 def _line_siblings(ln):
@@ -1059,6 +1089,16 @@ class PopupMech(bpy.types.PropertyGroup):
                              "where they stand along the sheet, in mm from its middle "
                              "(+ towards the top of the card)", default=0.0,
                              soft_min=-100.0, soft_max=100.0, update=_changed)
+    foot_size: FloatProperty(name="Foot Size", description="Slotted cross piece: how far "
+                             "its 45° feet reach along the fold, in mm (0: half its width, "
+                             "so the foot grows with the piece)", default=0.0, min=0.0,
+                             soft_max=100.0, update=_changed)
+    feet: EnumProperty(name="Feet", items=[
+        ("BOTH", "Both", "A 45° fold onto each page"),
+        ("LEFT", "Left", "Only onto the left page: the slot holds the rest"),
+        ("RIGHT", "Right", "Only onto the right page: the slot holds the rest")],
+        default="BOTH", description="Slotted cross piece: which pages its 45° feet "
+        "are glued to", update=_changed)
     cross_count: IntProperty(name="Cross Pieces", description="How many slotted cross pieces "
                              "stand across the sheet, each with its own 45° folds",
                              default=1, min=1, max=4, update=_changed)
@@ -1558,6 +1598,10 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="PLATFORM", width=self.width, height=self.height,
                      depth=self.depth, depth_r=self.depth_r, brace=self.brace,
                      brace_size=self.brace_size)
+        elif self.kind == "CROSS":
+            d.update(type="CROSS", cross_pos=self.cross_pos, cross_height=self.cross_height,
+                     cross_width=self.cross_width, slot_height=self.slot_height,
+                     foot_size=self.foot_size, feet=self.feet, tab=self.tab)
         elif self.kind == "BOXEND":
             d.update(type="BOXEND", width=self.width, height=self.height, depth=self.depth,
                      brace_size=self.brace_size, box_side=self.box_side,

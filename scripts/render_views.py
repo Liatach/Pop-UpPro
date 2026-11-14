@@ -97,12 +97,17 @@ def house():
 
 def slotted_sheet():
     a = add("RISER")
-    a.y, a.width, a.height, a.brace_size = 50.0, 70.0, 30.0, 18.0
-    a.slotted, a.cross_height, a.cross_width = True, 55.0, 50.0
+    a.y, a.width, a.height = 50.0, 70.0, 30.0
+    au = a.uid
+    c = add("CROSS", host=au, fold="A")
+    c.cross_height, c.cross_width = 55.0, 46.0
     b = add("RISER")
-    b.y, b.width, b.height, b.brace_size = 120.0, 80.0, 45.0, 14.0
-    b.slotted, b.cross_count, b.cross_gap, b.cross_height = True, 2, 40.0, 65.0
-    b.cross_width, b.slot_height = 36.0, 25.0
+    b.y, b.width, b.height = 120.0, 80.0, 45.0
+    bu = b.uid
+    c = add("CROSS", host=bu, fold="A")
+    c.cross_pos, c.cross_height, c.cross_width = -18.0, 75.0, 30.0
+    c = add("CROSS", host=bu, fold="A")
+    c.cross_pos, c.cross_height, c.cross_width, c.feet = 20.0, 50.0, 18.0, "LEFT"
     return (0, 115, 20), 270
 
 

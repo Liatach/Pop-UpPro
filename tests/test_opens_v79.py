@@ -141,6 +141,8 @@ for name in kinds:
     elif name == "TETHER":
         add("TUBE")
         add("TETHER")
+    elif name == "CROSS":
+        add("CROSS", host=add("RISER").uid, fold="A")
     else:
         add(name)
     model = build.make_model(sc)[0]

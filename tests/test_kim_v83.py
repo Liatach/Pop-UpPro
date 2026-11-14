@@ -62,11 +62,9 @@ for nm in ("cross_height", "cross_width", "slot_height", "cross_pos", "cross_gap
     assert rn[nm].unit == "NONE", (nm, rn[nm].unit)  # (millimetres, not metres)
 r = add("RISER")
 r.slotted, r.height, r.width = True, 80.0, 90.0
-shown = props_shown(draw(ui.POPUP_PT_mechs))
-assert {"slot_height", "cross_count", "cross_pos"} <= set(shown), shown
-assert "cross_gap" not in shown
+# (v0.84: a riser's own cross pieces are an older file's; its panel offers
+# to make them separate mechanisms: tests/test_cross_v84.py)
 r.cross_count, r.cross_gap, r.cross_pos = 3, 25.0, 5.0
-assert "cross_gap" in props_shown(draw(ui.POPUP_PT_mechs))
 M = model()
 assert not M.warnings, M.warnings
 assert {"Rise1x", "Rise1x2", "Rise1x3"} <= set(M.pieces)

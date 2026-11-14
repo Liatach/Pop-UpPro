@@ -64,6 +64,8 @@ def setup(name):
     elif name == "castle":
         add("TUBE", variant="CASTLE")
         m = st.mechs[st.active]
+    elif name == "CROSS":
+        m = add("CROSS", host=add("RISER").uid, fold="A")
     elif name == "strap with peaks":
         m = add("BOX")
         m.peaks = 3
@@ -85,8 +87,10 @@ rna = props.PopupMech.bl_rna.properties
 st.mechs.clear()
 basics = adds_offered(draw(ui.POPUP_MT_add))
 offered = {a["kind"] for a in basics}
-# (floors and ceilings are offered with a stage to put them in; zig-zags are a V-fold shape)
-assert offered == set(kinds) - {"FLOOR", "CEILING", "ZIGZAG"}, sorted(set(kinds) - offered)
+# (floors and ceilings are offered with a stage to put them in, cross pieces with a
+# rising sheet; zig-zags are a V-fold shape)
+assert offered == set(kinds) - {"FLOOR", "CEILING", "ZIGZAG", "CROSS"}, \
+    sorted(set(kinds) - offered)
 assert "kind" not in props_shown(draw(ui.POPUP_PT_mechs))
 for c in others:
     draw(c)

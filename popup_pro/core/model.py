@@ -88,6 +88,7 @@ class Model(BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes,
         # mechanism uid -> (piece, pattern -> its line coordinates, bounds) for
         # drawn creases and cuts
         self.line_frames = {}
+        self.cross_specs = {}  # Slotted Cross Piece uid -> what its rising sheet set out
         self.doors = list(card.get("doors") or [])
         self.doors_done = set()
         # A carousel stage only ever opens to 360/n degrees; everything is
@@ -223,6 +224,19 @@ class Model(BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes,
                         ok = False
                     elif not visit(d_):
                         ok = False
+            if h and m["type"] == "CROSS":
+                parent = by_uid.get(h)
+                if parent is None or parent["type"] != "RISER":
+                    self.warn(f"{m['label']}: stands on a rising sheet; pick one in Stands "
+                              f"On; skipped")
+                    ok = False
+                elif not visit(parent):
+                    ok = False
+                h = 0  # (nothing more to check)
+            elif m["type"] == "CROSS":
+                self.warn(f"{m['label']}: stands on a rising sheet; pick one in Stands On; "
+                          f"skipped")
+                ok = False
             if h:
                 parent = by_uid.get(h)
                 lid = parent is not None and parent["type"] == "TUBE" and \
@@ -288,6 +302,11 @@ class Model(BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes,
             fold = m.get("fold", "A")
             if m["type"] == "PICTURE":
                 self._picture(m)
+                continue
+            if m["type"] == "CROSS":
+                n0 = len(self.order)
+                self._cross(m)
+                self.placed[m["uid"]] = self.cross_specs.get(m["uid"], {}).get("host")
                 continue
             if h and by_uid[h]["type"] == "TUBE":
                 # a side wall's foot, or the roof's centre crease
