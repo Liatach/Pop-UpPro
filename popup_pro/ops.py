@@ -230,6 +230,14 @@ class POPUP_OT_add(bpy.types.Operator):
             if self.side:
                 next(x for x in st.mechs if x.uid == uid)["side"] = 1 if self.side == "L" else 0
             _put_on(st, uid, self.host, self.fold)
+            m = next(x for x in st.mechs if x.uid == uid)
+            h = next((x for x in st.mechs if x.uid == self.host), None)
+            if self.kind == "BOX" and not self.variant and h is not None and \
+                    h.kind == "TUBE" and self.fold in TOWER_AT:
+                was = st.live
+                st["live"] = False
+                _tower_label(st, m, self.host, self.fold)
+                st["live"] = was
         if self.kind == "BOX" and self.variant == "BALCONIES" and self.host:
             _remove_new(st, uid)
             new = _side_balconies(st, self.host)
@@ -522,6 +530,22 @@ def tube_corners(st, host):
     return out
 
 
+TOWER_AT = {"KFL": "front left", "KFR": "front right", "KBR": "back right",
+            "KBL": "back left", "KF": "front", "KB": "back"}
+
+
+def _tower_label(st, t, host, fold):
+    """A box fold up a tube's corner is one of its towers: named so."""
+    h = next((x for x in st.mechs if x.uid == host), None)
+    where = TOWER_AT.get(fold)
+    if h is None or where is None:
+        return
+    name = f"{h.label}: {where} tower"
+    if any(x.label == name for x in st.mechs if x != t):
+        name = unique_label(st.mechs, name, t)
+    t.label = name
+
+
 def _tower(st, host, fold):
     """A roofed tower (a glued box fold) up one inside corner of a tube."""
     t = _add(st, "BOX")
@@ -530,10 +554,7 @@ def _tower(st, host, fold):
     was = st.live
     st["live"] = False
     t = next(x for x in st.mechs if x.uid == uid)
-    where = {"KFL": "front left", "KFR": "front right", "KBR": "back right",
-             "KBL": "back left", "KF": "front", "KB": "back"}[fold]
-    h = next(x for x in st.mechs if x.uid == host)
-    t.label = f"{h.label}: {where} tower"
+    _tower_label(st, t, host, fold)
     t.roof = "POINTED"
     t.roof_height = round(0.9 * t.height, 1)
     st["live"] = was

@@ -1004,16 +1004,14 @@ class PopupMech(bpy.types.PropertyGroup):
     face_ear: FloatProperty(name="Ear Size", description="Animal face: its base tabs are "
                             "ears, glued to the pages out from the loop; how far they "
                             "reach from the wall's foot", default=22.0, min=4.0,
-                            soft_max=80.0, subtype="DISTANCE", unit="LENGTH",
-                            update=_changed)
+                            soft_max=80.0, update=_changed)
     face_width: FloatProperty(name="Muzzle Width", description="How far the muzzle runs "
                               "along the wall each side of the front crease", default=18.0,
-                              min=3.0, soft_max=80.0, subtype="DISTANCE", unit="LENGTH",
-                              update=_changed)
+                              min=3.0, soft_max=80.0, update=_changed)
     face_len: FloatProperty(name="Muzzle Length", description="How far the muzzle rises "
                             "past the wall's top, up the front crease's line",
-                            default=22.0, min=3.0, soft_max=80.0, subtype="DISTANCE",
-                            unit="LENGTH", update=_changed)
+                            default=22.0, min=3.0, soft_max=80.0,
+                            update=_changed)
     face_dart: FloatProperty(name="Nose Dart", description="Animal face: the angle cut out "
                              "each side of the front crease's line above the wall; its "
                              "edges stuck together fold the muzzle back over the loop. "
@@ -1030,18 +1028,44 @@ class PopupMech(bpy.types.PropertyGroup):
         ("NONE", "Open", "An open box, pulled up by its 45° fold")],
         default="BOTH", description="Which ends of the box are filled in by pairs of 45° "
         "folds, cut along the end's diagonal", update=_changed)
+    far_tab: EnumProperty(name="Far Tab", items=[
+        ("OUT", "Outside", "The far wall's foot tab reaches out from the box along the page"),
+        ("IN", "Inside", "The far wall's foot tab folds back under the box, out of sight")],
+        default="OUT", description="Box with ends: which way the long tab at the far "
+        "wall's foot is glued down", update=_changed)
+    tucks: BoolProperty(name="Tuck Flaps", description="Box with ends: small flaps on "
+                        "the ends' diagonals that tuck behind the opposite triangles "
+                        "(the book's C and D), so no gap shows in the ends when it's "
+                        "open; bent a little inward so they stay behind as it moves",
+                        default=True, update=_changed)
     slotted: BoolProperty(name="Slotted Cross Piece", description="Rising sheet: the two "
                           "45° folds are one piece standing square across the sheet, "
                           "slotted into it (2 mm slots) and free to rise above the "
                           "folds: Birmingham 81's flowers", default=False, update=_changed)
     cross_height: FloatProperty(name="Cross Piece Height", description="How far the slotted "
-                                "cross piece rises from the fold (0: one and a half times "
-                                "the sheet)", default=0.0, min=0.0, soft_max=200.0,
-                                subtype="DISTANCE", unit="LENGTH", update=_changed)
+                                "cross piece rises from the fold, in mm (0: one and a half "
+                                "times the sheet)", default=0.0, min=0.0, soft_max=200.0,
+                                update=_changed)
     cross_width: FloatProperty(name="Cross Piece Width", description="Width of the slotted "
-                               "cross piece above its 45° folds (never narrower than the "
-                               "two folds)", default=0.0, min=0.0, soft_max=200.0,
-                               subtype="DISTANCE", unit="LENGTH", update=_changed)
+                               "cross piece above its 45° folds, in mm (never narrower "
+                               "than the two folds)", default=0.0, min=0.0, soft_max=200.0,
+                               update=_changed)
+    slot_height: FloatProperty(name="Slots Meet At", description="Slotted cross piece: how "
+                               "far up from the fold the two slots meet, in mm. The taller "
+                               "piece is slotted from its foot up to here, the shorter from "
+                               "its top down (0: as far up as the 45° folds)", default=0.0,
+                               min=0.0, soft_max=200.0, update=_changed)
+    cross_pos: FloatProperty(name="Cross Piece Position", description="Slotted cross pieces: "
+                             "where they stand along the sheet, in mm from its middle "
+                             "(+ towards the top of the card)", default=0.0,
+                             soft_min=-100.0, soft_max=100.0, update=_changed)
+    cross_count: IntProperty(name="Cross Pieces", description="How many slotted cross pieces "
+                             "stand across the sheet, each with its own 45° folds",
+                             default=1, min=1, max=4, update=_changed)
+    cross_gap: FloatProperty(name="Spacing", description="Slotted cross pieces: how far apart "
+                             "they stand, in mm (0: spread evenly along the sheet). At least "
+                             "the 45° fold size, or their folds overlap",
+                             default=0.0, min=0.0, soft_max=200.0, update=_changed)
     brace_size: FloatProperty(name="45° Fold Size", default=15.0, min=2.0, soft_max=60.0,
                               update=_changed,
                               description="Length of each 45° fold's glue edges (mm)")
@@ -1537,11 +1561,13 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "BOXEND":
             d.update(type="BOXEND", width=self.width, height=self.height, depth=self.depth,
                      brace_size=self.brace_size, box_side=self.box_side,
-                     box_ends=self.box_ends)
+                     box_ends=self.box_ends, far_tab=self.far_tab, tucks=self.tucks)
         elif self.kind == "RISER":
             d.update(type="RISER", width=self.width, height=self.height,
                      brace_size=self.brace_size, slotted=self.slotted,
-                     cross_height=self.cross_height, cross_width=self.cross_width)
+                     cross_height=self.cross_height, cross_width=self.cross_width,
+                     slot_height=self.slot_height, cross_pos=self.cross_pos,
+                     cross_count=self.cross_count, cross_gap=self.cross_gap)
         elif self.kind == "PICTURE":
             d.update(type="PICTURE", face=self.face, x=self.pic_x, y=self.pic_y, img_w=self.img_w,
                      img_h=self.img_h, turn=self.pic_turn, pic_side=self.pic_side)
@@ -1776,7 +1802,13 @@ class PopupOpening(bpy.types.PropertyGroup):
     face_pick: EnumProperty(name="Face", items=face_items, get=_face_get, set=_face_set,
                             description="Place it on one face of the piece: X across "
                             "the face from its centre, Y up from its bottom edge, and "
-                            "kept inside the face so it never cuts through a fold")
+                            "kept inside the face so it never cuts through a fold (unless "
+                            "Cut Across Folds is on)")
+    across: BoolProperty(name="Cut Across Folds", description="An opening on one face "
+                         "carries on across its folds onto the faces next to it (a gate "
+                         "through a tower's corner, an arch across a crease), instead of "
+                         "stopping at them. It still stops at the piece's edges",
+                         default=False, update=_opening_changed)
     turn: FloatProperty(name="Turn", subtype="ANGLE", default=0.0, min=-math.pi * 2,
                         max=math.pi * 2, update=_opening_changed,
                         description="Turns the opening about its centre")

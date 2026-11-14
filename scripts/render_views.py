@@ -92,7 +92,7 @@ def house():
     m = add("CUBE")
     m.y, m.size, m.size_r, m.height = 70.0, 45.0, 65.0, 35.0
     m.roof, m.roof_height, m.eave, m.gable_turn = "GABLE", 20.0, 5.0, True
-    return (0, 115, 25), 260
+    return (0, 115, 25), 260, (0.45, -0.75, 0.5), (175.0, 100.0, 60.0)
 
 
 def slotted_sheet():
@@ -100,7 +100,9 @@ def slotted_sheet():
     a.y, a.width, a.height, a.brace_size = 50.0, 70.0, 30.0, 18.0
     a.slotted, a.cross_height, a.cross_width = True, 55.0, 50.0
     b = add("RISER")
-    b.y, b.width, b.height = 140.0, 50.0, 45.0
+    b.y, b.width, b.height, b.brace_size = 120.0, 80.0, 45.0, 14.0
+    b.slotted, b.cross_count, b.cross_gap, b.cross_height = True, 2, 40.0, 65.0
+    b.cross_width, b.slot_height = 36.0, 25.0
     return (0, 115, 20), 270
 
 

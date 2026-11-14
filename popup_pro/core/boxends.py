@@ -5,7 +5,7 @@ more.
 model.py has the module's overview and the Model class."""
 import math
 
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 from .base import Hinge, Host, Panel, Piece, TAB_LIFT
 from .geom import frame, hinge_frame_2d
@@ -81,9 +81,13 @@ class BoxEnds:
             F, r, u, Y, up, th = geo(t)
             return frame(F + TAB_LIFT * up, -r, Y)
 
+        tab_in = m.get("far_tab", "OUT") == "IN"
+
         def asm_i(t):
             F, r, u, Y, up, th = geo(t)
-            return frame(F + d * r + TAB_LIFT * up, r, Y) @ Matrix.Translation((-xI, 0.0, 0.0))
+            # out from the box along the page, or (In) folded back under it
+            return frame(F + d * r + TAB_LIFT * up, -r if tab_in else r, Y) @ \
+                Matrix.Translation((-xI, 0.0, 0.0))
 
         fy = hinge_frame_2d((0.0, 0.0), (0.0, 1.0))
         wall = self.add(Panel(f"{piece}.A", piece, "panel",
@@ -110,6 +114,9 @@ class BoxEnds:
                        [[(xI, 0), (xI + tb, ch), (xI + tb, w - ch), (xI, w)]], asm_i, host.p2,
                        None, f"{lab}: far tab"))
         self.line_frames[uid] = (piece, lambda q_: (q_[0], q_[1]), (0.0, xI, 0.0, w))
+        if tab_in and 2.0 * tb > d + 1e-6:
+            self.warn(f"{lab}: its two foot tabs overlap under the box ({d:.0f} mm wide); "
+                      f"use smaller tabs or put the far tab outside")
 
         # ---- the ends
         q = d * hh / (d + hh)  # where a 45 degree crease meets the end's diagonal
@@ -185,7 +192,109 @@ class BoxEnds:
                            f"{lab}: {txt} tab on the far wall"))
             for p in (wa, pg, tp, fw):
                 p.hinge.kink_ok = True
+            def mid(t):  # (a point inside the box, a little up off its page)
+                F, r, u, Y, up, th = geo(t)
+                return F + 0.5 * d * r + 0.5 * hh * u + 0.5 * w * Y + up
 
+            if m.get("tucks", True):
+                # the book's tuck flaps (C, D): on the diagonal edges of the
+                # wall's and the page's triangles, jutting behind the top's
+                # and the far wall's, bent a little in so they stay there
+                X, W_ = Vector((q, Y_(q))), Vector((hh, Y_(0)))
+                F_, Xp = Vector((0.0, Y_(d))), Vector((xB - q, Y_(q)))
+                bis = -((W_ - X).normalized() + (F_ - X).normalized())
+                for tag, par, P0, P1, tgt, keep in (("C", wa, X, W_, tp, W_),
+                                                   ("D", pg, F_, X, fw, F_)):
+                    self._tuck(piece, f"{piece}.{end}Tuck{tag}", par, P0, P1, tgt,
+                               [(X, X + bis, keep)] + ([(W_, Xp, X)] if tag == "C" else []),
+                               mid, f"{lab}: {txt} tuck flap {tag}",
+                               min(4.0, 0.3 * q))
+
+        self._boxend_pull(m, host, wall, piece, uid, lab, w, hh, y0, tb)
+
+    def _tuck(self, piece, name, par, P0, P1, tgt, keeps, inside, label, f):
+        """A tuck flap off panel par's edge P0-P1 (pattern), f wide, kept
+        on each (a, b, side point) line's side that holds the point; it
+        lies just behind panel tgt (on the side of it towards inside(t), a
+        point inside the box), a few degrees in from it."""
+        from .geom import clip_halfplane
+        ev = (P1 - P0).normalized()
+        cen = Vector([sum(c) / len(c) for c in zip(*[q for poly in par.polys for q in poly])])
+        nout = Vector((-ev.y, ev.x))
+        if nout.dot(cen - P0) > 0:
+            nout = -nout
+        sh = 0.12 * (P1 - P0).length  # (clear of the corners)
+        poly = [P0 + sh * ev, P1 - sh * ev, P1 - sh * ev + f * nout - 0.5 * f * ev,
+                P0 + sh * ev + f * nout + 0.5 * f * ev]
+        poly = [tuple(q) for q in poly]
+        for a, b, side in keeps:
+            n = Vector((-(b - a).y, (b - a).x))
+            if n.dot(side - a) < 0:
+                n = -n
+            poly = clip_halfplane(poly, tuple(n), n.dot(a) + 0.4 * n.length)
+            if len(poly) < 3:
+                return
+        bend = math.radians(10.0)
+        Fi = frame(Vector((P0.x, P0.y, 0.0)), Vector((ev.x, ev.y, 0.0)),
+                   Vector((nout.x, nout.y, 0.0))).inverted()
+        tcen = Vector([sum(c) / len(c) for c in zip(*[q for poly in tgt.polys for q in poly])])
+        # (its corners off the hinge: those that can stand behind or in front)
+        pts = [q for q in poly if abs(nout.dot(Vector(q) - P0)) > 0.5] or poly
+
+        def asm(t):
+            A = par.asm(t)
+            a3, b3 = A @ Vector((P0.x, P0.y, 0.0)), A @ Vector((P1.x, P1.y, 0.0))
+            ln = (b3 - a3).normalized()
+            nt = (tgt.asm(t).to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
+            mm = nt.cross(ln)
+            if mm.length < 1e-9:
+                mm = (A.to_3x3() @ Vector((nout.x, nout.y, 0.0)))
+            mm = mm.normalized()
+            if mm.dot(tgt.asm(t) @ Vector((tcen.x, tcen.y, 0.0)) - a3) < 0:
+                mm = -mm  # (towards the panel it tucks behind)
+            o = tgt.asm(t) @ Vector((tcen.x, tcen.y, 0.0))
+            nin = nt if nt.dot(inside(t) - o) >= 0 else -nt
+
+            def at(al):
+                return frame(a3, ln, (math.cos(al) * mm + math.sin(al) * nin).normalized()) @ Fi
+
+            def dists(al):  # (its corners' distances behind the panel: + is behind)
+                M_ = at(al)
+                return [nin.dot(M_ @ Vector((q[0], q[1], 0.0)) - o) for q in pts]
+
+            # bent in a little, behind the panel. While the end is still
+            # opening its hinge can stand out in front of the panel: then it
+            # lies in front instead, turned out as far as it must, never
+            # through the panel
+            hd = max((nin.dot(a3 - o), nin.dot(b3 - o)), key=abs)
+            if hd > -0.05:
+                def ok(al):
+                    return min(dists(al)) >= 0.2
+                step = bend
+            else:
+                def ok(al):
+                    return max(dists(al)) <= -0.05
+                step = -bend
+            al = bend
+            if not ok(al):
+                hi_ = next((bend + k * step for k in range(1, 9) if ok(bend + k * step)), None)
+                if hi_ is not None:
+                    lo_ = hi_ - step
+                    for _ in range(12):
+                        mid_ = 0.5 * (lo_ + hi_)
+                        if ok(mid_):
+                            hi_ = mid_
+                        else:
+                            lo_ = mid_
+                    al = hi_
+            return at(al)
+
+        p = self.add(Panel(name, piece, "panel", [poly], asm, par.name, None, label))
+        if p is not None:
+            p.free = True  # (posed opening by opening, behind the panel it tucks under)
+
+    def _boxend_pull(self, m, host, wall, piece, uid, lab, w, hh, y0, tb):
+        """The 45 degree fold that pulls the box up, from the other page."""
         # ---- the 45 degree fold that pulls it up, from the other page
         g = float(m.get("brace_size", 15.0) or 15.0)
         room = min(hh, 0.5 * w - 1.0)

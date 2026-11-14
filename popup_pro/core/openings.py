@@ -5,6 +5,8 @@ builds and the hole cutter can place holes afterwards."""
 
 import math
 
+from mathutils import Vector
+
 from .geom import clip_halfplane, poly_area
 
 SEG = 24  # segments in a half circle
@@ -40,7 +42,10 @@ def face_frame(model, face):
     if p is None or not p.polys:
         return None
     up = (0.0, 1.0)
-    if p.hinge is not None and face.startswith("Box"):
+    vert = _world_up(model, p)
+    if vert is not None:
+        up = vert  # (a face standing upright: Y runs up it, as it stands)
+    elif p.hinge is not None and face.startswith("Box"):
         F = p.hinge.Fc
         fy = (F.col[1][0], F.col[1][1])
         if abs(fy[0]) < 1e-6:  # fold along the pattern's y
@@ -57,6 +62,24 @@ def face_frame(model, face):
     if len(p.polys) == 1 and _convex(p.polys[0]):
         clip = p.polys[0]
     return origin, across, up, clip
+
+
+def _world_up(model, p):
+    """A box's face standing with its folds upright (a tower's wall): the
+    pattern direction along its folds that points up when the card is open,
+    else None."""
+    if not p.name.startswith("Box") or p.hinge is None:
+        return None
+    F = p.hinge.Fc
+    if abs(F.col[1][0]) > 1e-6:  # (its folds don't run along the pattern's y)
+        return None
+    try:
+        z = (p.asm(model.t_ref).to_3x3() @ Vector((0.0, 1.0, 0.0))).z
+    except Exception:
+        return None
+    if abs(z) < 0.7:
+        return None
+    return (0.0, 1.0 if z > 0 else -1.0)
 
 
 def _convex(poly):
@@ -97,8 +120,11 @@ def place(model, o, faces=True):
     poly, clip = _on_face(model, o, poly, faces)
     if clip is not None:
         c = clip if poly_area(clip) > 0 else clip[::-1]
+        folds = _fold_edges(model, o["face"], c) if o.get("across") else set()
         for i in range(len(c)):
             p0, p1 = c[i], c[(i + 1) % len(c)]
+            if i in folds:
+                continue  # (it carries on across the fold, onto the next face)
             n = (-(p1[1] - p0[1]), p1[0] - p0[0])  # inward on a CCW outline
             L = math.hypot(*n)
             if L < 1e-9:
@@ -111,6 +137,44 @@ def place(model, o, faces=True):
     return poly
 
 
+
+
+def _fold_edges(model, face, c):
+    """Edges of a face's outline c (by index) that are folds onto another
+    face of the same piece: they lie along one of its edges in the pattern."""
+    p = model.panels.get(face)
+    pc = model.pieces.get(p.piece) if p is not None else None
+    if pc is None:
+        return set()
+    others = [poly for n in pc.panels if n != face and model.panels[n].kind != "tab"
+              for poly in model.panels[n].polys]
+    out = set()
+    for i in range(len(c)):
+        a, b = c[i], c[(i + 1) % len(c)]
+        d = (b[0] - a[0], b[1] - a[1])
+        L = math.hypot(*d)
+        if L < 1e-6:
+            continue
+        u = (d[0] / L, d[1] / L)
+
+        def off(q):
+            return abs((q[0] - a[0]) * u[1] - (q[1] - a[1]) * u[0])
+
+        def along(q):
+            return (q[0] - a[0]) * u[0] + (q[1] - a[1]) * u[1]
+
+        for poly in others:
+            for j in range(len(poly)):
+                q0, q1 = poly[j], poly[(j + 1) % len(poly)]
+                if off(q0) > 1e-3 or off(q1) > 1e-3:
+                    continue
+                t0, t1 = sorted((along(q0), along(q1)))
+                if min(L, t1) - max(0.0, t0) > 0.5:
+                    out.add(i)
+                    break
+            if i in out:
+                break
+    return out
 
 
 HINGES = {"RECT": {"BOTTOM": 0, "RIGHT": 1, "TOP": 2, "LEFT": 3},
@@ -136,7 +200,8 @@ def door_lines(model, o):
 def opening_dict(o, i=0):
     """The numbers of an opening (a Blender property group) as a dict."""
     return dict(id=i, piece=o.on_piece or ("Card" if not o.on_uid else ""),
-                face=getattr(o, "face", ""), shape=o.shape, x=o.x, y=o.y, width=o.width,
+                face=getattr(o, "face", ""), across=getattr(o, "across", False),
+                shape=o.shape, x=o.x, y=o.y, width=o.width,
                 height=o.height, turn=getattr(o, "turn", 0.0),
                 cut=getattr(o, "cut", "HOLE"), hinge=getattr(o, "hinge", "LEFT"),
                 open=getattr(o, "door_open", 60.0))

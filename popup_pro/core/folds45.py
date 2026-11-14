@@ -200,16 +200,36 @@ class Folds45:
                 g = max(2.0, room)
                 self.warn(f"{lab}: 45° folds made {g:.0f} mm to fit the sheet")
             hc = max(g + 2.0, float(m.get("cross_height", 0.0) or 0.0) or 1.5 * h)
-            sw, ym = 1.0, 0.5 * w  # (half the slot's width; where it is across the sheet)
-            # the taller piece is slotted from its foot, the shorter from its top
-            mid = min(g, 0.5 * min(h, hc))
+            sw = 1.0  # (half the slot's width)
+            # where the slots meet, up from the fold: the taller piece is
+            # slotted from its foot up to there, the shorter from its top down
+            mid = float(m.get("slot_height", 0.0) or 0.0) or min(g, 0.5 * min(h, hc))
+            if not 2.0 <= mid <= min(h, hc) - 2.0:
+                mid = max(2.0, min(mid, min(h, hc) - 2.0))
+                self.warn(f"{lab}: slots meet {mid:.0f} mm up (inside both pieces)")
             s0, s1 = (0.0, mid) if h >= hc else (mid, h)
-            sheet_polys = [[(0, 0), (h, 0), (h, ym - sw), (0, ym - sw)],
-                           [(0, ym + sw), (h, ym + sw), (h, w), (0, w)]]
-            for a_, b_ in ((0.0, s0), (s1, h)):
-                if b_ - a_ > 1e-6:
-                    sheet_polys.append([(a_, ym - sw), (b_, ym - sw), (b_, ym + sw),
-                                        (a_, ym + sw)])
+            # the cross pieces' places along the sheet
+            n_x = max(1, min(4, int(m.get("cross_count", 1) or 1)))
+            gap = float(m.get("cross_gap", 0.0) or 0.0) or w / n_x
+            c0 = 0.5 * w + float(m.get("cross_pos", 0.0) or 0.0)
+            yms = [c0 + (k - 0.5 * (n_x - 1)) * gap for k in range(n_x)]
+            lo_, hi_ = sw + 2.0, w - sw - 2.0
+            if any(not lo_ - 1e-6 <= y_ <= hi_ + 1e-6 for y_ in yms):
+                self.warn(f"{lab}: cross pieces kept on the sheet")
+                yms = [max(lo_, min(hi_, y_)) for y_ in yms]
+            if n_x > 1 and gap < g - 1e-6:
+                # (each one's 45° folds lie g along the fold, up one page
+                # and down the other)
+                self.warn(f"{lab}: cross pieces {gap:.0f} mm apart, so their 45° folds "
+                          f"({g:.0f} mm) overlap; space them at least {g:.0f} mm")
+            edges = [0.0] + [e for y_ in yms for e in (y_ - sw, y_ + sw)] + [w]
+            sheet_polys = [[(0, edges[i]), (h, edges[i]), (h, edges[i + 1]), (0, edges[i + 1])]
+                           for i in range(0, len(edges), 2) if edges[i + 1] - edges[i] > 1e-6]
+            for y_ in yms:
+                for a_, b_ in ((0.0, s0), (s1, h)):
+                    if b_ - a_ > 1e-6:
+                        sheet_polys.append([(a_, y_ - sw), (b_, y_ - sw), (b_, y_ + sw),
+                                            (a_, y_ + sw)])
         sheet = self.add(Panel(f"{base}.Sheet", piece, "panel",
                                sheet_polys, asm_sheet, host.p1,
                                Hinge(host.T1 @ hinge_frame_2d((0.0, y0), (0, 1)),
@@ -219,16 +239,27 @@ class Folds45:
             return
         ch = min(0.3 * tb, 0.1 * w)
         half = 0.5 * w
-        self.add(Panel(f"{base}.TabL", piece, "tab",
-                       [[(-tb, ch), (0, 0), (0, half - 0.5), (-tb, half - 0.5 - ch)]],
-                       asm_tab_l, host.p1, None, f"{lab}: tab left"))
-        self.add(Panel(f"{base}.TabR", piece, "tab",
-                       [[(-tb, half + 0.5 + ch), (0, half + 0.5), (0, w), (-tb, w - ch)]],
-                       asm_tab_r, host.p2, None, f"{lab}: tab right"))
+        # the foot's tabs: the first half onto the left page, the rest onto
+        # the right, with gaps where the sheet is slotted from its foot
+        gaps = [(y_ - sw, y_ + sw) for y_ in yms] if slotted and s0 <= 1e-6 else []
+        for side, a_, b_, asm_t, page in (("L", 0.0, half - 0.5, asm_tab_l, host.p1),
+                                          ("R", half + 0.5, w, asm_tab_r, host.p2)):
+            parts = [(a_, b_)]
+            for g0, g1 in gaps:
+                parts = [q for p0, p1 in parts
+                         for q in ((p0, min(p1, g0)), (max(p0, g1), p1)) if q[1] - q[0] > 1.0]
+            for j, (p0, p1) in enumerate(parts):
+                c_ = min(ch, 0.3 * (p1 - p0))
+                self.add(Panel(f"{base}.Tab{side}{j + 1 if j else ''}", piece, "tab",
+                               [[(-tb, p0 + c_), (0, p0), (0, p1), (-tb, p1 - c_)]],
+                               asm_t, page, None,
+                               f"{lab}: tab {'left' if side == 'L' else 'right'}"
+                               f"{f' {j + 1}' if j else ''}"))
         self.line_frames[uid] = (piece, lambda q: (q[0], q[1]), (0.0, h, 0.0, w))
         if slotted:
-            self._riser_cross(m, host, sheet, base, g, hc, y0 + ym, sw,
-                              (mid, hc) if h >= hc else (0.0, mid))
+            for k, y_ in enumerate(yms):
+                self._riser_cross(m, host, sheet, base, g, hc, y0 + y_, sw,
+                                  (mid, hc) if h >= hc else (0.0, mid), k)
             return
         room = min(h, 0.5 * w - 1.0, self.W if host.is_spine else g)
         if g > room + 1e-6:
@@ -252,7 +283,7 @@ class Folds45:
                 if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
                     hg.kind = "TABLE"
 
-    def _riser_cross(self, m, host, sheet, base, g, hc, yc, sw, slot):
+    def _riser_cross(self, m, host, sheet, base, g, hc, yc, sw, slot, k=0):
         """The slotted piece across a rising sheet (Birmingham 81): its
         middle stands in the sheet's slot, square to the fold when the card
         is flat and turning flat against the sheet as it shuts; a 45 degree
@@ -261,8 +292,9 @@ class Folds45:
         uid, lab = m["uid"], m["label"]
         tb = min(float(m.get("tab", 10.0)), 0.6 * g)
         cw = max(2.0 * g, float(m.get("cross_width", 0.0) or 0.0))
-        piece = f"{base}x"
-        self.add_piece(Piece(piece, f"{lab} cross piece", 500 + 4 * uid, (0.5 * hc, 0.0)))
+        piece = f"{base}x{k + 1 if k else ''}"
+        self.add_piece(Piece(piece, f"{lab} cross piece{f' {k + 1}' if k else ''}",
+                             500 + 4 * uid + k, (0.5 * hc, 0.0)))
         lift1, lift2 = host.lift
         r2 = math.sqrt(2.0)
 

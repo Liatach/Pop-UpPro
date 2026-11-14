@@ -87,7 +87,9 @@ class BoxFolds:
             if float(m.get("tab", 12.0)) > min(a, b) + 1e-6:
                 self.warn(f"{lab}: glue tabs shortened to {t_:.0f} mm to stay hidden")
             piece = f"Box{uid}"
-            self.add_piece(Piece(piece, lab, 1 + uid, (0.0, w / 2)))
+            pc_ = self.add_piece(Piece(piece, lab, 1 + uid, (0.0, w / 2)))
+            if getattr(host, "tower_top", None) is not None:
+                pc_.upright = True  # (a tower: laid out standing, its height up the sheet)
             ch = min(0.3 * t_, 0.25 * w)
             # Peaks: the strip zig-zags. The plain strap is one chevron, up
             # from gully A (direction r, b long) to the peak and down to gully
@@ -148,7 +150,9 @@ class BoxFolds:
                            host.p1, None, f"{lab}: tab A"))
             prev = None
             for j in range(2 * npk):
-                if npk == 1:
+                if npk == 1 and getattr(host, "tower_top", None) is not None:
+                    txt = ("wall by tab A", "wall by tab B")[j]  # (a tower's two walls)
+                elif npk == 1:
                     txt = ("top", "front")[j]
                 else:
                     txt = f"peak {j // 2 + 1} {'up' if j % 2 == 0 else 'down'}"

@@ -847,6 +847,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(m, "depth", text="Width (out from the fold)")
         col.prop(m, "height", text="Wall Height")
         col.prop(m, "box_ends")
+        if m.box_ends != "NONE":
+            col.prop(m, "tucks")
+        col.prop(m, "far_tab", expand=True)
         col.prop(m, "brace_size", text="Pulling 45° Fold Size")
 
     def draw_riser(self, col, m, hm, joint):
@@ -858,6 +861,11 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         if m.slotted:
             col.prop(m, "cross_height", text="Cross Piece Height (0 = auto)")
             col.prop(m, "cross_width", text="Cross Piece Width (0 = the folds)")
+            col.prop(m, "slot_height", text="Slots Meet At (0 = auto)")
+            col.prop(m, "cross_count")
+            col.prop(m, "cross_pos")
+            if m.cross_count > 1:
+                col.prop(m, "cross_gap", text="Spacing (0 = even)")
         col.label(text="Shape the sheet by erasing its art (Paint, Erase)", icon="INFO")
 
     def draw_jack(self, col, m, hm, joint):
@@ -1333,6 +1341,8 @@ def _draw_openings(lay, context, st):
         col.use_property_decorate = False
         col.prop(o, "on")
         col.prop(o, "face_pick")
+        if o.face:
+            col.prop(o, "across")
         col.prop(o, "cut", expand=True)
         col.prop(o, "shape")
         if o.face:

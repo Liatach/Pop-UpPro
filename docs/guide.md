@@ -152,11 +152,15 @@ rectangular base and **Tower Roof: Gabled**, at the book's sizes: walls 65
 by 45 mm and 35 high, gables 20 higher, the roof 5 mm past the walls. Two
 facing walls get gable ends (**Turn Roof** for the other pair), a rib joins
 their tips, and the roof, creased along its ridge, is stuck only to tabs on
-the rib. Its halves rest on the gables' slopes, and lift off them onto a
-page where the closing card would otherwise push through them. A gabled roof
-takes the place of a cube's lid.
+the rib. Each half rests on the tops of the walls on its side: the walls
+push it open as they spread and let it down as they shear flat, so they
+never come through it. Nearly shut, as the house leans over, the overhang
+reaches the page (from about 75° at the book's sizes): Checks says so. In
+card the overhang just flexes there; a steeper roof (more **Gable Height**)
+or less **Overhang** makes it later and smaller. A gabled roof takes the
+place of a cube's lid.
 
-![The pop-up house at 175, 115 and 55 degrees](images/house.jpg)
+![The pop-up house at 175, 100 and 60 degrees](images/house.jpg)
 
 ### Tubes and tethers (parallel sticking strips)
 
@@ -284,6 +288,10 @@ selected, the **+** menu adds a **Tower in Every Inside Corner** or one in a
 corner you pick. Any glued box fold can stand there: set **Stands On** to the
 tube and **Fold** to an *Inside Corner*.
 
+* A tower's pieces are laid out on the sheet standing up, as they stand
+  in the castle, and on a tower's face an opening's **Y** runs up the
+  tower. A box fold added on a castle's corner is named for it (**Castle 1:
+  front tower**).
 * Seen from inside the castle, each side corner is square when the card is
   open flat and opens out to 180° as it shuts; a front or back crease closes
   to 0° instead, like the spine. A box fold lies flat either way. A tower is a box fold on that
@@ -299,8 +307,9 @@ tube and **Fold** to an *Inside Corner*.
   As the tower shears into a diamond those two faces stay parallel and the
   gables' tips keep their distance, so a rib joins the tips on vertical
   folds, and the roof, creased along its ridge, is stuck only to tabs on the
-  rib's top. The gables' slopes hold it up: square when the card is open,
-  its halves hanging down flat against the walls when shut. Any tower can
+  rib's top. The walls' tops hold its halves up (whichever top holds each
+  further open): square when the card is open, the halves let down flat
+  against the walls when shut. Any tower can
   have one, square or not. The overhang is what stops it snagging as it
   closes.
 * **Roof: Pointed** gives a square tower (the same distance along both
@@ -1003,11 +1012,16 @@ piece, listed under the mechanism's name).
   version: the two 45° folds become one piece standing square across the
   sheet, the two interlocked by 2 mm slots (the taller piece slotted from
   its foot, the shorter from its top), so it can rise past the folds
-  (**Cross Piece Height** and **Width**). Its two feet fold down onto the
-  pages and are glued there: stick those first, then the sheet's tabs.
+  (**Cross Piece Height** and **Width**). **Slots Meet At** sets how far
+  up the fold the two slots meet, **Cross Pieces** puts up to four on one
+  sheet, each with its own feet, **Cross Piece Position** moves them along
+  the sheet from its middle and **Spacing** sets how far apart they stand
+  (at least the 45° fold size, or their feet overlap). Its two feet fold
+  down onto the pages and are glued there: stick those first, then the
+  sheet's tabs (which skip the slots that run up from the sheet's foot).
 
-  ![A rising sheet with a slotted cross piece in front, a plain one behind,
-  at 175, 115 and 55 degrees](images/slotted_sheet.jpg)
+  ![A rising sheet with one slotted cross piece in front, and one with two
+  behind, at 175, 115 and 55 degrees](images/slotted_sheet.jpg)
 * **Box with Ends** (mechanism 82): a box glued to one page only (**Page**),
   one wall rising from the fold itself. Both its feet are on the same page,
   so a 45° fold from the other page pulls it up: the box lies flat on its
@@ -1016,8 +1030,12 @@ piece, listed under the mechanism's name).
   the two corners that close as the box flattens, cut along the end's
   diagonal; one face of each is part of the box, the other has a tab (onto
   the page, and inside the far wall). **Length Along Fold**, **Width** and
-  **Wall Height** size it. The book's two small flaps that tuck behind the
-  diagonal aren't drawn: leave a little extra there if you want them.
+  **Wall Height** size it. **Tuck Flaps** adds the book's two small flaps
+  (C and D) on each end's diagonal, that tuck behind the triangles across
+  it so no gap shows when it's open; they're bent a little inward so they
+  stay behind as it moves (while an end is still closing they lie in front
+  instead, never through it). **Far Tab** glues the far wall's long foot
+  tab outside the box, or folded back under it.
 
   ![Boxes with ends, on the right page (both ends closed) and the left (one
   end), at 175, 135 and 95 degrees](images/box_ends.jpg)
@@ -1105,8 +1123,11 @@ so they show in 3D and print as cut lines:
   **Face** puts it on one face of the piece instead (a box's top or front,
   a cube's or tube's wall, a V-fold half): X across that face from its
   centre, Y up from its bottom edge, and the hole is kept inside the face so
-  it never cuts through a fold. On a box, up is towards the fold the panel
-  hangs from: a door in the front stands on the floor. Add Opening with a
+  it never cuts through a fold; **Cut Across Folds** lets it carry on over
+  the face's folds onto the faces beside it (a gate through a tower's
+  corner, an arch across a crease). On a box, up is towards the fold the
+  panel hangs from: a door in the front stands on the floor (on a tower's
+  wall, up the tower). Add Opening with a
   box fold or box layer selected starts with an arched doorway there.
   **Turn** rotates the opening about its centre (a diamond window, a
   sideways arch).

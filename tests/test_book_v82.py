@@ -42,10 +42,10 @@ def warns():
     return [w for w in st.warnings.split("\n") if w]
 
 
-def built(prefix):
+def built(prefix, allow=()):
     """Builds, exports, and gives the model; every panel is in the mesh."""
     bpy.ops.popup.build()
-    assert not warns(), warns()
+    assert not [w for w in warns() if not any(a in w for a in allow)], warns()
     names = [p["name"] for p in live.meta(st.rig)["panels"]]
     me = st.card.data
     vals = [0] * len(me.polygons)
@@ -76,7 +76,9 @@ def above_pages(M, prefix, tol=0.5):
 # ---- the pop-up house: a cube with a gabled roof
 h = add("CUBE", variant="HOUSE")
 assert h.roof == "GABLE" and h.size_r > h.size and h.label.startswith("House")
-M = built("Cube")
+# (v0.83: the walls push the roof open; nearly shut, as the house leans, its
+# overhang meets the page, as real card's does)
+M = built("Cube", allow=("pokes through the card",))
 for n in ("Rib1.Rib", "GRoof1.A", "GRoof1.B"):
     assert n in M.panels, n
 t = M.tmax
@@ -84,10 +86,37 @@ ridge = [w for w in world(M, "GRoof1.A", t) if abs(w.z - max(x.z for x in world(
 assert len(ridge) == 2 and abs(ridge[0].z - (h.height + h.roof_height)) < 0.05, ridge
 # the ridge runs along the long walls, and is as long as them plus the eaves
 assert abs((ridge[0] - ridge[1]).length - (h.size_r + 2 * h.eave)) < 0.05
-above_pages(M, "GRoof")  # (a half rests on the page when its gables would put it through)
+
+
+def roof_on_walls(M):
+    """v0.83: the walls push the roof open and never come through it; it
+    moves smoothly (no lifting off on its own)."""
+    rib = M.panels["Rib1.Rib"]
+    prev = None
+    for i in range(0, 181, 3):
+        t = max(0.5, float(i))
+        for rn in ("GRoof1.A", "GRoof1.B"):
+            R = M.panels[rn]
+            Ai = R.asm(t).inverted()
+            xs = [q[0] for q in R.polys[0]]
+            ys = [q[1] for q in R.polys[0]]
+            inside = (Ai @ (rib.asm(t) @ v3(rib.polys[0][0]))).z
+            for wn in ("Cube1.A", "Cube1.B", "Cube1.C", "Cube1.D"):
+                for w in world(M, wn, t):
+                    q = Ai @ w
+                    if min(xs) < q.x < max(xs) and min(ys) < q.y < max(ys):
+                        assert q.z * (1 if inside < 0 else -1) < 0.3, (t, rn, wn, q.z)
+        a_ = (M.panels["GRoof1.A"].asm(t).to_3x3() @ v3((0, 1))).angle(
+            M.panels["GRoof1.B"].asm(t).to_3x3() @ v3((0, 1)))
+        if prev is not None and t >= 12.0:  # (it turns fastest as it shuts)
+            assert abs(a_ - prev) < math.radians(12.0), (t, math.degrees(a_ - prev))
+        prev = a_
+
+
+roof_on_walls(M)
 h.gable_turn = False
-M = built("Cube")
-above_pages(M, "GRoof")
+M = built("Cube", allow=("pokes through the card",))
+roof_on_walls(M)
 assert "gable_turn" in props_shown(draw(ui.POPUP_PT_mechs))
 print("the pop-up house: a gabled roof on a cube")
 st.mechs.clear()

@@ -3,6 +3,13 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.83**: Kim's notes on 0.82. The house's roof is pushed open by its
+  walls, never through them. Slotted cross pieces: millimetres, **Slots
+  Meet At**, a position along the sheet and up to four. **Cut Across
+  Folds** for an opening on a face (a gate through a tower's corner).
+  Castle towers are laid out standing up, their faces' Y runs up them and
+  a box fold added on a corner is named as a tower. **Box with Ends** gets
+  the book's tuck flaps and an inside **Far Tab**.
 * **0.82.1**: the animal face comes a little conical, a muzzle goes on
   cones too, and its base tabs are ears (**Ear Size**), out from the loop.
 * **0.82**: more of Birmingham's mechanisms. **Pop-up House** (49): a cube
