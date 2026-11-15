@@ -36,7 +36,8 @@ def _piece_of(model, uid):
         tail = name.rstrip("0123456789")
         if name != "Card" and name[len(tail):] == str(uid) and tail in (
                 "Frame", "Box", "VFold", "Tube", "Pyramid", "Roof", "Cube", "Tether", "Flap",
-                "Stand", "Bridge", "Plat", "Rise", "Pic", "Jack", "Cross", "BoxE"):
+                "Stand", "Bridge", "Plat", "Rise", "Pic", "Jack", "Cross", "BoxE",
+                "Arms"):
             return name
     return None
 
@@ -480,6 +481,9 @@ def collect(scene, model, layout=None):
         for tag, poly in _openings(other, model, other.popup, own=False):
             if tag == want:
                 put("Card", [(-x, y) for x, y in poly][::-1])
+    for piece, polys in getattr(model, "slots", {}).items():  # (flapping arms' slots)
+        for poly in polys:
+            put(piece, [tuple(q) for q in poly])
     for piece, polys in painted(st).items():
         for poly in polys:
             put(piece, [tuple(q) for q in poly], keep_turn=True)

@@ -73,6 +73,51 @@ class VFolds:
         c, uL, uR, ok, _ = self.crease(f"VFold{m['uid']}", t)
         return c, uL, uR, ok
 
+    def _bite_split(self, m, lab, shape, halves, GL, GR, Lc):
+        """Birmingham 13-14: a "bite" (a wedge) taken out of the far end of
+        the centre crease, its edges stuck together, sculpts the V-fold's
+        end into a beak. Stiff paper can't curve, so each side's end is a
+        facet creased off its half (straight across it from the bite's point,
+        Bite Length down the crease, to its outer edge: the book's
+        creases F)
+        and the two meet along the bite's seam. Gives ({-1, 1: half
+        outline}, {-1, 1: facet outline}, bite point, left and right crease
+        ends) in the pattern, or None if this V-fold's shape can't take one."""
+        if shape not in ("QUAD", "PANEL", None) or len(halves["L"]) != 1 or \
+                len(halves["R"]) != 1:
+            self.warn(f"{lab}: a bite needs a plain V-fold (four-sided halves); none cut")
+            return None
+        b = float(m.get("bite_len", 20.0) or 20.0)
+        if not 3.0 <= b <= Lc - 3.0:
+            b = max(3.0, min(b, Lc - 3.0))
+            self.warn(f"{lab}: bite made {b:.0f} mm long to fit the crease")
+        dart = math.radians(max(1.0, min(40.0, float(m.get("bite_angle", 15.0)))))
+        O = (0.0, Lc - b)
+        out_h, out_f, ends = {}, {}, {}
+        for sx, poly, G in ((-1.0 if GL[0] <= 0 else 1.0, halves["L"][0], GL),
+                            (1.0 if GR[0] >= 0 else -1.0, halves["R"][0], GR)):
+            # straight across to the outer edge (from G to G + Lc up), or to
+            # its end if the bite's point is beyond it
+            C = (G[0], max(G[1], min(G[1] + Lc, O[1])))
+            d = (C[0] - O[0], C[1] - O[1])
+            n = (-d[1], d[0])  # (normal to the facet's crease)
+            if n[0] * (0.0 - O[0]) + n[1] * (0.0 - O[1]) < 0:  # towards the V point
+                n = (-n[0], -n[1])
+            c = n[0] * O[0] + n[1] * O[1]
+            h_ = clip_halfplane(poly, n, c)
+            f_ = clip_halfplane(poly, (-n[0], -n[1]), -c)
+            s = (sx * math.sin(dart), math.cos(dart))  # the seam, the bite's angle out
+            ns = (s[1] * sx, -s[0] * sx)  # (normal: away from the crease, into the facet)
+            f_ = clip_halfplane(f_, ns, ns[0] * O[0] + ns[1] * O[1])
+            if len(h_) < 3 or len(f_) < 3:
+                self.warn(f"{lab}: no room for the bite; none cut")
+                return None
+            key = "L" if poly is halves["L"][0] else "R"
+            out_h[-1.0 if key == "L" else 1.0] = [h_]
+            out_f[-1.0 if key == "L" else 1.0] = f_
+            ends[key] = C
+        return out_h, out_f, O, ends["L"], ends["R"]
+
     def _half(self, name, piece, polys, Ppat, gpiece, cpat, side, key, label):
         """One rigid half of a V joint. gpiece/cpat: glue line and crease
         directions from the V point in the half's own pattern."""
@@ -202,6 +247,9 @@ class VFolds:
                     continue
                 halves[sd] = self._arch_cut(halves[sd][0], ah, c0, up, how)
         halfL, halfR = halves["L"], halves["R"]
+        bite = self._bite_split(m, lab, shape, halves, GL, GR, Lc) if m.get("bite") else None
+        if bite is not None:
+            halfL, halfR = bite[0][-1.0], bite[0][1.0]
 
         # Tabs: fold flat onto the host along the glue line, inside or outside
         bis = Vector((uLf[0] + uRf[0], uLf[1] + uRf[1], 0))
@@ -260,6 +308,13 @@ class VFolds:
                            (lambda t, pa=pa, T=Tpat: pa(t) @ T), parent, None,
                            f"{lab}: tab {side}"))
 
+        if bite is not None:
+            _, facets, O2, cL, cR = bite
+            hl, hr = self.panels.get(f"{base}.HalfL"), self.panels.get(f"{base}.HalfR")
+            if hl is not None and hr is not None:
+                self._muzzle(m, piece, hl, hr, O2, (0.0, 1.0), (hl, cL), (hr, cR),
+                             polys=facets, dart_deg=float(m.get("bite_angle", 15.0)),
+                             names=("Bite", "bite"), join=min(6.0, 0.25 * float(m.get("bite_len", 20.0) or 20.0)))
         self.line_frames[uid] = (piece, lambda q: q, None)
         halves = [f"{base}.HalfL", f"{base}.HalfR"]
         doors = self._door_lines(piece, halves, True)

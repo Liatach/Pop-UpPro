@@ -8,7 +8,7 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "PYRAMID": "CONE", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
              "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND",
              "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME", "PLATFORM": "MOD_SOLIDIFY",
-             "RISER": "OUTLINER_OB_FORCE_FIELD", "BOXEND": "MESH_CUBE", "CROSS": "SNAP_PERPENDICULAR", "DOUBLE45": "ORIENTATION_GIMBAL",
+             "RISER": "OUTLINER_OB_FORCE_FIELD", "BOXEND": "MESH_CUBE", "CROSS": "SNAP_PERPENDICULAR", "ARMS": "MOD_ARMATURE", "DOUBLE45": "ORIENTATION_GIMBAL",
              "ZIGZAG": "MOD_SCREW", "QUADS": "MOD_LATTICE",
              "JACK": "OUTLINER_OB_ARMATURE", "PICTURE": "IMAGE_DATA"}
 
@@ -112,6 +112,9 @@ class POPUP_MT_add(bpy.types.Menu):
         if h.kind == "RISER":
             op = lay.operator("popup.add", text="Slotted Cross Piece", icon=KIND_ICON["CROSS"])
             op.kind, op.host, op.fold = "CROSS", h.uid, "A"
+        if h.kind in ("VFOLD", "BOX") and (h.kind != "VFOLD" or h.shape == "QUAD"):
+            op = lay.operator("popup.add", text="Flapping Arms", icon=KIND_ICON["ARMS"])
+            op.kind, op.host, op.fold = "ARMS", h.uid, "A"
 
     @staticmethod
     def _adds(lay, heading, entries):
@@ -595,7 +598,7 @@ def _align(lay, st):
 _OWN_PANELS = {"TUBE": "draw_tube", "PICTURE": "draw_picture", "STAGE": "draw_stage",
                "FRAME": "draw_frame", "FLOOR": "draw_floor", "CEILING": "draw_floor",
                "PYRAMID": "draw_pyramid", "ROOF": "draw_roof", "TETHER": "draw_tether",
-               "CROSS": "draw_cross"}
+               "CROSS": "draw_cross", "ARMS": "draw_arms"}
 # kinds placed on a fold (Stands On and Position first), then their own settings;
 # anything else is a box fold
 _PLACED_PANELS = {"CUBE": "draw_cube", "MOUTH": "draw_mouth", "PLATFORM": "draw_platform",
@@ -844,6 +847,18 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         if m.brace != "NONE":
             col.prop(m, "brace_size")
 
+    def draw_arms(self, context, st, col, m):
+        """Flapping arms: which fold, where the slots are, the back piece."""
+        col.prop(m, "host", text="Through")
+        col.prop(m, "arm_y")
+        col.prop(m, "arm_slot")
+        col.prop(m, "arm_width")
+        col.prop(m, "arm_back")
+        col.prop(m, "arm_len")
+        col.prop(m, "arm_hand", text="Arm Width (0 = auto)")
+        col.label(text="Shape the arms by erasing their art", icon="INFO")
+        self.draw_warnings(context, m)
+
     def draw_cross(self, context, st, col, m):
         """A slotted cross piece: which sheet, where along it, its size."""
         col.prop(m, "host", text="Stands On")
@@ -855,6 +870,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(m, "slot_height", text="Slots Meet At (0 = auto)")
         col.prop(m, "tab", text="Tab Size")
         col.label(text="Shape it by erasing its art", icon="INFO")
+        self.draw_warnings(context, m)
 
     def draw_boxend(self, col, m, hm, joint):
         """A box with ends' own settings."""
@@ -1030,6 +1046,11 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     col.prop(m, "glue_r")
             col.prop(m, "arch")
             col.prop(m, "arch_shape")
+        if m.shape == "QUAD" and not top:
+            col.prop(m, "bite")
+            if m.bite:
+                col.prop(m, "bite_len")
+                col.prop(m, "bite_angle")
         _tabs(self.layout, m)
         _draw_lines(self.layout, context, m)
         self.draw_warnings(context, m)

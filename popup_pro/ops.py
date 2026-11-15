@@ -84,6 +84,7 @@ DEFAULTS = {
     "PLATFORM": dict(y=70.0, width=60.0, height=35.0, depth=30.0, tab=10.0,
                      brace_size=15.0),
     "RISER": dict(y=60.0, width=70.0, height=80.0, tab=12.0, brace_size=20.0),
+    "ARMS": dict(arm_slot=12.0, arm_back=18.0, arm_width=12.0, arm_len=30.0, arm_y=20.0),
     "CROSS": dict(cross_width=30.0, cross_height=0.0, foot_size=0.0, tab=10.0),
     "BOXEND": dict(y=75.0, width=60.0, height=30.0, depth=40.0, tab=8.0, brace_size=20.0),
     "DOUBLE45": dict(y=105.0, width=30.0, height=45.0, depth=104.0, tab=10.0),
@@ -99,7 +100,7 @@ NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
          "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
          "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof",
-         "PLATFORM": "Platform", "RISER": "Rising sheet", "BOXEND": "Box with ends", "CROSS": "Cross piece", "DOUBLE45": "Double 45",
+         "PLATFORM": "Platform", "RISER": "Rising sheet", "BOXEND": "Box with ends", "CROSS": "Cross piece", "ARMS": "Arms", "DOUBLE45": "Double 45",
          "JACK": "Jack in the box", "PICTURE": "Picture", "ZIGZAG": "Zig-zag",
          "QUADS": "Quadrilaterals"}
 

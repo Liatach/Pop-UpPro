@@ -28,6 +28,7 @@ import math
 
 from mathutils import Matrix, Vector
 
+from .arms import Arms
 from .boxends import BoxEnds
 from .boxes import BoxFolds
 from .collars import Collars
@@ -52,7 +53,7 @@ from .base import (arcade, _card, CARD_PRESETS, CORNERS, halfplanes, Hinge, Host
                    unit2)
 
 
-class Model(BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
+class Model(Arms, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
             Roofs, Stages, Tethers, Flaps, Solver):
     def __init__(self, card, mechs):
         self.card = dict(card)
@@ -88,6 +89,7 @@ class Model(BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes,
         # mechanism uid -> (piece, pattern -> its line coordinates, bounds) for
         # drawn creases and cuts
         self.line_frames = {}
+        self.slots = {}  # piece -> [slot outline] cut through it (flapping arms)
         self.cross_specs = {}  # Slotted Cross Piece uid -> what its rising sheet set out
         self.doors = list(card.get("doors") or [])
         self.doors_done = set()
@@ -224,18 +226,21 @@ class Model(BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes,
                         ok = False
                     elif not visit(d_):
                         ok = False
-            if h and m["type"] == "CROSS":
+            if h and m["type"] in ("CROSS", "ARMS"):
                 parent = by_uid.get(h)
-                if parent is None or parent["type"] != "RISER":
-                    self.warn(f"{m['label']}: stands on a rising sheet; pick one in Stands "
-                              f"On; skipped")
+                want = ("RISER",) if m["type"] == "CROSS" else ("VFOLD", "BOX")
+                if parent is None or parent["type"] not in want:
+                    self.warn(f"{m['label']}: stands on "
+                              f"{'a rising sheet' if m['type'] == 'CROSS' else 'a V-fold or a box fold'}"
+                              f"; pick one in Stands On; skipped")
                     ok = False
                 elif not visit(parent):
                     ok = False
                 h = 0  # (nothing more to check)
-            elif m["type"] == "CROSS":
-                self.warn(f"{m['label']}: stands on a rising sheet; pick one in Stands On; "
-                          f"skipped")
+            elif m["type"] in ("CROSS", "ARMS"):
+                self.warn(f"{m['label']}: stands on "
+                          f"{'a rising sheet' if m['type'] == 'CROSS' else 'a V-fold or a box fold'}"
+                          f"; pick one in Stands On; skipped")
                 ok = False
             if h:
                 parent = by_uid.get(h)
@@ -302,6 +307,9 @@ class Model(BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes,
             fold = m.get("fold", "A")
             if m["type"] == "PICTURE":
                 self._picture(m)
+                continue
+            if m["type"] == "ARMS":
+                self._arms(m)
                 continue
             if m["type"] == "CROSS":
                 n0 = len(self.order)
@@ -440,10 +448,25 @@ class Model(BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes,
         if lines or doors:
             fold_build(self, "Card", ["Page.L", "Page.R"], "Card", expand(lines) + doors,
                        "Card", float(self.card.get("pleat", 0.0) or 0.0))
+        # doors on pieces whose builders don't cut them themselves (cubes,
+        # tubes, stand-ups...): cut now, among that piece's own panels
+        left = []
+        for d in self.doors:
+            pc_ = d.get("piece") or "Card"
+            if d["id"] not in self.doors_done and pc_ not in left:
+                left.append(pc_)
+        for piece in left:
+            pc = self.pieces.get(piece)
+            if pc is None:
+                continue
+            names = [n for n in pc.panels if self.panels[n].kind == "panel"]
+            doors = self._door_lines(piece, names, True)
+            if doors:
+                fold_build(self, piece, names, pc.label, doors, piece, 0.0)
         for d in self.doors:
             if d["id"] not in self.doors_done:
-                self.warn(f"Door flap on {d.get('piece') or 'Card'}: door flaps work on the "
-                          f"card, V-folds, box folds and box layers; cut as a hole")
+                self.warn(f"Door flap on {d.get('piece') or 'Card'}: can't be cut there; cut "
+                          f"as a hole")
 
     # ------------------------------------------------------- page directions
     def dirs(self, t):

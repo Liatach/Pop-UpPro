@@ -108,6 +108,9 @@ KINDS = [
     ("BOXEND", "Box with Ends", "A box glued to one page, one wall rising from the fold, "
      "pulled up by a 45° fold from the other page; pairs of 45° folds fill in its ends "
      "(Birmingham 82)", "MESH_CUBE", 22),
+    ("ARMS", "Flapping Arms", "Arms jutting out through slots in a V-fold's halves (or a "
+     "box fold's front), glued to a back piece hanging behind it: they swing as the "
+     "card opens (Birmingham 65-66)", "MOD_ARMATURE", 24),
     ("CROSS", "Slotted Cross Piece", "A piece standing square across a rising sheet, "
      "slotted into it, held by a 45° fold onto one page or both (Birmingham 81)",
      "SNAP_PERPENDICULAR", 23),
@@ -218,6 +221,11 @@ def host_items(self, context):
         for m in st.mechs:
             if self.kind in ("FLAP", "TETHER", "ROOF", "PICTURE") or m.uid in bad:
                 continue
+            if self.kind == "ARMS":  # (on a V-fold or a box fold)
+                if m.kind in ("VFOLD", "BOX"):
+                    items.append((str(m.uid), m.label, f"Through {m.label}",
+                                  "MOD_ARMATURE", m.uid))
+                continue
             if self.kind == "CROSS" or m.kind == "RISER":  # (only cross pieces, on sheets)
                 if self.kind == "CROSS" and m.kind == "RISER":
                     items.append((str(m.uid), m.label, f"Across {m.label}",
@@ -286,6 +294,32 @@ def fit_to_host(m, st):
     half the host's panels, centred along it, so there's paper left round it
     to read as a step or an inset."""
     host = next((h for h in st.mechs if h.uid == m.host_uid), None)
+    if m.kind == "ARMS":
+        # sized to the fold it goes through: high on a V-fold's crease, the
+        # middle of a box fold's front corner
+        if host is not None and host.kind in ("VFOLD", "BOX"):
+            was = st.live
+            st["live"] = False
+            from .ops import unique_label
+            m.label = unique_label(st.mechs, f"{host.label}: arms", m)
+            if host.kind == "VFOLD":
+                Lc = host.height
+                m.arm_width = round(min(12.0, 0.18 * Lc), 1)
+                m.arm_y = round(0.7 * Lc - 0.5 * m.arm_width, 1)
+                m.arm_slot = round(max(3.0, min(14.0, 0.3 * host.glue)), 1)
+                m.arm_len = round(0.25 * Lc, 1)
+                m.arm_back = round(1.5 * m.arm_slot, 1)
+            else:
+                k = min(host.height, host.depth)
+                m.arm_width = round(min(12.0, 0.3 * host.width), 1)
+                m.arm_y = round(0.5 * (host.width - m.arm_width), 1)
+                m.arm_slot = round(max(3.0, 0.35 * k), 1)
+                m.arm_len = round(0.5 * k, 1)
+                # (a box fold's corner opens out flat with the card: only a
+                # back piece as long as the slots are far folds flat with it)
+                m.arm_back = m.arm_slot
+            st["live"] = was
+        return
     if m.kind == "CROSS":
         # across the sheet's middle, or beside the cross pieces already there
         if host is not None and host.kind == "RISER":
@@ -926,6 +960,18 @@ class PopupMech(bpy.types.PropertyGroup):
     fold: EnumProperty(name="Fold", items=FOLDS, update=_fold_changed,
                        description="Which fold of the host box")
     # V-fold
+    bite: BoolProperty(name="Bite", description="Birmingham 13-14: a wedge cut out of the "
+                       "far end of the centre crease, its edges stuck together by a tab, "
+                       "sculpts the V-fold's end into a beak. Each side's end is a facet "
+                       "creased off its half, from the bite's point to the half's far "
+                       "corner", default=False, update=_changed)
+    bite_len: FloatProperty(name="Bite Length", description="How far down the centre "
+                            "crease from its far end the bite's point is, in mm",
+                            default=20.0, min=3.0, soft_max=150.0, update=_changed)
+    bite_angle: FloatProperty(name="Bite Angle", description="The angle cut out each side "
+                              "of the centre crease. Wider bends the end further, and stops "
+                              "the halves opening so far", default=15.0, min=1.0, max=40.0,
+                              update=_changed)
     shape: EnumProperty(name="Shape", items=[
         ("QUAD", "Panels", "Each half is a four-sided panel"),
         ("TRI", "Beak", "Each half is a triangle meeting at a point: beaks and mouths"),
@@ -1089,6 +1135,28 @@ class PopupMech(bpy.types.PropertyGroup):
                              "where they stand along the sheet, in mm from its middle "
                              "(+ towards the top of the card)", default=0.0,
                              soft_min=-100.0, soft_max=100.0, update=_changed)
+    arm_slot: FloatProperty(name="Slots From Crease (E)", description="Flapping arms: how "
+                            "far each slot is from the crease, in mm (the same both sides)",
+                            default=12.0, min=2.0, soft_max=100.0, update=_changed)
+    arm_back: FloatProperty(name="Back Piece Half (G)", description="Flapping arms: each "
+                            "half of the back piece, from its crease to a slot, in mm. Longer "
+                            "points the arms further forward; it must reach across between "
+                            "the slots however far the card opens", default=18.0, min=2.0,
+                            soft_max=150.0, update=_changed)
+    arm_width: FloatProperty(name="Slot Length (A)", description="Flapping arms: each slot's "
+                             "length along the crease, in mm; the arm's neck passes through "
+                             "it, its glue end and the back piece's ends are wider",
+                             default=12.0, min=3.0, soft_max=100.0, update=_changed)
+    arm_len: FloatProperty(name="Arm Length", description="Flapping arms: how far each arm "
+                           "juts out from its slot, in mm", default=30.0, min=4.0,
+                           soft_max=200.0, update=_changed)
+    arm_hand: FloatProperty(name="Arm Width", description="Flapping arms: each arm's width "
+                            "past its neck, in mm (0: a little wider than the slot). Shape "
+                            "it by erasing its art", default=0.0, min=0.0, soft_max=150.0,
+                            update=_changed)
+    arm_y: FloatProperty(name="Slots Up the Crease", description="Flapping arms: how far up "
+                         "the crease the slots start, in mm", default=20.0, min=0.0,
+                         soft_max=300.0, update=_changed)
     foot_size: FloatProperty(name="Foot Size", description="Slotted cross piece: how far "
                              "its 45° feet reach along the fold, in mm (0: half its width, "
                              "so the foot grows with the piece)", default=0.0, min=0.0,
@@ -1598,6 +1666,10 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="PLATFORM", width=self.width, height=self.height,
                      depth=self.depth, depth_r=self.depth_r, brace=self.brace,
                      brace_size=self.brace_size)
+        elif self.kind == "ARMS":
+            d.update(type="ARMS", arm_slot=self.arm_slot, arm_back=self.arm_back,
+                     arm_width=self.arm_width, arm_len=self.arm_len, arm_y=self.arm_y,
+                     arm_hand=self.arm_hand)
         elif self.kind == "CROSS":
             d.update(type="CROSS", cross_pos=self.cross_pos, cross_height=self.cross_height,
                      cross_width=self.cross_width, slot_height=self.slot_height,
@@ -1689,6 +1761,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      glue_from=self.glue_from,
                      glue_from_r=self.glue_from_r if each else self.glue_from,
                      arch=self.arch, arch_shape=self.arch_shape,
+                     bite=self.bite, bite_len=self.bite_len, bite_angle=self.bite_angle,
                      on_top=bool(top), top_below=self.top_below,
                      x=self.glue_from, width=self.glue, jut=self.jut,
                      cut_bottoms=self.cut_bottoms,

@@ -3,6 +3,10 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.85**: door flaps on cubes, tubes and stand-ups (every piece now);
+  a V-fold's **Bite** (Birmingham 13-14) bends its end into a beak;
+  **Flapping Arms** (65-66) swing out through slots in a V-fold or a box
+  fold. The roadmap tidied.
 * **0.84**: **Slotted Cross Pieces** are mechanisms of their own on a
   rising sheet, each sized and placed on its own, with feet that grow with
   its width and can go on one page only. Older files' cross pieces are

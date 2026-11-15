@@ -35,8 +35,9 @@ m = Model(dict(W=148.5, H=210.0, hold="SYM", doors=doors),
                 depth=25),
            dict(type="CUBE", uid=3, label="C", y=100, x=0, size=20, height=20)])
 m.solve_hinges()
-assert m.doors_done == {0, 1, 2}, m.doors_done
-assert any("Door flap on Cube3" in w for w in m.warnings), m.warnings
+# (v0.85: a cube's door is cut too)
+assert m.doors_done == {0, 1, 2, 3}, m.doors_done
+assert "Cube3.Door1" in m.panels, [n for n in m.panels if "Door" in n]
 want = {"Box1.Door1": 60, "Card.Door1": 45, "Box2.Door1": 80}
 for name, deg in want.items():
     p = m.panels[name]

@@ -87,7 +87,8 @@ Paint flat or folded, import and position images or simply textures, then export
 * Box folds, square or angled (the glue lines turned and
   mirrored either side of the fold, with one crease or three, the panels
   tilting into new planes); box layers; straps (slanted, with peaks).
-* 180° cubes with a lid, or a tower's pointed or flat roof, and collars.
+* 180° cubes with a lid, or a tower's pointed or flat roof, and collars;
+  the pop-up house (Birmingham 49), its gabled roof pushed open by its walls.
 * Tubes, cylinders, loops (Birmingham 16) and cones that narrow or flare,
   pyramids and tents on parallel strips, with tethers and roofs. Balconies
   on arches, with railings, on tube and cube walls, in front of boxes and
@@ -100,9 +101,12 @@ Paint flat or folded, import and position images or simply textures, then export
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   picture placemats glued on any face, pull-tab flaps.
 * 45° folds: a raised platform (on or off the centre), a rising sheet,
-  propped square by 45° folds; the double 45° fold, its top piece twisting
-  round; a jack in the box on a V-fold; triangles that leap out of a box's
-  corners.
+  propped square by 45° folds or by slotted cross pieces (81); the double
+  45° fold, its top piece twisting round; a jack in the box on a V-fold;
+  triangles that leap out of a box's corners; a box with its ends filled
+  in (82).
+* Flapping arms swinging out through slots in a V-fold or a box fold (65-66),
+  a V-fold's end bitten into a beak (13-14), and an animal face on a loop (17).
 * Carousels of 2 to 9 stages with frames, floors, ceilings and roofs, or one
   stage set standing in an ordinary card.
 * Cards that stand part open (**Opens To** 90° or 120°, say), with frames,
@@ -204,47 +208,48 @@ Sunflower is a good way to make them.
   folded card as well as the flat layout, and the paper redrawn by itself
   when a layer's opacity changes.
 * **Tubes and castles, continued**: battlements and a drawbridge in a
-  tube's walls, and towers on other folds. Overhanging roofs on tubes, eaves
-  on pyramid tower roofs, gabled roofs on cubes; stand-ups on a tower's
-  sunken platform (its creases fold the wrong way up for them, so it needs a
-  dish shaped for it); a balcony across a tube's front or back, if a way can
-  be found for its floor to fold there; crenellations along more kinds of
+  tube's walls, and towers on other folds; a square-fronted (kite) tower
+  on the corners that close up as the card shuts. Overhanging roofs on
+  tubes, eaves on pyramid tower roofs; stand-ups on a tower's sunken
+  platform (its creases fold the wrong way up for them, so it needs a dish
+  shaped for it); a balcony across a tube's front or back, if a way can be
+  found for its floor to fold there; crenellations along more kinds of
   edge; a cylinder's lid trimmed as the book's (68).
 * **Collars, continued**: round a whole tube or castle (its corners don't
   close in pairs the way a tower's do), round box folds, upside down as
   cornices, and on pillars.
-* **Loops and cones, continued**: the loop made into an animal's head
-  (Birmingham 17).
+* **The animal face, continued** (Birmingham 17): the brow's dart and the
+  nose's scores, from patterns Kim is drawing.
 * **Angled box folds, continued**: on other folds (straps, towers, another
   box), glued by inset tabs, and with peaks.
-* **Rising Sheet, continued**: 45° supports you can slide along the sheet,
-  and slotted sheets: a second sheet slotted through the first, its slot
-  locked to the page so the top piece tethers the other to it, the slot at
-  least three paper thicknesses wide to leave room to move.
-* The consolidation and elegance pass over the interface, continued:
-  * Fewer mechanisms that do more: the Roof becomes a V-fold with Cut Away
-    Background Above and Level Ridge; floors, ceilings and the background
-    folding in sit together as one "Stage" section.
-* Door flaps on cubes, tubes and stand-up pictures.
+* **Slotted sheets, continued**: a second sheet slotted through the first,
+  its slot locked to the page so the top piece tethers the other to it,
+  the slot at least three paper thicknesses wide to leave room to move.
 * **Tabs that carry the art**, continued: outside tabs (V-folds with Tab
   Side Outside) already print the art of the part they glue onto. Next:
   a Tab Side choice for box folds, straps and cubes, and inside tabs' backs
   printed on the reverse sheet.
 * **Concertinas, continued**: a fan standing free of the centre crease,
   concertina corners (like an accordion's), rainbows and arcs.
-* **45° folds, continued**: the jack in the box on a parallelogram, arms that
-  reach out past the base's edges, box ends filled by double 45° folds, and
-  a box lid lifted by a strut.
-* Next mechanisms: the 90° box with lid, floating layers on pedestals,
-  moving arms.
-* **V-folds, continued** (Birmingham): the "bite" that sculpts a V-fold
-  into a curve or a point (12–15), and tall narrow sides that twist (19).
+* **45° folds, continued**: the jack in the box on a parallelogram, arms
+  that reach out past the base's edges, and a box lid lifted by a strut
+  (83).
+* **V-folds, continued** (Birmingham): bites at both ends of the crease
+  (15), between the tabs (14) and in a jaw (12); tall narrow sides that
+  twist (19), which needs bending paper rather than folding it.
+* **Flapping arms, continued**: chained, each pair's back piece driving
+  the next, into scissor mechanisms.
 * **Zig-zags and quadrilaterals, continued** (Birmingham): slanted fold
   lines (47), boxes cut into the faces (46, 48), and a quadrilateral lifted
   on a V-fold (56).
+* Next mechanisms: the 90° box with lid, floating layers on pedestals.
 
 ## Version history
 
+* **0.85**: door flaps on cubes, tubes and stand-ups (every piece now);
+  a V-fold's **Bite** (Birmingham 13-14) bends its end into a beak;
+  **Flapping Arms** (65-66) swing out through slots in a V-fold or a box
+  fold. The roadmap tidied.
 * **0.84**: **Slotted Cross Pieces** are mechanisms of their own on a
   rising sheet, each sized and placed on its own, with feet that grow with
   its width and can go on one page only. Older files' cross pieces are

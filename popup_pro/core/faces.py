@@ -5,7 +5,7 @@ back over the loop by a dart.
 model.py has the module's overview and the Model class."""
 import math
 
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 from .base import Panel
 from .geom import frame
@@ -28,7 +28,8 @@ class Faces:
         self._muzzle(m, piece, nl, nr, (uc, hgt), (0.0, 1.0),
                      (wl, (uc - Gn, hgt)), (wr, (uc + Gn, hgt)))
 
-    def _muzzle(self, m, piece, near_l, near_r, O2, up2, end_l, end_r):
+    def _muzzle(self, m, piece, near_l, near_r, O2, up2, end_l, end_r, polys=None,
+                dart_deg=None, names=("Nose", "muzzle"), join=0.0):
         """Birmingham takes a bite out of the end of the loop's centre fold
         and sticks its edges together, which pulls the card either side of
         it back into a curve: a nose. Stiff paper can't curve, so here the
@@ -42,9 +43,14 @@ class Faces:
         # near_l, near_r: the walls each side of the front crease; O2: the
         # crease's top in the pattern, up2: its line on upward; end_l,
         # end_r: (wall, pattern point) where each facet's crease ends
+        # polys: each facet's own outline ({-1: left, 1: right}), else a
+        # muzzle's; join: a glue tab that wide on the right facet's seam,
+        # stuck under the left's (the book's tab across the bite)
         lab = m["label"]
-        Ln = float(m.get("face_len", 22.0))
-        dart = math.radians(max(0.0, min(60.0, float(m.get("face_dart", 15.0)))))
+        Ln = float(m.get("face_len", 22.0)) if polys is None else 0.0
+        dd = float(m.get("face_dart", 15.0)) if dart_deg is None else dart_deg
+        dart = math.radians(max(0.0, min(60.0, dd)))
+        tag, word = names
         O = Vector((O2[0], O2[1], 0.0))
         up = Vector((up2[0], up2[1], 0.0)).normalized()
         near = {-1.0: near_l, 1.0: near_r}
@@ -90,21 +96,53 @@ class Faces:
                 Pc, gl, gr, s = seam(t)
                 return frame(Pc, gl if sx < 0 else gr, s) @ F2i
 
-            poly = [(O + a_ * h2 + b_ * s2).to_2d()[:]
-                    for a_, b_ in ((0.0, 0.0), (Gn, 0.0), (0.45 * Gn, 0.75 * Ln), (0.0, Ln))]
+            if polys is not None:
+                poly = polys[sx]
+            else:
+                poly = [(O + a_ * h2 + b_ * s2).to_2d()[:]
+                        for a_, b_ in ((0.0, 0.0), (Gn, 0.0), (0.45 * Gn, 0.75 * Ln),
+                                       (0.0, Ln))]
             side = "L" if sx < 0 else "R"
-            p = self.add(Panel(f"{piece}.Nose{side}", piece, "panel", [poly], asm,
+            p = self.add(Panel(f"{piece}.{tag}{side}", piece, "panel", [poly], asm,
                                near[sx].name, None,
-                               f"{lab}: muzzle {'left' if sx < 0 else 'right'}"))
+                               f"{lab}: {word} {'left' if sx < 0 else 'right'}"))
             p.free = True  # (creased off a curve: posed opening by opening)
             self.fold_kind[frozenset((near[sx].name, p.name))] = "valley"
-        self.fold_kind[frozenset((f"{piece}.NoseL", f"{piece}.NoseR"))] = "mountain"
+        self.fold_kind[frozenset((f"{piece}.{tag}L", f"{piece}.{tag}R"))] = "mountain"
+        if join > 0 and f"{piece}.{tag}L" in self.panels and f"{piece}.{tag}R" in self.panels:
+            self._bite_tab(piece, f"{piece}.{tag}L", f"{piece}.{tag}R", O, shape, join,
+                           f"{lab}: {word} tab")
         for t in self.samples:
             seam(t)
         if tight:
-            self.warn(f"{lab}: the nose's dart is too wide for how far the front opens "
-                      f"(from {min(tight):.0f} degrees); narrow Nose Dart or Muzzle Width, "
-                      f"or let the card curve there")
+            self.warn(f"{lab}: the {word}'s dart is too wide for how far it opens (from "
+                      f"{min(tight):.0f} degrees); narrow its angle, or let the card curve "
+                      f"there")
+
+    def _bite_tab(self, piece, nl, nr, O, shape, wd, label):
+        """A glue tab on the right facet's seam edge, folded under the left
+        facet and stuck there: it holds the bite closed."""
+        from .base import TAB_LIFT
+        sL, sR = shape[-1.0][1], shape[1.0][1]
+        pL = self.panels[nl]
+        on = [(Vector((q[0], q[1], 0.0)) - O) for q in self.panels[nr].polys[0]]
+        L = max((v.dot(sR) for v in on if abs(v.cross(sR).z) < 1e-4), default=0.0)
+        if L < 4.0:
+            return
+        outR = Vector((-sR.y, sR.x, 0.0))  # (left of the right facet's seam: off it)
+        inL = Vector((-sL.y, sL.x, 0.0))  # (left of the left facet's seam: onto it)
+        a0, a1 = 0.15 * L, 0.85 * L
+        poly = [(O + a0 * sR).to_2d()[:], (O + a1 * sR).to_2d()[:],
+                (O + (a1 - 0.3 * wd) * sR + wd * outR).to_2d()[:],
+                (O + (a0 + 0.3 * wd) * sR + wd * outR).to_2d()[:]]
+        # right facet's seam frame -> left facet's, then a hair behind it
+        Mv = frame(O, sL, inL) @ frame(O, sR, outR).inverted()
+        Mv = Matrix.Translation((0.0, 0.0, -TAB_LIFT)) @ Mv
+
+        def asm(t, pa=pL.asm, Mv=Mv):
+            return pa(t) @ Mv
+
+        self.add(Panel(f"{nr}Tab", piece, "tab", [poly], asm, nl, None, label))
 
     @staticmethod
     def ear(e0, e1, out, size):

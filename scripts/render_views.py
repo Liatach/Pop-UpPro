@@ -125,7 +125,26 @@ def animal_face():
     return (0, 85, 20), 170, (0.25, -0.75, 0.6), (175.0, 130.0, 80.0)
 
 
-SCENES = dict(house=house, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+def vfold_bite():
+    a = add("VFOLD")
+    a.y, a.height, a.glue = 60.0, 70.0, 45.0
+    a.bite, a.bite_len, a.bite_angle = True, 25.0, 18.0
+    return (0, 85, 30), 230, (0.3, -0.85, 0.45), (175.0, 130.0, 85.0)
+
+
+def flapping_arms():
+    a = add("VFOLD")
+    a.y, a.height, a.glue = 40.0, 80.0, 45.0
+    au = a.uid
+    add("ARMS", host=au, fold="A")
+    b = add("BOX")
+    b.y, b.width, b.height, b.depth = 140.0, 50.0, 30.0, 30.0
+    bu = b.uid
+    add("ARMS", host=bu, fold="A")
+    return (0, 105, 25), 260, (0.25, -0.9, 0.4), (175.0, 120.0, 70.0)
+
+
+SCENES = dict(house=house, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 

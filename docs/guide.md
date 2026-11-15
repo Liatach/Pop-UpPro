@@ -724,6 +724,41 @@ the piece can sit over things glued close to the fold.
   while the angles stay symmetric. With Symmetric off, the two sides are
   separate anyway.
 
+### A V-fold's bite
+
+Birmingham 13–14. **Bite** (a plain V-fold's settings) takes a wedge out of
+the far end of the centre crease and sticks its edges together with a tab:
+the end of the V-fold bends back into a beak. In card the halves curve;
+here each side's end is a facet creased straight across its half from the
+bite's point (**Bite Length** down the crease from its end) to the half's
+outer edge, the book's creases F, and the two facets meet along the bite's
+seam. **Bite Angle** is the angle cut out each side: wider bends it further,
+and stops the halves opening so far; Checks says if the V-fold opens further
+than its bite allows.
+
+![A V-fold with a bite, at 175, 130 and 85 degrees](images/vfold_bite.jpg)
+
+### Flapping arms
+
+Birmingham 65–66. **Flapping Arms** (the **+** menu with a V-fold or a box
+fold selected) puts a slot through each face either side of its crease (the
+V-fold's centre crease, the box fold's front corner), the same distance from
+it (**Slots From Crease**, E), **Slot Length** (A) long and **Slots Up the
+Crease** from its start. A back piece hangs behind the crease, its two
+halves (**Back Piece Half**, G = H) creased in the middle; an arm comes out
+through each slot and is glued to the back piece's end behind it, so the
+faces and the back piece make a four-sided loop that changes shape as the
+card opens, and the arms swing out. A longer back piece points the arms
+further forward; it must reach across between the slots however far the
+faces open (Checks says if not). A box fold's corner opens out flat with
+the card, so there the back piece must be as long as the slots are far
+from the corner (the + menu sets it so). **Arm Length** and **Arm Width**
+size the arms; each has a narrow neck through its slot and a wider glue end
+behind it. Shape the arms by erasing their art.
+
+![Flapping arms through a V-fold (front) and a box fold (behind), at 175,
+120 and 70 degrees](images/flapping_arms.jpg)
+
 ### A V-fold on top of a V-fold
 
 Birmingham 21–22. With a V-fold selected, **Add → V-fold on Top (tabs A)**
@@ -1138,8 +1173,8 @@ so they show in 3D and print as cut lines:
   which is creased as the **Hinge** (Left, Right, Bottom, or Top for a
   rectangle), and the door swings out of the printed side as the card opens,
   to **Opens To** degrees when it is fully open and flat when it shuts. Door
-  flaps work on the card, V-folds, box folds and box layers (elsewhere they
-  are cut as holes, with a warning). A side-hinged door needs to stand a
+  flaps work on every piece: the card, V-folds, box folds and box layers,
+  cubes, tubes and castles, stand-ups. A side-hinged door needs to stand a
   few mm off a fold below it, or it scrapes the paper there (the checks say
   so); hinged on the floor fold of a box front, it lies flat on the floor.
   **Through** carries an
