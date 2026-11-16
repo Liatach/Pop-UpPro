@@ -91,32 +91,64 @@ class VFolds:
         if not 3.0 <= b <= Lc - 3.0:
             b = max(3.0, min(b, Lc - 3.0))
             self.warn(f"{lab}: bite made {b:.0f} mm long to fit the crease")
-        dart = math.radians(max(1.0, min(40.0, float(m.get("bite_angle", 15.0)))))
-        O = (0.0, Lc - b)
-        out_h, out_f, ends = {}, {}, {}
-        for sx, poly, G in ((-1.0 if GL[0] <= 0 else 1.0, halves["L"][0], GL),
-                            (1.0 if GR[0] >= 0 else -1.0, halves["R"][0], GR)):
-            # straight across to the outer edge (from G to G + Lc up), or to
-            # its end if the bite's point is beyond it
-            C = (G[0], max(G[1], min(G[1] + Lc, O[1])))
-            d = (C[0] - O[0], C[1] - O[1])
-            n = (-d[1], d[0])  # (normal to the facet's crease)
-            if n[0] * (0.0 - O[0]) + n[1] * (0.0 - O[1]) < 0:  # towards the V point
-                n = (-n[0], -n[1])
-            c = n[0] * O[0] + n[1] * O[1]
-            h_ = clip_halfplane(poly, n, c)
-            f_ = clip_halfplane(poly, (-n[0], -n[1]), -c)
-            s = (sx * math.sin(dart), math.cos(dart))  # the seam, the bite's angle out
-            ns = (s[1] * sx, -s[0] * sx)  # (normal: away from the crease, into the facet)
-            f_ = clip_halfplane(f_, ns, ns[0] * O[0] + ns[1] * O[1])
-            if len(h_) < 3 or len(f_) < 3:
-                self.warn(f"{lab}: no room for the bite; none cut")
-                return None
-            key = "L" if poly is halves["L"][0] else "R"
-            out_h[-1.0 if key == "L" else 1.0] = [h_]
-            out_f[-1.0 if key == "L" else 1.0] = f_
-            ends[key] = C
-        return out_h, out_f, O, ends["L"], ends["R"]
+        n = max(1, min(6, int(m.get("bite_steps", 1) or 1)))
+        d1 = max(1.0, min(40.0, float(m.get("bite_angle", 15.0))))
+        dk = max(0.0, min(40.0, float(m.get("bite_step_angle", 10.0))))
+        darts = [d1] + [dk] * (n - 1)  # (each step's turn from the one before)
+        Ls = b / n  # (each step's length, along its seam)
+        sides = {}  # -1 left half, 1 right: its geometric side and outline
+        for key, poly, G in (("L", halves["L"][0], GL), ("R", halves["R"][0], GR)):
+            sides[-1.0 if key == "L" else 1.0] = (1.0 if G[0] > 0 else -1.0, poly, G)
+        steps = []
+        Os = {k: (0.0, Lc - b) for k in sides}
+        ups = {k: (0.0, 1.0) for k in sides}
+        cum0 = 0.0  # (the previous seam's turn from the centre crease)
+        out_h = {}
+        for j, dd in enumerate(darts):
+            cum = cum0 + math.radians(dd)
+            last = j == len(darts) - 1
+            st_ = dict(O=dict(Os), up=dict(ups), dart=dd, facets={}, ends={})
+            for k, (sg, poly, G) in sides.items():
+                O, up = Os[k], ups[k]
+                # this step's crease: square to the line it carries on from
+                # (the centre crease, then each step's seam), out to the half's
+                # outer edge; beyond it, this step's facet
+                if j == 0:
+                    out_h[k] = [clip_halfplane(poly, (-up[0], -up[1]),
+                                               -(up[0] * O[0] + up[1] * O[1]))]
+                f_ = clip_halfplane(poly, up, up[0] * O[0] + up[1] * O[1])
+                dirk = (sg * math.sin(cum), math.cos(cum))  # this step's seam
+                if not last:  # up to the next step's crease
+                    On = (O[0] + Ls * dirk[0], O[1] + Ls * dirk[1])
+                    f_ = clip_halfplane(f_, (-dirk[0], -dirk[1]),
+                                        -(dirk[0] * On[0] + dirk[1] * On[1]))
+                ns = (dirk[1] * sg, -dirk[0] * sg)  # (its normal, into the facet)
+                f_ = clip_halfplane(f_, ns, ns[0] * O[0] + ns[1] * O[1])
+                across = (sg * up[1], -sg * up[0])  # (square to up, towards the side)
+                if abs(across[0]) < 1e-6:
+                    f_ = []
+                else:
+                    tt = (G[0] - O[0]) / across[0]
+                    E = (O[0] + tt * across[0], O[1] + tt * across[1])
+                    if not G[1] - 1e-6 <= E[1] <= G[1] + Lc + 1e-6:
+                        f_ = []
+                if len(f_) < 3:
+                    if j == 0:
+                        self.warn(f"{lab}: no room for the bite; none cut")
+                        return None
+                    st_ = None
+                    break
+                st_["facets"][k] = f_
+                st_["ends"][k] = E
+                if not last:
+                    Os[k], ups[k] = On, dirk
+            if st_ is None:
+                self.warn(f"{lab}: the bite's steps turn too far for the paper; only "
+                          f"{len(steps)} cut")
+                break
+            steps.append(st_)
+            cum0 = cum
+        return out_h, steps
 
     def _half(self, name, piece, polys, Ppat, gpiece, cpat, side, key, label):
         """One rigid half of a V joint. gpiece/cpat: glue line and crease
@@ -309,12 +341,18 @@ class VFolds:
                            f"{lab}: tab {side}"))
 
         if bite is not None:
-            _, facets, O2, cL, cR = bite
             hl, hr = self.panels.get(f"{base}.HalfL"), self.panels.get(f"{base}.HalfR")
-            if hl is not None and hr is not None:
-                self._muzzle(m, piece, hl, hr, O2, (0.0, 1.0), (hl, cL), (hr, cR),
-                             polys=facets, dart_deg=float(m.get("bite_angle", 15.0)),
-                             names=("Bite", "bite"), join=min(6.0, 0.25 * float(m.get("bite_len", 20.0) or 20.0)))
+            n_ = max(1, len(bite[1]))
+            for j, st_ in enumerate(bite[1]):
+                if hl is None or hr is None:
+                    break
+                tag = "Bite" if j == 0 else f"Bite{j + 1}"
+                self._muzzle(m, piece, hl, hr, st_["O"], st_["up"],
+                             (hl, st_["ends"][-1.0]), (hr, st_["ends"][1.0]),
+                             polys=st_["facets"], dart_deg=st_["dart"],
+                             names=(tag, "bite" if j == 0 else f"bite step {j + 1}"),
+                             join=min(6.0, 0.25 * float(m.get("bite_len", 20.0) or 20.0) / n_))
+                hl, hr = self.panels.get(f"{base}.{tag}L"), self.panels.get(f"{base}.{tag}R")
         self.line_frames[uid] = (piece, lambda q: q, None)
         halves = [f"{base}.HalfL", f"{base}.HalfR"]
         doors = self._door_lines(piece, halves, True)

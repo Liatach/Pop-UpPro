@@ -69,7 +69,13 @@ def build_layout(model, margin=8.0, gap=6.0):
     for piece in loose:
         pts = [q for n in piece.panels for poly in model.panels[n].polys for q in poly]
         opts = []
-        for k in (0, 1):
+        up = getattr(piece, "upright", False)
+        # upright: True for the pattern's y up as it stands, or the pattern
+        # direction that is up (a rising sheet's height runs along its x)
+        k_up = 0
+        if isinstance(up, tuple):
+            k_up = round((0.5 * math.pi - math.atan2(up[1], up[0])) / (0.5 * math.pi)) % 4
+        for k in sorted({0, 1, k_up}):
             rp = [rot2(q, k * math.pi / 2) for q in pts]
             x0, y0, x1, y1 = bbox2(rp)
             opts.append((k, x0, y0, x1 - x0, y1 - y0))
@@ -80,8 +86,9 @@ def build_layout(model, margin=8.0, gap=6.0):
             ok = [o for o in opts if fits(o, sz)]
             if not ok:
                 continue
-            if getattr(piece, "upright", False) and ok[0][0] == 0:
-                best = ok[0]  # the way up it stands (frames, stage sets)
+            stand = [o for o in ok if o[0] == k_up]
+            if up and stand:
+                best = stand[0]  # the way up it stands (frames, stage sets, rising sheets)
             else:
                 best = max(ok, key=lambda o: (o[3] >= o[4], -o[0]))
             size = sz

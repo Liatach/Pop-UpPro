@@ -51,14 +51,21 @@ class Faces:
         dd = float(m.get("face_dart", 15.0)) if dart_deg is None else dart_deg
         dart = math.radians(max(0.0, min(60.0, dd)))
         tag, word = names
-        O = Vector((O2[0], O2[1], 0.0))
-        up = Vector((up2[0], up2[1], 0.0)).normalized()
+        # O2, up2: the crease's (or seam's) end point and its line on, in the
+        # pattern; or {-1: left's, 1: right's} where the two sides' differ
+        # (a bite's later steps, off the previous step's seams)
+        if not isinstance(O2, dict):
+            O2, up2 = {-1.0: O2, 1.0: O2}, {-1.0: up2, 1.0: up2}
+        Os = {k: Vector((v[0], v[1], 0.0)) for k, v in O2.items()}
+        ups = {k: Vector((v[0], v[1], 0.0)).normalized() for k, v in up2.items()}
+        O, up = Os[1.0], ups[1.0]
         near = {-1.0: near_l, 1.0: near_r}
         ends = {-1.0: end_l, 1.0: end_r}
         # each facet's own shape: its crease, and its seam edge the dart
         # short of the front crease's line
         shape = {}
         for sx in (-1.0, 1.0):
+            O, up = Os[sx], ups[sx]
             h2 = Vector((ends[sx][1][0], ends[sx][1][1], 0.0)) - O
             Gn = h2.length
             h2 = h2 / Gn
@@ -67,6 +74,7 @@ class Faces:
             s2 = math.cos(dart) * up + math.sin(dart) * across
             shape[sx] = (h2, s2, Gn, max(0.0, th - dart))
         alpha = 0.5 * (shape[-1.0][3] + shape[1.0][3])
+        O, up = Os[1.0], ups[1.0]
         tight = []
 
         def seam(t):
@@ -90,7 +98,7 @@ class Faces:
 
         for sx in (-1.0, 1.0):
             h2, s2, Gn, _ = shape[sx]
-            F2i = frame(O, h2, s2).inverted()
+            F2i = frame(Os[sx], h2, s2).inverted()
 
             def asm(t, sx=sx, F2i=F2i):
                 Pc, gl, gr, s = seam(t)
@@ -99,7 +107,7 @@ class Faces:
             if polys is not None:
                 poly = polys[sx]
             else:
-                poly = [(O + a_ * h2 + b_ * s2).to_2d()[:]
+                poly = [(Os[sx] + a_ * h2 + b_ * s2).to_2d()[:]
                         for a_, b_ in ((0.0, 0.0), (Gn, 0.0), (0.45 * Gn, 0.75 * Ln),
                                        (0.0, Ln))]
             side = "L" if sx < 0 else "R"
@@ -110,7 +118,7 @@ class Faces:
             self.fold_kind[frozenset((near[sx].name, p.name))] = "valley"
         self.fold_kind[frozenset((f"{piece}.{tag}L", f"{piece}.{tag}R"))] = "mountain"
         if join > 0 and f"{piece}.{tag}L" in self.panels and f"{piece}.{tag}R" in self.panels:
-            self._bite_tab(piece, f"{piece}.{tag}L", f"{piece}.{tag}R", O, shape, join,
+            self._bite_tab(piece, f"{piece}.{tag}L", f"{piece}.{tag}R", Os, shape, join,
                            f"{lab}: {word} tab")
         for t in self.samples:
             seam(t)
@@ -119,12 +127,13 @@ class Faces:
                       f"{min(tight):.0f} degrees); narrow its angle, or let the card curve "
                       f"there")
 
-    def _bite_tab(self, piece, nl, nr, O, shape, wd, label):
+    def _bite_tab(self, piece, nl, nr, Os, shape, wd, label):
         """A glue tab on the right facet's seam edge, folded under the left
         facet and stuck there: it holds the bite closed."""
         from .base import TAB_LIFT
         sL, sR = shape[-1.0][1], shape[1.0][1]
         pL = self.panels[nl]
+        O, OL = Os[1.0], Os[-1.0]
         on = [(Vector((q[0], q[1], 0.0)) - O) for q in self.panels[nr].polys[0]]
         L = max((v.dot(sR) for v in on if abs(v.cross(sR).z) < 1e-4), default=0.0)
         if L < 4.0:
@@ -136,7 +145,7 @@ class Faces:
                 (O + (a1 - 0.3 * wd) * sR + wd * outR).to_2d()[:],
                 (O + (a0 + 0.3 * wd) * sR + wd * outR).to_2d()[:]]
         # right facet's seam frame -> left facet's, then a hair behind it
-        Mv = frame(O, sL, inL) @ frame(O, sR, outR).inverted()
+        Mv = frame(OL, sL, inL) @ frame(O, sR, outR).inverted()
         Mv = Matrix.Translation((0.0, 0.0, -TAB_LIFT)) @ Mv
 
         def asm(t, pa=pL.asm, Mv=Mv):

@@ -95,7 +95,7 @@ KINDS = [
      "crease, the V-fold its body: the chest leans back into the V as the card closes, "
      "the arms swing forward round it and the head rises (Birmingham 79)",
      "OUTLINER_OB_ARMATURE", 18),
-    ("PICTURE", "Picture", "A piece of card glued flat on any face: a box's top or front "
+    ("PICTURE", "Paste-on", "A piece of card glued flat on any face: a box's top or front "
      "(a stand-up), a V-fold half, a 45° triangle, a page. It can reach past the face's "
      "edges", "IMAGE_DATA", 19),
     ("ZIGZAG", "Zig-zag Fold", "A strip of walls glued only by its two end walls along "
@@ -114,6 +114,9 @@ KINDS = [
     ("CROSS", "Slotted Cross Piece", "A piece standing square across a rising sheet, "
      "slotted into it, held by a 45° fold onto one page or both (Birmingham 81)",
      "SNAP_PERPENDICULAR", 23),
+    ("SWING", "Arm Behind a Mask", "A picture swinging round in its own plane, pivoted on "
+     "a small creased hinge hidden behind a mask layer, as the card opens (Birmingham 75)",
+     "DRIVER_ROTATIONAL_DIFFERENCE", 25),
 ]
 
 POINTS = [
@@ -226,9 +229,16 @@ def host_items(self, context):
                     items.append((str(m.uid), m.label, f"Through {m.label}",
                                   "MOD_ARMATURE", m.uid))
                 continue
-            if self.kind == "CROSS" or m.kind == "RISER":  # (only cross pieces, on sheets)
-                if self.kind == "CROSS" and m.kind == "RISER":
+            if self.kind == "CROSS":  # (only on rising sheets)
+                if m.kind == "RISER":
                     items.append((str(m.uid), m.label, f"Across {m.label}",
+                                  "OUTLINER_OB_FORCE_FIELD", m.uid))
+                continue
+            if m.kind == "RISER":
+                if self.kind in ("STANDUP", "BOX", "BOXCUT", "VFOLD", "MOUTH", "CUBE",
+                                 "TUBE", "PYRAMID", "PLATFORM", "RISER", "SWING"):
+                    items.append((str(m.uid), m.label, f"In a corner where {m.label} meets "
+                                  f"a page, or on one of its 45° folds",
                                   "OUTLINER_OB_FORCE_FIELD", m.uid))
                 continue
             if self.kind in ("FRAME", "FLOOR", "CEILING"):
@@ -294,6 +304,39 @@ def fit_to_host(m, st):
     half the host's panels, centred along it, so there's paper left round it
     to read as a step or an inset."""
     host = next((h for h in st.mechs if h.uid == m.host_uid), None)
+    if host is not None and host.kind == "RISER" and m.kind != "CROSS":
+        # in a corner of the sheet and a page (or on a 45° fold's crease):
+        # small, near the sheet's foot, clear of the 45° folds at its ends
+        was = st.live
+        st["live"] = False
+        try:
+            k = 0.35 * min(host.height, host.width)
+            if m.on_crease:
+                k = 0.3 * host.brace_size
+            # (along the sheet's foot: card positions; along a 45° fold's crease: its own)
+            m.y = round(0.3 * host.brace_size if m.on_crease else host.y + 0.3 * host.width, 1)
+            if m.kind in ("BOX", "BOXCUT"):
+                m.width = round(0.4 * (host.width if not m.on_crease else host.brace_size), 1)
+                m.height = m.depth = round(k, 1)
+            elif m.kind in ("VFOLD",):
+                m.glue = m.height = round(k, 1)
+            elif m.kind == "MOUTH":
+                m.jaw = round(0.6 * k, 1)
+                m.upper = m.lower = round(0.4 * k, 1)
+            elif m.kind in ("CUBE", "TUBE", "PYRAMID"):
+                m.size = m.height = round(0.8 * k, 1)
+                m.x, m.depth = round(0.3 * k, 1), round(k, 1)
+                m.front = m.back = round(0.3 * k, 1)
+            elif m.kind == "STANDUP":
+                m.height, m.depth, m.width = round(0.6 * k, 1), round(0.6 * k, 1), round(k, 1)
+                m.img_w, m.img_h = round(1.5 * k, 1), round(1.2 * k, 1)
+            elif m.kind in ("PLATFORM", "RISER"):
+                m.height, m.width = round(0.8 * k, 1), round(k, 1)
+                m.depth = round(0.5 * k, 1)
+            m.tab = min(m.tab, round(0.3 * k, 1))
+        finally:
+            st["live"] = was
+        return
     if m.kind == "ARMS":
         # sized to the fold it goes through: high on a V-fold's crease, the
         # middle of a box fold's front corner
@@ -972,6 +1015,14 @@ class PopupMech(bpy.types.PropertyGroup):
                               "of the centre crease. Wider bends the end further, and stops "
                               "the halves opening so far", default=15.0, min=1.0, max=40.0,
                               update=_changed)
+    bite_steps: IntProperty(name="Bite Steps", description="How many creased steps the bite "
+                            "bends the end in, each turning further than the one before "
+                            "(more steps: a rounder beak). Bite Length is shared out "
+                            "between them", default=1, min=1, max=6, update=_changed)
+    bite_step_angle: FloatProperty(name="Each Step Turns", description="How much more each "
+                                   "step after the first is cut out each side (degrees): "
+                                   "its turn away from the step before", default=10.0,
+                                   min=0.0, max=40.0, update=_changed)
     shape: EnumProperty(name="Shape", items=[
         ("QUAD", "Panels", "Each half is a four-sided panel"),
         ("TRI", "Beak", "Each half is a triangle meeting at a point: beaks and mouths"),
@@ -1189,6 +1240,28 @@ class PopupMech(bpy.types.PropertyGroup):
     # flap
     side: EnumProperty(name="Page", items=[("R", "Right", ""), ("L", "Left", "")],
                        update=_changed)
+    swing_gap: FloatProperty(name="Hinge Size (A)", description="Arm behind a mask: the "
+                             "hinge's two squares' size, and how far tab B is glued from the "
+                             "fold (the mask's height off the page when it stands), in mm",
+                             default=20.0, min=4.0, soft_max=80.0, update=_changed)
+    swing_at: FloatProperty(name="Pivot From Fold (F)", description="Arm behind a mask: how "
+                            "far from the fold the hinge's tab D is glued, at its fold: the "
+                            "arm's pivot (0: just clear of the fold)", default=0.0, min=0.0,
+                            soft_max=250.0, update=_changed)
+    swing_side: EnumProperty(name="Hinge On", description="Arm behind a mask: the page the "
+                             "hinge and mask lie on (tab B goes on the other)",
+                             items=[("R", "Right", ""), ("L", "Left", "")], update=_changed)
+    swing_dir: EnumProperty(name="Swings", description="Arm behind a mask: which way the arm "
+                            "turns as the card opens, seen from the front (a right angle, "
+                            "closed to open flat)",
+                            items=[("CW", "Clockwise", "", "LOOP_FORWARDS", 0),
+                                   ("CCW", "Anticlockwise", "", "LOOP_BACK", 1)],
+                            update=_changed)
+    swing_angle: FloatProperty(name="Arm Points", description="Arm behind a mask: the arm's "
+                               "direction open flat, in degrees: 0 points straight out of the "
+                               "hinge, away from its pivot (down the page if it swings "
+                               "clockwise on the right); + turns it anticlockwise", default=0.0, min=-180.0, max=180.0,
+                               update=_changed)
     x: FloatProperty(name="From Spine", description="Distance from the spine (mm): to "
                      "where a flap's hinge starts (its width runs on from there, away from "
                      "the spine or up the card), to a tube's strips, to a frame's glue "
@@ -1670,6 +1743,11 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="ARMS", arm_slot=self.arm_slot, arm_back=self.arm_back,
                      arm_width=self.arm_width, arm_len=self.arm_len, arm_y=self.arm_y,
                      arm_hand=self.arm_hand)
+        elif self.kind == "SWING":
+            d.update(type="SWING", swing_gap=self.swing_gap, swing_at=self.swing_at,
+                     swing_side=self.swing_side, swing_dir=self.swing_dir,
+                     swing_angle=self.swing_angle, width=self.width, height=self.height,
+                     arm_len=self.arm_len, arm_hand=self.arm_hand, tab=self.tab)
         elif self.kind == "CROSS":
             d.update(type="CROSS", cross_pos=self.cross_pos, cross_height=self.cross_height,
                      cross_width=self.cross_width, slot_height=self.slot_height,
@@ -1762,6 +1840,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      glue_from_r=self.glue_from_r if each else self.glue_from,
                      arch=self.arch, arch_shape=self.arch_shape,
                      bite=self.bite, bite_len=self.bite_len, bite_angle=self.bite_angle,
+                     bite_steps=self.bite_steps, bite_step_angle=self.bite_step_angle,
                      on_top=bool(top), top_below=self.top_below,
                      x=self.glue_from, width=self.glue, jut=self.jut,
                      cut_bottoms=self.cut_bottoms,

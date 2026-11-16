@@ -85,6 +85,8 @@ DEFAULTS = {
                      brace_size=15.0),
     "RISER": dict(y=60.0, width=70.0, height=80.0, tab=12.0, brace_size=20.0),
     "ARMS": dict(arm_slot=12.0, arm_back=18.0, arm_width=12.0, arm_len=30.0, arm_y=20.0),
+    "SWING": dict(y=60.0, swing_gap=20.0, swing_at=0.0, width=0.0, height=0.0,
+                  arm_len=50.0, arm_hand=0.0, tab=8.0),
     "CROSS": dict(cross_width=30.0, cross_height=0.0, foot_size=0.0, tab=10.0),
     "BOXEND": dict(y=75.0, width=60.0, height=30.0, depth=40.0, tab=8.0, brace_size=20.0),
     "DOUBLE45": dict(y=105.0, width=30.0, height=45.0, depth=104.0, tab=10.0),
@@ -100,8 +102,8 @@ NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
          "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
          "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof",
-         "PLATFORM": "Platform", "RISER": "Rising sheet", "BOXEND": "Box with ends", "CROSS": "Cross piece", "ARMS": "Arms", "DOUBLE45": "Double 45",
-         "JACK": "Jack in the box", "PICTURE": "Picture", "ZIGZAG": "Zig-zag",
+         "PLATFORM": "Platform", "RISER": "Rising sheet", "BOXEND": "Box with ends", "CROSS": "Cross piece", "ARMS": "Arms", "SWING": "Swinging arm", "DOUBLE45": "Double 45",
+         "JACK": "Jack in the box", "PICTURE": "Paste-on", "ZIGZAG": "Zig-zag",
          "QUADS": "Quadrilaterals"}
 
 
@@ -632,6 +634,9 @@ def _put_on(st, uid, host, fold="A"):
         m["wall"] = 1 if fold == "WL" else 2
     elif fold in ("KFL", "KFR", "KBR", "KBL", "KF", "KB"):  # up a tube's inside corner
         m["wall"] = 3 + ("KFL", "KFR", "KBR", "KBL", "KF", "KB").index(fold)
+    elif fold in ("RL", "RR", "RVL", "RVR"):  # a rising sheet's corner, or its 45° fold
+        m["side"] = 1 if fold in ("RL", "RVL") else 0
+        m["on_crease"] = fold in ("RVL", "RVR")
     elif fold == "VAL":  # a strap's valley between two peaks
         m["fold"] = 3
     else:
@@ -2389,10 +2394,10 @@ class POPUP_OT_trace_holes(bpy.types.Operator):
 
 
 class POPUP_OT_tri_pictures(bpy.types.Operator):
-    """Glue a picture on the box's 45° triangles: the left, the right or both
+    """Glue a paste-on on the box's 45° triangles: the left, the right or both
     of each pair, pointing out of the box (turn and size them after)"""
     bl_idname = "popup.tri_pictures"
-    bl_label = "Pictures on Triangles"
+    bl_label = "Paste-ons on Triangles"
     bl_options = {"REGISTER", "UNDO"}
     uid: IntProperty(options={"SKIP_SAVE"})
     which: EnumProperty(items=[("LEFT", "Left", ""), ("RIGHT", "Right", ""),

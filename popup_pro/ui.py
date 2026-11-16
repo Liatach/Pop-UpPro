@@ -8,7 +8,7 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "PYRAMID": "CONE", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
              "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND",
              "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME", "PLATFORM": "MOD_SOLIDIFY",
-             "RISER": "OUTLINER_OB_FORCE_FIELD", "BOXEND": "MESH_CUBE", "CROSS": "SNAP_PERPENDICULAR", "ARMS": "MOD_ARMATURE", "DOUBLE45": "ORIENTATION_GIMBAL",
+             "RISER": "OUTLINER_OB_FORCE_FIELD", "BOXEND": "MESH_CUBE", "CROSS": "SNAP_PERPENDICULAR", "ARMS": "MOD_ARMATURE", "SWING": "DRIVER_ROTATIONAL_DIFFERENCE", "DOUBLE45": "ORIENTATION_GIMBAL",
              "ZIGZAG": "MOD_SCREW", "QUADS": "MOD_LATTICE",
              "JACK": "OUTLINER_OB_ARMATURE", "PICTURE": "IMAGE_DATA"}
 
@@ -137,7 +137,8 @@ class POPUP_MT_add(bpy.types.Menu):
         self._adds(one, "Box folds:", (
             ("Box Fold / Strap (glued strip)", "BOX"),
             ("Box Fold (angled glue lines)", "BOX", "ANGLED"),
-            ("Box Layer (cut in)", "BOXCUT"), ("Stand-up (parallelogram)", "STANDUP")))
+            ("Box Layer (cut in)", "BOXCUT"), ("Stand-up (parallelogram)", "STANDUP"),
+            ("Arm Behind a Mask (swings round)", "SWING")))
         one.separator()
         self._adds(one, "45° folds:", (
             ("Platform (45° folds)", "PLATFORM"), ("Rising Sheet (45° folds)", "RISER"),
@@ -157,7 +158,7 @@ class POPUP_MT_add(bpy.types.Menu):
             ("Valley Floor (roof upside down)", "ROOF", "VALLEY")))
         two.separator()
         self._adds(two, "On a page or a face:", (
-            ("Pull-tab Flap", "FLAP"), ("Picture (glued on a face)", "PICTURE")))
+            ("Pull-tab Flap", "FLAP"), ("Paste-on (card glued on a face)", "PICTURE")))
 
     def draw_stage(self, lay, st):
         """Stages: a stage set in a card, a frame across the fold; and, when
@@ -414,6 +415,9 @@ def _where(col, st, m):
         col.prop(m, "vside", text="Fold")
     if hm is not None and hm.kind in ("CUBE", "TUBE"):
         col.prop(m, "wall", text="Fold")
+    if hm is not None and hm.kind == "RISER":
+        col.prop(m, "side", text="Sheet's Side")
+        col.prop(m, "on_crease", text="On Its 45° Fold")
     return hm
 
 
@@ -602,7 +606,7 @@ _OWN_PANELS = {"TUBE": "draw_tube", "PICTURE": "draw_picture", "STAGE": "draw_st
 # kinds placed on a fold (Stands On and Position first), then their own settings;
 # anything else is a box fold
 _PLACED_PANELS = {"CUBE": "draw_cube", "MOUTH": "draw_mouth", "PLATFORM": "draw_platform",
-                  "RISER": "draw_riser", "BOXEND": "draw_boxend", "JACK": "draw_jack", "ZIGZAG": "draw_linkage",
+                  "RISER": "draw_riser", "BOXEND": "draw_boxend", "SWING": "draw_swing", "JACK": "draw_jack", "ZIGZAG": "draw_linkage",
                   "QUADS": "draw_linkage", "DOUBLE45": "draw_double45", "STANDUP": "draw_standup"}
 
 
@@ -884,6 +888,20 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(m, "far_tab", expand=True)
         col.prop(m, "brace_size", text="Pulling 45° Fold Size")
 
+    def draw_swing(self, col, m, hm, joint):
+        """An arm behind a mask: the hinge, the mask, the arm."""
+        col.prop(m, "swing_side", expand=True)
+        col.prop(m, "swing_dir", expand=True)
+        col.prop(m, "swing_gap")
+        col.prop(m, "swing_at")
+        col.prop(m, "width", text="Mask Width (0 = auto)")
+        col.prop(m, "height", text="Mask Height (0 = auto)")
+        col.prop(m, "swing_angle")
+        col.prop(m, "arm_len")
+        col.prop(m, "arm_hand", text="Arm Width (0 = hinge size)")
+        col.prop(m, "tab", text="Tab Size")
+        col.label(text="Shape the arm and mask by erasing their art", icon="INFO")
+
     def draw_riser(self, col, m, hm, joint):
         """A rising sheet's own settings."""
         col.prop(m, "width", text="Width Along Fold")
@@ -1051,6 +1069,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             if m.bite:
                 col.prop(m, "bite_len")
                 col.prop(m, "bite_angle")
+                col.prop(m, "bite_steps")
+                if m.bite_steps > 1:
+                    col.prop(m, "bite_step_angle")
         _tabs(self.layout, m)
         _draw_lines(self.layout, context, m)
         self.draw_warnings(context, m)
@@ -1107,7 +1128,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "tri_size")
                 col.prop(m, "tri_pic_layout")
                 row = col.row(align=True)
-                row.label(text="Pictures on them")
+                row.label(text="Paste-ons on them")
                 for w_, t_ in (("LEFT", "Left"), ("RIGHT", "Right"), ("BOTH", "Both")):
                     op = row.operator("popup.tri_pictures", text=t_)
                     op.uid, op.which = m.uid, w_

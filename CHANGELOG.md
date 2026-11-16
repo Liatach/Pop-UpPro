@@ -3,6 +3,15 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.86**: rising sheets and their cross pieces are laid out standing up
+  (their height up the paper), and a rising sheet's corners and 45° folds
+  carry box folds, V-folds, cubes, tubes, stand-ups and more (**Sheet's
+  Side**, **On Its 45° Fold**). Pictures glued on a face are **Paste-ons**
+  now, apart from the art on the paper. **Bite Steps** and **Each Step
+  Turns** take a V-fold's bite in up to six steps for a rounder beak. **Arm
+  Behind a Mask** (Birmingham 75): an arm glued on a creased hinge behind a
+  mask layer turns a right angle in its own plane as the card opens,
+  clockwise or anticlockwise, on either page.
 * **0.85**: door flaps on cubes, tubes and stand-ups (every piece now);
   a V-fold's **Bite** (Birmingham 13-14) bends its end into a beak;
   **Flapping Arms** (65-66) swing out through slots in a V-fold or a box

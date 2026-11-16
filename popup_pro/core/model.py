@@ -40,6 +40,7 @@ from .geom import Z, ccw, clip_halfplane, frame, hinge_frame_2d, rot_y, v3
 from .roofs import Roofs
 from .solver import Solver
 from .stage import Stages
+from .swing import Swing
 from .standups import StandUps
 from .tethers import Tethers
 from .towers import Towers
@@ -53,7 +54,7 @@ from .base import (arcade, _card, CARD_PRESETS, CORNERS, halfplanes, Hinge, Host
                    unit2)
 
 
-class Model(Arms, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
+class Model(Arms, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
             Roofs, Stages, Tethers, Flaps, Solver):
     def __init__(self, card, mechs):
         self.card = dict(card)
@@ -272,7 +273,7 @@ class Model(Arms, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, 
                     ok = False
                 elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD",
                                                                "CUBE", "PLATFORM", "ZIGZAG",
-                                                               "QUADS")
+                                                               "QUADS", "RISER")
                                         and not lid and not stage and not joint
                                         and not (parent["type"] == "TUBE" and
                                                  m.get("wall") in ("L", "R") + CORNERS)):
@@ -326,6 +327,10 @@ class Model(Arms, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, 
                 fold = "S"  # the stage set's back crease
             if h and by_uid[h]["type"] == "PLATFORM":
                 fold = "A"  # the valley in its top
+            if h and by_uid[h]["type"] == "RISER":
+                # where its sheet meets a page, or that side's 45 degree fold's crease
+                sd = "L" if m.get("side", "R") == "L" else "R"
+                fold = f"V{sd}" if (m.get("on_crease") or m.get("vside") == "V") else sd
             if h and by_uid[h]["type"] in ("FLOOR", "CEILING"):
                 fold = "L" if m.get("side", "L") == "L" else "R"  # its join with a wall
                 if m.get("vside") == "V":
@@ -377,6 +382,8 @@ class Model(Arms, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, 
                 self._riser(m, host)
             elif m["type"] == "BOXEND":
                 self._boxend(m, host)
+            elif m["type"] == "SWING":
+                self._swing(m, host)
             elif m["type"] == "DOUBLE45":
                 self._double45(m, host)
             elif m["type"] == "ZIGZAG":
@@ -410,10 +417,13 @@ class Model(Arms, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, 
             if not host.trig:
                 # the host's panels don't turn with the card's own angle, so
                 # no closed form applies: every new fold is tabulated
+                on_brace = h and by_uid[h]["type"] == "RISER" and fold in ("VL", "VR")
                 for name in self.order[n0:]:
                     hg = self.panels[name].hinge
                     if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
                         hg.kind = "TABLE"
+                    if hg is not None and on_brace:
+                        hg.kink_ok = True  # (a 45° fold opens fast near the end)
                     if hg is not None:
                         hg.host_bound = True  # rides a fold that may not open evenly
         self._card_lines()

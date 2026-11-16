@@ -43,6 +43,9 @@ def face_frame(model, face):
         return None
     up = (0.0, 1.0)
     vert = _world_up(model, p)
+    stand = getattr(model.pieces.get(p.piece), "upright", False)
+    if isinstance(stand, tuple) and p.kind == "panel":
+        vert = stand  # (a rising sheet's, a cross piece's: Y up it as it stands)
     if vert is not None:
         up = vert  # (a face standing upright: Y runs up it, as it stands)
     elif p.hinge is not None and face.startswith("Box"):

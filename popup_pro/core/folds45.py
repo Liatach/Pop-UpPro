@@ -173,7 +173,8 @@ class Folds45:
             self.warn(f"{lab}: runs past the top or bottom of the card")
         base = f"Rise{uid}"
         piece = base
-        self.add_piece(Piece(piece, lab, 1 + uid, (h / 2, w / 2)))
+        pc_ = self.add_piece(Piece(piece, lab, 1 + uid, (h / 2, w / 2)))
+        pc_.upright = (1.0, 0.0)  # (its height runs along the pattern's x)
         lift1, lift2 = host.lift
 
         def asm_sheet(t):
@@ -232,6 +233,21 @@ class Folds45:
                                f"{lab}: tab {'left' if side == 'L' else 'right'}"
                                f"{f' {j + 1}' if j else ''}"))
         self.line_frames[uid] = (piece, lambda q: (q[0], q[1]), (0.0, h, 0.0, w))
+        # the corners where the sheet meets each page: hosts to stand things
+        # in (seen from that side: the page and the sheet as a card's pages)
+        Ty = Matrix.Translation((0.0, -y0, 0.0))
+        flip = Ty @ Matrix.Rotation(math.pi, 4, "Y")  # the sheet's other face
+        corners = (
+            (Host(self, host.p1, 0.0, 0.0, sheet.name, 0.0, 0.0, f"{lab}: left face",
+                  host.T1, Ty), y0 + 0.5, 1.0, "left"),
+            (Host(self, sheet.name, 0.0, 0.0, host.p2, 0.0, 0.0, f"{lab}: right face",
+                  flip, host.T2), y0 + w - 0.5, -1.0, "right"))
+        for key, (hf, *_) in zip(("L", "R"), corners):
+            hf.finish()
+            hf.trig = False
+            hf.size = (w, h)
+            hf.key = (uid, key)
+            self.hosts[(uid, key)] = hf
         if specs:
             # the cross pieces hold it up: no 45 degree folds of its own
             for sp in specs:
@@ -248,18 +264,12 @@ class Folds45:
             g = max(2.0, room)
             self.warn(f"{lab}: 45° folds made {g:.0f} mm to fit the sheet")
         tbb = min(tb, 0.5 * g)
-        Ty = Matrix.Translation((0.0, -y0, 0.0))
-        flip = Ty @ Matrix.Rotation(math.pi, 4, "Y")  # the sheet's other face
-        corners = (
-            (Host(self, host.p1, 0.0, 0.0, sheet.name, 0.0, 0.0, f"{lab}: left face",
-                  host.T1, Ty), y0 + 0.5, 1.0, "left"),
-            (Host(self, sheet.name, 0.0, 0.0, host.p2, 0.0, 0.0, f"{lab}: right face",
-                  flip, host.T2), y0 + w - 0.5, -1.0, "right"))
         for k, (hf, yb, lean, txt) in enumerate(corners):
-            hf.finish()
-            hf.trig = False
             n0 = len(self.order)
             self._brace(uid, k, hf, yb, g, lean, tbb, f"{lab}: 45° fold {txt}")
+            bv = self.hosts.get((f"{uid}b{k}", "V"))
+            if bv is not None:  # (its crease: a fold to stand things on too)
+                self.hosts[(uid, f"V{'LR'[k]}")] = bv
             for name in self.order[n0:]:
                 hg = self.panels[name].hinge
                 if hg is not None and hg.kind in ("LINEAR", "SPHERICAL", "EXPR"):
@@ -361,8 +371,9 @@ class Folds45:
         yc = sp["y0"] + sp["y"]
         lab, piece = sp["name"], sp["piece"]
         tb = min(sp["tab"], 0.6 * g)
-        self.add_piece(Piece(piece, lab if not sp["own"] else sp["name"], sp["art"],
-                             (0.5 * hc, 0.0)))
+        pc_ = self.add_piece(Piece(piece, lab if not sp["own"] else sp["name"], sp["art"],
+                                   (0.5 * hc, 0.0)))
+        pc_.upright = (1.0, 0.0)  # (its height runs along the pattern's x)
         lift1, lift2 = host.lift
         r2 = math.sqrt(2.0)
 

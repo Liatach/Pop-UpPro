@@ -99,14 +99,15 @@ Paint flat or folded, import and position images or simply textures, then export
   with railings or battlements all the way round a tower, or tapered tops,
   stacked in tiers stepping out and in, that still fold flat.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
-  picture placemats glued on any face, pull-tab flaps.
+  paste-ons (pieces of card glued on any face), pull-tab flaps.
 * 45° folds: a raised platform (on or off the centre), a rising sheet,
   propped square by 45° folds or by slotted cross pieces (81); the double
   45° fold, its top piece twisting round; a jack in the box on a V-fold;
   triangles that leap out of a box's corners; a box with its ends filled
-  in (82).
+  in (82). A rising sheet's corners and 45° folds carry other mechanisms.
 * Flapping arms swinging out through slots in a V-fold or a box fold (65-66),
-  a V-fold's end bitten into a beak (13-14), and an animal face on a loop (17).
+  an arm swinging round behind a mask (75), a V-fold's end bitten into a
+  beak in one or more steps (13-14), and an animal face on a loop (17).
 * Carousels of 2 to 9 stages with frames, floors, ceilings and roofs, or one
   stage set standing in an ordinary card.
 * Cards that stand part open (**Opens To** 90° or 120°, say), with frames,
@@ -239,6 +240,9 @@ Sunflower is a good way to make them.
   twist (19), which needs bending paper rather than folding it.
 * **Flapping arms, continued**: chained, each pair's back piece driving
   the next, into scissor mechanisms.
+* **Arm behind a mask, continued** (Birmingham 75): the book's other
+  hinge, folded when the card is open and flat when it's closed, and a
+  mask of its own shape cut from the page in front.
 * **Zig-zags and quadrilaterals, continued** (Birmingham): slanted fold
   lines (47), boxes cut into the faces (46, 48), and a quadrilateral lifted
   on a V-fold (56).
@@ -246,6 +250,12 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.86**: rising sheets and their cross pieces are laid out standing up,
+  and a rising sheet's corners and 45° folds carry other mechanisms.
+  Pictures glued on a face are **Paste-ons** now. **Bite Steps** take a
+  V-fold's bite in several steps, each turning further, for a rounder beak.
+  **Arm Behind a Mask** (Birmingham 75) swings an arm round in its own
+  plane, pivoted on a creased hinge hidden behind a mask.
 * **0.85**: door flaps on cubes, tubes and stand-ups (every piece now);
   a V-fold's **Bite** (Birmingham 13-14) bends its end into a beak;
   **Flapping Arms** (65-66) swing out through slots in a V-fold or a box
@@ -254,14 +264,6 @@ Sunflower is a good way to make them.
   rising sheet, each sized and placed on its own, with feet that grow with
   its width and can go on one page only. Older files' cross pieces are
   made separate when opened.
-* **0.83**: Kim's notes on 0.82. The house's roof is pushed open by its
-  walls, never through them. Slotted cross pieces: millimetres, **Slots
-  Meet At**, a position along the sheet and up to four. **Cut Across
-  Folds** for an opening on a face (a gate through a tower's corner).
-  Castle towers are laid out standing up, their faces' Y runs up them and
-  a box fold added on a corner is named as a tower. **Box with Ends** gets
-  the book's tuck flaps and an inside **Far Tab**.
-
 Earlier versions are in the [changelog](CHANGELOG.md).
 
 ## Development

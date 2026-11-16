@@ -738,6 +738,44 @@ than its bite allows.
 
 ![A V-fold with a bite, at 175, 130 and 85 degrees](images/vfold_bite.jpg)
 
+**Bite Steps** takes the bite in several steps for a rounder beak: each
+step is creased straight across from where the step before's seam ends, and
+its own seam turns a further **Each Step Turns** out from the last (the
+first turns **Bite Angle**). **Bite Length** is shared out between them.
+Every step is a pair of flat triangles and quads, so it stays low and
+foldable; Checks says if the steps turn so far that the paper runs out.
+
+![A bite in four steps, at 175, 130 and 85 degrees](images/bite_steps.jpg)
+
+### Arm behind a mask
+
+Birmingham 75. **Arm Behind a Mask** swings a picture round in its own
+plane as the card opens, a right angle from closed to open flat, its pivot
+hidden. A **mask** stands off one page (**Hinge On**) as a layer parallel to
+it, its tab B glued onto the other page **Hinge Size** (A) from the fold. A
+small hinge joins it to its page: two A x A squares side by side, each cut by
+a diagonal from its outer top corner to the middle of the bottom edge, with
+a crease up the middle. Tab D glues the hinge to the page (**Pivot From
+Fold**, F, to its fold); tab E onto the back of the mask. As the card
+closes, the hinge folds up on its diagonals and the triangle beside tab D's
+top corner (C) turns round that corner: the **arm**, glued on C, turns with
+it. Open flat, the hinge lies flat; closed, it's folded flat.
+
+**Swings** picks the way it turns as the card opens (anticlockwise turns
+the hinge upside down, its diagonals meeting at the top); **Arm Points** its
+direction open flat (0: straight out of the hinge, away from its pivot).
+**Arm Length** and **Arm Width** size it, **Mask Width** and **Mask Height**
+the mask (0: just big enough to hide the hinge). Shape the arm and the mask
+by erasing their art: a hand drawing a line, a door, a tail, a wiper. On
+paper the arm is pressed flat between the page and the mask while the hinge
+folds; it's shown so. It goes on the card spine or any glued mechanism's
+fold, like a box fold.
+
+Glue tab B, then the arm onto C, then tab D onto the page with the card
+open flat, then tab E onto the back of the mask where it lands.
+
+![An arm behind a mask, at 178, 130 and 80 degrees](images/swing_arm.jpg)
+
 ### Flapping arms
 
 Birmingham 65–66. **Flapping Arms** (the **+** menu with a V-fold or a box
@@ -1056,6 +1094,17 @@ piece, listed under the mechanism's name).
   45° folds of its own. Glue the feet down first, then the sheet's tabs
   (which skip the slots that run up from its foot). Older files' cross
   pieces become these when opened (or with **Make Separate Cross Pieces**).
+  The sheet and its cross pieces are laid out on the sheet standing up,
+  their height up the paper.
+
+  A rising sheet is a host too: pick it in **Stands On**, then **Sheet's
+  Side** (the corner where it meets the left or right page) and **On Its
+  45° Fold** (on that side's 45° fold's crease instead). Box folds, box
+  layers, V-folds, mouths, cubes, tubes, pyramids, stand-ups, platforms and
+  arms behind a mask stand there.
+
+  ![A box fold and a V-fold in the corners of a rising sheet, and a box
+  fold on its 45° fold, at 175, 120 and 70 degrees](images/on_riser.jpg)
 
   ![A rising sheet with one wide cross piece in front, and one with two
   behind (the small one on its left foot only), at 175, 115 and 55
@@ -1116,9 +1165,10 @@ the card is nearly shut.
   along the edge) they reach. Stick moving pictures on them: fish leaping,
   arms and legs thrown out.
 
-### Pictures (glued on any face)
+### Paste-ons (cards glued on any face)
 
-**Add > Picture** glues a piece of card flat onto one face of anything: with
+**Add > Paste-on** glues a piece of card flat onto one face of anything (a
+paste-on, to tell it from the art drawn or painted on the paper itself): with
 a mechanism selected, onto it; otherwise onto a page. **Glued On** and
 **Face** pick the face (a box's top or front, a V-fold half, a cube's wall,
 a 45° triangle, a page; build once first so the faces are listed), **Side**
@@ -1131,7 +1181,7 @@ bridge of its own. On the double 45°'s top piece it bends and twists with
 the paper. It prints as its own piece; draw on it, or erase its art to shape
 it.
 
-On a box with **45° Triangles**, **Pictures on them: Left / Right / Both**
+On a box with **45° Triangles**, **Paste-ons on them: Left / Right / Both**
 glues one on each triangle of each pair, laid out by **Pictures**: *Along the
 Crease* (the default: each picture's bottom edge on the box's crease from
 the box's edge in, reaching out across the box's face, so it swings up out of
@@ -1268,6 +1318,7 @@ it. What stands where:
 | Zig-zag (the shape or the mechanism), multiple quadrilaterals | Its centre crease, the only one | As a V-fold's crease, without the jack |
 | Cube, tube | Outside the Left or Right wall | Box folds, V-folds, cubes, tubes, pyramids, stand-ups. A tube also takes towers up its inside corners (a round end has none) and, with a flat roof that dips, anything on the roof's crease |
 | Platform | The valley in its top | Every kind but a jack in the box |
+| Rising sheet | The corner with the Left or Right page, or that side's 45° fold's crease | Box folds, box layers, V-folds, mouths, cubes, tubes, pyramids, stand-ups, platforms, arms behind a mask; its cross pieces |
 | Floor, ceiling (in a stage) | The corner with the Left or Right wall; V-folds also **On the Crease** | Every glued kind |
 | Stage set | | Its frames, floor and ceiling |
 
