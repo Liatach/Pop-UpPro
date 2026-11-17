@@ -313,5 +313,29 @@ for side in ("R", "L"):
         export_svg.export(sc, svg)
 print("the book's other hinge, flat shut")
 
+# ---- 0.87: the jack in the box on a flat body of its own (78)
+for G, L, y in ((25.0, 45.0, 105.0), (15.0, 30.0, 60.0), (35.0, 60.0, 120.0)):
+    reset()
+    assert bpy.ops.popup.add(kind="JACK", variant="FLAT") == {"FINISHED"}
+    j = st.mechs[-1]
+    assert not j.host_uid
+    j.height = j.depth = G
+    j.width, j.y = L, y
+    assert {"width", "tab"} <= set(props_shown(draw(ui.POPUP_PT_mechs)))
+    bpy.ops.popup.build()
+    assert not warns(), (G, warns())
+    M = model()
+    for n in ("Jack1B.L", "Jack1B.R", "Jack1B.TabL", "Jack1.ChestL", "Jack1.HeadR"):
+        assert n in M.panels, n
+    clean(M, "Jack1")
+    for t in M.samples:
+        # the body lies on the pages; the chest lifts off them as it closes
+        B = M.panels["Page.L"].asm(t).inverted()
+        assert max(abs((B @ q).z) for q in world(M, "Jack1B.L", t)) < 0.5
+        if 20.0 < t < 160.0:
+            assert max((B @ q).z for q in world(M, "Jack1.ChestL", t)) > 2.0, t
+    export_svg.export(sc, svg)
+print("a jack on a flat body")
+
 addon.unregister()
 print("V86 OK")

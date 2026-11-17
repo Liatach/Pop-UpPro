@@ -504,10 +504,43 @@ class Folds45:
             F = float(m["y"])
             body = host
         else:
-            # 78 (on a strap) needs arms that bend: they reach past the strips
-            # it is glued down by, where stiff paper would go through the page
-            self.warn(f"{lab}: stands on a V-fold's crease (Birmingham 79); skipped")
-            return
+            # 78: a body of its own, Fold Spacing (G) wide each side of its
+            # crease, lying on the pages across the fold: glued by strips
+            # folded under at G (C and D), it rides flat with them (the book's
+            # "adapted parallelogram", squashed flat). F is its top: the chest
+            # and arms above it, the arms reaching out past the strips
+            F = float(m["y"])
+            Lb = max(G + 2.0, float(m.get("width", 2.0 * G) or 2.0 * G))  # below F
+            tb = max(3.0, float(m.get("tab", 10.0) or 10.0))
+            yb = F - Lb
+            if yb < -1e-6:
+                self.warn(f"{lab}: its body runs off the bottom of the card")
+            bp = f"Jack{uid}B"
+            self.add_piece(Piece(bp, f"{lab} body", 1 + uid, (0.0, F - 0.5 * Lb)))
+            for side, sg, pn, T in (("L", -1.0, host.p1, host.T1),
+                                    ("R", 1.0, host.p2, host.T2)):
+                pa = self.panels[pn].asm
+                Tl = T @ Matrix.Translation((0.0, 0.0, TAB_LIFT))
+
+                def asm(t, pa=pa, Tl=Tl):
+                    return pa(t) @ Tl
+                bpan = self.add(Panel(f"{bp}.{side}", bp, "panel",
+                                      [ccw([(0.0, yb), (sg * G, yb), (sg * G, F), (0.0, F - G)])],
+                                      asm, pn, None,
+                                      f"{lab}: body {'left' if sg < 0 else 'right'}"))
+                bpan.free = True
+                ch = min(0.3 * tb, 0.2 * Lb)
+                self.add(Panel(f"{bp}.Tab{side}", bp, "tab",
+                               [ccw([(sg * G, yb), (sg * (G + tb), yb + ch),
+                                     (sg * (G + tb), F - G - ch), (sg * G, F - G)])],
+                               asm, pn, None, f"{lab}: glue strip {'C' if sg < 0 else 'D'}"))
+            # (its folds on the pages' plane: the body's lift taken off again)
+            T0 = Matrix.Translation((0.0, 0.0, -TAB_LIFT))
+            body = Host(self, f"{bp}.L", 0.0, 0.0, f"{bp}.R", 0.0, 0.0, f"{lab}: body",
+                        T0, T0).finish()
+            body.trig = False
+            body.key = (uid, "V")
+            self.hosts[(uid, "V")] = body
         E = F + G
         if host.is_spine and E + hh > self.H + 1e-6:
             self.warn(f"{lab}: the head runs past the top of the card")
@@ -519,11 +552,11 @@ class Folds45:
                        for poly in self.panels[pn].polys)
 
         # the chest's folds must lie on the V-fold's halves, or it hangs free
-        for pn, sg in ((body.p1, -1.0), (body.p2, 1.0)):
+        for pn, sg in (((body.p1, -1.0), (body.p2, 1.0)) if cut_in else ()):
             if not all(on_paper(pn, v(sg * G * f, F - G + G * f))
                        for f in (0.02, 0.25, 0.5, 0.75, 0.98)):
-                self.warn(f"{lab}: its chest's folds run off the V-fold (lower it down the "
-                          f"crease, or make Fold Spacing smaller); skipped")
+                self.warn(f"{lab}: its chest's folds run off the V-fold (lower it down "
+                          f"the crease, or make Fold Spacing smaller); skipped")
                 return
         # the figure is cut free of the body: above the lower V and line F
         big = E + hh + 1.0
@@ -547,15 +580,23 @@ class Folds45:
         for side, sg in (("L", -1.0), ("R", 1.0)):
             chest = [[v(0, F - G), v(sg * G, F), v(sg * G, E), v(0, F)],
                      [v(sg * G, F), v(sg * (G + R), F), v(sg * (G + R), E), v(sg * G, E)]]
+            if not cut_in:
+                # (78, flat on the pages) arm below the chest's 45 degree fold
+                # carried on would turn down through the page as the chest
+                # lifts: the arms rise from it at 45 degrees instead
+                arm = [(sg * G, F), (sg * (G + R), F + R), (sg * (G + R), E + R),
+                       (sg * G, E)]
+                chest[1] = [v(*q) for q in arm]
             g = (sg * s2, s2)
             names[side] = self._half(f"Jack{uid}.Chest{side}", piece, chest, v(0, F - G),
                                      d(*g), d(0, 1), side, k1,
                                      f"{lab}: chest and {'left' if side == 'L' else 'right'} "
                                      f"arm").name
         self.match_lift(names["L"], names["R"])
-        T = body.T1
+        T, T2 = body.T1.copy(), body.T2.copy()
+        T[2][3] = T2[2][3] = 0.0  # (the chest's own folds lie in its plane)
         h2 = Host(self, names["L"], 0.0, 0.0, names["R"], 0.0, 0.0, f"{lab}: chest", T,
-                  body.T2).finish()
+                  T2).finish()
         h2.trig = False
         self.joints[k2] = dict(host=h2, y=F, uL=(-s2, s2), uR=(s2, s2), aL=q45, aR=q45,
                                rise=True)

@@ -144,7 +144,8 @@ class POPUP_MT_add(bpy.types.Menu):
             ("Box Fold / Strap (glued strip)", "BOX"),
             ("Box Fold (angled glue lines)", "BOX", "ANGLED"),
             ("Box Layer (cut in)", "BOXCUT"), ("Stand-up (parallelogram)", "STANDUP"),
-            ("Arm Behind a Mask (swings round)", "SWING")))
+            ("Arm Behind a Mask (swings round)", "SWING"),
+            ("Jack in the Box (flat body, 78)", "JACK", "FLAT")))
         one.separator()
         self._adds(one, "45° folds:", (
             ("Platform (45° folds)", "PLATFORM"), ("Rising Sheet (45° folds)", "RISER"),
@@ -934,6 +935,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         """A jack in the box's own settings."""
         col.prop(m, "height", text="Fold Spacing (G)")
         col.prop(m, "depth", text="Arm Reach")
+        if hm is None:  # (78: a body of its own, flat on the pages)
+            col.prop(m, "width", text="Body Below the Arms")
+            col.prop(m, "tab", text="Glue Strip Width")
         col.label(text="Draw the figure; erase its art to shape it", icon="INFO")
 
     def draw_linkage(self, col, m, hm, joint):

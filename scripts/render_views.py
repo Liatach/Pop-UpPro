@@ -152,6 +152,11 @@ def beak_bite():
     return (0, 85, 30), 240, (0.7, -0.6, 0.4), (170.0, 125.0, 100.0)
 
 
+def jack_flat():
+    bpy.ops.popup.add(kind="JACK", variant="FLAT")
+    return (0, 115, 25), 260, (0.25, -0.75, 0.6), (175.0, 130.0, 90.0)
+
+
 def swing_arm():
     a = add("SWING")
     a.y, a.arm_len = 60.0, 45.0
@@ -195,7 +200,7 @@ def on_riser():
     return (0, 105, 25), 260, (0.25, -0.9, 0.45), (175.0, 120.0, 70.0)
 
 
-SCENES = dict(bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+SCENES = dict(jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 

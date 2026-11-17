@@ -1185,8 +1185,17 @@ the card is nearly shut.
   between the two folds' points, and from the arms' bottom edge to their
   top; **Arm Reach** is how far the arms run past the sides; **Position**
   is how far up the crease the arms start. Draw the figure, and erase its
-  art to shape it. The book's version on a strap (78) isn't here yet: its
-  arms reach past the strips it's glued by, which stiff paper can't do.
+  art to shape it.
+
+  **Jack in the Box (flat body, 78)** puts the same figure on a body of its
+  own: Fold Spacing wide each side of a crease along the card's fold, lying
+  on the pages and glued down by strips folded under at its sides (C and
+  D), **Body Below the Arms** long. The chest lifts off the pages as the card
+  closes. The book's arms run straight out past the strips; stiff paper
+  there would turn down through the page as the chest lifts (it bends on
+  paper), so here they rise from the chest's folds at 45 degrees: arms up.
+
+  ![A jack on a flat body, at 175, 130 and 90 degrees](images/jack_flat.jpg)
 * **45° Triangles** on a box fold or box layer (mechanism 74): a pair of
   small triangles cut into the corner where the box's top meets its front,
   at its **Top**, **Bottom** or **Both** ends; they swing up out of the box

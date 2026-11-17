@@ -133,11 +133,10 @@ assert shut_spread(model) < 3.0, shut_spread(model)
 err = rig_error()
 print("jack rig error", round(err, 4))
 assert err < 0.05, err
-# not on a V-fold: said, not built
+# not on a V-fold: (since 0.87) a flat body of its own, Birmingham 78
 M = Model(st.card_dict(), [dict(uid=1, type="JACK", label="J", y=80.0, height=20.0,
                                 depth=20.0, tab=10.0, host=0)])
-assert any("V-fold's crease" in w for w in M.warnings) and not any(
-    n.startswith("Jack") for n in M.panels)
+assert not M.warnings and "Jack1B.L" in M.panels, M.warnings
 print("jack in the box: two 45° folds on a V-fold, clear of the pages, the rig matches")
 
 # ---- 45 degree triangles in a box fold's corner (74)

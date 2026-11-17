@@ -3,6 +3,11 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.87.0**: **Jack in the Box (flat body)**, Birmingham 78: the jack's
+  figure on a body of its own lying on the pages across the fold, glued by
+  strips folded under at its sides; its arms rise from the chest's folds at
+  45 degrees (straight out, as the book draws them, they'd turn down
+  through the page as the chest lifts).
 * **0.86.3**: the Bite settings show on beaks (0.86.2 built them there,
   but the panel only offered them on plain V-folds).
 * **0.86.2**: Kim's notes. **Add a Bite Step** gives each step of a

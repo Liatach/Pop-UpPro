@@ -215,7 +215,7 @@ class POPUP_OT_add(bpy.types.Operator):
             _place_picture(st, m, self.host, self.side, was_active)
             return self.done(context, st, uid)
         if self.kind == "JACK" and not self.host:
-            _place_jack(st, uid, was_active)
+            _place_jack(st, uid, was_active, self.variant == "FLAT")
             return self.done(context, st, uid)
         if self.kind == "BOX" and self.variant == "ANGLED" and not self.host:
             _as_angled(st, m)
@@ -481,9 +481,19 @@ def _place_picture(st, m, host, side, was_active):
     st["live"] = was
 
 
-def _place_jack(st, uid, was_active):
+def _place_jack(st, uid, was_active, flat=False):
     """Stand a new jack in the box on the selected V-fold's crease, or
-    (Birmingham 79) on a new V-fold made for its body."""
+    (Birmingham 79) on a new V-fold made for its body; or (78, flat) on a
+    body of its own lying on the pages across the fold."""
+    if flat:
+        m = next(x for x in st.mechs if x.uid == uid)
+        was = st.live
+        st["live"] = False
+        m.height = m.depth = 25.0
+        m.width = 45.0
+        m.y = round(0.5 * st.card_dict()["H"], 1)
+        st["live"] = was
+        return
     act = next((x for x in st.mechs if x.uid == was_active), None)
     if act is not None and act.kind == "VFOLD" and not any(
             x.kind == "JACK" and x.host_uid == act.uid for x in st.mechs):

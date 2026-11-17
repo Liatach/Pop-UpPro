@@ -102,7 +102,7 @@ Paint flat or folded, import and position images or simply textures, then export
   paste-ons (pieces of card glued on any face), pull-tab flaps.
 * 45° folds: a raised platform (on or off the centre), a rising sheet,
   propped square by 45° folds or by slotted cross pieces (81); the double
-  45° fold, its top piece twisting round; a jack in the box on a V-fold;
+  45° fold, its top piece twisting round; a jack in the box on a V-fold (79) or on a flat body of its own (78);
   triangles that leap out of a box's corners; a box with its ends filled
   in (82). A rising sheet's corners and 45° folds carry other mechanisms.
 * Flapping arms swinging out through slots in a V-fold or a box fold (65-66),
@@ -232,9 +232,9 @@ Sunflower is a good way to make them.
   printed on the reverse sheet.
 * **Concertinas, continued**: a fan standing free of the centre crease,
   concertina corners (like an accordion's), rainbows and arcs.
-* **45° folds, continued**: the jack in the box on a parallelogram, arms
-  that reach out past the base's edges, and a box lid lifted by a strut
-  (83).
+* **45° folds, continued**: the jack in the box's arms reaching straight
+  out past its body (78), which needs bending paper, and a box lid lifted
+  by a strut (83).
 * **V-folds, continued** (Birmingham): bites at both ends of the crease
   (15), between the tabs (14) and in a jaw (12); tall narrow sides that
   twist (19), which needs bending paper rather than folding it.
@@ -249,12 +249,12 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.87**: the jack in the box on a flat body of its own (Birmingham 78),
+  arms raised.
 * **0.86.3**: the Bite settings show on beaks.
 * **0.86.2**: each bite step has its own length and turn (a hooked beak),
   bites work on beaks too,
   and the arm behind a mask takes the book's other hinge, flat when shut.
-* **0.86.1**: the arm behind a mask bends at a crease to lie flat between
-  the page and the mask, clear of its hinge, and the mask's fold is a host.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 
