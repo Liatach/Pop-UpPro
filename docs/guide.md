@@ -763,18 +763,30 @@ it. Open flat, the hinge lies flat; closed, it's folded flat.
 
 **Swings** picks the way it turns as the card opens (anticlockwise turns
 the hinge upside down, its diagonals meeting at the top); **Arm Points** its
-direction open flat (0: straight out of the hinge, away from its pivot).
+direction open flat (0: straight out of the hinge's edge beside its pivot,
+along C's edge; Checks says if the arm would run into the hinge as it
+swings, or reach back over the fold as the card shuts).
 **Arm Length** and **Arm Width** size it, **Mask Width** and **Mask Height**
 the mask (0: just big enough to hide the hinge). Shape the arm and the mask
-by erasing their art: a hand drawing a line, a door, a tail, a wiper. On
-paper the arm is pressed flat between the page and the mask while the hinge
-folds; it's shown so. It goes on the card spine or any glued mechanism's
-fold, like a box fold.
+by erasing their art: a hand drawing a line, a door, a tail, a wiper. C
+tilts up as the hinge folds; the arm is creased across where it leaves C
+and bends there, sloping down to lie on the page at its tip, between the
+page and the mask, as the paper does pressed between them. It goes on the
+card spine or any glued mechanism's fold, like a box fold.
+
+The mask's fold (where it leaves tab B) is a host too, like a box fold's
+corner: put a box fold, V-fold, stand-up, cube, tube or pyramid there with
+**Stands On** (or from the **+** menu with the arm selected), standing in
+front of the mask.
 
 Glue tab B, then the arm onto C, then tab D onto the page with the card
 open flat, then tab E onto the back of the mask where it lands.
 
-![An arm behind a mask, at 178, 130 and 80 degrees](images/swing_arm.jpg)
+![An arm behind a mask, with a box fold in the mask's corner, at 178, 125
+and 80 degrees](images/swing_arm.jpg)
+
+![The hinge and the bent arm with the mask cut back, at 170, 125 and 80
+degrees](images/swing_bare.jpg)
 
 ### Flapping arms
 
@@ -1319,6 +1331,7 @@ it. What stands where:
 | Cube, tube | Outside the Left or Right wall | Box folds, V-folds, cubes, tubes, pyramids, stand-ups. A tube also takes towers up its inside corners (a round end has none) and, with a flat roof that dips, anything on the roof's crease |
 | Platform | The valley in its top | Every kind but a jack in the box |
 | Rising sheet | The corner with the Left or Right page, or that side's 45° fold's crease | Box folds, box layers, V-folds, mouths, cubes, tubes, pyramids, stand-ups, platforms, arms behind a mask; its cross pieces |
+| Arm behind a mask | The mask's fold, by tab B | Box folds, V-folds, stand-ups, cubes, tubes, pyramids, platforms, arms behind a mask |
 | Floor, ceiling (in a stage) | The corner with the Left or Right wall; V-folds also **On the Crease** | Every glued kind |
 | Stage set | | Its frames, floor and ceiling |
 

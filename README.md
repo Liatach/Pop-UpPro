@@ -250,6 +250,8 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.86.1**: the arm behind a mask bends at a crease to lie flat between
+  the page and the mask, clear of its hinge, and the mask's fold is a host.
 * **0.86**: rising sheets and their cross pieces are laid out standing up,
   and a rising sheet's corners and 45° folds carry other mechanisms.
   Pictures glued on a face are **Paste-ons** now. **Bite Steps** take a
@@ -260,10 +262,6 @@ Sunflower is a good way to make them.
   a V-fold's **Bite** (Birmingham 13-14) bends its end into a beak;
   **Flapping Arms** (65-66) swing out through slots in a V-fold or a box
   fold. The roadmap tidied.
-* **0.84**: **Slotted Cross Pieces** are mechanisms of their own on a
-  rising sheet, each sized and placed on its own, with feet that grow with
-  its width and can go on one page only. Older files' cross pieces are
-  made separate when opened.
 Earlier versions are in the [changelog](CHANGELOG.md).
 
 ## Development

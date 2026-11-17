@@ -241,6 +241,13 @@ def host_items(self, context):
                                   f"a page, or on one of its 45° folds",
                                   "OUTLINER_OB_FORCE_FIELD", m.uid))
                 continue
+            if m.kind == "SWING":
+                if self.kind in ("STANDUP", "BOX", "VFOLD", "CUBE", "TUBE", "PYRAMID",
+                                 "PLATFORM", "SWING"):
+                    items.append((str(m.uid), m.label, f"In the corner where {m.label}'s "
+                                  f"mask folds off the page", "DRIVER_ROTATIONAL_DIFFERENCE",
+                                  m.uid))
+                continue
             if self.kind in ("FRAME", "FLOOR", "CEILING"):
                 if m.kind == "STAGE":
                     items.append((str(m.uid), m.label, f"Stand in {m.label}",
@@ -361,6 +368,34 @@ def fit_to_host(m, st):
                 # (a box fold's corner opens out flat with the card: only a
                 # back piece as long as the slots are far folds flat with it)
                 m.arm_back = m.arm_slot
+            st["live"] = was
+        return
+    if host is not None and host.kind == "SWING":
+        # in the mask's corner: small, low on the mask
+        was = st.live
+        st["live"] = False
+        try:
+            g = host.swing_gap
+            Hm = host.height if host.height >= 5.0 else g + 24.0
+            k = round(0.35 * Hm, 1)
+            m.y = round(host.y + 0.5 * g - 0.5 * Hm + 3.0, 1)
+            if m.kind == "BOX":
+                m.width, m.height, m.depth = round(0.5 * Hm, 1), k, k
+            elif m.kind == "VFOLD":
+                m.glue = m.height = k
+            elif m.kind in ("CUBE", "TUBE", "PYRAMID"):
+                m.size = m.height = round(0.8 * k, 1)
+                m.x, m.depth = round(0.3 * k, 1), k
+                m.front = m.back = round(0.3 * k, 1)
+            elif m.kind == "STANDUP":
+                m.width, m.height = round(0.5 * Hm, 1), k
+                m.depth = min(m.depth, k)
+                m.img_w, m.img_h = round(0.7 * Hm, 1), round(1.5 * k, 1)
+                m.arm_len = round(0.5 * k, 1)
+                m.arm_back = m.arm_slot
+            elif m.kind == "SWING":
+                m.swing_gap = round(0.4 * k, 1)
+        finally:
             st["live"] = was
         return
     if m.kind == "CROSS":
@@ -1259,7 +1294,7 @@ class PopupMech(bpy.types.PropertyGroup):
                             update=_changed)
     swing_angle: FloatProperty(name="Arm Points", description="Arm behind a mask: the arm's "
                                "direction open flat, in degrees: 0 points straight out of the "
-                               "hinge, away from its pivot (down the page if it swings "
+                               "hinge's edge beside its pivot (up the page if it swings "
                                "clockwise on the right); + turns it anticlockwise", default=0.0, min=-180.0, max=180.0,
                                update=_changed)
     x: FloatProperty(name="From Spine", description="Distance from the spine (mm): to "

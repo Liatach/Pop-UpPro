@@ -90,7 +90,7 @@ class POPUP_MT_add(bpy.types.Menu):
             return
         h = st.mechs[st.active]  # the selected mechanism: what can go on it
         takes = (h.kind in ("FLOOR", "CEILING", "ZIGZAG", "QUADS", "STAGE", "CUBE", "TUBE",
-                            "PLATFORM", "RISER")
+                            "PLATFORM", "RISER", "SWING")
                  or h.kind == "VFOLD" and h.shape != "FAN"
                  or h.kind in ("BOX", "BOXCUT", "STANDUP") and not is_angled(h, st.mechs))
         if not takes:
@@ -109,6 +109,12 @@ class POPUP_MT_add(bpy.types.Menu):
             self.draw_on_box(lay, h)
         if h.kind == "PLATFORM":
             self.draw_on_platform(lay, h)
+        if h.kind == "SWING":
+            lay.label(text="In its mask's corner:")
+            for text, kind in (("Box Fold", "BOX"), ("V-fold", "VFOLD"),
+                               ("Stand-up", "STANDUP"), ("Cube", "CUBE")):
+                op = lay.operator("popup.add", text=text, icon=KIND_ICON[kind])
+                op.kind, op.host, op.fold = kind, h.uid, "B"
         if h.kind == "RISER":
             op = lay.operator("popup.add", text="Slotted Cross Piece", icon=KIND_ICON["CROSS"])
             op.kind, op.host, op.fold = "CROSS", h.uid, "A"
@@ -415,6 +421,8 @@ def _where(col, st, m):
         col.prop(m, "vside", text="Fold")
     if hm is not None and hm.kind in ("CUBE", "TUBE"):
         col.prop(m, "wall", text="Fold")
+    if hm is not None and hm.kind == "SWING":
+        col.label(text="In the corner its mask folds off the page", icon="INFO")
     if hm is not None and hm.kind == "RISER":
         col.prop(m, "side", text="Sheet's Side")
         col.prop(m, "on_crease", text="On Its 45° Fold")

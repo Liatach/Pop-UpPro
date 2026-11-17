@@ -17,8 +17,8 @@ import math
 
 from mathutils import Matrix, Vector
 
-from .base import Panel, Piece, TAB_LIFT
-from .geom import frame
+from .base import Host, Panel, Piece, TAB_LIFT
+from .geom import clip_halfplane, frame
 
 
 def _tri(P, W):
@@ -28,24 +28,22 @@ def _tri(P, W):
                                                        p[2] - p[0]).inverted()
 
 
-def _hull(pts):
-    """Convex hull, anticlockwise (monotone chain)."""
-    pts = sorted(set((round(x, 6), round(y, 6)) for x, y in pts))
-    if len(pts) < 3:
-        return pts
-
-    def cross(o, a, b):
-        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-    lo, hi = [], []
-    for p in pts:
-        while len(lo) >= 2 and cross(lo[-2], lo[-1], p) <= 0:
-            lo.pop()
-        lo.append(p)
-    for p in reversed(pts):
-        while len(hi) >= 2 and cross(hi[-2], hi[-1], p) <= 0:
-            hi.pop()
-        hi.append(p)
-    return lo[:-1] + hi[:-1]
+def _crosses(A, B, eps=0.05):
+    """Do two convex polygons (3D points) cut through each other? (an edge
+    of one passing through the other's inside, not just touching it)"""
+    def through(a, b, P):
+        n = (P[1] - P[0]).cross(P[2] - P[0])
+        if n.length < 1e-9:
+            return False
+        n.normalize()
+        da, db = (a - P[0]).dot(n), (b - P[0]).dot(n)
+        if da * db > 0 or min(abs(da), abs(db)) < eps:
+            return False
+        x = a + (b - a) * (da / (da - db))
+        return all((P[(i + 1) % len(P)] - P[i]).cross(x - P[i]).dot(n) >
+                   0.3 * (P[(i + 1) % len(P)] - P[i]).length for i in range(len(P)))
+    return any(through(X[i], X[(i + 1) % len(X)], Y)
+               for X, Y in ((A, B), (B, A)) for i in range(len(X)))
 
 
 class Swing:
@@ -84,7 +82,8 @@ class Swing:
         # off it, the mask over the hinge and the arm (shown only; the hinge
         # is lifted whole, so its own shape is exact)
         def lift(c):
-            return 2.0 * TAB_LIFT * max(0.0, -c)
+            return TAB_LIFT * max(0.0, -c)
+        Lc = 3.0 * TAB_LIFT  # (the mask: a steady lift, so its fold B stays a true hinge)
 
         def dirs(t):
             S, l, r, Y, nl, nr = host.dirs(t)
@@ -208,8 +207,7 @@ class Swing:
 
         def asm_mask(t):
             S, rb, Yb, nb, od = dirs(t)
-            return frame(S + g * od + q0 * Yb + (lift(od.dot(rb)) + 2.0 * TAB_LIFT) * nb,
-                         rb, Yb)
+            return frame(S + g * od + q0 * Yb + Lc * nb, rb, Yb)
 
         def asm_b(t):
             S, rb, Yb, nb, od = dirs(t)
@@ -226,40 +224,137 @@ class Swing:
                        f"{lab}: mask's tab B"))
         self.add(Panel(f"{piece}.TabE", piece, "tab", [pE], asm_e, mask.name, None,
                        f"{lab}: hinge tab E (on the mask's back)"))
-        # the arm: its glue end the triangle C, then out at its angle (open
-        # flat; + anticlockwise as seen)
+        # the arm: its end glued on C, creased across beside the pivot, then
+        # out at its angle (open flat; 0: straight out of the hinge's edge
+        # beside the pivot, + anticlockwise as seen). C tilts up as the hinge
+        # folds; the arm bends at its crease to lie flat between the page and
+        # the mask, as the paper does when it's pressed between them
         ang = math.radians(float(m.get("swing_angle", 0.0) or 0.0))
         ap = f"SwArm{uid}"
-        self.add_piece(Piece(ap, f"{lab} arm", 1 + uid, (g, -0.5 * La)))
-        tri = p_([(g + 0.5, 1.5), (2.0 * g - 1.5, g - 0.5), (g + 0.5, g - 0.5)])
-        cx, cy = sum(q[0] for q in tri) / 3.0, sum(q[1] for q in tri) / 3.0
-        # (0: straight out of the hinge, away from its pivot, tab D's corner;
-        # the pattern runs as the view, or turned half round: anticlockwise alike)
-        dx, dy = math.sin(ang), -math.cos(ang)
-        if flip:
-            dx, dy = -dx, -dy
-        nx, ny = -dy, dx
-        strip = [(cx + a * dx + b * nx, cy + a * dy + b * ny)
-                 for a, b in ((0.0, -0.5 * wa), (La, -0.5 * wa), (La, 0.5 * wa),
-                              (0.0, 0.5 * wa))]
-        arm_poly = _hull(tri + strip)
+        self.add_piece(Piece(ap, f"{lab} arm", 1 + uid, (1.5 * g, g + 0.5 * La)))
+        # (worked as drawn the right way up, then mirrored like the hinge)
+        du = Vector((math.sin(ang) if flip else -math.sin(ang), math.cos(ang), 0.0))
+        eu = Vector((-du.y, du.x, 0.0))  # (across it, towards C)
+        PRu = Vector((2.0 * g, g, 0.0))
+        tri = [(g, 0.5), (2.0 * g, g), (g, g)]
+        band = clip_halfplane(tri, (eu.x, eu.y), eu.x * PRu.x + eu.y * PRu.y)
+        band = clip_halfplane(band, (-eu.x, -eu.y), -(eu.x * PRu.x + eu.y * PRu.y) - wa)
 
-        PRm = Vector((2.0 * g, g if not flip else 0.0, 0.0))  # (the pivot, as drawn)
+        def sb(q):  # (along the arm, and across it, from the pivot)
+            v = Vector((q[0], q[1], 0.0)) - PRu
+            return float(v.dot(du)), float(v.dot(eu))
+
+        def cut(s0):  # C's part up to a crease s0 along the arm
+            return clip_halfplane(band, (-du.x, -du.y), -(du.x * PRu.x + du.y * PRu.y) - s0)
+
+        def crease_len(s0):
+            on = [sb(q)[1] for q in cut(s0) if abs(sb(q)[0] - s0) < 1e-6]
+            return max(on) - min(on) if len(on) >= 2 else 0.0
+
+        ss = [sb(q)[0] for q in band]
+        if len(band) < 3 or max(ss) - min(ss) < 1.0:
+            self.warn(f"{lab}: the arm points back over the hinge, off its triangle C; "
+                      f"turn it out")
+            band = tri
+            ss = [sb(q)[0] for q in band]
+        # the crease across the arm: where it crosses most of C, as far out as
+        # that goes (straight out of C's edge beside the pivot: along that edge)
+        lo, hi = min(ss), max(ss)
+        cands = [hi - (hi - lo) * k / 48.0 for k in range(48)]
+        s0 = max(cands, key=lambda x: (round(crease_len(x), 1), x))
+        glue = cut(s0)
+        P0 = PRu + s0 * du
+        on = sorted({round(sb(q)[1], 6) for q in glue if abs(sb(q)[0] - s0) < 1e-6})
+        pts = [P0 + b_ * eu for b_ in on if 1e-6 < b_ < wa - 1e-6]
+        outer = [P0] + pts + [P0 + wa * eu, P0 + wa * eu + La * du, P0 + La * du]
+        outer = [q.to_2d()[:] for q in outer]
+        # as the card shuts the arm turns a right angle (anticlockwise, as
+        # worked here) about the pivot: does it reach back over the fold?
+        reach = min(x0 + PRu.x + math.cos(a_) * (q[0] - PRu.x) - math.sin(a_) * (q[1] - PRu.y)
+                    for q in outer for a_ in (math.radians(k * 7.5) for k in range(13)))
+        if reach < 1.0:
+            self.warn(f"{lab}: the arm swings back over the fold as the card shuts "
+                      f"(shorten it, or move the pivot out from the fold)")
+        glue_p, outer_p = p_(glue), p_(outer)
+        if flip:  # (mirrored: the other way round)
+            glue_p, outer_p = glue_p[::-1], outer_p[::-1]
+        PRm = q_(P0)  # (a point on the crease)
+        dm, em = q_(du) - q_(Vector()), q_(eu) - q_(Vector())  # (directions, as drawn)
+        cm = em.cross(dm)
+        z0 = Matrix.Translation((0.0, 0.0, TAB_LIFT))
 
         def asm_arm(t):
-            # its glued end turns with C, which tilts up as the hinge folds;
-            # the arm itself, pressed between the page and the mask, stays
-            # flat between them, turning as C turns round the pivot
-            V, T, PR, PL, E, off = solve(t)
-            d = q_(T) - q_(PR)
-            phi = math.atan2(d.y, d.x) - math.pi  # (C's top edge runs -x, drawn)
-            z = 0.5 * off.z + TAB_LIFT
-            return Fb(t) @ Matrix.Translation(PRm + Vector((0.0, 0.0, z))) @ \
-                Matrix.Rotation(phi, 4, "Z") @ Matrix.Translation(-PRm)
+            return Fb(t) @ mats["UR"](t) @ z0
 
-        arm = self.add(Panel(f"{ap}.Arm", ap, "panel", [arm_poly], asm_arm,
-                             f"{piece}.UR", None, f"{lab}: arm"))
+        mid = PRm + 0.5 * wa * em
+        tip = [PRm + La * dm, PRm + wa * em + La * dm]
+
+        def asm_out(t):
+            # turned on its crease so that it slopes down from there to lie
+            # on the page at its tip (as it does pressed under the mask, and
+            # between the pages as the card closes)
+            Mu = mats["UR"](t) @ z0
+            M3 = Mu.to_3x3()
+            dN, cN = (M3 @ dm).z, (M3 @ cm).z
+            R = math.hypot(dN, cN)
+            phi = math.atan2(cN, dN)
+
+            def turn(h):  # (the turn putting the tip's middle h above the page)
+                k = (h - (Mu @ mid).z) / La
+                a_ = math.acos(max(-1.0, min(1.0, k / R))) if R > 1e-9 else 0.0
+                return min(((x + math.pi) % (2.0 * math.pi) - math.pi
+                            for x in (phi + a_, phi - a_)), key=abs)
+
+            def tips(b):
+                Mo = Mu @ Matrix.Translation(PRm) @ Matrix.Rotation(b, 4, em) @ \
+                    Matrix.Translation(-PRm)
+                return [(Mo @ q).z for q in tip]
+
+            h = TAB_LIFT
+            b = turn(h)
+            for _ in range(2):  # (tilted across too: its lower tip corner on the page)
+                z = tips(b)
+                h = TAB_LIFT + 0.5 * (z[0] + z[1]) - min(z)
+                b = turn(h)
+            return asm_arm(t) @ Matrix.Translation(PRm) @ Matrix.Rotation(b, 4, em) @ \
+                Matrix.Translation(-PRm)
+
+        arm = self.add(Panel(f"{ap}.End", ap, "panel", [glue_p], asm_arm,
+                             f"{piece}.UR", None, f"{lab}: arm's glued end"))
         arm.free = True
+        arm2 = self.add(Panel(f"{ap}.Arm", ap, "panel", [outer_p], asm_out,
+                              arm.name, None, f"{lab}: arm"))
+        arm2.free = True
+        # does the arm run into the hinge as it swings? (shut, the hinge's
+        # facets and the arm's end lie stacked, a paper's thickness apart)
+        def world(pn, t):
+            p = self.panels[pn]
+            A = p.asm(t)
+            P = [A @ Vector((q[0], q[1], 0.0)) for q in p.polys[0]]
+            return P if len(P) == 3 or pn.endswith(".Arm") else P[:3]
+
+        hits = [t for t in (40.0 + 10.0 * k for k in range(14))
+                if any(_crosses(world(a_, t), world(f"{piece}.{f_}", t))
+                       for a_ in (arm.name, arm2.name) for f_ in ("LR", "UL", "LL"))]
+        if hits:
+            self.warn(f"{lab}: the arm runs into its hinge from about {min(hits):.0f} to "
+                      f"{max(hits):.0f} degrees; point it more straight out (Arm Points "
+                      f"nearer 0)")
+        # the mask's fold B: a host, like a box fold's corner (seen from the
+        # page tab B is on, with the mask as the other page)
+        if on_left:
+            hB = Host(self, mask.name, 0.0, 0.0, other, 0.0, 0.0, f"{lab}: mask's fold",
+                      Matrix.Translation((0.0, -q0, -Lc)) @ Matrix.Rotation(math.pi, 4, "Z"),
+                      host.T2 @ Matrix.Translation((g, 0.0, 0.0)))
+        else:
+            hB = Host(self, other, 0.0, 0.0, mask.name, 0.0, 0.0, f"{lab}: mask's fold",
+                      host.T1 @ Matrix.Translation((-g, 0.0, 0.0)),
+                      Matrix.Translation((0.0, -q0, -Lc)))
+        hB.finish()
+        hB.trig = False
+        hB.key = (uid, "B")
+        hB.size = (Wm, Hm)
+        self.hosts[(uid, "B")] = hB
         self.stack_ok.add(frozenset((f"{lab} hinge", f"{lab} arm")))
         self.stack_ok.add(frozenset((f"{lab} hinge", f"{lab} mask")))
         self.stack_ok.add(frozenset((lab, f"{lab} mask")))

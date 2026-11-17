@@ -86,7 +86,7 @@ DEFAULTS = {
     "RISER": dict(y=60.0, width=70.0, height=80.0, tab=12.0, brace_size=20.0),
     "ARMS": dict(arm_slot=12.0, arm_back=18.0, arm_width=12.0, arm_len=30.0, arm_y=20.0),
     "SWING": dict(y=60.0, swing_gap=20.0, swing_at=0.0, width=0.0, height=0.0,
-                  arm_len=50.0, arm_hand=0.0, tab=8.0),
+                  arm_len=40.0, arm_hand=0.0, tab=8.0),
     "CROSS": dict(cross_width=30.0, cross_height=0.0, foot_size=0.0, tab=10.0),
     "BOXEND": dict(y=75.0, width=60.0, height=30.0, depth=40.0, tab=8.0, brace_size=20.0),
     "DOUBLE45": dict(y=105.0, width=30.0, height=45.0, depth=104.0, tab=10.0),

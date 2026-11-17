@@ -273,7 +273,7 @@ class Model(Arms, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, Zi
                     ok = False
                 elif parent is None or (parent["type"] not in ("BOX", "STANDUP", "VFOLD",
                                                                "CUBE", "PLATFORM", "ZIGZAG",
-                                                               "QUADS", "RISER")
+                                                               "QUADS", "RISER", "SWING")
                                         and not lid and not stage and not joint
                                         and not (parent["type"] == "TUBE" and
                                                  m.get("wall") in ("L", "R") + CORNERS)):
@@ -331,6 +331,8 @@ class Model(Arms, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, Zi
                 # where its sheet meets a page, or that side's 45 degree fold's crease
                 sd = "L" if m.get("side", "R") == "L" else "R"
                 fold = f"V{sd}" if (m.get("on_crease") or m.get("vside") == "V") else sd
+            if h and by_uid[h]["type"] == "SWING":
+                fold = "B"  # its mask's fold, tab B's
             if h and by_uid[h]["type"] in ("FLOOR", "CEILING"):
                 fold = "L" if m.get("side", "L") == "L" else "R"  # its join with a wall
                 if m.get("vside") == "V":

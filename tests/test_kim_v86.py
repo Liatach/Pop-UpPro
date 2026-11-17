@@ -168,10 +168,9 @@ for side in ("R", "L"):
                 assert len(sh) >= 2, (side, dr, t, a, b)
             # C turns about its pivot in the page's plane, a right angle in all
             B = base.asm(t).inverted()
-            arm = M.panels["SwArm1.Arm"]
+            arm = M.panels["SwArm1.End"]  # (glued on C)
             A = B @ arm.asm(t)
-            dv = (A.to_3x3() @ v3((1.0, 0.0))).normalized()
-            assert abs(dv.z) < 1e-6
+            dv = A.to_3x3() @ v3((1.0, 0.0))
             ang = math.degrees(math.atan2(dv.y, dv.x))
             turned.append(ang)
             # the mask stays parallel to the page, off it by g sin(opening)
@@ -190,6 +189,43 @@ for side in ("R", "L"):
 s.width = 30.0
 assert any("doesn't hide the hinge" in w for w in model().warnings)
 print("an arm swinging behind a mask")
+
+# ---- 0.86.1: the arm bends at a crease to lie between page and mask, clear
+# of its hinge; the mask's fold is a host
+from popup_pro.core.swing import _crosses  # noqa: E402
+
+reset()
+s = add("SWING")
+M = model()
+assert not M.warnings, M.warnings
+for t in [10.0 * k for k in range(4, 18)]:
+    for a in ("SwArm1.Arm", "SwArm1.End"):
+        for f in ("LR", "UL", "LL"):
+            assert not _crosses(world(M, a, t), world(M, f"Swing1.{f}", t)), (t, a, f)
+    # the arm's bent part lies between the page and the mask
+    B = M.panels["Page.R"].asm(t).inverted()
+    zs = [(B @ q).z for q in world(M, "SwArm1.Arm", t)]
+    top = (B @ M.panels["Mask1.Mask"].asm(t)).translation.z
+    assert min(zs) > -0.01 and max(zs) < top, (t, zs, top)
+s.swing_angle = 60.0
+assert any("runs into its hinge" in w for w in model().warnings)
+s.swing_angle, s.arm_len = 0.0, 80.0
+assert any("back over the fold" in w for w in model().warnings)
+s.arm_len = 40.0
+for kind in ("BOX", "VFOLD", "STANDUP", "CUBE"):
+    for side in ("R", "L"):
+        reset()
+        s = add("SWING")
+        s.swing_side = side
+        assert bpy.ops.popup.add(kind=kind, host=s.uid, fold="B") == {"FINISHED"}
+        bpy.ops.popup.build()
+        assert not warns(), (kind, side, warns())
+        M = model()
+        m = st.mechs[-1]
+        assert M.placed[m.uid] is M.hosts[(s.uid, "B")], (kind, side)
+        clean(M, "")
+export_svg.export(sc, svg)
+print("the arm bends clear of its hinge; things in the mask's corner")
 
 addon.unregister()
 print("V86 OK")

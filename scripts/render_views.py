@@ -142,8 +142,16 @@ def bite_steps():
 
 def swing_arm():
     a = add("SWING")
-    a.y, a.arm_len, a.swing_angle = 90.0, 70.0, -20.0
-    return (40, 80, 10), 300, (0.15, -0.35, 0.92), (178.0, 130.0, 80.0)
+    a.y, a.arm_len = 60.0, 45.0
+    b = add("BOX", host=a.uid, fold="B")
+    b.width, b.height, b.depth = 20.0, 12.0, 12.0
+    return (40, 90, 10), 280, (0.25, -0.45, 0.86), (178.0, 125.0, 80.0)
+
+
+def swing_bare():
+    a = add("SWING")
+    a.y, a.arm_len, a.width, a.height = 60.0, 45.0, 6.0, 6.0  # (a stub of mask)
+    return (40, 80, 8), 170, (0.2, -0.55, 0.81), (170.0, 125.0, 80.0)
 
 
 def flapping_arms():
@@ -168,7 +176,7 @@ def on_riser():
     return (0, 105, 25), 260, (0.25, -0.9, 0.45), (175.0, 120.0, 70.0)
 
 
-SCENES = dict(bite_steps=bite_steps, swing_arm=swing_arm, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+SCENES = dict(bite_steps=bite_steps, swing_arm=swing_arm, swing_bare=swing_bare, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 

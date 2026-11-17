@@ -3,6 +3,13 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.86.1**: Kim's notes on the arm behind a mask. The arm no longer
+  cuts through its hinge: it's glued on C and creased across where it
+  leaves it, its outer part bending there to slope down onto the page
+  under the mask. **Arm Points** 0 now runs straight out of C's edge beside
+  the pivot. Checks warns when the arm would run into the hinge or reach
+  back over the fold. The mask's fold is a host (box folds, V-folds,
+  stand-ups, cubes and more in front of the mask).
 * **0.86**: rising sheets and their cross pieces are laid out standing up
   (their height up the paper), and a rising sheet's corners and 45° folds
   carry box folds, V-folds, cubes, tubes, stand-ups and more (**Sheet's
