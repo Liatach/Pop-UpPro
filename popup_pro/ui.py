@@ -1075,7 +1075,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                     col.prop(m, "glue_r")
             col.prop(m, "arch")
             col.prop(m, "arch_shape")
-        if m.shape == "QUAD" and not top:
+        if m.shape in ("QUAD", "TRI", "BEAK_L", "BEAK_R") and not top:
             col.prop(m, "bite")
             if m.bite:
                 col.prop(m, "bite_len")

@@ -249,17 +249,13 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.86.3**: the Bite settings show on beaks.
 * **0.86.2**: each bite step has its own length and turn (a hooked beak),
   bites work on beaks too,
   and the arm behind a mask takes the book's other hinge, flat when shut.
 * **0.86.1**: the arm behind a mask bends at a crease to lie flat between
   the page and the mask, clear of its hinge, and the mask's fold is a host.
-* **0.86**: rising sheets and their cross pieces are laid out standing up,
-  and a rising sheet's corners and 45° folds carry other mechanisms.
-  Pictures glued on a face are **Paste-ons** now. **Bite Steps** take a
-  V-fold's bite in several steps, each turning further, for a rounder beak.
-  **Arm Behind a Mask** (Birmingham 75) swings an arm round in its own
-  plane, pivoted on a creased hinge hidden behind a mask.
+
 Earlier versions are in the [changelog](CHANGELOG.md).
 
 ## Development

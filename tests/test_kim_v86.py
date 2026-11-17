@@ -271,6 +271,7 @@ for shape in ("TRI", "BEAK_L", "BEAK_R"):  # (on a beak too)
     for ln, tn in ((16.0, 12.0), (13.0, 14.0)):
         s = v.bite_more.add()
         s.length, s.angle = ln, tn
+    assert {"bite", "bite_len"} <= set(props_shown(draw(ui.POPUP_PT_mechs))), shape
     bpy.ops.popup.build()
     assert not warns(), (shape, warns())
     M = model()

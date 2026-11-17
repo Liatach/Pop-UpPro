@@ -118,7 +118,7 @@ assert hy < Lc - 1.0
 v.bite_angle = 40.0
 v.phi_l, v.alpha_l = 75.0, 85.0
 assert any("dart is too wide" in w for w in model().warnings), model().warnings
-v.shape = "TRI"
+v.shape = "FAN"  # (beaks take a bite since 0.86.2; fans don't)
 assert not props_shown(draw(ui.POPUP_PT_mechs)).count("bite")
 print("a V-fold's bite")
 

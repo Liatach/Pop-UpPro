@@ -3,6 +3,8 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.86.3**: the Bite settings show on beaks (0.86.2 built them there,
+  but the panel only offered them on plain V-folds).
 * **0.86.2**: Kim's notes. **Add a Bite Step** gives each step of a
   V-fold's bite its own **Length** (from the step before's crease) and
   **Turn**, for a hooked beak; 0.86.0's even steps move over to them.
