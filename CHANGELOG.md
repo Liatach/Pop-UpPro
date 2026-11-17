@@ -10,14 +10,14 @@ last upload to GitHub.
   through the page as the chest lifts).
 * **0.86.3**: the Bite settings show on beaks (0.86.2 built them there,
   but the panel only offered them on plain V-folds).
-* **0.86.2**: Kim's notes. **Add a Bite Step** gives each step of a
+* **0.86.2**: **Add a Bite Step** gives each step of a
   V-fold's bite its own **Length** (from the step before's crease) and
   **Turn**, for a hooked beak; 0.86.0's even steps move over to them.
   Checks says when a step's too short for its turn. Bites work on beaks
   (triangle halves) too. **Hinge Lies Flat:
   Shut**, the book's other hinge for the arm behind a mask: back to front,
   flat with the card shut, folded up open flat.
-* **0.86.1**: Kim's notes on the arm behind a mask. The arm no longer
+* **0.86.1**: the arm behind a mask, reworked. The arm no longer
   cuts through its hinge: it's glued on C and creased across where it
   leaves it, its outer part bending there to slope down onto the page
   under the mask. **Arm Points** 0 now runs straight out of C's edge beside
@@ -41,7 +41,7 @@ last upload to GitHub.
   rising sheet, each sized and placed on its own, with feet that grow with
   its width and can go on one page only. Older files' cross pieces are
   made separate when opened.
-* **0.83**: Kim's notes on 0.82. The house's roof is pushed open by its
+* **0.83**: fixes and additions to 0.82. The house's roof is pushed open by its
   walls, never through them. Slotted cross pieces: millimetres, **Slots
   Meet At**, a position along the sheet and up to four. **Cut Across
   Folds** for an opening on a face (a gate through a tower's corner).

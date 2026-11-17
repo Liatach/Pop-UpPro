@@ -37,7 +37,7 @@ start, see the [README](../README.md).
    * The Standard view transform (true colours), on the carousel and every
      stage.
    * A **Camera** past the bottom end of the spine, above the card, framing
-     it from shut to fully open (Kim's framing, scaled with the card; for a
+     it from shut to fully open (framed for an A5 card and scaled with it; for a
      carousel, the whole ring). It becomes the scene camera (a new file's own
      Camera would otherwise win); turn off *Make It the Scene Camera* in the
      button's options to keep yours.

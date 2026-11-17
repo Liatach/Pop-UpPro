@@ -1396,8 +1396,7 @@ class PopupMech(bpy.types.PropertyGroup):
                                 default=60.0, min=5.0, max=80.0, update=_changed)
     collar_corner: EnumProperty(name="Free Corners", items=[
         ("SLIDE", "Slide Inside", "At the two free corners the floors stop a mm or two "
-         "apart; as it folds one slides inside the other, its end curling out of the way "
-         "(Kim's)"),
+         "apart; as it folds one slides inside the other, its end curling out of the way"),
         ("NOTCH", "Notch", "One floor at each free corner is cut back so they never "
          "touch: a wedge-shaped gap there when open")], update=_changed)
     collar_gap: FloatProperty(name="Corner Gap", description="Collar: how far apart the "
@@ -1406,7 +1405,7 @@ class PopupMech(bpy.types.PropertyGroup):
     collar_dir: EnumProperty(name="Collar", items=[
         ("OUT", "Balcony", "The floors slope up and out from the walls"),
         ("IN", "Tapered Top", "From the top of the walls the floors lean up and in: a "
-         "tapered top (Kim's collar upside down)")], update=_changed)
+         "tapered top (the balcony collar upside down)")], update=_changed)
     collar_rail: FloatProperty(name="Railing", description="Collar: a railing this tall "
                                "on each floor's outer edge (mm), upright like the walls; "
                                "0: none", default=0.0, min=0.0, soft_max=30.0,

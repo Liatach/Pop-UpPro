@@ -273,7 +273,7 @@ class BoxFolds:
         return (base + sgn * k * u1.cross(u2).normalized()).normalized(), k2
 
     def _angled_box(self, m, host):
-        """Kim's angled box fold: the strip's glue lines turned, mirrored either
+        """The angled box fold: the strip's glue lines turned, mirrored either
         side of the fold, so they meet the fold (at O) above or below the strip;
         its crease (or three: two with a free middle between them, and one
         down the middle's centre) meets there too, so every fold of it turns

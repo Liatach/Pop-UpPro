@@ -2495,7 +2495,7 @@ class POPUP_OT_tri_pictures(bpy.types.Operator):
                 inward = (apex - edge).normalized()
                 if bx.tri_pic_layout == "ALONG":
                     # bottom edge along the crease from the box's edge in,
-                    # reaching out across the face (as Box 1 in Kim's file)
+                    # reaching out across the face (as in the castle example)
                     ay, w_, h_ = out, round(0.6 * k, 1), round(k, 1)
                     ax = inward if inward.cross(ay).z > 0 else -inward
                     corner = edge if ax.dot(inward) > 0 else edge + inward * w_

@@ -88,8 +88,10 @@ Paint flat or folded, import and position images or simply textures, then export
   mirrored either side of the fold, with one crease or three, the panels
   tilting into new planes); box layers; straps (slanted, with peaks).
 * 180° cubes with a lid, or a tower's pointed or flat roof, and collars;
-  the pop-up house (Birmingham 49), its gabled roof pushed open by its walls.
-* Tubes, cylinders, loops (Birmingham 16) and cones that narrow or flare,
+  the pop-up house, its gabled roof pushed open by its walls.
+* Boxes glued to one page with their ends filled in, square or angled,
+  their tuck flaps folded inside or out.
+* Tubes, cylinders, loops and cones that narrow or flare,
   pyramids and tents on parallel strips, with tethers and roofs. Balconies
   on arches, with railings, on tube and cube walls, in front of boxes and
   outside towers.
@@ -100,14 +102,17 @@ Paint flat or folded, import and position images or simply textures, then export
   stacked in tiers stepping out and in, that still fold flat.
 * Parallelogram stand-ups (with a bridge, or a tail rolled up behind),
   paste-ons (pieces of card glued on any face), pull-tab flaps.
-* 45° folds: a raised platform (on or off the centre), a rising sheet,
-  propped square by 45° folds or by slotted cross pieces (81); the double
-  45° fold, its top piece twisting round; a jack in the box on a V-fold (79) or on a flat body of its own (78);
-  triangles that leap out of a box's corners; a box with its ends filled
-  in (82). A rising sheet's corners and 45° folds carry other mechanisms.
-* Flapping arms swinging out through slots in a V-fold or a box fold (65-66),
-  an arm swinging round behind a mask (75), a V-fold's end bitten into a
-  beak in one or more steps (13-14), and an animal face on a loop (17).
+* 45° folds: a raised platform (on or off the centre); a rising sheet,
+  propped square by 45° folds or by slotted cross pieces, its corners and
+  45° folds carrying other mechanisms; the double 45° fold, its top piece
+  twisting round; a jack in the box on a V-fold or on a flat body of its
+  own, arms raised; triangles that leap out of a box's corners.
+* Flapping arms swinging out through slots in a V-fold or a box fold.
+* An arm swinging round behind a mask, on a creased hinge that lies flat
+  open or shut, bending to lie flat under the mask; more mechanisms can
+  stand in the mask's corner.
+* A V-fold's or beak's end bitten into a curve or a hooked beak, in steps
+  of their own length and turn; an animal face on a loop.
 * Carousels of 2 to 9 stages with frames, floors, ceilings and roofs, or one
   stage set standing in an ordinary card.
 * Cards that stand part open (**Opens To** 90° or 120°, say), with frames,
@@ -215,12 +220,12 @@ Sunflower is a good way to make them.
   platform (its creases fold the wrong way up for them, so it needs a dish
   shaped for it); a balcony across a tube's front or back, if a way can be
   found for its floor to fold there; crenellations along more kinds of
-  edge; a cylinder's lid trimmed as the book's (68).
+  edge; a cylinder's lid trimmed to its curve.
 * **Collars, continued**: round a whole tube or castle (its corners don't
   close in pairs the way a tower's do), round box folds, upside down as
   cornices, and on pillars.
-* **The animal face, continued** (Birmingham 17): the brow's dart and the
-  nose's scores, from patterns Kim is drawing.
+* **The animal face, continued**: the brow's dart and the nose's scores,
+  from patterns being drawn for it.
 * **Angled box folds, continued**: on other folds (straps, towers, another
   box), glued by inset tabs, and with peaks.
 * **Slotted sheets, continued**: a second sheet slotted through the first,
@@ -233,28 +238,26 @@ Sunflower is a good way to make them.
 * **Concertinas, continued**: a fan standing free of the centre crease,
   concertina corners (like an accordion's), rainbows and arcs.
 * **45° folds, continued**: the jack in the box's arms reaching straight
-  out past its body (78), which needs bending paper, and a box lid lifted
-  by a strut (83).
-* **V-folds, continued** (Birmingham): bites at both ends of the crease
-  (15), between the tabs (14) and in a jaw (12); tall narrow sides that
-  twist (19), which needs bending paper rather than folding it.
+  out past its body, which needs bending paper, and a box lid lifted by a
+  strut.
+* **V-folds, continued**: bites at both ends of the crease, between the
+  tabs and in a jaw; tall narrow sides that twist, which needs bending
+  paper rather than folding it.
 * **Flapping arms, continued**: chained, each pair's back piece driving
   the next, into scissor mechanisms.
-* **Arm behind a mask, continued** (Birmingham 75): a mask of its own
-  shape cut from the page in front.
-* **Zig-zags and quadrilaterals, continued** (Birmingham): slanted fold
-  lines (47), boxes cut into the faces (46, 48), and a quadrilateral lifted
-  on a V-fold (56).
+* **Arm behind a mask, continued**: a mask of its own shape cut from the
+  page in front.
+* **Zig-zags and quadrilaterals, continued**: slanted fold lines, boxes
+  cut into the faces, and a quadrilateral lifted on a V-fold.
 * Next mechanisms: the 90° box with lid, floating layers on pedestals.
 
 ## Version history
 
-* **0.87**: the jack in the box on a flat body of its own (Birmingham 78),
-  arms raised.
+* **0.87**: the jack in the box on a flat body of its own, arms raised.
 * **0.86.3**: the Bite settings show on beaks.
 * **0.86.2**: each bite step has its own length and turn (a hooked beak),
-  bites work on beaks too,
-  and the arm behind a mask takes the book's other hinge, flat when shut.
+  bites work on beaks too, and the arm behind a mask takes a second hinge
+  that lies flat when the card is shut.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

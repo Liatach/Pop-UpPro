@@ -126,7 +126,7 @@ def camera(scene, make_active=True):
         ob.location = target + aim * dist
         ob.rotation_euler = (target - ob.location).to_track_quat("-Z", "Y").to_euler()
     else:
-        # Kim's framing for an A5 card (297 x 210 mm open): 310 mm back from
+        # the framing for an A5 card (297 x 210 mm open): 310 mm back from
         # the spine's bottom end, 303 mm up, tipped 58.8 degrees from looking
         # straight down; scaled with the card
         f = max(2.0 * W / 29.7, H / 21.0)
