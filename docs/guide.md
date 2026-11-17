@@ -726,7 +726,7 @@ the piece can sit over things glued close to the fold.
 
 ### A V-fold's bite
 
-Birmingham 13–14. **Bite** (a plain V-fold's settings) takes a wedge out of
+Birmingham 13–14. **Bite** (a plain V-fold or beak's settings) takes a wedge out of
 the far end of the centre crease and sticks its edges together with a tab:
 the end of the V-fold bends back into a beak. In card the halves curve;
 here each side's end is a facet creased straight across its half from the
@@ -738,14 +738,24 @@ than its bite allows.
 
 ![A V-fold with a bite, at 175, 130 and 85 degrees](images/vfold_bite.jpg)
 
-**Bite Steps** takes the bite in several steps for a rounder beak: each
-step is creased straight across from where the step before's seam ends, and
-its own seam turns a further **Each Step Turns** out from the last (the
-first turns **Bite Angle**). **Bite Length** is shared out between them.
-Every step is a pair of flat triangles and quads, so it stays low and
-foldable; Checks says if the steps turn so far that the paper runs out.
+**Add a Bite Step** takes the bite on in further steps, for a rounder or
+more hooked beak. Each step is creased straight across from where the step
+before's seam reaches its **Length** (how far on from the step before's
+crease), and its own seam turns a further **Turn** out from the last (the
+first step is **Bite Length** and **Bite Angle**). Longer early steps and
+sharper later ones curl the beak over into a hook; the V-fold's own angle
+sets where it starts. Every step is a pair of flat triangles and quads, so
+it stays low and foldable. Checks says if a step is too short for its turn
+(its crease would cross the one before inside the paper: it gives the
+shortest that works) or the steps run out of paper. It works on a beak
+too (either half or both triangles): there the steps run towards the
+point.
 
-![A bite in four steps, at 175, 130 and 85 degrees](images/bite_steps.jpg)
+![A hooked beak: a bite in four steps (16, 13 and 11 mm on, turning 10,
+12 and 14 degrees more), at 170, 125 and 100 degrees](images/bite_steps.jpg)
+
+![A beak with a bite in three steps, at 170, 125 and 100
+degrees](images/beak_bite.jpg)
 
 ### Arm behind a mask
 
@@ -761,7 +771,11 @@ closes, the hinge folds up on its diagonals and the triangle beside tab D's
 top corner (C) turns round that corner: the **arm**, glued on C, turns with
 it. Open flat, the hinge lies flat; closed, it's folded flat.
 
-**Swings** picks the way it turns as the card opens (anticlockwise turns
+**Hinge Lies Flat** picks the book's two hinges: **Open** lies flat with
+the card open flat and folds up as it shuts; **Shut** is drawn back to
+front (tab D nearer the fold, beside it), lies flat with the card shut and
+folds up as it opens, so the arm ends its swing turned a right angle from
+how it's drawn. **Swings** picks the way it turns as the card opens (anticlockwise turns
 the hinge upside down, its diagonals meeting at the top); **Arm Points** its
 direction open flat (0: straight out of the hinge's edge beside its pivot,
 along C's edge; Checks says if the arm would run into the hinge as it
@@ -787,6 +801,9 @@ and 80 degrees](images/swing_arm.jpg)
 
 ![The hinge and the bent arm with the mask cut back, at 170, 125 and 80
 degrees](images/swing_bare.jpg)
+
+![The flat-shut hinge with the mask cut back, at 175, 140 and 105
+degrees](images/swing_shut.jpg)
 
 ### Flapping arms
 

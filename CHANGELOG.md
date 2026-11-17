@@ -3,6 +3,13 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.86.2**: Kim's notes. **Add a Bite Step** gives each step of a
+  V-fold's bite its own **Length** (from the step before's crease) and
+  **Turn**, for a hooked beak; 0.86.0's even steps move over to them.
+  Checks says when a step's too short for its turn. Bites work on beaks
+  (triangle halves) too. **Hinge Lies Flat:
+  Shut**, the book's other hinge for the arm behind a mask: back to front,
+  flat with the card shut, folded up open flat.
 * **0.86.1**: Kim's notes on the arm behind a mask. The arm no longer
   cuts through its hinge: it's glued on C and creased across where it
   leaves it, its outer part bending there to slope down onto the page

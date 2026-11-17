@@ -63,13 +63,16 @@ class Swing:
         wa = float(m.get("arm_hand", 0.0) or 0.0) or g
         on_left = m.get("swing_side", "R") == "L"
         ccw_ = m.get("swing_dir", "CW") == "CCW"
-        if F < 2.0 * g + 2.0:
-            F = 2.0 * g + 2.0
+        rev = m.get("swing_hinge", "OPEN") == "SHUT"
+        if F < (1.0 if rev else 2.0) * g + 2.0:
+            F = (1.0 if rev else 2.0) * g + 2.0
             self.warn(f"{lab}: the hinge must clear the fold; moved out to {F:.0f} mm")
         if Wm < F + g:
             self.warn(f"{lab}: the mask doesn't hide the hinge (make it at least "
                       f"{F + g:.0f} mm wide)")
-        x0 = F - 2.0 * g  # the hinge's tab E fold, from the fold, open flat
+        # the hinge's tab E fold, from the fold, open flat (flat shut: tab
+        # D's, the hinge drawn back to front, turned out from the fold)
+        x0 = F if rev else F - 2.0 * g
         # the base side carries the hinge; the other carries tab B. On the
         # left the frame runs down the fold so that it stays right-handed.
         base, other = (host.p1, host.p2) if on_left else (host.p2, host.p1)
@@ -98,11 +101,14 @@ class Swing:
             S, rb, Yb, nb, od = dirs(t)
             return frame(S + x0 * rb + q0 * Yb + lift(od.dot(rb)) * nb, rb, Yb)
 
+        # Flat shut, the book's other hinge: the same folding, back to front
+        # (p mirrored) and run the other way round (the offset's turn
+        # reversed), so it lies flat shut and folds up as the card opens
         def q_(v):  # (drawn upside down: q mirrored in the square's middle)
-            return Vector((v[0], g - v[1], v[2])) if flip else v
+            return Vector((2.0 * g - v[0] if rev else v[0], g - v[1] if flip else v[1], v[2]))
 
         def p_(P):
-            return [(x, g - y) if flip else (x, y) for x, y in P]
+            return [(2.0 * g - x if rev else x, g - y if flip else y) for x, y in P]
 
         cache = {}
 
@@ -116,6 +122,12 @@ class Swing:
                 return v
             S, rb, Yb, nb, od = dirs(t)
             c, s = od.dot(rb), od.dot(nb)
+            if rev:
+                c = -c
+            th = math.atan2(s, c)
+            if th < math.radians(0.5):  # (folded right up, its corners all one)
+                th = math.radians(0.5)
+                c, s = math.cos(th), math.sin(th)
             off = Vector((g * c, 0.0, g * s))
             D = Vector((2.0 * g, 0.0, 0.0))
             E = off + Vector((g, 0.0, 0.0))
@@ -192,7 +204,8 @@ class Swing:
 
         def asm_e(t):  # (q mirrored alike in pattern and frame: a plain shift)
             V, T, PR, PL, E, off = solve(t)
-            return Fb(t) @ Matrix.Translation(E + Vector((0.0, 0.0, TAB_LIFT)))
+            return Fb(t) @ Matrix.Translation(q_(E) - q_(Vector()) +
+                                              Vector((0.0, 0.0, TAB_LIFT)))
 
         self.add(Panel(f"{piece}.TabD", piece, "tab", [pD], asm_d, base, None,
                        f"{lab}: hinge tab D"))
@@ -233,7 +246,7 @@ class Swing:
         ap = f"SwArm{uid}"
         self.add_piece(Piece(ap, f"{lab} arm", 1 + uid, (1.5 * g, g + 0.5 * La)))
         # (worked as drawn the right way up, then mirrored like the hinge)
-        du = Vector((math.sin(ang) if flip else -math.sin(ang), math.cos(ang), 0.0))
+        du = Vector((math.sin(ang) if flip != rev else -math.sin(ang), math.cos(ang), 0.0))
         eu = Vector((-du.y, du.x, 0.0))  # (across it, towards C)
         PRu = Vector((2.0 * g, g, 0.0))
         tri = [(g, 0.5), (2.0 * g, g), (g, g)]
@@ -270,13 +283,14 @@ class Swing:
         outer = [q.to_2d()[:] for q in outer]
         # as the card shuts the arm turns a right angle (anticlockwise, as
         # worked here) about the pivot: does it reach back over the fold?
-        reach = min(x0 + PRu.x + math.cos(a_) * (q[0] - PRu.x) - math.sin(a_) * (q[1] - PRu.y)
+        reach = min(x0 + q_(Vector((PRu.x + math.cos(a_) * (q[0] - PRu.x) -
+                                    math.sin(a_) * (q[1] - PRu.y), 0.0, 0.0))).x
                     for q in outer for a_ in (math.radians(k * 7.5) for k in range(13)))
         if reach < 1.0:
             self.warn(f"{lab}: the arm swings back over the fold as the card shuts "
                       f"(shorten it, or move the pivot out from the fold)")
         glue_p, outer_p = p_(glue), p_(outer)
-        if flip:  # (mirrored: the other way round)
+        if flip != rev:  # (mirrored: the other way round)
             glue_p, outer_p = glue_p[::-1], outer_p[::-1]
         PRm = q_(P0)  # (a point on the crease)
         dm, em = q_(du) - q_(Vector()), q_(eu) - q_(Vector())  # (directions, as drawn)
@@ -325,15 +339,17 @@ class Swing:
         arm2 = self.add(Panel(f"{ap}.Arm", ap, "panel", [outer_p], asm_out,
                               arm.name, None, f"{lab}: arm"))
         arm2.free = True
-        # does the arm run into the hinge as it swings? (shut, the hinge's
-        # facets and the arm's end lie stacked, a paper's thickness apart)
+        # does the arm run into the hinge as it swings? (folded right up, shut
+        # or, flat shut, open flat, the hinge's facets and the arm's end lie
+        # stacked, a paper's thickness apart)
         def world(pn, t):
             p = self.panels[pn]
             A = p.asm(t)
             P = [A @ Vector((q[0], q[1], 0.0)) for q in p.polys[0]]
             return P if len(P) == 3 or pn.endswith(".Arm") else P[:3]
 
-        hits = [t for t in (40.0 + 10.0 * k for k in range(14))
+        hits = [t for t in ((10.0 + 10.0 * k for k in range(14)) if rev else
+                            (40.0 + 10.0 * k for k in range(14)))
                 if any(_crosses(world(a_, t), world(f"{piece}.{f_}", t))
                        for a_ in (arm.name, arm2.name) for f_ in ("LR", "UL", "LL"))]
         if hits:

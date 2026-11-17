@@ -146,6 +146,28 @@ class Faces:
                 (O + (a0 + 0.3 * wd) * sR + wd * outR).to_2d()[:]]
         # right facet's seam frame -> left facet's, then a hair behind it
         Mv = frame(OL, sL, inL) @ frame(O, sR, outR).inverted()
+        # kept on the left facet (a beak's narrows to its point)
+        from .geom import clip_halfplane
+        back = Mv.inverted()
+        Lp = [(back @ Vector((q[0], q[1], 0.0))).to_2d() for q in pL.polys[0]]
+        seam = (Vector(poly[0]), Vector(poly[1]))
+        c = sum(Lp, Vector((0.0, 0.0))) / len(Lp)
+        for i in range(len(Lp)):
+            a, b = Lp[i], Lp[(i + 1) % len(Lp)]
+            n = Vector((-(b - a).y, (b - a).x))
+            if n.length < 1e-9:
+                continue
+            n.normalize()
+            if n.dot(c - a) < 0:
+                n = -n
+            # (the seam itself, which the tab hangs from, stays)
+            if abs(n.dot(seam[0] - a)) < 1e-3 and abs(n.dot(seam[1] - a)) < 1e-3:
+                continue
+            poly = clip_halfplane(poly, tuple(n), n.dot(a) + 0.5)
+            if len(poly) < 3:
+                return
+        if len(poly) < 3:
+            return
         Mv = Matrix.Translation((0.0, 0.0, -TAB_LIFT)) @ Mv
 
         def asm(t, pa=pL.asm, Mv=Mv):

@@ -129,15 +129,27 @@ def vfold_bite():
     a = add("VFOLD")
     a.y, a.height, a.glue = 60.0, 70.0, 45.0
     a.bite, a.bite_len, a.bite_angle = True, 25.0, 18.0
-    return (0, 85, 30), 230, (0.3, -0.85, 0.45), (175.0, 130.0, 85.0)
+    return (0, 85, 30), 240, (0.7, -0.6, 0.4), (170.0, 125.0, 100.0)
 
 
 def bite_steps():
     a = add("VFOLD")
     a.y, a.height, a.glue = 60.0, 70.0, 45.0
-    a.bite, a.bite_len, a.bite_angle = True, 36.0, 10.0
-    a.bite_steps, a.bite_step_angle = 4, 8.0
-    return (0, 85, 30), 230, (0.3, -0.85, 0.45), (175.0, 130.0, 85.0)
+    a.bite, a.bite_len, a.bite_angle = True, 42.0, 10.0
+    for ln, tn in ((16.0, 10.0), (13.0, 12.0), (11.0, 14.0)):  # (a hooked beak)
+        st_ = a.bite_more.add()
+        st_.length, st_.angle = ln, tn
+    return (0, 85, 30), 240, (0.7, -0.6, 0.4), (170.0, 125.0, 100.0)
+
+
+def beak_bite():
+    a = add("VFOLD")
+    a.shape, a.y, a.height, a.glue = "TRI", 60.0, 75.0, 45.0
+    a.bite, a.bite_len, a.bite_angle = True, 45.0, 10.0
+    for ln, tn in ((16.0, 12.0), (13.0, 14.0)):
+        st_ = a.bite_more.add()
+        st_.length, st_.angle = ln, tn
+    return (0, 85, 30), 240, (0.7, -0.6, 0.4), (170.0, 125.0, 100.0)
 
 
 def swing_arm():
@@ -152,6 +164,13 @@ def swing_bare():
     a = add("SWING")
     a.y, a.arm_len, a.width, a.height = 60.0, 45.0, 6.0, 6.0  # (a stub of mask)
     return (40, 80, 8), 170, (0.2, -0.55, 0.81), (170.0, 125.0, 80.0)
+
+
+def swing_shut():
+    a = add("SWING")
+    a.y, a.arm_len, a.width, a.height = 60.0, 45.0, 6.0, 6.0  # (a stub of mask)
+    a.swing_hinge = "SHUT"
+    return (35, 75, 10), 210, (0.1, -0.5, 0.86), (175.0, 140.0, 105.0)
 
 
 def flapping_arms():
@@ -176,7 +195,7 @@ def on_riser():
     return (0, 105, 25), 260, (0.25, -0.9, 0.45), (175.0, 120.0, 70.0)
 
 
-SCENES = dict(bite_steps=bite_steps, swing_arm=swing_arm, swing_bare=swing_bare, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+SCENES = dict(bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 

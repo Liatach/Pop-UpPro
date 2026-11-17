@@ -83,19 +83,23 @@ class VFolds:
         and the two meet along the bite's seam. Gives ({-1, 1: half
         outline}, {-1, 1: facet outline}, bite point, left and right crease
         ends) in the pattern, or None if this V-fold's shape can't take one."""
-        if shape not in ("QUAD", "PANEL", None) or len(halves["L"]) != 1 or \
-                len(halves["R"]) != 1:
-            self.warn(f"{lab}: a bite needs a plain V-fold (four-sided halves); none cut")
+        if shape not in ("QUAD", "PANEL", "TRI", "BEAK_L", "BEAK_R", None) or \
+                len(halves["L"]) != 1 or len(halves["R"]) != 1:
+            self.warn(f"{lab}: a bite needs a plain V-fold or a beak; none cut")
             return None
         b = float(m.get("bite_len", 20.0) or 20.0)
         if not 3.0 <= b <= Lc - 3.0:
             b = max(3.0, min(b, Lc - 3.0))
             self.warn(f"{lab}: bite made {b:.0f} mm long to fit the crease")
-        n = max(1, min(6, int(m.get("bite_steps", 1) or 1)))
         d1 = max(1.0, min(40.0, float(m.get("bite_angle", 15.0))))
-        dk = max(0.0, min(40.0, float(m.get("bite_step_angle", 10.0))))
-        darts = [d1] + [dk] * (n - 1)  # (each step's turn from the one before)
-        Ls = b / n  # (each step's length, along its seam)
+        more = [(max(1.0, float(a)), max(0.0, min(60.0, float(c))))
+                for a, c in (m.get("bite_more") or [])][:8]
+        if not more:  # (0.86.0: even steps sharing Bite Length out)
+            n = max(1, min(6, int(m.get("bite_steps", 1) or 1)))
+            dk = max(0.0, min(40.0, float(m.get("bite_step_angle", 10.0))))
+            more = [(b / n, dk)] * (n - 1)
+        darts = [d1] + [c for _, c in more]  # (each step's turn from the one before)
+        Lsteps = [a for a, _ in more]  # (step j's crease to step j+1's, along its seam)
         sides = {}  # -1 left half, 1 right: its geometric side and outline
         for key, poly, G in (("L", halves["L"][0], GL), ("R", halves["R"][0], GR)):
             sides[-1.0 if key == "L" else 1.0] = (1.0 if G[0] > 0 else -1.0, poly, G)
@@ -119,32 +123,62 @@ class VFolds:
                 f_ = clip_halfplane(poly, up, up[0] * O[0] + up[1] * O[1])
                 dirk = (sg * math.sin(cum), math.cos(cum))  # this step's seam
                 if not last:  # up to the next step's crease
+                    Ls = Lsteps[j]
                     On = (O[0] + Ls * dirk[0], O[1] + Ls * dirk[1])
                     f_ = clip_halfplane(f_, (-dirk[0], -dirk[1]),
                                         -(dirk[0] * On[0] + dirk[1] * On[1]))
                 ns = (dirk[1] * sg, -dirk[0] * sg)  # (its normal, into the facet)
                 f_ = clip_halfplane(f_, ns, ns[0] * O[0] + ns[1] * O[1])
                 across = (sg * up[1], -sg * up[0])  # (square to up, towards the side)
-                if abs(across[0]) < 1e-6:
+                # its far end: where it leaves the half (its outer edge, or a
+                # beak's slant to the crease's end)
+                ts = []
+                for i_ in range(len(poly)):
+                    p0, p1 = poly[i_], poly[(i_ + 1) % len(poly)]
+                    ex, ey = p1[0] - p0[0], p1[1] - p0[1]
+                    den = across[0] * ey - across[1] * ex
+                    if abs(den) < 1e-12:
+                        continue
+                    wx, wy = p0[0] - O[0], p0[1] - O[1]
+                    tt = (wx * ey - wy * ex) / den
+                    uu = (wx * across[1] - wy * across[0]) / den
+                    if tt > 1e-6 and -1e-6 <= uu <= 1.0 + 1e-6:
+                        ts.append(tt)
+                if not ts:
                     f_ = []
                 else:
-                    tt = (G[0] - O[0]) / across[0]
+                    tt = max(ts)
                     E = (O[0] + tt * across[0], O[1] + tt * across[1])
-                    if not G[1] - 1e-6 <= E[1] <= G[1] + Lc + 1e-6:
-                        f_ = []
                 if len(f_) < 3:
                     if j == 0:
                         self.warn(f"{lab}: no room for the bite; none cut")
                         return None
                     st_ = None
                     break
+                if j and steps:
+                    # this crease mustn't cross the one before inside the
+                    # paper (the step's too short for its turn: no fold)
+                    P0, E0 = steps[-1]["O"][k], steps[-1]["ends"][k]
+                    a1 = (E[0] - O[0], E[1] - O[1])
+                    a0 = (E0[0] - P0[0], E0[1] - P0[1])
+                    den = a1[0] * a0[1] - a1[1] * a0[0]
+                    if abs(den) > 1e-9:
+                        w_ = (P0[0] - O[0], P0[1] - O[1])
+                        s_ = (w_[0] * a0[1] - w_[1] * a0[0]) / den
+                        if 1e-3 < s_ < 1.0 - 1e-3:
+                            need = math.hypot(*a1) * math.tan(math.radians(dd))
+                            self.warn(f"{lab}: bite step {j + 1}'s crease crosses step "
+                                      f"{j}'s before the edge: make step {j + 1} at least "
+                                      f"{need:.0f} mm long, or turn it less; cut to step "
+                                      f"{j}")
+                            return out_h, steps
                 st_["facets"][k] = f_
                 st_["ends"][k] = E
                 if not last:
                     Os[k], ups[k] = On, dirk
             if st_ is None:
-                self.warn(f"{lab}: the bite's steps turn too far for the paper; only "
-                          f"{len(steps)} cut")
+                self.warn(f"{lab}: the bite's steps run out of paper (they turn too far, "
+                          f"or reach a beak's point); only {len(steps)} cut")
                 break
             steps.append(st_)
             cum0 = cum

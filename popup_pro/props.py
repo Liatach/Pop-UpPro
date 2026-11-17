@@ -759,6 +759,18 @@ def sync_folds(scene):
     st = scene.popup
     for u in [m.uid for m in st.mechs if m.kind == "RISER" and m.slotted]:
         split_crosses(st, next(x for x in st.mechs if x.uid == u))
+    for m in st.mechs:  # (0.86.0's even bite steps: each its own, v0.86.2)
+        migrate_bite(m)
+
+
+def migrate_bite(m):
+    if m.bite_steps > 1 and not len(m.bite_more):
+        n, b = m.bite_steps, m.bite_len
+        m["bite_len"] = b
+        for _ in range(n - 1):
+            s = m.bite_more.add()
+            s["length"], s["angle"] = b / n, m.bite_step_angle
+        m["bite_steps"] = 1
 
 
 def _line_siblings(ln):
@@ -783,6 +795,18 @@ def _line_xform(self, context):
             for k in ("flip", "turn", "move_x", "move_y"):
                 ln[k] = getattr(self, k)
     live.schedule(context.scene)
+
+
+class PopupBiteStep(bpy.types.PropertyGroup):
+    """A step of a V-fold's bite after the first: creased square across the
+    step before's seam, Length further on, its seam turning Turn further."""
+    length: FloatProperty(name="Length", description="How far on from the step before's "
+                          "crease (along its seam) this step's crease is, in mm",
+                          default=10.0, min=1.0, soft_max=100.0, update=_changed)
+    angle: FloatProperty(name="Turn", description="How much further this step's seam "
+                         "turns than the step before's (the angle cut out each side, on "
+                         "top of the steps before), in degrees", default=10.0, min=0.0,
+                         max=60.0, update=_changed)
 
 
 class PopupLine(bpy.types.PropertyGroup):
@@ -1050,14 +1074,14 @@ class PopupMech(bpy.types.PropertyGroup):
                               "of the centre crease. Wider bends the end further, and stops "
                               "the halves opening so far", default=15.0, min=1.0, max=40.0,
                               update=_changed)
-    bite_steps: IntProperty(name="Bite Steps", description="How many creased steps the bite "
-                            "bends the end in, each turning further than the one before "
-                            "(more steps: a rounder beak). Bite Length is shared out "
-                            "between them", default=1, min=1, max=6, update=_changed)
-    bite_step_angle: FloatProperty(name="Each Step Turns", description="How much more each "
-                                   "step after the first is cut out each side (degrees): "
-                                   "its turn away from the step before", default=10.0,
-                                   min=0.0, max=40.0, update=_changed)
+    # (0.86.0's even steps: Bite Length shared out; files are moved on to
+    # bite_more by sync_folds)
+    bite_steps: IntProperty(name="Bite Steps", default=1, min=1, max=6, update=_changed)
+    bite_step_angle: FloatProperty(name="Each Step Turns", default=10.0, min=0.0, max=40.0,
+                                   update=_changed)
+    bite_more: CollectionProperty(type=PopupBiteStep, name="Bite Steps",
+                                  description="The bite's further steps, each creased on "
+                                  "from the one before and turning further")
     shape: EnumProperty(name="Shape", items=[
         ("QUAD", "Panels", "Each half is a four-sided panel"),
         ("TRI", "Beak", "Each half is a triangle meeting at a point: beaks and mouths"),
@@ -1292,6 +1316,13 @@ class PopupMech(bpy.types.PropertyGroup):
                             items=[("CW", "Clockwise", "", "LOOP_FORWARDS", 0),
                                    ("CCW", "Anticlockwise", "", "LOOP_BACK", 1)],
                             update=_changed)
+    swing_hinge: EnumProperty(name="Hinge Lies Flat", description="Arm behind a mask: "
+                              "the book's two hinges. Open: flat with the card open flat, "
+                              "folded shut. Shut: drawn back to front, tab D nearer the "
+                              "fold; flat with the card shut, folded up open flat",
+                              items=[("OPEN", "Open", "Flat with the card open flat"),
+                                     ("SHUT", "Shut", "Flat with the card shut")],
+                              update=_changed)
     swing_angle: FloatProperty(name="Arm Points", description="Arm behind a mask: the arm's "
                                "direction open flat, in degrees: 0 points straight out of the "
                                "hinge's edge beside its pivot (up the page if it swings "
@@ -1781,6 +1812,7 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind == "SWING":
             d.update(type="SWING", swing_gap=self.swing_gap, swing_at=self.swing_at,
                      swing_side=self.swing_side, swing_dir=self.swing_dir,
+                     swing_hinge=self.swing_hinge,
                      swing_angle=self.swing_angle, width=self.width, height=self.height,
                      arm_len=self.arm_len, arm_hand=self.arm_hand, tab=self.tab)
         elif self.kind == "CROSS":
@@ -1876,6 +1908,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      arch=self.arch, arch_shape=self.arch_shape,
                      bite=self.bite, bite_len=self.bite_len, bite_angle=self.bite_angle,
                      bite_steps=self.bite_steps, bite_step_angle=self.bite_step_angle,
+                     bite_more=[(s.length, s.angle) for s in self.bite_more],
                      on_top=bool(top), top_below=self.top_below,
                      x=self.glue_from, width=self.glue, jut=self.jut,
                      cut_bottoms=self.cut_bottoms,
@@ -2476,7 +2509,7 @@ def card_shape_lines(W, H, tmax, ceiling="NONE", drop=40.0, slope=30.0, lift=0.0
     return shape(ceiling, drop, slope, lift, False) + shape(floor, rise, fslope, dip, True)
 
 
-classes = (PopupImage, PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupPartMaterial,
+classes = (PopupImage, PopupBiteStep, PopupLine, PopupMech, PopupOpening, PopupStageRef, PopupPartMaterial,
            PopupSettings)
 
 

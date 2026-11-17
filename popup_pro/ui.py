@@ -900,6 +900,9 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         """An arm behind a mask: the hinge, the mask, the arm."""
         col.prop(m, "swing_side", expand=True)
         col.prop(m, "swing_dir", expand=True)
+        row = col.row(align=True)
+        row.label(text="Hinge Lies Flat")
+        row.prop(m, "swing_hinge", expand=True)
         col.prop(m, "swing_gap")
         col.prop(m, "swing_at")
         col.prop(m, "width", text="Mask Width (0 = auto)")
@@ -1077,9 +1080,14 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             if m.bite:
                 col.prop(m, "bite_len")
                 col.prop(m, "bite_angle")
-                col.prop(m, "bite_steps")
-                if m.bite_steps > 1:
-                    col.prop(m, "bite_step_angle")
+                for i, s in enumerate(m.bite_more):
+                    row = col.row(align=True)
+                    row.label(text=f"Step {i + 2}")
+                    row.prop(s, "length")
+                    row.prop(s, "angle")
+                    op = row.operator("popup.bite_step_remove", text="", icon="X")
+                    op.index = i
+                col.operator("popup.bite_step_add", icon="ADD")
         _tabs(self.layout, m)
         _draw_lines(self.layout, context, m)
         self.draw_warnings(context, m)

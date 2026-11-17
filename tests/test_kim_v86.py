@@ -104,7 +104,7 @@ v = add("VFOLD")
 v.height, v.glue = 70.0, 45.0
 v.bite, v.bite_len = True, 36.0
 v.bite_angle, v.bite_steps, v.bite_step_angle = 10.0, 4, 8.0
-assert {"bite_steps", "bite_step_angle"} <= set(props_shown(draw(ui.POPUP_PT_mechs)))
+# (0.86.0's even steps: still built so, until the file's moved on)
 bpy.ops.popup.build()
 assert not warns(), warns()
 M = model()
@@ -137,7 +137,8 @@ def normal_dir(tg):
 assert len({normal_dir(tg) for tg in tags}) == 4
 export_svg.export(sc, svg)
 v.bite_steps, v.bite_step_angle = 6, 40.0
-assert any("turn too far" in w for w in model().warnings), model().warnings
+assert any("run out of paper" in w or "crosses step" in w for w in model().warnings), \
+    model().warnings
 print("a bite in steps")
 
 # ---- an arm swinging behind a mask
@@ -226,6 +227,90 @@ for kind in ("BOX", "VFOLD", "STANDUP", "CUBE"):
         clean(M, "")
 export_svg.export(sc, svg)
 print("the arm bends clear of its hinge; things in the mask's corner")
+
+# ---- 0.86.2: each bite step its own length and turn; 0.86.0's even steps
+# moved on to them; the book's other hinge, flat shut
+from popup_pro.props import migrate_bite  # noqa: E402
+
+reset()
+v = add("VFOLD")
+v.height, v.glue = 70.0, 45.0
+v.bite, v.bite_len, v.bite_angle = True, 42.0, 10.0
+st.active = 0
+assert bpy.ops.popup.bite_step_add() == {"FINISHED"}
+assert len(v.bite_more) == 1 and v.bite_more[0].angle == 10.0
+v.bite_more[0].length, v.bite_more[0].angle = 16.0, 10.0
+for ln, tn in ((13.0, 12.0), (11.0, 14.0)):
+    s = v.bite_more.add()
+    s.length, s.angle = ln, tn
+assert {"length", "angle"} <= set(props_shown(draw(ui.POPUP_PT_mechs)))
+bpy.ops.popup.build()
+assert not warns(), warns()
+M = model()
+assert "VFold1.Bite4R" in M.panels and "VFold1.Bite5R" not in M.panels
+clean(M, "VFold1")
+# each step carries on from the one before, across its crease
+for t in M.samples:
+    for a, b in (("Bite", "Bite2"), ("Bite2", "Bite3"), ("Bite3", "Bite4")):
+        A_, B_ = world(M, f"VFold1.{a}R", t), world(M, f"VFold1.{b}R", t)
+        assert len([w for w in B_ if min((w - q).length for q in A_) < 0.03]) >= 2, (a, b, t)
+v.bite_more[2].length = 6.0  # (too short for its turn: its crease crosses)
+assert any("crosses step 3's" in w for w in model().warnings), model().warnings
+assert bpy.ops.popup.bite_step_remove(index=2) == {"FINISHED"}
+assert len(v.bite_more) == 2
+v.bite_more.clear()
+v.bite_steps, v.bite_step_angle, v.bite_len = 3, 8.0, 36.0
+migrate_bite(v)
+assert v.bite_steps == 1 and [(round(s.length, 3), s.angle) for s in v.bite_more] == \
+    [(12.0, 8.0), (12.0, 8.0)]
+for shape in ("TRI", "BEAK_L", "BEAK_R"):  # (on a beak too)
+    reset()
+    v = add("VFOLD")
+    v.shape, v.height, v.glue = shape, 75.0, 45.0
+    v.bite, v.bite_len, v.bite_angle = True, 45.0, 10.0
+    for ln, tn in ((16.0, 12.0), (13.0, 14.0)):
+        s = v.bite_more.add()
+        s.length, s.angle = ln, tn
+    bpy.ops.popup.build()
+    assert not warns(), (shape, warns())
+    M = model()
+    assert "VFold1.Bite3R" in M.panels and "VFold1.BiteRTab" in M.panels, shape
+    clean(M, "VFold1")
+    export_svg.export(sc, svg)
+print("bite steps of their own, on panels and beaks")
+
+for side in ("R", "L"):
+    for dr in ("CW", "CCW"):
+        reset()
+        s = add("SWING")
+        s.swing_side, s.swing_dir, s.swing_hinge = side, dr, "SHUT"
+        assert "swing_hinge" in set(props_shown(draw(ui.POPUP_PT_mechs)))
+        bpy.ops.popup.build()
+        assert not warns(), (side, dr, warns())
+        M = model()
+        base = M.panels["Page.R" if side == "R" else "Page.L"]
+        names = ["Swing1.LR", "Swing1.UR", "Swing1.UL", "Swing1.LL"]
+        turned = []
+        for t in M.samples + [M.tmax]:
+            pts = {n: world(M, n, t) for n in names + ["Swing1.TabD", "Swing1.TabE"]}
+            for a, b in zip(names[:3], names[1:]):
+                assert len([w for w in pts[a] if min((w - q).length for q in pts[b]) < 0.05]) \
+                    >= 2, (side, dr, t, a, b)
+            for a, b in (("Swing1.LR", "Swing1.TabD"), ("Swing1.LL", "Swing1.TabE")):
+                assert len([w for w in pts[a] if min((w - q).length for q in pts[b]) < 0.4]) \
+                    >= 2, (side, dr, t, a, b)
+            B = base.asm(t).inverted()
+            dv = (B @ M.panels["SwArm1.End"].asm(t)).to_3x3() @ v3((1.0, 0.0))
+            turned.append(math.degrees(math.atan2(dv.y, dv.x)))
+        # flat shut: C lies in the page's plane shut, folded up open flat
+        span = (turned[-1] - turned[0] + 180.0) % 360.0 - 180.0
+        assert abs(abs(span) - 90.0) < 3.0 and (span < 0) == (dr == "CW"), (side, dr, span)
+        B = base.asm(M.samples[0]).inverted()
+        assert max(abs((B @ q).z) for n in names for q in world(M, n, M.samples[0])) < 1.5
+        clean(M, "Swing1")
+        clean(M, "SwArm1")
+        export_svg.export(sc, svg)
+print("the book's other hinge, flat shut")
 
 addon.unregister()
 print("V86 OK")

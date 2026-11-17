@@ -240,9 +240,8 @@ Sunflower is a good way to make them.
   twist (19), which needs bending paper rather than folding it.
 * **Flapping arms, continued**: chained, each pair's back piece driving
   the next, into scissor mechanisms.
-* **Arm behind a mask, continued** (Birmingham 75): the book's other
-  hinge, folded when the card is open and flat when it's closed, and a
-  mask of its own shape cut from the page in front.
+* **Arm behind a mask, continued** (Birmingham 75): a mask of its own
+  shape cut from the page in front.
 * **Zig-zags and quadrilaterals, continued** (Birmingham): slanted fold
   lines (47), boxes cut into the faces (46, 48), and a quadrilateral lifted
   on a V-fold (56).
@@ -250,6 +249,9 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.86.2**: each bite step has its own length and turn (a hooked beak),
+  bites work on beaks too,
+  and the arm behind a mask takes the book's other hinge, flat when shut.
 * **0.86.1**: the arm behind a mask bends at a crease to lie flat between
   the page and the mask, clear of its hinge, and the mask's fold is a host.
 * **0.86**: rising sheets and their cross pieces are laid out standing up,
@@ -258,10 +260,6 @@ Sunflower is a good way to make them.
   V-fold's bite in several steps, each turning further, for a rounder beak.
   **Arm Behind a Mask** (Birmingham 75) swings an arm round in its own
   plane, pivoted on a creased hinge hidden behind a mask.
-* **0.85**: door flaps on cubes, tubes and stand-ups (every piece now);
-  a V-fold's **Bite** (Birmingham 13-14) bends its end into a beak;
-  **Flapping Arms** (65-66) swing out through slots in a V-fold or a box
-  fold. The roadmap tidied.
 Earlier versions are in the [changelog](CHANGELOG.md).
 
 ## Development

@@ -2182,6 +2182,50 @@ class POPUP_OT_add_line(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class POPUP_OT_bite_step_add(bpy.types.Operator):
+    """Add a step to the bite: a crease further on, square across the last
+    step's seam, its seam turning further (a rounder or more hooked beak)"""
+    bl_idname = "popup.bite_step_add"
+    bl_label = "Add a Bite Step"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        m = _vfold_active(context)
+        return m is not None and m.bite and len(m.bite_more) < 8
+
+    def execute(self, context):
+        m = _vfold_active(context)
+        from .props import migrate_bite
+        migrate_bite(m)
+        s = m.bite_more.add()
+        last = m.bite_more[-2] if len(m.bite_more) > 1 else None
+        s["length"] = round(0.6 * (last.length if last else m.bite_len), 1)
+        s["angle"] = last.angle if last else m.bite_angle
+        live.schedule(context.scene)
+        return {"FINISHED"}
+
+
+class POPUP_OT_bite_step_remove(bpy.types.Operator):
+    """Take this step off the bite"""
+    bl_idname = "popup.bite_step_remove"
+    bl_label = "Remove Bite Step"
+    bl_options = {"REGISTER", "UNDO"}
+    index: bpy.props.IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        m = _vfold_active(context)
+        return m is not None and len(m.bite_more) > 0
+
+    def execute(self, context):
+        m = _vfold_active(context)
+        if 0 <= self.index < len(m.bite_more):
+            m.bite_more.remove(self.index)
+        live.schedule(context.scene)
+        return {"FINISHED"}
+
+
 class POPUP_OT_remove_line(bpy.types.Operator):
     """Remove the selected extra crease or cut"""
     bl_idname = "popup.remove_line"
@@ -2516,7 +2560,8 @@ class POPUP_OT_visibility(bpy.types.Operator):
 
 
 classes = (POPUP_OT_select_warned, POPUP_OT_visibility, POPUP_OT_tri_pictures, POPUP_OT_add_card_line, POPUP_OT_remove_card_line, POPUP_OT_add_line,
-           POPUP_OT_remove_line, POPUP_OT_draw_lines,
+           POPUP_OT_remove_line, POPUP_OT_bite_step_add, POPUP_OT_bite_step_remove,
+           POPUP_OT_draw_lines,
            POPUP_OT_take_lines, POPUP_OT_draw_holes, POPUP_OT_keep_holes, POPUP_OT_export_carousel,
            POPUP_OT_add_opening, POPUP_OT_remove_opening, POPUP_OT_trace_holes,
            POPUP_OT_make_carousel, POPUP_OT_goto_stage, POPUP_OT_carousel_sync,
