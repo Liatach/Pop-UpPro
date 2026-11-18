@@ -157,6 +157,22 @@ def jack_flat():
     return (0, 115, 25), 260, (0.25, -0.75, 0.6), (175.0, 130.0, 90.0)
 
 
+def strut_lid():
+    a = add("CUBE")
+    a.size, a.size_r, a.height, a.lid = 40.0, 0.0, 40.0, "STRUT"
+    return (0, 105, 30), 260, (0.35, -0.75, 0.55), (178.0, 140.0, 100.0)
+
+
+def turning_disc():
+    bpy.ops.popup.add(kind="BOX", variant="DISC")
+    return (20, 105, 30), 280, (0.55, -0.6, 0.55), (178.0, 130.0, 90.0)
+
+
+def turning_wheels():
+    bpy.ops.popup.add(kind="BOX", variant="WHEELS")
+    return (20, 105, 30), 300, (0.6, -0.2, 0.75), (178.0, 130.0, 90.0)
+
+
 def swing_arm():
     a = add("SWING")
     a.y, a.arm_len = 60.0, 45.0
@@ -200,7 +216,7 @@ def on_riser():
     return (0, 105, 25), 260, (0.25, -0.9, 0.45), (175.0, 120.0, 70.0)
 
 
-SCENES = dict(jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+SCENES = dict(strut_lid=strut_lid, turning_disc=turning_disc, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 

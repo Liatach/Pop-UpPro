@@ -3,6 +3,12 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.88.0**: **Lid: On a Strut** for cubes: a flat lid hinged on a front
+  wall, held parallel to that wall's page by a strut inside the box, so it
+  lifts as the card closes (on whichever wall, any box size, wherever a cube
+  stands). **Triangle Angle** for a box's 45° triangles, and a **Turning
+  Disc** on them, flat on the box's front or top, turning through twice
+  that angle; **Turning Disc** and **Turning Wheels** in the + menu.
 * **0.87.0**: **Jack in the Box (flat body)**, Birmingham 78: the jack's
   figure on a body of its own lying on the pages across the fold, glued by
   strips folded under at its sides; its arms rise from the chest's folds at

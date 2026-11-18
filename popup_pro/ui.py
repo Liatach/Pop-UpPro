@@ -143,6 +143,8 @@ class POPUP_MT_add(bpy.types.Menu):
         self._adds(one, "Box folds:", (
             ("Box Fold / Strap (glued strip)", "BOX"),
             ("Box Fold (angled glue lines)", "BOX", "ANGLED"),
+            ("Turning Disc (on a box fold)", "BOX", "DISC"),
+            ("Turning Wheels (on a box fold)", "BOX", "WHEELS"),
             ("Box Layer (cut in)", "BOXCUT"), ("Stand-up (parallelogram)", "STANDUP"),
             ("Arm Behind a Mask (swings round)", "SWING"),
             ("Jack in the Box (flat body, 78)", "JACK", "FLAT")))
@@ -839,9 +841,12 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                  else "Width Right")
         col.prop(m, "height")
         row = col.row()
-        row.active = (m.size_r <= 0 or abs(m.size_r - m.size) < 1e-6) and m.roof in \
-            ("NONE", "GABLE")
+        row.active = (m.size_r <= 0 or abs(m.size_r - m.size) < 1e-6 or m.lid == "STRUT") \
+            and m.roof in ("NONE", "GABLE")
         row.prop(m, "lid")
+        if m.lid == "STRUT":
+            col.prop(m, "strut_side", expand=True)
+            col.prop(m, "strut_at")
         _tower_top(col, m, cube=True)
 
     def draw_mouth(self, col, m, hm, joint):
@@ -1146,6 +1151,10 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
             col.prop(m, "tri45")
             if m.tri45 != "NONE":
                 col.prop(m, "tri_size")
+                col.prop(m, "tri_angle")
+                col.prop(m, "tri_disc")
+                if m.tri_disc != "NONE":
+                    col.prop(m, "disc_r")
                 col.prop(m, "tri_pic_layout")
                 row = col.row(align=True)
                 row.label(text="Paste-ons on them")

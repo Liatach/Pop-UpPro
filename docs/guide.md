@@ -136,7 +136,25 @@ on the fold (45° glue lines, square corners), glued down by the base tabs;
 the back walls follow as a parallelogram. The lid is two right triangles on
 the front walls, creased along the diagonal and joined by a glue tab: it
 rises to a ridge (Peaked) or sinks into the box (Dipped) as the card closes.
-A flat one-piece lid can't fold, so the lid is always two triangles.
+A flat one-piece lid can't fold flat on the box, so those lids are two
+triangles.
+
+**Lid: On a Strut** is a flat lid hinged on one front wall's top (**Lid
+Hinged On**: the left or right wall), with a strut inside the box: a strip
+as tall as the walls, glued to the same page parallel to that wall's foot,
+**Strut In From Wall** in from it, and folded under the lid at its top. The
+wall, strut, page and lid make a parallelogram, so the lid stays parallel to
+that page: shut on the box open flat, lifting off it as the card closes and
+the box leans and folds flat beneath it, flat on the page shut. Where the
+lid's far edge would meet the other page, that page pushes it a little
+further open and the strut leans with it (the strut's top slides a few
+millimetres along under the lid: paper gives that much). It works on any
+size of box, square or not, wherever a cube can stand, but a lid much
+deeper than the walls are tall can't clear the pages; Checks says. The strut
+needs walls about 13 mm wide or more.
+
+![A cube with its lid on a strut, at 178, 140 and 100
+degrees](images/strut_lid.jpg)
 
 A cube is a tower whose front corner closes on the fold, so it takes a
 castle tower's **Tower Roof** (Pointed or Flat, with Overhang) and **Collar**
@@ -1199,9 +1217,23 @@ the card is nearly shut.
 * **45° Triangles** on a box fold or box layer (mechanism 74): a pair of
   small triangles cut into the corner where the box's top meets its front,
   at its **Top**, **Bottom** or **Both** ends; they swing up out of the box
-  as the card closes. **Triangle Size** is how far down the crease (and out
-  along the edge) they reach. Stick moving pictures on them: fish leaping,
-  arms and legs thrown out.
+  as the card closes. **Triangle Size** is how far down the crease they
+  reach, and **Triangle Angle** each fold's angle to the crease (45: they
+  reach as far out along the edge as down the crease). Stick moving pictures
+  on them: fish leaping, arms and legs thrown out.
+* **Turning Disc** on those triangles: a disc lying on the box's **Front**
+  (or **Top**), centred where the pair meets on the corner, turned by a
+  small L-shaped piece glued to the other face's triangle. Held flat on its
+  face, it turns in its own plane as the card opens and closes, through twice
+  the Triangle Angle (60: a third of a turn); reverse it by putting it on
+  the other face. **Disc Radius** sizes it. With triangles at both ends the
+  box carries two: **Add > Turning Wheels (on a box fold)** sets one up as a
+  pair of wheels, ready for a car body pasted on the front; **Turning Disc
+  (on a box fold)** a single disc for a face, a dial or a steering wheel.
+
+  ![A turning disc, at 178, 130 and 90 degrees](images/turning_disc.jpg)
+
+  ![Turning wheels, at 178, 130 and 90 degrees](images/turning_wheels.jpg)
 
 ### Paste-ons (cards glued on any face)
 

@@ -1295,7 +1295,19 @@ class PopupMech(bpy.types.PropertyGroup):
     lid: EnumProperty(name="Lid", items=[
         ("PEAK", "Peaked", "Two-triangle lid that rises to a ridge as the card closes"),
         ("DIP", "Dipped", "Two-triangle lid that sinks into the box as the card closes"),
+        ("STRUT", "On a Strut", "A flat lid hinged on one front wall's top, held parallel "
+         "to that wall's page by a strut inside the box: shut on the box open flat, it "
+         "lifts as the card closes"),
         ("NONE", "None", "Open top")], update=_changed)
+    strut_side: EnumProperty(name="Lid Hinged On", description="On a strut: the front "
+                             "wall the lid is hinged on (its strut stands on the same page)",
+                             items=[("L", "Left Wall", ""), ("R", "Right Wall", "")],
+                             update=_changed)
+    strut_at: FloatProperty(name="Strut In From Wall", description="On a strut: how far "
+                            "inside the box the strut stands from the lid's wall, and so how "
+                            "far under the lid from its hinge it's glued, in mm (0: half "
+                            "the lid's depth)", default=0.0, min=0.0, soft_max=200.0,
+                            update=_changed)
     # flap
     side: EnumProperty(name="Page", items=[("R", "Right", ""), ("L", "Left", "")],
                        update=_changed)
@@ -1552,6 +1564,22 @@ class PopupMech(bpy.types.PropertyGroup):
         description="Two small triangles cut into the corner where the box's top meets its "
         "front, at its top or bottom edge, on a 45° fold: as the card closes they swing "
         "up out of the box. Stick moving pictures on them (Birmingham 74)")
+    tri_angle: FloatProperty(name="Triangle Angle (E)", default=45.0, min=20.0, max=70.0,
+                             update=_changed, description="The angle between each "
+                             "triangle's fold and the box's corner crease, in degrees. A "
+                             "turning disc on them turns twice this as the card closes "
+                             "(60: a third of a turn)")
+    tri_disc: EnumProperty(name="Turning Disc", default="NONE", update=_changed, items=[
+        ("NONE", "None", "Just the triangles"),
+        ("FRONT", "On the Front", "A disc lying on the box's front, centred where the "
+         "triangles meet, turned by an L-shaped piece glued to the top triangle"),
+        ("TOP", "On the Top", "A disc lying on the box's top, centred where the triangles "
+         "meet, turned by an L-shaped piece glued to the front triangle")],
+        description="A disc (a wheel, a face, a dial) at each pair of triangles, turning "
+        "in its own plane as the card opens and closes")
+    disc_r: FloatProperty(name="Disc Radius", default=0.0, min=0.0, soft_max=80.0,
+                          update=_changed, description="The turning disc's radius in mm "
+                          "(0: one and a half times the triangles' size)")
     tri_size: FloatProperty(name="Triangle Size", default=12.0, min=2.0, soft_max=60.0,
                             update=_changed,
                             description="How far down the crease (and out along the edge) "
@@ -1864,6 +1892,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      bend=self.bend, height=self.height, tab_side=self.tab_side)
         elif self.kind == "CUBE":
             d.update(type="CUBE", size=self.size, height=self.height, lid=self.lid,
+                     strut_at=self.strut_at, strut_side=self.strut_side,
                      size_r=self.size_r,
                      tab_side=self.tab_side,
                      roof=self.roof, roof_height=self.roof_height, eave=self.eave,
@@ -1939,6 +1968,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      fan_creases=self.fan_creases, fan_crease=self.fan_crease,
                      peaks=self.peaks if self.kind == "BOX" else 1,
                      pleat=self.pleat, tri45=self.tri45, tri_size=self.tri_size,
+                     tri_angle=self.tri_angle, tri_disc=self.tri_disc, disc_r=self.disc_r,
                      rail=self.rail if self.kind == "BOX" else 0.0,
                      rail_open=self.rail_open, support=self.support, bays=self.bays,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())

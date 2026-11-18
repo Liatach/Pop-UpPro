@@ -87,8 +87,9 @@ Paint flat or folded, import and position images or simply textures, then export
 * Box folds, square or angled (the glue lines turned and
   mirrored either side of the fold, with one crease or three, the panels
   tilting into new planes); box layers; straps (slanted, with peaks).
-* 180° cubes with a lid, or a tower's pointed or flat roof, and collars;
-  the pop-up house, its gabled roof pushed open by its walls.
+* 180° cubes with a lid (peaked, dipped, or flat on a strut that lifts it
+  as the card closes), or a tower's pointed or flat roof, and collars; the
+  pop-up house, its gabled roof pushed open by its walls.
 * Boxes glued to one page with their ends filled in, square or angled,
   their tuck flaps folded inside or out.
 * Tubes, cylinders, loops and cones that narrow or flare,
@@ -106,7 +107,8 @@ Paint flat or folded, import and position images or simply textures, then export
   propped square by 45° folds or by slotted cross pieces, its corners and
   45° folds carrying other mechanisms; the double 45° fold, its top piece
   twisting round; a jack in the box on a V-fold or on a flat body of its
-  own, arms raised; triangles that leap out of a box's corners.
+  own, arms raised; triangles that leap out of a box's corners, and discs
+  and wheels they turn.
 * Flapping arms swinging out through slots in a V-fold or a box fold.
 * An arm swinging round behind a mask, on a creased hinge that lies flat
   open or shut, bending to lie flat under the mask; more mechanisms can
@@ -238,8 +240,8 @@ Sunflower is a good way to make them.
 * **Concertinas, continued**: a fan standing free of the centre crease,
   concertina corners (like an accordion's), rainbows and arcs.
 * **45° folds, continued**: the jack in the box's arms reaching straight
-  out past its body, which needs bending paper, and a box lid lifted by a
-  strut.
+  out past its body, which needs bending paper; a turning disc's extra piece
+  that keeps it upright, cut as its own piece.
 * **V-folds, continued**: bites at both ends of the crease, between the
   tabs and in a jaw; tall narrow sides that twist, which needs bending
   paper rather than folding it.
@@ -253,11 +255,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.88**: a cube's lid on a strut, lifting as the card closes; turning
+  discs and wheels on a box fold's corner triangles.
 * **0.87**: the jack in the box on a flat body of its own, arms raised.
 * **0.86.3**: the Bite settings show on beaks.
-* **0.86.2**: each bite step has its own length and turn (a hooked beak),
-  bites work on beaks too, and the arm behind a mask takes a second hinge
-  that lies flat when the card is shut.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

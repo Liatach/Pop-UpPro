@@ -449,13 +449,17 @@ class Folds45:
         if abs(k) > 1e-9:
             self.warn(f"{lab}: 45° triangles need a box that isn't slanted; left out")
             return
-        if h > min(a, b) - 0.5 or 2.0 * h > w + 1e-6:
-            h = max(2.0, min(min(a, b) - 0.5, 0.5 * w))
-            self.warn(f"{lab}: 45° triangles made {h:.0f} mm to fit the box")
+        # E: each fold's angle to the crease
+        E = max(20.0, min(70.0, float(m.get("tri_angle", 45.0) or 45.0)))
+        phi = math.radians(E)
+        tp = math.tan(phi)  # (each triangle's width at the edge, per its height)
+        if h * tp > min(a, b) - 0.5 or 2.0 * h > w + 1e-6:
+            h = max(2.0, min((min(a, b) - 0.5) / tp, 0.5 * w))
+            self.warn(f"{lab}: its triangles made {h:.0f} mm to fit the box")
         piece = self.panels[hc.p1].piece
         v, d = hc.v1, hc.d1
-        s2 = math.sqrt(0.5)
-        q45 = math.radians(45.0)
+        sn, cs = math.sin(phi), math.cos(phi)
+        q45 = phi
         ends = []
         if which in ("TOP", "BOTH"):
             ends.append(("T", y0 + w - h, 1.0, "top"))
@@ -465,22 +469,84 @@ class Folds45:
             ye = yp + sy * h
             cells = {}
             for side, sx, pn in (("L", -1.0, hc.p1), ("R", 1.0, hc.p2)):
-                got = self.carve(piece, [v(0.0, yp), v(sx * h, ye), v(0.0, ye)], {pn}, lab)
+                got = self.carve(piece, [v(0.0, yp), v(sx * h * tp, ye), v(0.0, ye)], {pn},
+                                 lab)
                 if got is None:
                     return
                 cells[side] = got
             key = f"{base}.Tri{tag}"
-            self.joints[key] = dict(host=hc, y=yp, uL=(-s2, sy * s2), uR=(s2, sy * s2),
+            self.joints[key] = dict(host=hc, y=yp, uL=(-sn, sy * cs), uR=(sn, sy * cs),
                                     aL=q45, aR=q45, rise=True)
             P = v(0.0, yp)
             for side, sx in (("L", -1.0), ("R", 1.0)):
-                self._half(f"{key}{side}", piece, cells[side], P, d(sx * s2, sy * s2),
+                self._half(f"{key}{side}", piece, cells[side], P, d(sx * sn, sy * cs),
                            d(0.0, sy), side, key, f"{lab}: {txt} triangle "
                            f"{'left' if side == 'L' else 'right'}")
             self.match_lift(f"{key}L", f"{key}R")
             self.cut_panels |= {f"{key}L", f"{key}R"}
             if any(not self.crease(key, s_)[3] for s_ in self.samples):
                 self.warn(f"{lab}: its 45° triangles tear on this host")
+            disc = m.get("tri_disc", "NONE") or "NONE"
+            if disc != "NONE":
+                self._disc(m, hc, key, tag, yp, h, disc, lab)
+
+    def _disc(self, m, hc, key, tag, yp, h, on, lab):
+        """Birmingham 76: a disc lying on one of the box's faces (X), centred
+        where its triangles meet on the corner (H), turned by an L-shaped
+        piece glued to the other face's triangle (Y). Held flat on X (as the
+        book's extra piece behind or in front of it does), it turns in its
+        own plane as Y does: twice the triangles' angle E over the card's
+        whole movement."""
+        X = hc.p2 if on == "FRONT" else hc.p1
+        Y = f"{key}{'L' if on == 'FRONT' else 'R'}"
+        R = float(m.get("disc_r", 0.0) or 0.0) or round(1.5 * h, 1)
+        t0 = self.tmax
+        Hp = hc.v1(0.0, yp)  # (one piece: the same pattern point on either face)
+        Hp3 = Vector((Hp[0], Hp[1], 0.0))
+        PX, PY = self.panels[X], self.panels[Y]
+        B0 = PX.asm(t0).to_3x3().inverted() @ PY.asm(t0).to_3x3()
+        a0 = math.atan2((B0 @ Vector((1.0, 0.0, 0.0))).y, (B0 @ Vector((1.0, 0.0, 0.0))).x)
+
+        def turn(t):  # (Y's turn about X's normal, from open flat)
+            Bm = PX.asm(t).to_3x3().inverted() @ PY.asm(t).to_3x3()
+            dx = Bm @ Vector((1.0, 0.0, 0.0))
+            return math.atan2(dx.y, dx.x) - a0
+
+        dp = f"{key.replace('.', '')}Disc"
+        self.add_piece(Piece(dp, f"{lab} disc {'top' if tag == 'T' else 'bottom'}",
+                             1 + m["uid"], (0.0, 0.0)))
+        n = 40
+        circle = [(R * math.cos(2.0 * math.pi * i / n), R * math.sin(2.0 * math.pi * i / n))
+                  for i in range(n)]
+
+        def asm_disc(t):
+            return PX.asm(t) @ Matrix.Translation(Hp3 + Vector((0.0, 0.0, 3.0 * TAB_LIFT))) @ \
+                Matrix.Rotation(turn(t), 4, "Z")
+
+        dsk = self.add(Panel(f"{dp}.Disc", dp, "panel", [circle], asm_disc, X, None,
+                             f"{lab}: turning disc"))
+        dsk.free = True
+        # the L-shaped piece: one arm glued on Y's triangle by its point, the
+        # other on the disc's back at its centre (shown on each, as glued)
+        lp = f"{dp}L"
+        self.add_piece(Piece(lp, f"{lab} disc's L piece", 1 + m["uid"], (0.0, 0.0)))
+        cy = [sum(q[i] for q in PY.polys[0]) / len(PY.polys[0]) for i in (0, 1)]
+        s_ = max(2.0, 0.3 * h)
+        armF = Matrix.Translation((cy[0], cy[1], TAB_LIFT))  # (on the triangle's middle)
+
+        def asm_f(t):
+            return PY.asm(t) @ armF
+
+        def asm_g(t):
+            return PX.asm(t) @ Matrix.Translation(Hp3 + Vector((0.0, 0.0, 2.0 * TAB_LIFT))) @ \
+                Matrix.Rotation(turn(t), 4, "Z")
+
+        self.add(Panel(f"{lp}.F", lp, "tab", [[(-0.5 * s_, -0.5 * s_), (0.5 * s_, -0.5 * s_),
+                                              (0.5 * s_, 0.5 * s_), (-0.5 * s_, 0.5 * s_)]],
+                       asm_f, Y, None, f"{lab}: L piece arm F (on the triangle)"))
+        self.add(Panel(f"{lp}.G", lp, "tab", [[(0.5 * s_, -0.5 * s_), (1.5 * s_, -0.5 * s_),
+                                              (1.5 * s_, 0.5 * s_), (0.5 * s_, 0.5 * s_)]],
+                       asm_g, dsk.name, None, f"{lab}: L piece arm G (under the disc)"))
 
     # ------------------------------------------------------- jack in the box
     def _jack(self, m, host, cut_in):

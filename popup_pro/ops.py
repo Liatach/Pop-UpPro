@@ -219,6 +219,8 @@ class POPUP_OT_add(bpy.types.Operator):
             return self.done(context, st, uid)
         if self.kind == "BOX" and self.variant == "ANGLED" and not self.host:
             _as_angled(st, m)
+        if self.kind == "BOX" and self.variant in ("DISC", "WHEELS"):
+            _as_disc(st, m, self.variant == "WHEELS")
         if self.kind == "TUBE" and self.variant in ("LOOP", "FACE"):
             _as_loop(st, m)
         if self.kind == "TUBE" and self.variant == "FACE":
@@ -360,6 +362,25 @@ def _as_angled(st, m):
     st["live"] = False
     m.fan_angle = 20.0
     m.label = unique_label(st.mechs, "Angled box fold", m)
+    st["live"] = was
+
+
+def _as_disc(st, m, wheels):
+    """A box fold with a turning disc on its front (or a pair of them at its
+    ends: wheels), on triangles cut into its corner."""
+    was = st.live
+    st["live"] = False
+    m.depth, m.height = 30.0, 35.0
+    m.tri45 = "BOTH" if wheels else "TOP"
+    m.tri_angle, m.tri_disc = 45.0, "FRONT"
+    if wheels:
+        m.width, m.tri_size, m.disc_r = 90.0, 10.0, 13.0
+        m.label = unique_label(st.mechs, "Turning wheels", m)
+    else:
+        m.width, m.tri_size, m.disc_r = 60.0, 14.0, 22.0
+        m.label = unique_label(st.mechs, "Turning disc", m)
+    H = st.card_dict()["H"]
+    m.y = round(max(2.0, 0.5 * (H - m.width)), 1)
     st["live"] = was
 
 
