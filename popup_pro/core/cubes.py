@@ -131,9 +131,9 @@ class Cubes:
         troof = m.get("roof", "NONE")
         if troof != "NONE" or (m.get("collar") and m.get("collar_dir") == "IN"):
             lid = "NONE"  # (the tower roof or tapered top takes its place)
-        if lid == "STRUT":
-            self._strut_lid(m, piece, parts, host, wB, wC, hgt, s1, s2, s3, lab)
-            lid = "NONE"
+        strut = lid == "STRUT"
+        if lid == "STRUT":  # (0.88.0's flat lid on a strut: the dipped lid and its strut)
+            lid = "DIP"
         if lid != "NONE":
             sg = 1.0 if lid == "PEAK" else -1.0
             # the lid's crease runs at 45 degrees from the front-top corner,
@@ -207,6 +207,8 @@ class Cubes:
 
             self.add(Panel(f"{piece}.LidTab", piece, "tab", [tab_poly], asm_lt, lb.name, None,
                            f"{lab}: lid glue tab"))
+            if strut:
+                self._strut(m, piece, parts, host, wB, wC, hgt, s2, lab)
 
         tears = [t for t in self.samples if not self.crease(key, t)[3]]
         if tears:
@@ -214,177 +216,170 @@ class Cubes:
         if troof != "NONE" or m.get("collar"):
             self._cube_tower(m, piece, parts, wB, wC, hgt, troof)
 
-    def _strut_lid(self, m, piece, parts, host, wB, wC, hgt, s1, s2, s3, lab):
-        """A flat lid hinged on one front wall's top, and a strut inside the
-        box glued to that wall's page parallel to the wall's foot, F in from
-        it, and up under the lid F out from its hinge. Wall, strut, page and
-        lid make a parallelogram: the lid stays parallel to the page, shut on
-        the box open flat, lifting off it as the card closes (the box leans
-        and folds flat under it), and lies on the page shut."""
-        left = m.get("strut_side", "L") != "R"
-        wall = self.panels[f"{piece}.{'B' if left else 'C'}"]
-        tabw = self.panels[f"{piece}.Tab{'L' if left else 'R'}"]
-        page = host.p1 if left else host.p2
-        wW, wD = (wB, wC) if left else (wC, wB)  # (the wall's width; the lid's depth)
-        F = float(m.get("strut_at", 0.0) or 0.0) or round(min(0.5 * wD, 0.35 * wW), 1)
-        if not 2.0 <= F <= wD - 2.0:
-            F = max(2.0, min(F, wD - 2.0))
+    def _strut(self, m, piece, parts, host, wB, wC, hgt, s2, lab):
+        """Birmingham 83: a strut inside the box, a V-fold of two panels
+        creased up its middle, each as tall as the walls: tab C at the foot
+        of one, glued to the shorter wall's page parallel to its foot, F in
+        from it; tab E at the top of the other, glued under the lid's larger
+        part parallel to its hinge, F out from it. A small copy of the box's
+        front corner, moved in diagonally: it pulls the lid in as the card
+        closes. Its two panels are posed to reach both strips at once (the
+        lid's own fold already sets how it dips; the strut follows)."""
+        longB = wB >= wC  # (the lid's larger part, and its wall)
+        lid = self.panels[f"{piece}.Lid{'L' if longB else 'R'}"]
+        page = host.p2 if longB else host.p1
+        wS, wL = (wC, wB) if longB else (wB, wC)
+        F = float(m.get("strut_at", 0.0) or 0.0) or round(0.35 * wS, 1)
+        if not 2.0 <= F <= wS - 2.0:
+            F = max(2.0, min(F, wS - 2.0))
             self.warn(f"{lab}: the strut must stand inside the box; moved to {F:.0f} mm in")
-        tbs = max(2.5, min(float(m.get("tab", 10.0) or 10.0), 0.6 * F, 0.5 * hgt,
-                           wD - F - 1.0))
-        # (its foot F + its tab + 2 mm out along the wall from the front
-        # corner: moved F across into the box, it and its tab stay on its page)
-        ws = max(3.0, min(0.3 * wW, wW - F - tbs - 2.5))
-        d0 = min(F + tbs + 1.5, wW - ws - 1.0)
-        if d0 < F + tbs + 0.5 or ws < 3.0:
-            self.warn(f"{lab}: no room for the strut on its page (make the wall wider, or "
-                      f"Strut In From Wall smaller); left off")
+        ws = max(3.0, min(0.35 * wS, wS - F - 1.0, wL - F - 1.0))
+        tb = max(2.5, min(float(m.get("tab", 10.0) or 10.0), 0.6 * F, 0.4 * hgt))
+        if ws < 3.0 or F + ws > wL - 0.5:
+            self.warn(f"{lab}: no room for the strut (make the box bigger, or Strut In "
+                      f"From Wall smaller); left off")
             return
+        G = hgt
         sgn = {}
+        # (on the lid's pattern: E's ends, F out from the hinge, F and F + ws
+        # along it from the front corner; along, across)
+        al = (-1.0, 0.0) if longB else (1.0, 0.0)
+        E0 = (s2 + al[0] * F, hgt + F)
+        E1 = (s2 + al[0] * (F + ws), hgt + F)
+
+        def basis(t):
+            c, uL, uR, P3 = parts(t)
+            uS = uR if longB else uL
+            nP = host.dirs(t)[5 if longB else 4]
+            g = nP.cross(uS).normalized()
+            if "g" not in sgn:  # (into the box, open flat)
+                cf, uLf, uRf, _ = parts(self.tmax)
+                uSf, uLo = (uRf, uLf) if longB else (uLf, uRf)
+                gf = host.dirs(self.tmax)[5 if longB else 4].cross(uSf)
+                sgn["g"] = 1.0 if gf.dot(uLo) > 0 else -1.0
+            g = sgn["g"] * g
+            K = P3 + F * g + F * uS  # (the crease's foot, on the page)
+            return c, uS, g, K
 
         cache = {}
 
-        def lid_frame(t):
-            """(hinge corner, the hinge's direction away from it, across the
-            lid, the strut's top - its foot) at t. The lid stays parallel to
-            its page until its far edge would reach the other page; then
-            that page holds it up, the lid turning further open on its hinge
-            and the strut leaning with it (its top sliding a little along
-            under the lid: paper gives that much)"""
+        def solve(t):
+            """(psi: P1 turned on its foot from parallel to the wall; beta: P2
+            turned on the crease from P1's plane)"""
             v = cache.get(t)
             if v is not None:
                 return v
-            c, uL, uR, P3 = parts(t)
-            u, o = (uL, uR) if left else (uR, uL)
-            dd = host.dirs(t)
-            S, nX, nY = dd[0], dd[4 if left else 5], dd[5 if left else 4]
-            f = nX.cross(u).normalized()
-            if "f" not in sgn:  # (fixed open flat: across the box's top)
-                cf, uLf, uRf, _ = parts(self.tmax)
-                uf, of = (uLf, uRf) if left else (uRf, uLf)
-                ff = host.dirs(self.tmax)[4 if left else 5].cross(uf)
-                sgn["f"] = 1.0 if ff.dot(of) > 0 else -1.0
-            f = sgn["f"] * f
-            fp = f  # (parallel to the page: the strut's foot is F along it)
-            Q = P3 + hgt * c
-            # the far edge's two corners, kept clear of the other page
-            g_ = u.cross(f)
-            if g_.dot(nY) < 0:
-                g_ = -g_  # (turning further open lifts the far edge off it)
-            cl, cr, cnl, cnr = self.dirs(t)  # (and the card's own pages)
+            c, uS, g, K = basis(t)
+            A = lid.asm(t)
+            W0, W1 = A @ v3(E0), A @ v3(E1)
 
-            S0_ = P3 + F * fp  # (the strut's foot)
+            def tops(psi, beta):
+                R1 = Matrix.Rotation(psi, 3, uS)
+                cc = R1 @ c
+                top = K + G * cc
+                n1 = (-uS).cross(cc)  # (P1's normal)
+                # P2 leaves the crease at beta from P1's -x (towards uS's
+                # opposite: across P1's plane), turning about the crease
+                d2 = (math.cos(beta) * uS + math.sin(beta) * n1.normalized())
+                return top, top + ws * d2
 
-            def clear(th):  # (the far edge's worst clearance of either page)
-                fr = math.cos(th) * f + math.sin(th) * g_
-                if abs((Q - S0_).dot(u.cross(fr).normalized())) > hgt + 1e-6:
-                    return -1e9  # (the strut can't reach the lid there)
-                return min(min((K - S).dot(nY), (K - S).dot(nX), K.dot(cnl), K.dot(cnr))
-                           for K in (Q + wD * fr, Q + wW * u + wD * fr))
+            def res(x):
+                a, b = tops(*x)
+                return [*(a - W0), *(b - W1)]
 
-            th = 0.0
-            if clear(0.0) < 0.6:  # (pushed open by the other page; as clear as can be)
-                best = clear(0.0)
-                for k in range(1, 91):  # (the least turn, either way, that clears)
-                    for x in (math.radians(k), -math.radians(k)):
-                        cx = clear(x)
-                        if cx > best + 1e-6:
-                            best, th = cx, x
-                    if best >= 0.6:
-                        break
-            f = math.cos(th) * f + math.sin(th) * g_
-            # the strut: the wall's height, from its foot F across the page,
-            # turned to meet the lid
-            Wf = P3
-            h0 = hgt * c
-            S0 = Wf + F * fp
-            n_l = u.cross(f).normalized()
-            hp = u.cross(h0)
-            a_, b_ = h0.dot(n_l), hp.dot(n_l)
-            cc = (Q - S0).dot(n_l)
-            R = math.hypot(a_, b_)
-            psi = 0.0
-            if R > 1e-9 and abs(cc - a_) > 1e-6:
-                phi = math.atan2(b_, a_)
-                k = max(-1.0, min(1.0, cc / R))
-                psi = min((phi + math.acos(k), phi - math.acos(k)),
-                          key=lambda x: abs((x + math.pi) % (2.0 * math.pi) - math.pi))
-                psi = (psi + math.pi) % (2.0 * math.pi) - math.pi
-            v = (Q, u, f, S0 - Wf, psi)
+            c0, uS0 = c, uS
+            # start: P2 parallel to the lid's hinge (the long wall's foot)
+            uLw = parts(t)[1] if longB else parts(t)[2]
+            n1 = (-uS0).cross(c0).normalized()
+            b0 = math.atan2(uLw.dot(n1), uLw.dot(uS0))
+            x = list(cache.get("last", (0.0, b0)))
+            if abs(x[1] - b0) > 1.0:
+                x = [0.0, b0]
+            for _ in range(12):
+                r = res(x)
+                J = []
+                for k in range(2):
+                    xp = list(x)
+                    xp[k] += 1e-6
+                    rp = res(xp)
+                    J.append([(rp[i] - r[i]) / 1e-6 for i in range(6)])
+                # normal equations, 2 x 2
+                a11 = sum(J[0][i] * J[0][i] for i in range(6))
+                a12 = sum(J[0][i] * J[1][i] for i in range(6))
+                a22 = sum(J[1][i] * J[1][i] for i in range(6))
+                b1 = -sum(J[0][i] * r[i] for i in range(6))
+                b2 = -sum(J[1][i] * r[i] for i in range(6))
+                det = a11 * a22 - a12 * a12
+                if abs(det) < 1e-12:
+                    break
+                dx = ((a22 * b1 - a12 * b2) / det, (a11 * b2 - a12 * b1) / det)
+                x = [x[0] + dx[0], x[1] + dx[1]]
+                if abs(dx[0]) + abs(dx[1]) < 1e-9:
+                    break
+            r = res(x)
+            v = (x[0], x[1], max(math.sqrt(r[0] ** 2 + r[1] ** 2 + r[2] ** 2),
+                                 math.sqrt(r[3] ** 2 + r[4] ** 2 + r[5] ** 2)))
+            cache["last"] = (x[0], x[1])
             if len(cache) > 4096:
                 cache.clear()
             cache[t] = v
             return v
 
-        def pat(o):
-            return frame(v3(o), (1, 0, 0), (0, 1, 0)).inverted()
-
-        if left:  # (B runs s1..s2 in its pattern, +x towards the front corner)
-            poly = [(s1, hgt), (s2, hgt), (s2, hgt + wD), (s1, hgt + wD)]
-
-            def asm_lid(t):
-                P, u, f = lid_frame(t)[:3]
-                return frame(P, -u, f) @ pat((s2, hgt))
-        else:  # (C runs s2..s3, +x away from it)
-            poly = [(s2, hgt), (s3, hgt), (s3, hgt + wD), (s2, hgt + wD)]
-
-            def asm_lid(t):
-                P, u, f = lid_frame(t)[:3]
-                return frame(P, u, f) @ pat((s2, hgt))
-        lid = self.add(Panel(f"{piece}.Lid", piece, "panel", [poly], asm_lid, wall.name,
-                             None, f"{lab}: lid"))
-        lid.free = True
-        # the strut: the wall's own pose, moved F across its page into the box
-        xa = (s2 - d0 - ws) if left else (s2 + d0)
+        self._strut_err = solve
         sp = f"{piece}S"
-        self.add_piece(Piece(sp, f"{lab} strut", 1 + m["uid"], (xa + 0.5 * ws, 0.5 * hgt)))
+        self.add_piece(Piece(sp, f"{lab} strut", 1 + m["uid"], (0.0, 0.5 * G)))
+        # strut pattern: the crease at x = 0, P1 to the left (x < 0), P2 right
 
-        def shift(t):
-            return Matrix.Translation(lid_frame(t)[3])
+        def asm_p1(t):
+            c, uS, g, K = basis(t)
+            psi = solve(t)[0]
+            cc = Matrix.Rotation(psi, 3, uS) @ c
+            return frame(K, -uS, cc)
 
-        def asm_strut(t):  # (the wall's pose moved across, turned psi on its foot)
-            Q, u, f, d, psi = lid_frame(t)
-            P3 = parts(t)[3]
-            S0 = P3 + d
-            return Matrix.Translation(S0) @ Matrix.Rotation(psi, 4, u) @ \
-                Matrix.Translation(-S0) @ shift(t) @ wall.asm(t)
+        def asm_p2(t):
+            c, uS, g, K = basis(t)
+            psi, beta, _ = solve(t)
+            cc = Matrix.Rotation(psi, 3, uS) @ c
+            n1 = (-uS).cross(cc).normalized()
+            d2 = math.cos(beta) * uS + math.sin(beta) * n1
+            return frame(K, d2, cc)
 
-        def asm_c(t):
-            return shift(t) @ tabw.asm(t)
+        p1 = self.add(Panel(f"{sp}.P1", sp, "panel", [[(-ws, 0.0), (0.0, 0.0), (0.0, G),
+                                                       (-ws, G)]], asm_p1, page, None,
+                            f"{lab}: strut, foot half"))
+        p1.free = True
+        p2 = self.add(Panel(f"{sp}.P2", sp, "panel", [[(0.0, 0.0), (ws, 0.0), (ws, G),
+                                                       (0.0, G)]], asm_p2, p1.name, None,
+                            f"{lab}: strut, top half"))
+        p2.free = True
+        ch = min(0.3 * tb, 0.2 * ws)
 
-        def asm_e(t):  # (under the lid, where the strut's top meets it)
-            Q, u, f, d, psi = lid_frame(t)
-            top = asm_strut(t) @ v3((xa, hs))
-            dist = (top - Q).dot(f)
-            A = asm_lid(t)
+        def asm_c(t):  # (flat on the page, folded out from P1's foot)
+            c, uS, g, K = basis(t)
+            n = host.dirs(t)[5 if longB else 4]
+            return Matrix.Translation(TAB_LIFT * n) @ frame(K, -uS, g)
+
+        self.add(Panel(f"{sp}.TabC", sp, "tab", [[(-ws + ch, -tb), (-ws, 0.0), (0.0, 0.0),
+                                                   (-ch, -tb)]], asm_c, page, None,
+                       f"{lab}: strut tab C (on the page)"))
+        # tab E: strut (x, G + v) -> lid (E0 + x along, - v across): folded
+        # back under the lid towards its hinge
+        T2 = Matrix(((al[0], 0.0, 0.0, E0[0]), (0.0, -1.0, 0.0, E0[1] + G),
+                     (0.0, 0.0, -1.0, 0.0), (0.0, 0.0, 0.0, 1.0)))
+
+        def asm_e(t):
+            A = lid.asm(t)
             n = (A.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
             c, uL, uR, P3 = parts(t)
-            inside = P3 + 0.5 * hgt * c + 0.5 * (wB * uL + wC * uR)
-            if n.dot(inside - lid_frame(t)[0]) > 0:
+            inside = P3 + 0.5 * hgt * c + 0.25 * (wB * uL + wC * uR)
+            if n.dot(inside - (A @ v3(E0))) > 0:
                 n = -n
-            # (folded back under it, towards the hinge, its face down)
-            return Matrix.Translation(-3.0 * TAB_LIFT * n) @ A @ \
-                Matrix.Translation((0.0, dist + hgt, 0.0)) @ Matrix.Rotation(math.pi, 4, "X") @ \
-                Matrix.Translation((0.0, -hs, 0.0))
+            return Matrix.Translation(-3.0 * TAB_LIFT * n) @ A @ T2
 
-        hs = hgt - 2.0 * TAB_LIFT  # (its top a paper's thickness under the lid)
-        stp = self.add(Panel(f"{sp}.Strut", sp, "panel",
-                             [[(xa, 0.0), (xa + ws, 0.0), (xa + ws, hs), (xa, hs)]],
-                             asm_strut, page, None, f"{lab}: strut"))
-        stp.free = True
-        # tab C: like the wall's own base tab, on the same side of the foot
-        tpoly = tabw.polys[0]
-        down = min(q[1] for q in tpoly) < 0
-        ch = min(0.3 * tbs, 0.2 * ws)
-        yv = -tbs if down else tbs
-        self.add(Panel(f"{sp}.TabC", sp, "tab",
-                       [[(xa + ch, yv), (xa, 0.0), (xa + ws, 0.0), (xa + ws - ch, yv)]],
-                       asm_c, page, None, f"{lab}: strut's foot tab"))
-        te = self.add(Panel(f"{sp}.TabE", sp, "tab",
-                       [[(xa, hs), (xa + ws, hs), (xa + ws - ch, hs + tbs),
-                         (xa + ch, hs + tbs)]], asm_e, lid.name, None,
-                       f"{lab}: strut's top tab (under the lid)"))
-        te.free = True  # (it slides a little along under the lid as the strut leans)
+        te = self.add(Panel(f"{sp}.TabE", sp, "tab", [[(0.0, G), (ws, G), (ws - ch, G + tb),
+                                                        (ch, G + tb)]], asm_e, lid.name,
+                            None, f"{lab}: strut tab E (under the lid)"))
+        te.free = True
 
     def _cube_tower(self, m, piece, parts, wB, wC, hgt, troof):
         """A tower's roof (pointed or flat) or collar on a cube: the cube is a

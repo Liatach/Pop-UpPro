@@ -523,11 +523,14 @@ class Folds45:
             return PX.asm(t) @ Matrix.Translation(Hp3 + Vector((0.0, 0.0, 3.0 * TAB_LIFT))) @ \
                 Matrix.Rotation(turn(t), 4, "Z")
 
-        dsk = self.add(Panel(f"{dp}.Disc", dp, "panel", [circle], asm_disc, X, None,
-                             f"{lab}: turning disc"))
-        dsk.free = True
-        # the L-shaped piece: one arm glued on Y's triangle by its point, the
-        # other on the disc's back at its centre (shown on each, as glued)
+        show = m.get("disc_show", True) is not False
+        if show:
+            dsk = self.add(Panel(f"{dp}.Disc", dp, "panel", [circle], asm_disc, X, None,
+                                 f"{lab}: turning disc"))
+            dsk.free = True
+        # the L-shaped piece: arm F glued on Y's triangle, arm G reaching out
+        # from the disc's centre along its back (turning with it: with the
+        # disc hidden it shows the turn by itself, and takes paste-ons)
         lp = f"{dp}L"
         self.add_piece(Piece(lp, f"{lab} disc's L piece", 1 + m["uid"], (0.0, 0.0)))
         cy = [sum(q[i] for q in PY.polys[0]) / len(PY.polys[0]) for i in (0, 1)]
@@ -541,12 +544,17 @@ class Folds45:
             return PX.asm(t) @ Matrix.Translation(Hp3 + Vector((0.0, 0.0, 2.0 * TAB_LIFT))) @ \
                 Matrix.Rotation(turn(t), 4, "Z")
 
-        self.add(Panel(f"{lp}.F", lp, "tab", [[(-0.5 * s_, -0.5 * s_), (0.5 * s_, -0.5 * s_),
-                                              (0.5 * s_, 0.5 * s_), (-0.5 * s_, 0.5 * s_)]],
-                       asm_f, Y, None, f"{lab}: L piece arm F (on the triangle)"))
-        self.add(Panel(f"{lp}.G", lp, "tab", [[(0.5 * s_, -0.5 * s_), (1.5 * s_, -0.5 * s_),
-                                              (1.5 * s_, 0.5 * s_), (0.5 * s_, 0.5 * s_)]],
-                       asm_g, dsk.name, None, f"{lab}: L piece arm G (under the disc)"))
+        af = self.add(Panel(f"{lp}.F", lp, "panel",
+                            [[(-0.5 * s_, -0.5 * s_), (0.5 * s_, -0.5 * s_), (0.5 * s_, 0.5 * s_),
+                              (-0.5 * s_, 0.5 * s_)]], asm_f, Y, None,
+                            f"{lab}: L piece arm F (on the triangle)"))
+        af.free = True
+        reach = 0.85 * R
+        ag = self.add(Panel(f"{lp}.G", lp, "panel",
+                            [[(-0.5 * s_, -0.5 * s_), (reach, -0.5 * s_), (reach + 0.5 * s_, 0.0),
+                              (reach, 0.5 * s_), (-0.5 * s_, 0.5 * s_)]], asm_g, X, None,
+                            f"{lab}: L piece arm G (behind the disc, turning)"))
+        ag.free = True
 
     # ------------------------------------------------------- jack in the box
     def _jack(self, m, host, cut_in):

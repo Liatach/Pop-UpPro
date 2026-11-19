@@ -87,8 +87,8 @@ Paint flat or folded, import and position images or simply textures, then export
 * Box folds, square or angled (the glue lines turned and
   mirrored either side of the fold, with one crease or three, the panels
   tilting into new planes); box layers; straps (slanted, with peaks).
-* 180° cubes with a lid (peaked, dipped, or flat on a strut that lifts it
-  as the card closes), or a tower's pointed or flat roof, and collars; the
+* 180° cubes with a lid (peaked or dipped, or dipped on a V-fold strut
+  for a rectangle as long as you like), or a tower's pointed or flat roof, and collars; the
   pop-up house, its gabled roof pushed open by its walls.
 * Boxes glued to one page with their ends filled in, square or angled,
   their tuck flaps folded inside or out.
@@ -255,10 +255,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.88.2**: the strut redone as the book's: a V-fold strut holding a
+  rectangle's dipped lid; the turning disc can be hidden.
 * **0.88.1**: rectangular cubes take lids too; turning discs take paste-ons.
-* **0.88**: a cube's lid on a strut, lifting as the card closes; turning
-  discs and wheels on a box fold's corner triangles.
-* **0.87**: the jack in the box on a flat body of its own, arms raised.
+* **0.88**: turning discs and wheels on a box fold's corner triangles.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

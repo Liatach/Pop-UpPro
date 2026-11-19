@@ -159,14 +159,21 @@ def jack_flat():
 
 def strut_lid():
     a = add("CUBE")
-    a.size, a.size_r, a.height, a.lid = 40.0, 0.0, 40.0, "STRUT"
-    return (0, 105, 30), 260, (0.35, -0.75, 0.55), (178.0, 140.0, 100.0)
+    a.size, a.size_r, a.height, a.lid = 55.0, 28.0, 32.0, "STRUT"
+    return (0, 105, 25), 250, (-0.35, 0.75, 0.55), (178.0, 140.0, 100.0)
 
 
 def rect_lid():
     a = add("CUBE")
     a.size, a.size_r, a.height, a.lid = 55.0, 28.0, 32.0, "DIP"
     return (0, 105, 25), 250, (0.35, -0.75, 0.55), (178.0, 140.0, 100.0)
+
+
+def strut_cutaway():
+    a = add("CUBE")
+    a.size, a.size_r, a.height, a.lid = 55.0, 28.0, 32.0, "STRUT"
+    return (-5, 85, 15), 170, (-0.2, 0.45, 0.87), (178.0, 145.0, 115.0), \
+        ("Cube1.A", "Cube1.D", "Cube1.Close")
 
 
 def turning_disc():
@@ -177,6 +184,12 @@ def turning_disc():
 def disc_close():
     a = add("BOX")
     a.tri45, a.tri_size, a.tri_disc, a.disc_r = "TOP", 14.0, "FRONT", 18.0
+    return (20, 125, 30), 110, (0.35, -0.55, 0.75), (170.0, 130.0, 95.0)
+
+
+def disc_hidden():
+    a = add("BOX")
+    a.tri45, a.tri_size, a.tri_disc, a.disc_show = "TOP", 14.0, "FRONT", False
     return (20, 125, 30), 110, (0.35, -0.55, 0.75), (170.0, 130.0, 95.0)
 
 
@@ -228,7 +241,7 @@ def on_riser():
     return (0, 105, 25), 260, (0.25, -0.9, 0.45), (175.0, 120.0, 70.0)
 
 
-SCENES = dict(rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+SCENES = dict(strut_cutaway=strut_cutaway, rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, disc_hidden=disc_hidden, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 
@@ -263,6 +276,22 @@ def render(name):
     if st.warnings:
         print(f"{name}: {st.warnings}")
     bpy.ops.popup.setup_scene(look="SHOWCASE", view_camera=False)
+    if len(res) > 4:  # (a cutaway: these panels see-through in the picture)
+        me = st.card.data
+        mat = bpy.data.materials.new("Cutaway")
+        mat.use_nodes = True
+        nt = mat.node_tree
+        nt.nodes.clear()
+        out = nt.nodes.new("ShaderNodeOutputMaterial")
+        tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+        nt.links.new(tr.outputs[0], out.inputs[0])
+        me.materials.append(mat)
+        k = len(me.materials) - 1
+        idx = {st.card.vertex_groups[n].index for n in res[4] if n in st.card.vertex_groups}
+        inv = [any(g.group in idx and g.weight > 0.5 for g in v.groups) for v in me.vertices]
+        for poly in me.polygons:
+            if all(inv[i] for i in poly.vertices):
+                poly.material_index = k
     tint(st.card)
     s = 1.0 / st.mm_per_unit
     cam = sc.camera

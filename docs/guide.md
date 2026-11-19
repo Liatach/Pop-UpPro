@@ -143,22 +143,24 @@ trapezoid on the longer.
 ![A rectangular cube with a dipped lid, at 178, 140 and 100
 degrees](images/rect_lid.jpg)
 
-**Lid: On a Strut** is a flat lid hinged on one front wall's top (**Lid
-Hinged On**: the left or right wall), with a strut inside the box: a strip
-as tall as the walls, glued to the same page parallel to that wall's foot,
-**Strut In From Wall** in from it, and folded under the lid at its top. The
-wall, strut, page and lid make a parallelogram, so the lid stays parallel to
-that page: shut on the box open flat, lifting off it as the card closes and
-the box leans and folds flat beneath it, flat on the page shut. Where the
-lid's far edge would meet the other page, that page pushes it a little
-further open and the strut leans with it (the strut's top slides a few
-millimetres along under the lid: paper gives that much). It works on any
-size of box, square or not, wherever a cube can stand, but a lid much
-deeper than the walls are tall can't clear the pages; Checks says. The strut
-needs walls about 13 mm wide or more.
+**Lid: Dipped, on a Strut** lets the box be a rectangle as long as you
+like either way along the 45° from the crease. The lid is the dipped lid
+above, creased at 45° from the front corner (the triangle on the shorter
+wall, the trapezoid on the longer), and inside the box a strut holds the
+lid's larger side: a V-fold of two panels across a crease up its middle,
+parallel to the front corner, with a tab at its foot glued to the short
+wall's page and a tab at its top, on the other panel, glued under the
+lid's larger side. As the card closes the strut pulls the lid's larger side
+in and down, so the long box folds flat as neatly as a cube does. **Strut
+In (F)** sets how far in from the front corner the strut stands (along the
+page and along the corner alike); Checks says if it's outside the box or
+there's no room for it.
 
-![A cube with its lid on a strut, at 178, 140 and 100
-degrees](images/strut_lid.jpg)
+![A rectangular cube with its dipped lid on a strut, seen from behind, at
+178, 140 and 100 degrees](images/strut_lid.jpg)
+
+![The same with the front walls cut away to show the strut, at 178, 145 and
+115 degrees](images/strut_cutaway.jpg)
 
 A cube is a tower whose front corner closes on the fold, so it takes a
 castle tower's **Tower Roof** (Pointed or Flat, with Overhang) and **Collar**
@@ -1234,6 +1236,8 @@ the card is nearly shut.
   box carries two: **Add > Turning Wheels (on a box fold)** sets one up as a
   pair of wheels, ready for a car body pasted on the front; **Turning Disc
   (on a box fold)** a single disc for a face, a dial or a steering wheel.
+  Untick **Show the Disc** to leave the disc off: the L piece's arm behind
+  it still turns, and paste-ons glue on it or on the disc.
 
   ![A turning disc, at 178, 130 and 90 degrees](images/turning_disc.jpg)
 

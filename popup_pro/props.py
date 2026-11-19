@@ -1296,19 +1296,19 @@ class PopupMech(bpy.types.PropertyGroup):
     lid: EnumProperty(name="Lid", items=[
         ("PEAK", "Peaked", "Two-triangle lid that rises to a ridge as the card closes"),
         ("DIP", "Dipped", "Two-triangle lid that sinks into the box as the card closes"),
-        ("STRUT", "On a Strut", "A flat lid hinged on one front wall's top, held parallel "
-         "to that wall's page by a strut inside the box: shut on the box open flat, it "
-         "lifts as the card closes"),
+        ("STRUT", "Dipped, on a Strut", "Dipped, with a strut inside the box (a small V-fold, "
+         "as tall as the walls) glued to the page and under the lid's larger part: it pulls "
+         "the lid in as the card closes, and holds a long box's lid up"),
         ("NONE", "None", "Open top")], update=_changed)
     strut_side: EnumProperty(name="Lid Hinged On", description="On a strut: the front "
                              "wall the lid is hinged on (its strut stands on the same page)",
                              items=[("L", "Left Wall", ""), ("R", "Right Wall", "")],
                              update=_changed)
-    strut_at: FloatProperty(name="Strut In From Wall", description="On a strut: how far "
-                            "inside the box the strut stands from the lid's wall, and so how "
-                            "far under the lid from its hinge it's glued, in mm (0: half "
-                            "the lid's depth)", default=0.0, min=0.0, soft_max=200.0,
-                            update=_changed)
+    strut_at: FloatProperty(name="Strut In (F)", description="On a strut: how far in "
+                            "from the shorter wall's foot the strut's tab C is glued, and as "
+                            "far under the lid from its hinge its tab E, in mm (0: about a "
+                            "third of the shorter wall)", default=0.0, min=0.0,
+                            soft_max=200.0, update=_changed)
     # flap
     side: EnumProperty(name="Page", items=[("R", "Right", ""), ("L", "Left", "")],
                        update=_changed)
@@ -1578,6 +1578,9 @@ class PopupMech(bpy.types.PropertyGroup):
          "meet, turned by an L-shaped piece glued to the front triangle")],
         description="A disc (a wheel, a face, a dial) at each pair of triangles, turning "
         "in its own plane as the card opens and closes")
+    disc_show: BoolProperty(name="Show the Disc", default=True, update=_changed,
+                            description="Show the turning disc itself; off, only the L "
+                            "piece's turning arm shows (glue paste-ons on either)")
     disc_r: FloatProperty(name="Disc Radius", default=0.0, min=0.0, soft_max=80.0,
                           update=_changed, description="The turning disc's radius in mm "
                           "(0: one and a half times the triangles' size)")
@@ -1970,6 +1973,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      peaks=self.peaks if self.kind == "BOX" else 1,
                      pleat=self.pleat, tri45=self.tri45, tri_size=self.tri_size,
                      tri_angle=self.tri_angle, tri_disc=self.tri_disc, disc_r=self.disc_r,
+                     disc_show=self.disc_show,
                      rail=self.rail if self.kind == "BOX" else 0.0,
                      rail_open=self.rail_open, support=self.support, bays=self.bays,
                      lines=[dict(kind=ln.kind, mirror=ln.mirror, pts=ln.points())

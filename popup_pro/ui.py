@@ -844,7 +844,6 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         row.active = m.roof in ("NONE", "GABLE")
         row.prop(m, "lid")
         if m.lid == "STRUT":
-            col.prop(m, "strut_side", expand=True)
             col.prop(m, "strut_at")
         _tower_top(col, m, cube=True)
 
@@ -1153,6 +1152,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                 col.prop(m, "tri_angle")
                 col.prop(m, "tri_disc")
                 if m.tri_disc != "NONE":
+                    col.prop(m, "disc_show")
                     col.prop(m, "disc_r")
                 col.prop(m, "tri_pic_layout")
                 row = col.row(align=True)

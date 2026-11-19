@@ -1,4 +1,4 @@
-"""v0.88: a cube's lid lifted by a strut; turning discs and wheels on a box
+"""v0.88: a cube's dipped lid on a V-fold strut; turning discs and wheels on a box
 fold's corner triangles."""
 # families: cubes, folds45
 import math
@@ -63,41 +63,30 @@ def clean(M, prefix):
             assert d > -0.5, (n, t, d)
 
 
-# ---- the strut lid
-for side in ("L", "R"):
-    for sz in ((40.0, 0.0, 40.0), (50.0, 30.0, 35.0), (30.0, 30.0, 45.0)):
-        reset()
-        c = add("CUBE")
-        c.size, c.size_r, c.height = sz
-        c.lid, c.strut_side = "STRUT", side
-        assert {"strut_side", "strut_at"} <= set(props_shown(draw(ui.POPUP_PT_mechs)))
-        M = model()
-        if sz == (50.0, 30.0, 35.0) and side == "R":
-            continue  # (a lid half as deep again as its wall: it can't clear the pages)
-        bpy.ops.popup.build()
-        assert not warns(), (side, sz, warns())
-        clean(M, "Cube1")
-        wall = M.panels[f"Cube1.{'B' if side == 'L' else 'C'}"]
-        page = M.panels["Page.L" if side == "L" else "Page.R"]
-        for t in M.samples + [M.tmax]:
-            L = world(M, "Cube1.Lid", t)
-            # hinged on the wall's top edge
-            W = world(M, wall.name, t)
-            assert len([q for q in L if min((q - w).length for w in W) < 0.05]) >= 2, t
-            # the strut's top runs along under the lid
-            S = world(M, "Cube1S.Strut", t)[2:]
-            n = (L[1] - L[0]).cross(L[3] - L[0]).normalized()
-            assert max(abs((q - L[0]).dot(n)) for q in S) < 0.6, (side, t)
-        # shut on the box open flat; parallel to its page while it's clear
-        t = M.tmax
-        nl = (world(M, "Cube1.Lid", t)[1] - world(M, "Cube1.Lid", t)[0]).cross(
-            world(M, "Cube1.Lid", t)[3] - world(M, "Cube1.Lid", t)[0]).normalized()
-        npg = page.asm(t).to_3x3() @ Vector((0.0, 0.0, 1.0))
-        assert abs(abs(nl.dot(npg)) - 1.0) < 1e-4
-        export_svg.export(sc, svg)
+# ---- 0.88.2: the dipped lid on a V-fold strut (two panels across the
+# corner's crease, a tab on the short wall's page and one under the lid's
+# larger side), pulling the lid in as the card shuts
+for sz in ((55.0, 28.0, 32.0), (28.0, 55.0, 32.0), (40.0, 40.0, 40.0), (60.0, 30.0, 30.0)):
+    reset()
+    c = add("CUBE")
+    c.size, c.size_r, c.height = sz
+    c.lid = "STRUT"
+    assert "strut_at" in set(props_shown(draw(ui.POPUP_PT_mechs)))
+    bpy.ops.popup.build()
+    assert not warns(), (sz, warns())
+    M = model()
+    for n in ("Cube1S.P1", "Cube1S.P2", "Cube1S.TabC", "Cube1S.TabE", "Cube1.LidL", "Cube1.LidR"):
+        assert n in M.panels, (sz, n)
+    for t in M.samples + [M.tmax]:
+        assert M._strut_err(t)[2] < 1e-3, (sz, t, M._strut_err(t))  # (rigid: it fits exactly)
+    clean(M, "Cube1")
+    export_svg.export(sc, svg)
+reset()
+c = add("CUBE")
+c.size, c.size_r, c.height, c.lid = 55.0, 28.0, 32.0, "STRUT"
 c.strut_at = 200.0
 assert any("strut must stand inside" in w for w in model().warnings)
-print("a lid lifted by a strut")
+print("a dipped lid on a V-fold strut")
 
 # ---- turning discs
 for on in ("FRONT", "TOP"):
@@ -129,6 +118,16 @@ for v, n in (("DISC", 1), ("WHEELS", 2)):
     M = model()
     assert len([x for x in M.order if x.endswith(".Disc")]) == n
     clean(M, "Box1")
+# the disc can be hidden: the L piece's turning arm still shows the turn
+reset()
+b = add("BOX")
+b.tri45, b.tri_size, b.tri_disc, b.disc_show = "TOP", 15.0, "FRONT", False
+assert "disc_show" in set(props_shown(draw(ui.POPUP_PT_mechs)))
+bpy.ops.popup.build()
+assert not warns(), warns()
+M = model()
+assert not [x for x in M.order if x.endswith(".Disc")]
+assert {"Box1discTL.F", "Box1discTL.G"} <= set(M.order)
 print("turning discs and wheels")
 
 # ---- 0.88.1: rectangles take lids, creased at 45 degrees

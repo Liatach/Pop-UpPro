@@ -3,6 +3,15 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.88.2**: **Lid: Dipped, on a Strut** replaces 0.88.0's flat lid on a
+  strut, which was the wrong mechanism: the dipped lid creased at 45° from
+  the front corner, held by a V-fold strut (two panels across a crease, a
+  tab at its foot on the short wall's page, a tab at its top on the other
+  panel under the lid's larger side) that pulls the lid in as the card
+  closes, so a cube can stretch into a rectangle either way. It fits
+  exactly at every opening. **Strut In (F)** places it. **Show the Disc**
+  for turning discs: off, only the L piece's turning arm shows (the L
+  piece now drawn as two arms you can see and paste on).
 * **0.88.1**: rectangular cubes take peaked and dipped lids, creased at 45
   degrees from the front corner: a right-angled triangle on the shorter
   wall, a trapezoid on the longer. Turning discs take paste-ons.
