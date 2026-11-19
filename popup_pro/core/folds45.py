@@ -528,33 +528,65 @@ class Folds45:
             dsk = self.add(Panel(f"{dp}.Disc", dp, "panel", [circle], asm_disc, X, None,
                                  f"{lab}: turning disc"))
             dsk.free = True
-        # the L-shaped piece: arm F glued on Y's triangle, arm G reaching out
-        # from the disc's centre along its back (turning with it: with the
-        # disc hidden it shows the turn by itself, and takes paste-ons)
+        # the L-shaped piece, one strip of card: leg F glued on Y's triangle,
+        # leg G under the disc from its centre, turning with it (with the disc
+        # hidden it shows the turn by itself, and takes paste-ons). Between
+        # them it bends round the corner: leg F is stiff down to a band across
+        # it just above the corner, and the band bends from where leg F would
+        # put it to where leg G would (on screen a mix of the two)
         lp = f"{dp}L"
         self.add_piece(Piece(lp, f"{lab} disc's L piece", 1 + m["uid"], (0.0, 0.0)))
-        cy = [sum(q[i] for q in PY.polys[0]) / len(PY.polys[0]) for i in (0, 1)]
-        s_ = max(2.0, 0.3 * h)
-        armF = Matrix.Translation((cy[0], cy[1], TAB_LIFT))  # (on the triangle's middle)
+        Hv = Vector(Hp)
+        Cv = Vector([sum(q[i] for q in PY.polys[0]) / len(PY.polys[0]) for i in (0, 1)])
+        w_ = max(2.0, 0.3 * h)
+        cd = Vector(hc.d1(0.0, 1.0)).normalized()  # (the corner's crease)
+        if (Cv - Hv).dot(cd) < 0:
+            cd = -cd  # (up it into the triangles)
+        u2 = (Hv - Cv) - (Hv - Cv).dot(cd) * cd  # (across it, off Y into X)
+        u2.normalize()
+        reach = 0.85 * R
+        # leg F runs up the centre crease, alongside it on Y's triangle; leg G
+        # straight out across it at H: a right-angled L
+        Lf = 0.95 * h
+        yl = 0.5 * w_  # (up the crease from H: where it's stiff with leg G to)
+        bw = max(0.5 * w_, min(2.0 * w_, 0.3 * (Lf - yl)))
+        ya = yl + bw  # (leg F's stiff end)
+
+        def at(a_, b_):  # (a_ up the crease from H, b_ across it towards X)
+            return tuple((Hv + a_ * cd + b_ * u2)[:])
+
+        def rect(a0, a1):
+            return [at(a0, -w_), at(a0, 0.0), at(a1, 0.0), at(a1, -w_)]
+
+        legF = ccw(rect(ya, Lf))
+        rows = 6
+        bend = [ccw(rect(yl + bw * k / rows, yl + bw * (k + 1) / rows)) for k in range(rows)]
+        legG = [ccw([at(-yl, -w_), at(-yl, reach), at(0.0, reach + 0.5 * w_), at(yl, reach),
+                     at(yl, -w_)])]
+        z1 = Matrix.Translation((0.0, 0.0, TAB_LIFT))
+        Hm = Matrix.Translation(Hp3)
 
         def asm_f(t):
-            return PY.asm(t) @ armF
+            return PY.asm(t) @ z1
 
         def asm_g(t):
             return PX.asm(t) @ Matrix.Translation(Hp3 + Vector((0.0, 0.0, 2.0 * TAB_LIFT))) @ \
-                Matrix.Rotation(turn(t), 4, "Z")
+                Matrix.Rotation(turn(t), 4, "Z") @ Hm.inverted()
 
-        af = self.add(Panel(f"{lp}.F", lp, "panel",
-                            [[(-0.5 * s_, -0.5 * s_), (0.5 * s_, -0.5 * s_), (0.5 * s_, 0.5 * s_),
-                              (-0.5 * s_, 0.5 * s_)]], asm_f, Y, None,
-                            f"{lab}: L piece arm F (on the triangle)"))
+        af = self.add(Panel(f"{lp}.F", lp, "panel", [legF], asm_f, Y, None,
+                            f"{lab}: L piece leg F (on the triangle)"))
         af.free = True
-        reach = 0.85 * R
-        ag = self.add(Panel(f"{lp}.G", lp, "panel",
-                            [[(-0.5 * s_, -0.5 * s_), (reach, -0.5 * s_), (reach + 0.5 * s_, 0.0),
-                              (reach, 0.5 * s_), (-0.5 * s_, 0.5 * s_)]], asm_g, X, None,
-                            f"{lab}: L piece arm G (behind the disc, turning)"))
+        ag = self.add(Panel(f"{lp}.G", lp, "panel", legG, asm_g, X, None,
+                            f"{lab}: L piece leg G (behind the disc, turning)"))
         ag.free = True
+        bn = self.add(Panel(f"{lp}.Bend", lp, "panel", bend, asm_f, af.name, None,
+                            f"{lab}: L piece, bending round the corner"))
+        bn.free = True
+        Mw = Matrix(((1.0, 0.0, 0.0, 0.0), (cd.x, cd.y, 0.0, -Hv.dot(cd)),
+                     (0.0, 0.0, 1.0, 0.0), (0.0, 0.0, 0.0, 1.0)))
+        self.blend[bn.name] = (af.name, ag.name, ya, yl, Mw)
+        self.fold_kind[frozenset((af.name, bn.name))] = "skip"
+        self.fold_kind[frozenset((bn.name, ag.name))] = "skip"
 
     # ------------------------------------------------------- jack in the box
     def _jack(self, m, host, cut_in):

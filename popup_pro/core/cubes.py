@@ -207,6 +207,20 @@ class Cubes:
 
             self.add(Panel(f"{piece}.LidTab", piece, "tab", [tab_poly], asm_lt, lb.name, None,
                            f"{lab}: lid glue tab"))
+            if sg < 0:
+                # a dipped lid's crease is a valley seen from above: a fold
+                # for other mechanisms to stand on, from the front corner
+                # back along it (the left lid as the left page)
+                r2_ = math.sqrt(0.5)
+                o_ = Vector((s2, hgt, 0.0))
+                hr = Host(self, lb.name, 0.0, 0.0, f"{piece}.LidR", 0.0, 0.0,
+                          f"{lab}: lid's crease",
+                          frame(o_, (r2_, r2_, 0.0), (-r2_, r2_, 0.0)),
+                          frame(o_, (r2_, -r2_, 0.0), (r2_, r2_, 0.0))).finish()
+                hr.trig = False
+                hr.key = (uid, "R")
+                hr.size = (s, Lh)
+                self.hosts[(uid, "R")] = hr
             if strut:
                 self._strut(m, piece, parts, host, wB, wC, hgt, s2, lab)
 

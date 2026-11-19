@@ -3,6 +3,13 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.88.3**: a cube's dipped lid (on a strut or not) is a host: **Fold:
+  Roof Crease** stands a mechanism along its crease from the front corner,
+  and is where a mechanism picked onto such a cube starts. The turning
+  disc's L piece is one piece again, laid out as an L: leg F glued on the
+  triangle up the centre crease, leg G straight out across it under the
+  disc, a short band between bending round the corner from one to the
+  other.
 * **0.88.2**: **Lid: Dipped, on a Strut** replaces 0.88.0's flat lid on a
   strut, which was the wrong mechanism: the dipped lid creased at 45° from
   the front corner, held by a V-fold strut (two panels across a crease, a

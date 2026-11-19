@@ -551,6 +551,33 @@ def fit_to_host(m, st):
         finally:
             st["live"] = was
         return
+    if host is not None and host.kind == "CUBE" and m.wall == "NONE" and \
+            host.lid in ("DIP", "STRUT") and host.roof == "NONE" and not host.collar:
+        # along a dipped lid's crease, from the front corner: small enough
+        # to stand in the valley clear of the lid's edges
+        was = st.live
+        st["live"] = False
+        try:
+            s_ = min(host.size, host.size_r or host.size)
+            k = round(0.3 * s_, 1)
+            Lh = s_ * 1.4142
+            m.y = round(0.25 * Lh, 1)
+            if m.kind == "CUBE":
+                m.size, m.size_r, m.height = 0.7 * k, 0.0, 0.7 * k
+            elif m.kind in ("BOX", "BOXCUT"):
+                m.height = m.depth = k
+                m.width = round(0.4 * Lh, 1)
+            elif m.kind == "VFOLD":
+                m.glue = m.height = k
+            elif m.kind == "STANDUP":
+                m.height = m.depth = 0.8 * k
+                m.width = round(0.3 * Lh, 1)
+            elif m.kind in ("TUBE", "PYRAMID"):
+                m.x, m.height, m.depth = 0.25 * k, 0.7 * k, round(0.4 * Lh, 1)
+                m.front = m.back = 0.35 * k
+        finally:
+            st["live"] = was
+        return
     if host is not None and host.kind in ("CUBE", "TUBE") and not (
             host.kind == "TUBE" and m.wall == "NONE" and host.roof == "FLAT"
             and host.roof_fold == "DIP"):
@@ -1155,7 +1182,8 @@ class PopupMech(bpy.types.PropertyGroup):
     size: FloatProperty(name="Size", description="Width of each wall (mm)", default=40.0,
                         min=5.0, soft_max=150.0, update=_changed)
     wall: EnumProperty(name="Fold", update=lambda self, ctx: _fold_changed(self, ctx), items=[
-        ("NONE", "Roof Crease", "On a tube: across its dipped flat roof's centre crease"),
+        ("NONE", "Roof Crease", "On a tube: across its dipped flat roof's centre crease; "
+         "on a cube: along its dipped lid's crease, from the front corner"),
         ("L", "Left Wall", "Where the host's left (front-left) wall meets the page, "
          "outside it: the wall as the background"),
         ("R", "Right Wall", "Where the host's right (front-right) wall meets the page, "

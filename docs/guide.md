@@ -162,6 +162,14 @@ there's no room for it.
 ![The same with the front walls cut away to show the strut, at 178, 145 and
 115 degrees](images/strut_cutaway.jpg)
 
+A dipped lid's crease is a valley seen from above, so other mechanisms can
+stand on it like on the card's spine: pick the cube in **Stands On** and
+**Fold: Roof Crease** (the default on a cube with a dipped lid), positions
+running back along the crease from the front corner.
+
+![A V-fold on a rectangular cube's dipped lid, at 178, 140 and 100
+degrees](images/lid_host.jpg)
+
 A cube is a tower whose front corner closes on the fold, so it takes a
 castle tower's **Tower Roof** (Pointed or Flat, with Overhang) and **Collar**
 (balcony or tapered top, railings, tiers) too: the same settings as a
@@ -1236,8 +1244,14 @@ the card is nearly shut.
   box carries two: **Add > Turning Wheels (on a box fold)** sets one up as a
   pair of wheels, ready for a car body pasted on the front; **Turning Disc
   (on a box fold)** a single disc for a face, a dial or a steering wheel.
-  Untick **Show the Disc** to leave the disc off: the L piece's arm behind
-  it still turns, and paste-ons glue on it or on the disc.
+  The L piece prints as one strip of card: one leg glued on the triangle
+  up the centre crease, the other straight out under the disc from its centre, the strip bending round the
+  corner between them. Untick **Show the Disc** to leave the disc off: the
+  L piece's leg behind it still turns, and paste-ons glue on it or on the
+  disc.
+
+  ![The L piece with the disc hidden, at 170, 130 and 95
+  degrees](images/disc_hidden.jpg)
 
   ![A turning disc, at 178, 130 and 90 degrees](images/turning_disc.jpg)
 
@@ -1394,7 +1408,7 @@ it. What stands where:
 | Stand-up | On Top, In Front, Inset | Every glued kind (no box layers, mouths or jack) |
 | V-fold (panels, beak, asymmetric, M-fold) | On the Crease; In Front or Behind, Left or Right | On the crease: box folds, box layers, V-folds, mouths, cubes, tubes, pyramids, stand-ups, the jack in the box. In front of or behind a half: stand-ups, box folds, cubes, tubes, pyramids, V-folds |
 | Zig-zag (the shape or the mechanism), multiple quadrilaterals | Its centre crease, the only one | As a V-fold's crease, without the jack |
-| Cube, tube | Outside the Left or Right wall | Box folds, V-folds, cubes, tubes, pyramids, stand-ups. A tube also takes towers up its inside corners (a round end has none) and, with a flat roof that dips, anything on the roof's crease |
+| Cube, tube | Outside the Left or Right wall; Roof Crease | Box folds, V-folds, cubes, tubes, pyramids, stand-ups. A tube also takes towers up its inside corners (a round end has none) and, with a flat roof that dips, anything on the roof's crease; a cube with a dipped lid (on a strut or not), anything along the lid's crease from the front corner |
 | Platform | The valley in its top | Every kind but a jack in the box |
 | Rising sheet | The corner with the Left or Right page, or that side's 45° fold's crease | Box folds, box layers, V-folds, mouths, cubes, tubes, pyramids, stand-ups, platforms, arms behind a mask; its cross pieces |
 | Arm behind a mask | The mask's fold, by tab B | Box folds, V-folds, stand-ups, cubes, tubes, pyramids, platforms, arms behind a mask |

@@ -322,7 +322,12 @@ class Model(Arms, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, Zi
                 w_ = m.get("wall", "NONE")
                 fold = w_ if w_ in CORNERS else {"L": "WL", "R": "WR"}.get(w_, "R")
             if h and by_uid[h]["type"] == "CUBE":
-                fold = "WR" if m.get("wall") == "R" else "WL"  # a front wall's foot
+                # a front wall's foot, or across a dipped lid's crease
+                w_ = m.get("wall", "NONE")
+                dipped = by_uid[h].get("lid") in ("DIP", "STRUT") and \
+                    by_uid[h].get("roof", "NONE") == "NONE" and not (
+                        by_uid[h].get("collar") and by_uid[h].get("collar_dir") == "IN")
+                fold = "WR" if w_ == "R" else ("R" if w_ == "NONE" and dipped else "WL")
             if h and by_uid[h]["type"] == "STAGE":
                 fold = "S"  # the stage set's back crease
             if h and by_uid[h]["type"] == "PLATFORM":

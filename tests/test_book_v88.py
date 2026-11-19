@@ -86,7 +86,29 @@ c = add("CUBE")
 c.size, c.size_r, c.height, c.lid = 55.0, 28.0, 32.0, "STRUT"
 c.strut_at = 200.0
 assert any("strut must stand inside" in w for w in model().warnings)
-print("a dipped lid on a V-fold strut")
+# 0.88.3: a dipped lid's crease is a fold to stand on (Roof Crease)
+for lid in ("DIP", "STRUT"):
+    reset()
+    c = add("CUBE")
+    c.size, c.size_r, c.height, c.lid = 55.0, 28.0, 32.0, lid
+    assert bpy.ops.popup.add(kind="VFOLD", host=c.uid) == {"FINISHED"}
+    v = st.mechs[-1]
+    v.wall = "NONE"
+    v.y, v.height, v.glue = 8.0, 14.0, 14.0
+    bpy.ops.popup.build()
+    assert not warns(), (lid, warns())
+    M = model()
+    assert M.panels["VFold2.HalfL"].parent in ("Cube1.LidL", "Cube1.LidR"), lid
+    clean(M, "VFold2")
+# picked from Stands On, a mechanism goes on a dipped lid's crease
+reset()
+c = add("CUBE")
+c.lid = "DIP"
+assert bpy.ops.popup.add(kind="VFOLD") == {"FINISHED"}
+v = st.mechs[-1]
+v.host = str(c.uid)
+assert v.wall == "NONE"
+print("a dipped lid on a V-fold strut; its crease a fold to stand on")
 
 # ---- turning discs
 for on in ("FRONT", "TOP"):
@@ -127,7 +149,23 @@ bpy.ops.popup.build()
 assert not warns(), warns()
 M = model()
 assert not [x for x in M.order if x.endswith(".Disc")]
-assert {"Box1discTL.F", "Box1discTL.G"} <= set(M.order)
+assert {"Box1discTL.F", "Box1discTL.G", "Box1discTL.Bend"} <= set(M.order)
+# 0.88.3: the L piece is one strip of card, bending round the corner between
+# its legs (no folds printed between them; the bend continuous on screen)
+assert all(M.fold_kind.get(frozenset(p)) == "skip" for p in (
+    ("Box1discTL.F", "Box1discTL.Bend"), ("Box1discTL.Bend", "Box1discTL.G")))
+assert "Box1discTL.Bend" in M.blend
+bn = M.panels["Box1discTL.Bend"]
+for t in M.samples:
+    for poly in bn.polys:
+        for q in poly:
+            u = M.blend_weight(bn.name, q)
+            assert -1e-9 <= u <= 1 + 1e-9
+    # where the bend meets leg G it sits where leg G does
+    G = M.panels["Box1discTL.G"]
+    near = [q for poly in bn.polys for q in poly if M.blend_weight(bn.name, q) > 1 - 1e-9]
+    assert near and all((M.point(bn.name, q, t) - M.shown(G.name, t) @ Vector((*q, 0.0))).length
+                        < 1e-6 for q in near)
 print("turning discs and wheels")
 
 # ---- 0.88.1: rectangles take lids, creased at 45 degrees
