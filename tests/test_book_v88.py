@@ -109,7 +109,7 @@ for on in ("FRONT", "TOP"):
         bpy.ops.popup.build()
         assert not warns(), (on, E, warns())
         M = model()
-        d = M.panels["Box1TriTDisc.Disc"]
+        d = M.panels["Box1discT.Disc"]
         X = M.panels[d.parent]
         angs = []
         for t in [M.tmax] + M.samples[::-1]:
@@ -130,6 +130,33 @@ for v, n in (("DISC", 1), ("WHEELS", 2)):
     assert len([x for x in M.order if x.endswith(".Disc")]) == n
     clean(M, "Box1")
 print("turning discs and wheels")
+
+# ---- 0.88.1: rectangles take lids, creased at 45 degrees
+for lid in ("DIP", "PEAK"):
+    for sz in ((50.0, 30.0, 35.0), (30.0, 50.0, 35.0), (60.0, 25.0, 30.0)):
+        reset()
+        c = add("CUBE")
+        c.size, c.size_r, c.height, c.lid = (*sz, lid)
+        bpy.ops.popup.build()
+        assert not warns(), (lid, sz, warns())
+        M = model()
+        short, long_ = ("LidR", "LidL") if sz[0] > sz[1] else ("LidL", "LidR")
+        assert len(M.panels[f"Cube1.{short}"].polys[0]) == 3
+        assert len(M.panels[f"Cube1.{long_}"].polys[0]) == 4
+        for t in M.samples:
+            A, B = world(M, "Cube1.LidL", t), world(M, "Cube1.LidR", t)
+            assert len([a for a in A if min((a - b).length for b in B) < 0.05]) >= 2, t
+        clean(M, "Cube1")
+        export_svg.export(sc, svg)
+# the disc takes paste-ons
+reset()
+assert bpy.ops.popup.add(kind="BOX", variant="WHEELS") == {"FINISHED"}
+bpy.ops.popup.build()
+from popup_pro import props  # noqa: E402
+p = add("PICTURE")
+p.host_uid = 1
+assert "Box1discT.Disc" in [i[0] for i in props.pic_face_items(p, bpy.context)]
+print("rectangle lids; paste-ons on discs")
 
 addon.unregister()
 print("V88 OK")

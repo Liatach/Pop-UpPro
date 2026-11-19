@@ -1290,8 +1290,9 @@ class PopupMech(bpy.types.PropertyGroup):
     size_r: FloatProperty(name="Width Right", default=0.0, min=0.0, soft_max=150.0,
                           update=_changed,
                           description="Cube: width of the front-right (and back-left) walls "
-                          "for a rectangular base, mm (0 = square). Only a square base takes "
-                          "a lid")
+                          "for a rectangular base, mm (0 = square). A rectangle's lid is "
+                          "creased at 45 degrees: a triangle on the shorter wall, a "
+                          "trapezoid on the longer")
     lid: EnumProperty(name="Lid", items=[
         ("PEAK", "Peaked", "Two-triangle lid that rises to a ridge as the card closes"),
         ("DIP", "Dipped", "Two-triangle lid that sinks into the box as the card closes"),

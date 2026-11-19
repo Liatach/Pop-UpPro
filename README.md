@@ -255,10 +255,10 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.88.1**: rectangular cubes take lids too; turning discs take paste-ons.
 * **0.88**: a cube's lid on a strut, lifting as the card closes; turning
   discs and wheels on a box fold's corner triangles.
 * **0.87**: the jack in the box on a flat body of its own, arms raised.
-* **0.86.3**: the Bite settings show on beaks.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

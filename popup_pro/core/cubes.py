@@ -134,43 +134,50 @@ class Cubes:
         if lid == "STRUT":
             self._strut_lid(m, piece, parts, host, wB, wC, hgt, s1, s2, s3, lab)
             lid = "NONE"
-        if lid != "NONE" and not square:
-            self.warn(f"{lab}: a lid creased corner to corner only folds flat on a square "
-                      f"base; this one is left open (set the widths equal for a lid)")
-            lid = "NONE"
         if lid != "NONE":
             sg = 1.0 if lid == "PEAK" else -1.0
-
-            Lh = math.hypot(wB, wC)
+            # the lid's crease runs at 45 degrees from the front-top corner,
+            # as on a cube; on a rectangle that makes a right-angled triangle
+            # on the shorter wall and a trapezoid on the longer (s: the
+            # shorter wall's width, the triangle's legs)
+            s = min(wB, wC)
+            Lh = s * math.sqrt(2.0)
 
             def lid_dir(t):
-                # the lid's far corner Q, from the front-top corner: wB from
-                # the left lid's corner, wC from the right's, Lh from it;
+                # the crease's far end Q, from the front-top corner: s from
+                # the left lid's corner, s from the right's, Lh from it;
                 # peaked (up) or dipped (down) out of the walls' top plane
                 c, uL, uR, P3 = parts(t)
                 G = max(-0.999999, min(0.999999, uL.dot(uR)))
-                x = (wB - G * wC) / (1 - G * G)
-                y = (wC - G * wB) / (1 - G * G)
+                x = (s - G * s) / (1 - G * G)
+                y = (s - G * s) / (1 - G * G)
                 z2 = Lh * Lh - (x * x + y * y + 2 * x * y * G)
                 Q = x * uL + y * uR + sg * math.sqrt(max(z2, 0.0)) * c
                 return Q.normalized(), c, uL, uR, P3, Q
 
             def asm_lb(t):
                 cp, c, uL, uR, P3, Q = lid_dir(t)
-                return frame(P3 + hgt * c, -uL, Q - wB * uL) @ pat((s2, hgt))
+                return frame(P3 + hgt * c, -uL, Q - s * uL) @ pat((s2, hgt))
 
             def asm_lc(t):
                 cp, c, uL, uR, P3, Q = lid_dir(t)
-                return frame(P3 + hgt * c, uR, Q - wC * uR) @ pat((s2, hgt))
+                return frame(P3 + hgt * c, uR, Q - s * uR) @ pat((s2, hgt))
 
-            LB = [(s2, hgt), (s1, hgt), (s1, hgt + wC)]
-            LC = [(s2, hgt), (s3, hgt), (s3, hgt + wB)]
-            # glue tab on the right lid's diagonal, tucked under the left lid
-            d = Vector((wC, wB, 0)).normalized()
-            nrm = Vector((-wB, wC, 0)).normalized()
+            # (each over the box's depth from its wall, cut off at the crease)
+            LB = [(s2, hgt), (s1, hgt), (s1, hgt + wC)] + ([(s2 - s, hgt + s)] if wB > s + 1e-6
+                                                          else [])
+            LC = [(s2, hgt), (s3, hgt), (s3, hgt + wB)] + ([(s2 + s, hgt + s)] if wC > s + 1e-6
+                                                          else [])
+            if wB > s + 1e-6:
+                LC = [(s2, hgt), (s3, hgt), (s3, hgt + s)]
+            if wC > s + 1e-6:
+                LB = [(s2, hgt), (s1, hgt), (s1, hgt + s)]
+            # glue tab on the right lid's crease, tucked under the left lid
+            d = Vector((1.0, 1.0, 0)).normalized()
+            nrm = Vector((-1.0, 1.0, 0)).normalized()
             P0 = Vector((s2, hgt, 0))
             # the triangle it glues to narrows to its corners
-            gt = min(tb, 0.18 * math.sqrt(2) * min(wB, wC))
+            gt = min(tb, 0.18 * math.sqrt(2) * s)
             tab_poly = [tuple((P0 + d * 0.15 * Lh)[:2]), tuple((P0 + d * 0.85 * Lh)[:2]),
                         tuple((P0 + d * 0.8 * Lh + nrm * gt)[:2]),
                         tuple((P0 + d * 0.2 * Lh + nrm * gt)[:2])]
@@ -196,7 +203,7 @@ class Cubes:
                 nL = M.to_3x3() @ Z
                 into = (uL - uL.dot(cp) * cp).normalized()  # across the crease, into the left lid
                 return frame(P3 + hgt * c - TAB_LIFT * nL, cp, into) \
-                    @ frame(v3((s2, hgt)), (wC, wB, 0), (-wB, wC, 0)).inverted()
+                    @ frame(v3((s2, hgt)), (1, 1, 0), (-1, 1, 0)).inverted()
 
             self.add(Panel(f"{piece}.LidTab", piece, "tab", [tab_poly], asm_lt, lb.name, None,
                            f"{lab}: lid glue tab"))

@@ -3,6 +3,9 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.88.1**: rectangular cubes take peaked and dipped lids, creased at 45
+  degrees from the front corner: a right-angled triangle on the shorter
+  wall, a trapezoid on the longer. Turning discs take paste-ons.
 * **0.88.0**: **Lid: On a Strut** for cubes: a flat lid hinged on a front
   wall, held parallel to that wall's page by a strut inside the box, so it
   lifts as the card closes (on whichever wall, any box size, wherever a cube

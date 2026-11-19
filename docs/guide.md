@@ -123,7 +123,7 @@ never reusing a number still in use.
 | **Box layer** | The same parallel fold cut into the paper itself ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc), [Tutorial 6](https://www.youtube.com/watch?v=9xRj1-OUX64)) | Position, Height, Width Left, Width Right |
 | **Stand-up** | A picture held off the background by a bridge, or flat on a leg ([Tutorial 5](https://www.youtube.com/watch?v=BvF15GfYwVc)) | Picture (Upright or Flat), Position, Bridge or Leg Width, Bridge Height, Out From Back, Picture Width and Height, tab size |
 | **Roof** | A peaked roof over a stage: the background cut to a gable, a V-fold glued along its eaves | Ridge Starts, Roof Slope, Eaves Length, Ridge Length, Level Ridge (or Piece Angle), tab size |
-| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat. **Width Right** makes the base a rectangle (lids need a square: a corner-to-corner lid can't fold flat over a rectangle). Stands on the spine, a box fold or strap, a stand-up, a floor's corner, a V-fold's glue folds or inside a V-fold (on its crease) | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
+| **Cube (180°)** | A box standing on one corner edge on the fold; it rises as the card opens flat. **Width Right** makes the base a rectangle (its lid is creased at 45 degrees from the front corner: a right-angled triangle on the shorter wall, a trapezoid on the longer). Stands on the spine, a box fold or strap, a stand-up, a floor's corner, a V-fold's glue folds or inside a V-fold (on its crease) | Position, Size, Height, Lid (Peaked, Dipped or None), base tab size and side |
 | **Tube** | Hexagon, box or recessed tube on two parallel sticking strips ([Tutorial 72](https://www.youtube.com/watch?v=6FKi95a14N4)); on the spine, a box fold or strap, a stand-up, a V-fold's glue folds or inside a V-fold | Position, Strip Distance, Side Length, Height, Front and Back Width, each Pointed Out or In, base tabs, Roof (None, Pointed, or Flat with Peak/Dip and Overhang) |
 | **Tether** | Wall from a tube's corner or crease to another tube or to a foot on a strip | From (tube and point), To (another tube's point, or a foot on the left or right strip), Height, Bend, Slack |
 | **Pyramid** | Pyramid, hexagonal pyramid or tent on two parallel sticking strips ([Tutorial 21](https://www.youtube.com/watch?v=jZDHbUhV6Ms)) | Position, Strip Distance, Base Length, Height, Ridge, Front and Back Width, each Pointed Out or In, base tabs |
@@ -133,11 +133,15 @@ never reusing a number still in use.
 
 Four walls in one strip with a closing tab. The two front walls are a V-fold
 on the fold (45° glue lines, square corners), glued down by the base tabs;
-the back walls follow as a parallelogram. The lid is two right triangles on
-the front walls, creased along the diagonal and joined by a glue tab: it
-rises to a ridge (Peaked) or sinks into the box (Dipped) as the card closes.
-A flat one-piece lid can't fold flat on the box, so those lids are two
-triangles.
+the back walls follow as a parallelogram. The lid is in two parts on the
+front walls, creased at 45 degrees from the front corner and joined by a
+glue tab: it rises to a ridge (Peaked) or sinks into the box (Dipped) as the
+card closes. On a square box that's two right triangles meeting on the
+diagonal; on a rectangle, a right-angled triangle on the shorter wall and a
+trapezoid on the longer.
+
+![A rectangular cube with a dipped lid, at 178, 140 and 100
+degrees](images/rect_lid.jpg)
 
 **Lid: On a Strut** is a flat lid hinged on one front wall's top (**Lid
 Hinged On**: the left or right wall), with a strut inside the box: a strip

@@ -86,11 +86,11 @@ for wB, wC in ((40, 25), (25, 45)):
     f = P(m, "Cube2.B", (wC + wB, 0), 179.9)
     assert abs((a - f).length - wB) < 1e-3 and abs((b - f).length - wC) < 1e-3
     assert abs((a - f).normalized().dot((b - f).normalized())) < 1e-3
-m = Model(CARD, [dict(C, lid="PEAK")])
-assert any("square" in w for w in m.warnings) and "Cube2.LidL" not in m.panels
+m = Model(CARD, [dict(C, lid="PEAK")])  # (since 0.88.1, creased at 45 degrees)
+assert not m.warnings and "Cube2.LidL" in m.panels
 m = Model(CARD, [dict(C, size=40, size_r=40, lid="PEAK")])
 assert not m.warnings and "Cube2.LidL" in m.panels  # a square still has its lid
-print("rectangular cubes fold shut; lids stay on square ones")
+print("rectangular cubes fold shut, lids and all")
 
 # ---- outside a cube's or a tube's walls
 Cu = dict(type="CUBE", uid=1, label="C", y=60, size=50, height=45, tab=8, lid="PEAK",

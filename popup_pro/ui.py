@@ -841,8 +841,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
                  else "Width Right")
         col.prop(m, "height")
         row = col.row()
-        row.active = (m.size_r <= 0 or abs(m.size_r - m.size) < 1e-6 or m.lid == "STRUT") \
-            and m.roof in ("NONE", "GABLE")
+        row.active = m.roof in ("NONE", "GABLE")
         row.prop(m, "lid")
         if m.lid == "STRUT":
             col.prop(m, "strut_side", expand=True)

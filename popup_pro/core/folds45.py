@@ -512,7 +512,7 @@ class Folds45:
             dx = Bm @ Vector((1.0, 0.0, 0.0))
             return math.atan2(dx.y, dx.x) - a0
 
-        dp = f"{key.replace('.', '')}Disc"
+        dp = f"{key.split('.')[0]}disc{tag}"  # (Box1discT: its uid readable)
         self.add_piece(Piece(dp, f"{lab} disc {'top' if tag == 'T' else 'bottom'}",
                              1 + m["uid"], (0.0, 0.0)))
         n = 40
