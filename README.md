@@ -257,13 +257,14 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.89.1**: the face's loop in a few regular facets, the muzzle and
+  forehead creased along whole facets (no gap); a pair's pictures go on its
+  top.
 * **0.89**: the animal face cut as Birmingham's pattern, with its forehead
   join, nose crease, muzzle join, loop diameter and ears round the face; two
   pieces glued back to back on parallel strips.
 * **0.88.3**: a dipped lid's crease is a fold to stand on; the turning
   disc's L piece is one piece, bending round the corner.
-* **0.88.2**: the strut redone as the book's: a V-fold strut holding a
-  rectangle's dipped lid; the turning disc can be hidden.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

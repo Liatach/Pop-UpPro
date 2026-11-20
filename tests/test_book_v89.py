@@ -110,6 +110,7 @@ p = add("PICTURE")
 p.host_uid = 1
 items = [i[0] for i in props.pic_face_items(p, bpy.context)]
 assert "Tube1.TopL" in items and "Tube1b.TopR" in items, items
+assert items[0] == "Tube1.TopL" and not [i for i in items if ".Leg" in i], items
 print("a back-to-back pair on parallel strips")
 
 addon.unregister()

@@ -3,6 +3,13 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.89.1**: the animal face's round ends are a few regular facets, the
+  one each side of C as wide at the top as Muzzle Width: the muzzle creases
+  off that facet's top edge and the forehead across the facet, so neither
+  leaves a gap against the loop. The muzzle's dart, like the forehead's,
+  narrows to what lets it close at every opening (Nose Dart at most) rather
+  than warning. Pictures on a back-to-back pair go on its top, not the
+  first facet of its bend.
 * **0.89.0**: the **Animal Face** on a round loop is cut as Birmingham's
   pattern: one band symmetric about the centre crease C, joined at the back
   of the loop (K under L); a **Forehead Join** up the foot of C, a bite stuck

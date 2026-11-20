@@ -239,9 +239,14 @@ assert "Tube1.BrowL" in M.panels and not warns(), warns()
 shown = props_shown(draw(ui.POPUP_PT_mechs))
 assert {"muzzle", "face_width", "face_len", "face_dart", "face_brow", "face_nose", "face_dia",
         "face_clock"} <= set(shown), shown
-f.face_dart = 45.0
-bpy.ops.popup.build()
-assert any("dart is too wide" in w for w in warns()), warns()
+f.face_dart = 45.0  # (on a face's loop, the darts narrow to what opens flat)
+M = built("Tube")
+assert not warns(), warns()
+# the muzzle meets the loop along the top edge of the facet each side of C
+for t in M.samples:
+    N, G = world(M, "Tube1.NoseL", t), world(M, "Tube1.GFL" + str(len(
+        [n for n in M.panels if n.startswith("Tube1.GFL")])), t)
+    assert len([w for w in N if min((w - v).length for v in G) < 0.05]) >= 2, t
 f.face_dart, f.front_style, f.front = 15.0, "OUT", 45.0  # a pointed front: flat cheeks
 M = built("Tube")
 assert "Tube1.NoseL" in M.panels

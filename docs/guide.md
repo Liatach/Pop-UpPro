@@ -263,14 +263,18 @@ out or forward). From the **+** menu it comes a little conical (**Lean**
 
 A round loop's face is cut as Birmingham's pattern: one band, symmetric
 about the centre crease C, its ends joined at the back of the loop by a tab
-(the book's K under L). Its measures, in the panel:
+(the book's K under L). Its round ends are a few regular facets, the one
+each side of C as wide at the top as Muzzle Width (rounded to a whole
+number of facets round the loop): the muzzle is creased off that facet's
+top edge and the forehead across it, so each meets the loop along one
+straight crease with no gap. Both darts are as wide as let them close at
+every opening (Nose Dart at most). Its measures, in the panel:
 
 * **Loop Diameter**: across the loop at the page.
 * **Forehead Join**: how far up C from the forehead's edge its sides are
   joined (the book's M under N): a bite out of the foot of C, its edges stuck
-  together by a tab, each side creased from there to the edge Muzzle Width
-  out. The dart is as wide as lets the forehead open out flat with the loop
-  (Nose Dart at most). 0 leaves the forehead an open arch.
+  together by a tab, each side creased from there across the facet beside C
+  to its foot's far corner. 0 leaves the forehead an open arch.
 * **Nose Crease**: C between the eyes, from the forehead join to the muzzle.
 * **Muzzle Join**: the muzzle's seam, held by a tab (the book's H under J).
 
@@ -294,7 +298,8 @@ tabs out from the fold or in under the legs. The bend is low poly: each leg
 a run of narrow facets round a circular arc, upright where the pieces meet;
 shut, the legs are straight, and open flat they bend furthest. The legs must
 be at least 1.4 times the strip distance to reach the strips (Checks says
-so). Paste a parrot, a tree or a figure on either side of the top.
+so). Paste a parrot, a tree or a figure on either side of the top: a
+picture on the pair goes on the top (the legs aren't offered).
 
 ![A back-to-back pair, at 178, 130 and 80 degrees](images/pair.jpg)
 

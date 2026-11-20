@@ -198,6 +198,13 @@ class Tubes:
         a, y0 = float(m["x"]), float(m["y"])
         D, hb = max(2.0, float(m["depth"])), float(m["height"])
         n = ROUND_FACETS
+        if m.get("face"):
+            # a face's round ends in fewer, regular facets, the one each side
+            # of C as wide at the top as Muzzle Width: the muzzle is creased
+            # off that facet's top edge, and the forehead across it, so both
+            # meet the loop along a single straight edge
+            n = max(2, min(ROUND_FACETS, round(0.5 * math.pi * rt /
+                                               max(1.0, float(m.get("face_width", 18.0))))))
         if hb < 2.0:
             self.warn(f"{lab}: too low to make; skipped")
             return
@@ -463,15 +470,20 @@ class Tubes:
         kk = 1.0 if m.get("tab_side", "IN") == "IN" else -1.0
         if m.get("face"):
             kk = -1.0  # (ears: out from the loop)
-            j = max(1, min(n, round(float(m.get("face_width", 18.0)) /
-                                    max(1e-6, (Vector(pt2(n, 1.0 - f_top, n)) -
-                                               Vector(pt2(n + 1, 1.0 - f_top, n))).length))))
+            j = 1  # (the facet each side of C: its top edge is the muzzle's crease)
             top = pt2(n + 1, 1.0 - f_top, n)
             up2 = Vector(top) - Vector(pt2(n + 1, 1.0, n))
+            eL = pt2(n + 1 - j, 1.0 - f_top, n + 1 - j)
+            eR = pt2(n + 1 + j, 1.0 - f_top, n + j)
+            # its dart as wide as lets the muzzle lie back as the loop opens
+            # out (Nose Dart at most)
+            dm = self._dart_fit(P[names[n + 1][0]], Vector(top), P[names[n + 1 - j][0]],
+                                Vector(eL), P[names[n + j][0]], Vector(eR), up2,
+                                math.radians(max(0.0, min(60.0, float(m.get("face_dart", 15.0))))))
             self._muzzle(m, piece, P[names[n][0]], P[names[n + 1][0]], top, tuple(up2),
-                         (P[names[n + 1 - j][0]], pt2(n + 1 - j, 1.0 - f_top, n + 1 - j)),
-                         (P[names[n + j][0]], pt2(n + 1 + j, 1.0 - f_top, n + j)),
-                         join=min(tb, 0.3 * float(m.get("face_len", 22.0))))
+                         (P[names[n + 1 - j][0]], eL), (P[names[n + j][0]], eR),
+                         join=min(tb, 0.3 * float(m.get("face_len", 22.0))),
+                         dart_deg=math.degrees(dm))
             self._forehead(m, piece, P, names, n, pt2, f_top)
         for nm, i, pg, Tp, sx in (("FL_", 0, host.p1, host.T1, -1.0),
                                   ("FR_", 2 * n + 1, host.p2, host.T2, 1.0)):
@@ -641,6 +653,21 @@ class Tubes:
             self.fold_kind[frozenset((tp.name, names_[0]))] = "valley" if kk > 0 else \
                 "mountain"
 
+    def _dart_fit(self, pc_, O, pl_, endL, pr_, endR, up, dd):
+        """The widest dart (dd at most) a bite at O on a crease (up along it,
+        creased off to endL and endR, all in the panels' patterns) can close
+        at every opening: the seam needs the angle each crease makes with the
+        crease line to exceed the dart by half the angle between them."""
+        widest = 0.0
+        for t in list(self.samples) + [self.tmax]:
+            Pc = pc_.asm(t) @ Vector((O.x, O.y, 0.0))
+            gl = (pl_.asm(t) @ Vector((endL.x, endL.y, 0.0)) - Pc).normalized()
+            gr = (pr_.asm(t) @ Vector((endR.x, endR.y, 0.0)) - Pc).normalized()
+            widest = max(widest, 0.5 * gl.angle(gr))
+        up = Vector(up).to_2d()
+        th_ = min((endL.to_2d() - O.to_2d()).angle(up), (endR.to_2d() - O.to_2d()).angle(up))
+        return max(0.0, min(dd, th_ - widest - math.radians(1.0)))
+
     def _forehead(self, m, piece, P, names, n, pt2, f_top):
         """A face's forehead join (Birmingham's M under N): a bite out of the
         foot of the front crease C, Forehead Join up it, its edges stuck
@@ -662,8 +689,7 @@ class Tubes:
         down = foot - O
         # creased from there to the foot Muzzle Width out each side (the
         # book's M and N: small, either side of C's top)
-        fw = (Vector(pt2(iC, 1.0, n)) - Vector(pt2(iC - 1, 1.0, n))).length
-        j = max(1, min(n, round(float(m.get("face_width", 18.0)) / max(1e-6, fw))))
+        j = 1  # (across the facet each side of C, to its foot's far corner)
         endL = Vector(pt2(iC - j, 1.0, iC - j))
         endR = Vector(pt2(iC + j, 1.0, iC + j - 1))
         dd = math.radians(max(0.0, min(60.0, float(m.get("face_dart", 15.0)))))
@@ -671,14 +697,7 @@ class Tubes:
         # wide as lets it (Nose Dart at most)
         pl_, pr_ = P[names[iC - j][0]], P[names[iC + j - 1][0]]
         pc_ = P[names[iC][0]]
-        widest = 0.0
-        for t in list(self.samples) + [self.tmax]:
-            Pc = pc_.asm(t) @ Vector((O.x, O.y, 0.0))
-            gl = (pl_.asm(t) @ Vector((endL.x, endL.y, 0.0)) - Pc).normalized()
-            gr = (pr_.asm(t) @ Vector((endR.x, endR.y, 0.0)) - Pc).normalized()
-            widest = max(widest, 0.5 * gl.angle(gr))
-        th_ = min((endL - O).angle(down), (endR - O).angle(down))
-        dd = max(0.0, min(dd, th_ - widest - math.radians(1.0)))
+        dd = self._dart_fit(pc_, O, pl_, endL, pr_, endR, down, dd)
         polys = {}
         cut_by = {}
         for sx, end, rng in ((-1.0, endL, range(iC - j, iC)), (1.0, endR, range(iC, iC + j))):

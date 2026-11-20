@@ -1,4 +1,5 @@
 import math
+import re
 
 import bpy
 from bpy.props import (BoolProperty, CollectionProperty, EnumProperty,
@@ -1056,8 +1057,8 @@ def pic_faces(st, uid):
         return out
     from .core.align import uid_of
     for p in meta["panels"]:
-        if p["kind"] == "tab":
-            continue
+        if p["kind"] == "tab" or re.search(r"\.Leg[LR]\d+$", p["name"]):
+            continue  # (a back-to-back pair's bend: its top takes the pictures)
         u = uid_of(p["name"]) or 0
         if (uid == 0 and p["kind"] == "page") or (uid and u == uid and p["kind"] != "page"):
             label = p["label"].split(": ", 1)[-1]
