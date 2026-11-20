@@ -41,6 +41,8 @@ NOT_SENT = {
     "tri_pic_layout": "read when pictures are added to 45 degree triangles (ops)",
     "m_inner": "only read by fit_to_host (props)",
     "cone_lean": "Top Radius as an angle: sets cone_top, which is sent",
+    "face_nose": "the face's height less its forehead join: sets height, which is sent",
+    "face_dia": "twice the strip distance: sets x, which is sent",
     # left from the M-fold before v0.70; nothing reads them
     "m_hinge": "unused", "m_outer": "unused", "m_lean": "unused",
 }

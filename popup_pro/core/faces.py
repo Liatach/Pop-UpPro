@@ -140,6 +140,13 @@ class Faces:
             return
         outR = Vector((-sR.y, sR.x, 0.0))  # (left of the right facet's seam: off it)
         inL = Vector((-sL.y, sL.x, 0.0))  # (left of the left facet's seam: onto it)
+        # (a seam running down, a forehead's, has its facets the other way round)
+        cR = sum(on, Vector((0.0, 0.0, 0.0))) / max(1, len(on))
+        if outR.dot(cR) > 0:
+            outR = -outR
+        onL = [(Vector((q[0], q[1], 0.0)) - OL) for q in self.panels[nl].polys[0]]
+        if inL.dot(sum(onL, Vector((0.0, 0.0, 0.0))) / max(1, len(onL))) < 0:
+            inL = -inL
         a0, a1 = 0.15 * L, 0.85 * L
         poly = [(O + a0 * sR).to_2d()[:], (O + a1 * sR).to_2d()[:],
                 (O + (a1 - 0.3 * wd) * sR + wd * outR).to_2d()[:],

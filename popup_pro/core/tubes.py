@@ -10,6 +10,27 @@ from .base import (Hinge, Host, Panel, Piece, poly_area, round_arc, ROUND_FACETS
 from .geom import Z, ccw, clip_halfplane, frame, hinge_frame_2d, v3
 
 
+def _hull2(ps):
+    """Convex hull of 2D points, counter-clockwise."""
+    ps = sorted(set((round(p[0], 9), round(p[1], 9)) for p in ps))
+    if len(ps) < 3:
+        return ps
+
+    def cr(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lo, hi = [], []
+    for p in ps:
+        while len(lo) >= 2 and cr(lo[-2], lo[-1], p) <= 0:
+            lo.pop()
+        lo.append(p)
+    for p in reversed(ps):
+        while len(hi) >= 2 and cr(hi[-2], hi[-1], p) <= 0:
+            hi.pop()
+        hi.append(p)
+    return lo[:-1] + hi[:-1]
+
+
 class Tubes:
     """Tube builders. Mixed into Model (model.py)."""
 
@@ -323,9 +344,17 @@ class Tubes:
                                rf=True, rb=True, nf=n, nb=n, cone=True, walls={})
         flip = [1.0]
 
+        face = bool(m.get("face"))
+        i_cb = 3 * n + 2  # (the back's centre line)
+        cut_cb = face and not two
+
         def ang(i, pnl):
             """Line i's angle in panel pnl's pattern (the back's own strip
-            starts again at 0 when it's cut separately)."""
+            starts again at 0 when it's cut separately; a face's band is cut
+            at the back's centre, so the back left wraps round before the
+            left side)."""
+            if cut_cb and pnl >= i_cb:
+                return flip[0] * (th0[i] - th0[-1])
             sh = th0[i_split] if (two and pnl >= i_split) else 0.0
             return flip[0] * (th0[i] - sh)
 
@@ -401,22 +430,32 @@ class Tubes:
         ch = min(0.3 * tb, 0.2 * abs(hb))
         tbc = min(tb, 0.9 * D * min(1.0, 1.0 - f_top))  # (the side wall's narrow end)
 
-        def end_tab(name, src_i, line, beyond, target, into, pc_):
+        def end_tab(name, src_i, line, beyond, target, into, pc_, wide=None):
             """A tab off panel src_i's edge on line (toward beyond, in its
             pattern), glued inside target (into: across the shared edge, into
             the target, in its pattern)."""
             e0, e1 = pt2(line, 1.0, src_i), pt2(line, 1.0 - f_top, src_i)
             ev = (Vector(e1) - Vector(e0)).normalized()
-            poly = [e0, e1, tuple(Vector(e1) + tbc * beyond - ch * ev),
-                    tuple(Vector(e0) + tbc * beyond + ch * ev)]
+            tw = tbc if wide is None else min(tbc, wide)
+            poly = [e0, e1, tuple(Vector(e1) + tw * beyond - ch * ev),
+                    tuple(Vector(e0) + tw * beyond + ch * ev)]
             self.add(Panel(f"{piece}.{name}", pc_, "tab", [ccw(poly)],
                            self._glue_asm(P[target], P[names[src_i][0]].asm, e0, e1,
                                           tuple(beyond), tuple(into), below=True),
                            P[target].name, None, f"{lab}: {name.lower()} tab"))
 
         last = len(seq) - 1  # (the left side's back line again)
-        # closing tab off the last back facet, glued inside the left side
-        end_tab("Close", last - 1, last, onward(last, last - 1), "FL_", onward(0, 0), pB)
+        if cut_cb:
+            # a face: the back right's last facet tabbed under the back left's
+            # first, at the back's centre (Birmingham's K under L)
+            # (as wide as that facet's narrow end, so it stays on it)
+            fwt = (Vector(pt2(i_cb, 1.0 - f_top, i_cb)) -
+                   Vector(pt2(i_cb + 1, 1.0 - f_top, i_cb))).length
+            end_tab("Close", i_cb - 1, i_cb, onward(i_cb, i_cb - 1), names[i_cb][0],
+                    onward(i_cb, i_cb), pB, wide=0.9 * fwt)
+        else:
+            # closing tab off the last back facet, glued inside the left side
+            end_tab("Close", last - 1, last, onward(last, last - 1), "FL_", onward(0, 0), pB)
         if two:  # the back strip's start, glued inside the right side
             end_tab("Join", i_split, i_split, -onward(i_split, i_split), "FR_",
                     -onward(i_split, i_split - 1), pB)
@@ -431,7 +470,9 @@ class Tubes:
             up2 = Vector(top) - Vector(pt2(n + 1, 1.0, n))
             self._muzzle(m, piece, P[names[n][0]], P[names[n + 1][0]], top, tuple(up2),
                          (P[names[n + 1 - j][0]], pt2(n + 1 - j, 1.0 - f_top, n + 1 - j)),
-                         (P[names[n + j][0]], pt2(n + 1 + j, 1.0 - f_top, n + j)))
+                         (P[names[n + j][0]], pt2(n + 1 + j, 1.0 - f_top, n + j)),
+                         join=min(tb, 0.3 * float(m.get("face_len", 22.0))))
+            self._forehead(m, piece, P, names, n, pt2, f_top)
         for nm, i, pg, Tp, sx in (("FL_", 0, host.p1, host.T1, -1.0),
                                   ("FR_", 2 * n + 1, host.p2, host.T2, 1.0)):
             e0, e1 = pt2(i, 1.0, i), pt2(i + 1, 1.0, i)
@@ -444,7 +485,13 @@ class Tubes:
             poly = [e0, e1, tuple(Vector(e1) + tb * out_ - c2 * ev),
                     tuple(Vector(e0) + tb * out_ + c2 * ev)]
             if m.get("face"):
-                poly = self.ear(e0, e1, out_, float(m.get("face_ear", 22.0)))
+                # leaning to the back (10 and 2 o'clock round the face) or the
+                # front (8 and 4); 9 and 3 straight out
+                ck = {"10": 1.0, "8": -1.0}.get(m.get("face_clock", "9"), 0.0)
+                back = -ev if sx < 0 else ev  # (the left side's foot runs back to front)
+                lean = math.radians(35.0) * ck
+                o2 = math.cos(lean) * out_ + math.sin(lean) * back
+                poly = self.ear(e0, e1, o2, float(m.get("face_ear", 22.0)))
             tgt = Tp.to_3x3() @ Vector((-sx * kk, 0.0, 0.0))
             sd = "L" if sx < 0 else "R"
             self.add(Panel(f"{piece}.Tab{sd}", piece, "tab", [ccw(poly)],
@@ -461,6 +508,241 @@ class Tubes:
                 # on its foot, in its own pattern
                 (pt2(0, r_, 0), pt2(1, r_, 0), pt2(0, 1.0, 0)),
                 (pt2(iR + 1, r_, iR), pt2(iR, r_, iR), pt2(iR, 1.0, iR)))
+
+    def _pair(self, m, host):
+        """Two pieces of card glued back to back, on two parallel sticking
+        strips (Birmingham 53): each glued down by a tab on a strip, bending
+        up from it into the joined top, which stands on the mirror plane.
+        The bend is low poly: each leg a run of narrow facets round a circular
+        arc, as long as Leg Length, upright where the pieces meet. Shut, the
+        legs are straight; open flat, they bend furthest."""
+        uid, lab = m["uid"], m["label"]
+        a, y0 = float(m["x"]), float(m["y"])
+        W, Ht = float(m["depth"]), float(m["height"])
+        Lb = max(1.0, float(m.get("pair_bend", 30.0)))
+        tb = min(float(m.get("tab", 8.0)), 0.45 * Lb)
+        kk = 1.0 if m.get("tab_side", "IN") == "OUT" else -1.0
+        n = 8  # (the bend's facets)
+        GMAX = 0.7246  # ((1 - cos f) / f at its largest)
+        dmax = a * math.sin(math.radians(0.5 * min(180.0, self.tmax)))
+        if dmax > GMAX * Lb:
+            self.warn(f"{lab}: the legs are too short to bend out to the strips; make them "
+                      f"at least {dmax / GMAX + 0.5:.0f} mm (or the strips closer)")
+        if host.is_spine and a + Lb + Ht > self.W + 1e-6:
+            self.warn(f"{lab}: strip distance + legs + top is more than the page width, so "
+                      f"it sticks out when closed")
+        if host.is_spine and (y0 < -1e-6 or y0 + W > self.H + 1e-6):
+            self.warn(f"{lab}: runs past the top or bottom of the card")
+        cache = {}
+
+        def bend(t):
+            """The arc's angle, radius and the junction, and the frame."""
+            k_ = float(t)
+            if k_ in cache:
+                return cache[k_]
+            S, e, xh, Y, sn, cs = self.strip_frame(host, t)
+            q = min(GMAX - 1e-6, a * sn / Lb)
+            lo, hi = 0.0, 2.3311
+            for _ in range(60):
+                md = 0.5 * (lo + hi)
+                if (1.0 - math.cos(md)) / max(md, 1e-12) < q:
+                    lo = md
+                else:
+                    hi = md
+            phi = 0.5 * (lo + hi)
+            res = (phi, S, e, xh, Y, sn, cs)
+            if len(cache) > 4096:
+                cache.clear()
+            cache[k_] = res
+            return res
+
+        def arc_pt(t, s, u):
+            """The leg's point u along it from the foot (s: -1 left, 1 right),
+            in the plan (no Y)."""
+            phi, S, e, xh, Y, sn, cs = bend(t)
+            hdir = -s * xh  # (toward the mirror plane)
+            foot = S + a * cs * e + s * a * sn * xh
+            if phi < 1e-5:
+                return foot + u * e
+            R = Lb / phi
+            J = foot + R * (1.0 - math.cos(phi)) * hdir + R * math.sin(phi) * e
+            ps = phi * (1.0 - u / Lb)
+            return J - R * hdir + R * (math.cos(ps) * hdir - math.sin(ps) * e)
+
+        rows = [Lb * k / n for k in range(n + 1)]
+        for s, pg, Tp, sd in ((-1.0, host.p1, host.T1, "L"), (1.0, host.p2, host.T2, "R")):
+            piece = f"Tube{uid}" + ("" if s < 0 else "b")
+            self.add_piece(Piece(piece, f"{lab} ({'left' if s < 0 else 'right'})",
+                                 1 + uid if s < 0 else 350 + uid, (0.5 * W, 0.5 * Lb)))
+            # printed side out: each piece's face away from the other
+            _, S0, e0, xh0, Y0, _, _ = bend(90.0)
+            sy = 1.0 if Y0.cross(e0).dot(s * xh0) > 0 else -1.0
+            yc = y0 if sy > 0 else y0 + W
+            lift = 0.25 * TAB_LIFT * s
+
+            def asm_row(t, k, s=s, sy=sy, yc=yc):
+                _, S, e, xh, Y, sn, cs = bend(t)
+                p0 = arc_pt(t, s, rows[k]) + yc * Y
+                p1 = arc_pt(t, s, rows[k + 1]) + yc * Y
+                # (stretched the hair the chord is short of the arc, so the
+                # facets meet edge to edge)
+                sc = (p1 - p0).length / max(1e-9, rows[k + 1] - rows[k])
+                return frame(p0, sy * Y, p1 - p0) @ Matrix.Diagonal((1.0, sc, 1.0, 1.0)) @ \
+                    Matrix.Translation((0.0, -rows[k], 0.0))
+
+            def asm_top(t, s=s, sy=sy, yc=yc, lift=lift):
+                _, S, e, xh, Y, sn, cs = bend(t)
+                J = arc_pt(t, s, Lb) + yc * Y + lift * xh
+                return frame(J, sy * Y, e) @ Matrix.Translation((0.0, -Lb, 0.0))
+
+            prev = None
+            names_ = []
+            for k in range(n):
+                nm = f"{piece}.Leg{sd}{k + 1}"
+                p_ = self.add(Panel(nm, piece, "panel",
+                                    [[(0.0, rows[k]), (W, rows[k]), (W, rows[k + 1]),
+                                      (0.0, rows[k + 1])]],
+                                    lambda t, k=k, f=asm_row: f(t, k), prev or pg, None,
+                                    f"{lab}: {'left' if s < 0 else 'right'} leg"))
+                p_.free = True
+                self.smooth_panels.add(nm)
+                if prev:
+                    pair = frozenset((prev, nm))
+                    self.fold_kind[pair] = "skip"
+                    self.facets.add(pair)
+                prev = nm
+                names_.append(nm)
+            top = self.add(Panel(f"{piece}.Top{sd}", piece, "panel",
+                                 [[(0.0, Lb), (W, Lb), (W, Lb + Ht), (0.0, Lb + Ht)]], asm_top,
+                                 prev, None,
+                                 f"{lab}: {'left' if s < 0 else 'right'} top (glued back to "
+                                 f"back)"))
+            top.free = True
+            self.fold_kind[frozenset((prev, top.name))] = "skip"
+            self.facets.add(frozenset((prev, top.name)))
+            # the tab on the strip, folded out (away from the fold) or in
+            ch = min(0.3 * tb, 0.2 * W)
+            tab = [(0.0, 0.0), (W, 0.0), (W - ch, -tb), (ch, -tb)]
+            zl = (-1.0 if self.normals_out(host) else 1.0) * TAB_LIFT
+            col_x = Vector((0.0, sy, 0.0))
+            col_y = Vector((-kk * s, 0.0, 0.0))
+            col_z = col_x.cross(col_y)
+            Mt = Matrix.Identity(4)
+            for i, c_ in enumerate((col_x, col_y, col_z)):
+                Mt[0][i], Mt[1][i], Mt[2][i] = c_
+            Mt[0][3], Mt[1][3], Mt[2][3] = s * a, yc, zl
+            Mt = Tp @ Mt
+
+            def asm_tab(t, pa=self.panels[pg].asm, Mt=Mt):
+                return pa(t) @ Mt
+
+            tp = self.add(Panel(f"{piece}.Tab{sd}", piece, "tab", [tab], asm_tab, pg, None,
+                                f"{lab}: tab {sd}"))
+            self.fold_kind[frozenset((tp.name, names_[0]))] = "valley" if kk > 0 else \
+                "mountain"
+
+    def _forehead(self, m, piece, P, names, n, pt2, f_top):
+        """A face's forehead join (Birmingham's M under N): a bite out of the
+        foot of the front crease C, Forehead Join up it, its edges stuck
+        together. Each side's forehead is creased off the loop from there to
+        the ear's inner corner, and folds as a dart, like the muzzle."""
+        Lf = float(m.get("face_brow", 0.0))
+        if Lf < 1.0:
+            return  # (an open arch: no join)
+        lab = m["label"]
+        iC = n + 1  # (C's line)
+        foot = Vector(pt2(iC, 1.0, n))
+        tip = Vector(pt2(iC, 1.0 - f_top, n))
+        Lc = (tip - foot).length
+        if Lf > 0.8 * Lc:
+            self.warn(f"{lab}: the forehead join is longer than most of the nose's crease; "
+                      f"shortened")
+            Lf = 0.8 * Lc
+        O = foot + (tip - foot).normalized() * Lf
+        down = foot - O
+        # creased from there to the foot Muzzle Width out each side (the
+        # book's M and N: small, either side of C's top)
+        fw = (Vector(pt2(iC, 1.0, n)) - Vector(pt2(iC - 1, 1.0, n))).length
+        j = max(1, min(n, round(float(m.get("face_width", 18.0)) / max(1e-6, fw))))
+        endL = Vector(pt2(iC - j, 1.0, iC - j))
+        endR = Vector(pt2(iC + j, 1.0, iC + j - 1))
+        dd = math.radians(max(0.0, min(60.0, float(m.get("face_dart", 15.0)))))
+        # the forehead opens out flat with the loop's foot: its dart only as
+        # wide as lets it (Nose Dart at most)
+        pl_, pr_ = P[names[iC - j][0]], P[names[iC + j - 1][0]]
+        pc_ = P[names[iC][0]]
+        widest = 0.0
+        for t in list(self.samples) + [self.tmax]:
+            Pc = pc_.asm(t) @ Vector((O.x, O.y, 0.0))
+            gl = (pl_.asm(t) @ Vector((endL.x, endL.y, 0.0)) - Pc).normalized()
+            gr = (pr_.asm(t) @ Vector((endR.x, endR.y, 0.0)) - Pc).normalized()
+            widest = max(widest, 0.5 * gl.angle(gr))
+        th_ = min((endL - O).angle(down), (endR - O).angle(down))
+        dd = max(0.0, min(dd, th_ - widest - math.radians(1.0)))
+        polys = {}
+        cut_by = {}
+        for sx, end, rng in ((-1.0, endL, range(iC - j, iC)), (1.0, endR, range(iC, iC + j))):
+            # the wall cut off below the crease O -> end, on C's side
+            cr = (end - O).to_2d()
+            nrm = Vector((-cr.y, cr.x))
+            if nrm.dot((foot - O).to_2d()) > 0:
+                nrm = -nrm  # (pointing away from C's foot: the side kept)
+            region = []
+            for i in rng:
+                nm = names[i][0]
+                pn = self.panels.get(f"{piece}.{nm}")
+                if pn is None:
+                    continue
+                keep = clip_halfplane(pn.polys[0], tuple(nrm), nrm.dot(O.to_2d()))
+                cut = clip_halfplane(pn.polys[0], tuple(-nrm), -nrm.dot(O.to_2d()))
+                region += [Vector(q) for q in cut]
+                if len(cut) >= 3:
+                    cut_by.setdefault(sx, []).append(pn.name)
+                if len(keep) >= 3:
+                    pn.polys = [keep]
+                else:
+                    pn.polys = []
+            if len(region) < 3:
+                return
+            # the forehead: that region less the dart, a wedge off C's line
+            h2 = (end - O).normalized()
+            th = h2.angle(down)
+            across = (h2 - h2.dot(down.normalized()) * down.normalized()).normalized()
+            s2 = math.cos(dd) * down.normalized() + math.sin(dd) * across
+            sn = Vector((-s2.y, s2.x))
+            if sn.dot(h2.to_2d() if hasattr(h2, "to_2d") else h2) < 0:
+                sn = -sn
+            hull = _hull2([q.to_2d() for q in region] + [O.to_2d()])
+            poly = clip_halfplane(hull, tuple(sn.to_2d()), sn.to_2d().dot(O.to_2d()))
+            if len(poly) < 3 or th <= dd or dd < math.radians(2.0):
+                self.warn(f"{lab}: no room for the forehead join's dart")
+                return
+            dd_ = []
+            for q in poly:  # (no repeated corners)
+                if not dd_ or (Vector(q) - Vector(dd_[-1])).length > 1e-3:
+                    dd_.append(tuple(q))
+            if len(dd_) > 1 and (Vector(dd_[0]) - Vector(dd_[-1])).length < 1e-3:
+                dd_.pop()
+            # its edge on the page pulled in a little: the forehead dips as it
+            # closes, where real card would curve
+            Ov = O.to_2d()
+            ek = end.to_2d()
+            for k, q in enumerate(dd_):
+                qv = Vector(q)
+                if (qv - Ov).length > 1e-3 and (qv - ek).length > 1e-3:
+                    qv = Ov + (qv - Ov) * max(0.0, 1.0 - 2.0 / max(1.0, (qv - Ov).length))
+                    dd_[k] = tuple(qv)
+            polys[sx] = dd_
+        self._muzzle(m, piece, P[names[n][0]], P[names[n + 1][0]], O.to_2d()[:],
+                     down.to_2d()[:], (P[names[iC - j][0]], endL.to_2d()[:]),
+                     (P[names[iC + j - 1][0]], endR.to_2d()[:]), polys=polys,
+                     dart_deg=math.degrees(dd),
+                     names=("Brow", "forehead"),
+                     join=min(float(m.get("tab", 10.0)), 0.3 * Lf))
+        for sx, nms in cut_by.items():
+            b_ = f"{piece}.Brow{'L' if sx < 0 else 'R'}"
+            for nm in nms:
+                self.fold_kind[frozenset((nm, b_))] = "valley"
 
     def _cone_lid(self, m, wl, wr, rt, y1, y2, edge_l, edge_r):
         """A lid on a cone: a flat roof the shape of its top, in two halves
@@ -547,12 +829,20 @@ class Tubes:
         the front and back are pairs of walls creased vertically above the
         fold, pointing Out (hexagon), In (recessed) or flat when the pair is
         as wide as the strips are apart (box)."""
+        if m.get("pair"):
+            self._pair(m, host)
+            return
         uid, lab = m["uid"], m["label"]
         a, y0 = float(m["x"]), float(m["y"])
         D, hgt = float(m["depth"]), float(m["height"])
         rf = m.get("front_style", "OUT") == "ROUND"
         rb = m.get("back_style", "OUT") == "ROUND"
         rt = float(m.get("cone_top", 0.0) or 0.0)
+        if m.get("face") and rf and rb and m.get("roof", "NONE") == "NONE" and (
+                rt <= 0.05 or abs(rt - a) <= 0.5):
+            # a face is always cut as Birmingham's one band: a loop leaning in
+            # at least a little
+            rt = max(1.0, a - hgt * math.tan(math.radians(3.0)))
         if rt > 0.05 and abs(rt - a) > 0.5:
             if rf and rb and m.get("roof", "NONE") in ("NONE", "FLAT"):
                 self._cone(m, host, rt)

@@ -114,7 +114,10 @@ Paint flat or folded, import and position images or simply textures, then export
   open or shut, bending to lie flat under the mask; more mechanisms can
   stand in the mask's corner.
 * A V-fold's or beak's end bitten into a curve or a hooked beak, in steps
-  of their own length and turn; an animal face on a loop.
+  of their own length and turn; an animal face on a loop, cut as the book's
+  pattern (forehead join, nose crease, muzzle join, ears round the face).
+* Two pieces glued back to back on parallel strips, bending up into the
+  joined top.
 * Carousels of 2 to 9 stages with frames, floors, ceilings and roofs, or one
   stage set standing in an ordinary card.
 * Cards that stand part open (**Opens To** 90° or 120°, say), with frames,
@@ -226,8 +229,7 @@ Sunflower is a good way to make them.
 * **Collars, continued**: round a whole tube or castle (its corners don't
   close in pairs the way a tower's do), round box folds, upside down as
   cornices, and on pillars.
-* **The animal face, continued**: the brow's dart and the nose's scores,
-  from patterns being drawn for it.
+* **The animal face, continued**: the nose's scores (the book's G lines).
 * **Angled box folds, continued**: on other folds (straps, towers, another
   box), glued by inset tabs, and with peaks.
 * **Slotted sheets, continued**: a second sheet slotted through the first,
@@ -255,11 +257,13 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.89**: the animal face cut as Birmingham's pattern, with its forehead
+  join, nose crease, muzzle join, loop diameter and ears round the face; two
+  pieces glued back to back on parallel strips.
 * **0.88.3**: a dipped lid's crease is a fold to stand on; the turning
   disc's L piece is one piece, bending round the corner.
 * **0.88.2**: the strut redone as the book's: a V-fold strut holding a
   rectangle's dipped lid; the turning disc can be hidden.
-* **0.88.1**: rectangular cubes take lids too; turning discs take paste-ons.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

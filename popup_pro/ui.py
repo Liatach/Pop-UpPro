@@ -160,6 +160,7 @@ class POPUP_MT_add(bpy.types.Menu):
             ("Castle (tube with corner towers)", "TUBE", "CASTLE"),
             ("Loop (ring on two tabs)", "TUBE", "LOOP"),
             ("Animal Face (loop with a muzzle)", "TUBE", "FACE"),
+            ("Back-to-Back Pair (parallel strips)", "TUBE", "PAIR"),
             ("Pyramid / Tent (parallel strips)", "PYRAMID"), ("Tether", "TETHER")))
         two.separator()
         self._adds(two, "Roofs:", (
@@ -681,6 +682,32 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         """Tubes, cylinders, loops and cones."""
         _where(col, st, m)
         col.prop(m, "y", text="Position")
+        if m.kind == "TUBE" and m.pair:
+            col.prop(m, "x", text="Strip Distance")
+            col.prop(m, "depth", text="Width")
+            col.prop(m, "pair_bend")
+            col.prop(m, "height", text="Top Height")
+            col.prop(m, "tab")
+            col.prop(m, "tab_side")
+            col.prop(m, "pair")
+            self.draw_warnings(context, m)
+            return
+        if m.kind == "TUBE" and m.muzzle:
+            # an animal face: Birmingham's pattern's measures
+            col.prop(m, "face_dia")
+            col.prop(m, "depth", text="Ear Base")
+            col.prop(m, "face_brow")
+            col.prop(m, "face_nose")
+            col.prop(m, "face_len", text="Muzzle Join")
+            col.prop(m, "face_width")
+            col.prop(m, "face_dart")
+            col.prop(m, "cone_lean")
+            col.prop(m, "face_clock")
+            col.prop(m, "face_ear")
+            col.prop(m, "muzzle")
+            col.prop(m, "tab")
+            self.draw_warnings(context, m)
+            return
         col.prop(m, "x", text="Strip Distance")
         col.prop(m, "depth", text="Length Along Fold")
         col.prop(m, "height")

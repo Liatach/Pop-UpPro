@@ -3,6 +3,17 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.89.0**: the **Animal Face** on a round loop is cut as Birmingham's
+  pattern: one band symmetric about the centre crease C, joined at the back
+  of the loop (K under L); a **Forehead Join** up the foot of C, a bite stuck
+  closed by a tab (M under N; 0 leaves an open arch), its dart as wide as
+  lets it open flat; **Nose Crease** (C between the eyes; the loop's height
+  is the two together); the muzzle's seam held by a tab (**Muzzle Join**, H
+  under J); **Loop Diameter**; **Ears At** 10 and 2, 9 and 3 or 8 and 4
+  o'clock. A straight loop with a face leans in 3° so it's cut the same way.
+  **Back-to-Back Pair** (Birmingham 53): two pieces glued back to back on
+  parallel strips, each leg a low-poly bend round an arc from its tab up
+  into the joined top.
 * **0.88.3**: a cube's dipped lid (on a strut or not) is a host: **Fold:
   Roof Crease** stands a mechanism along its crease from the front corner,
   and is where a mechanism picked onto such a cube starts. The turning

@@ -720,6 +720,34 @@ def _host_set(self, value):
     live.schedule(bpy.context.scene)
 
 
+def _face_nose_get(self):
+    return max(0.0, self.height - self.face_brow)
+
+
+def _face_nose_set(self, value):
+    self.height = max(2.0, value + self.face_brow)
+
+
+def _face_brow_set(self, value):
+    nose = max(0.0, self.height - self.get("face_brow", 8.0))
+    self["face_brow"] = max(0.0, value)
+    self.height = max(2.0, nose + self["face_brow"])
+
+
+def _face_brow_get(self):
+    return self.get("face_brow", 8.0)
+
+
+def _face_dia_get(self):
+    return 2.0 * self.x
+
+
+def _face_dia_set(self, value):
+    lean = self.cone_lean
+    self.x = max(2.0, 0.5 * value)
+    self.cone_lean = lean
+
+
 def _cone_lean_get(self):
     if self.cone_top <= 0.05:
         return 0.0  # (Top Radius 0: straight up)
@@ -1219,6 +1247,33 @@ class PopupMech(bpy.types.PropertyGroup):
                             "ears, glued to the pages out from the loop; how far they "
                             "reach from the wall's foot", default=22.0, min=4.0,
                             soft_max=80.0, update=_changed)
+    pair: BoolProperty(name="Back-to-Back Pair", default=False, update=_changed,
+                       description="Two pieces of card glued back to back, each glued down "
+                       "by a tab on a strip and bending up into the joined top "
+                       "(Birmingham 53)")
+    pair_bend: FloatProperty(name="Leg Length", default=30.0, min=2.0, soft_max=150.0,
+                             update=_changed, description="Back-to-back pair: how long each "
+                             "piece's leg is from its tab up to where the pieces are glued "
+                             "together; it bends round to reach the strip (at least 1.4 times "
+                             "the strip distance)")
+    face_brow: FloatProperty(name="Forehead Join", description="Animal face: how far up "
+                             "the centre crease from the forehead's edge its two sides are "
+                             "joined, a bite stuck closed by a tab (Birmingham's M under N); "
+                             "0 leaves it an open arch", min=0.0, soft_max=40.0, default=8.0,
+                             get=_face_brow_get, set=_face_brow_set, update=_changed)
+    face_nose: FloatProperty(name="Nose Crease", description="Animal face: the centre "
+                             "crease between the eyes, from the forehead join to the muzzle",
+                             min=1.0, soft_max=100.0, get=_face_nose_get, set=_face_nose_set,
+                             update=_changed)
+    face_dia: FloatProperty(name="Loop Diameter", description="Animal face: how far across "
+                            "the loop is at the page (twice the strip distance)", min=4.0,
+                            soft_max=200.0, get=_face_dia_get, set=_face_dia_set,
+                            update=_changed)
+    face_clock: EnumProperty(name="Ears At", update=_changed, default="9", items=[
+        ("10", "10 and 2 o'clock", "Ears leaning back, above the face's middle"),
+        ("9", "9 and 3 o'clock", "Ears straight out to the sides"),
+        ("8", "8 and 4 o'clock", "Ears leaning forward, below the face's middle")],
+        description="Where round the face the ears glue down on the pages")
     face_width: FloatProperty(name="Muzzle Width", description="How far the muzzle runs "
                               "along the wall each side of the front crease", default=18.0,
                               min=3.0, soft_max=80.0, update=_changed)
@@ -1852,7 +1907,8 @@ class PopupMech(bpy.types.PropertyGroup):
                      roof_height=self.roof_height, ridge=self.ridge,
                      roof_fold=self.roof_fold, eave=self.eave, rib=self.rib,
                      face=self.muzzle, face_ear=self.face_ear, face_width=self.face_width, face_len=self.face_len,
-                     face_dart=self.face_dart)
+                     face_dart=self.face_dart, face_brow=self.face_brow,
+                     face_clock=self.face_clock, pair=self.pair, pair_bend=self.pair_bend)
         elif self.kind == "ROOF":
             d.update(type="ROOF", phi_l=self.phi_l, alpha_l=self.alpha_l, glue=self.glue,
                      height=self.height, level=self.level, tab_side=self.tab_side,

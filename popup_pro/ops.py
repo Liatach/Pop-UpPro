@@ -225,6 +225,8 @@ class POPUP_OT_add(bpy.types.Operator):
             _as_loop(st, m)
         if self.kind == "TUBE" and self.variant == "FACE":
             _as_face(st, m)
+        if self.kind == "TUBE" and self.variant == "PAIR":
+            _as_pair(st, m)
         if self.kind == "CUBE" and self.variant == "HOUSE":
             _as_house(st, m)
         if self.kind == "TUBE" and self.variant == "CASTLE":
@@ -384,11 +386,23 @@ def _as_disc(st, m, wheels):
     st["live"] = was
 
 
+def _as_pair(st, m):
+    """Birmingham 53: two pieces glued back to back on two parallel strips."""
+    was = st.live
+    st["live"] = False
+    m.pair = True
+    m.x, m.depth, m.height, m.pair_bend, m.tab = 15.0, 30.0, 45.0, 30.0, 8.0
+    m.tab_side = "OUT"
+    m.label = unique_label(st.mechs, "Pair", m)
+    st["live"] = was
+
+
 def _as_face(st, m):
     """Birmingham 17's animal face: a taller loop with a muzzle."""
     was = st.live
     st["live"] = False
     m.height, m.muzzle = 35.0, True
+    m["face_brow"] = 8.0  # (forehead join 8, nose crease 27)
     m.cone_lean = 15.0  # (a little conical: narrower at the nose)
     m.label = unique_label(st.mechs, "Face", m)
     st["live"] = was

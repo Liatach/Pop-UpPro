@@ -169,6 +169,12 @@ def rect_lid():
     return (0, 105, 25), 250, (0.35, -0.75, 0.55), (178.0, 140.0, 100.0)
 
 
+def pair():
+    a = add("TUBE", variant="PAIR")
+    a.y = 80.0
+    return (0, 95, 30), 150, (0.55, -0.6, 0.55), (178.0, 130.0, 80.0)
+
+
 def lid_host():
     a = add("CUBE")
     a.size, a.size_r, a.height, a.lid = 55.0, 28.0, 32.0, "STRUT"
@@ -250,7 +256,7 @@ def on_riser():
     return (0, 105, 25), 260, (0.25, -0.9, 0.45), (175.0, 120.0, 70.0)
 
 
-SCENES = dict(strut_cutaway=strut_cutaway, rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, disc_hidden=disc_hidden, lid_host=lid_host, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+SCENES = dict(strut_cutaway=strut_cutaway, rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, disc_hidden=disc_hidden, lid_host=lid_host, pair=pair, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 

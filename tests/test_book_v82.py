@@ -204,32 +204,41 @@ ear = M.panels["Tube1.TabL"]  # its base tabs are ears, out from the loop
 assert len(ear.polys[0]) == 5
 xs = [w.x for w in world(M, "Tube1.TabL", M.tmax)]
 assert min(xs) < -(f.x + 0.9 * f.face_ear) and max(xs) < -f.x + 0.5, xs
-f.cone_lean = 0.0  # ---- and on a straight loop
+# ---- 0.89: Birmingham's pattern: one band cut at the back (K under L),
+# a forehead join at C's foot (M under N), a nose crease between the eyes,
+# a muzzle join (H under J), ears at a clock position
+assert not warns(), warns()
+for n in ("Tube1.BrowL", "Tube1.BrowR", "Tube1.BrowRTab", "Tube1.NoseRTab", "Tube1.Close"):
+    assert n in M.panels, n
+assert M.panels["Tube1.Close"].parent == "Tube1.GBL1"
+for t in M.samples:  # the forehead's halves meet along their seam
+    L, R = world(M, "Tube1.BrowL", t), world(M, "Tube1.BrowR", t)
+    shared = [w for w in L if min((w - v).length for v in R) < 0.05]
+    assert len(shared) >= 2, (t, shared)
+assert abs(f.height - (f.face_brow + f.face_nose)) < 1e-6
+f.face_nose = 30.0
+assert abs(f.height - (f.face_brow + 30.0)) < 1e-6
+lean = f.cone_lean
+f.face_dia = 60.0
+assert abs(f.x - 30.0) < 1e-6 and abs(f.cone_lean - lean) < 0.1
+f.face_dia = 50.0
+cy = {}
+for ck in ("10", "9", "8"):
+    f.face_clock = ck
+    M = built("Tube")
+    assert not warns(), (ck, warns())
+    cy[ck] = sum(w.y for w in world(M, "Tube1.TabL", M.tmax)) / 5.0
+assert cy["10"] > cy["9"] + 2.0 > cy["8"] + 4.0, cy  # (ears leaning back, out, forward)
+f.face_brow = 0.0  # an open arch
 M = built("Tube")
-uc = f.depth + M.tubes[1]["wf"]  # the front crease, along the strip
-leans = []
-for t in M.samples:
-    L, R = M.panels["Tube1.NoseL"], M.panels["Tube1.NoseR"]
-    # both halves start at the top of the front crease and meet along the seam
-    top = M.panels["Tube1.GFR1"].asm(t) @ v3((uc, f.height))
-    for a in (0.0, 10.0, f.face_len):
-        d = math.radians(f.face_dart)
-        pl = L.asm(t) @ v3((uc - a * math.sin(d), f.height + a * math.cos(d)))
-        pr = R.asm(t) @ v3((uc + a * math.sin(d), f.height + a * math.cos(d)))
-        assert (pl - pr).length < 0.02 and abs(pl.x) < 0.02, (t, a, pl, pr)
-        if a == 0.0:
-            assert (pl - top).length < 0.02
-    # ... and each is creased from there to the wall's top, Muzzle Width along it
-    wl = M.panels["Tube1.GFL4"].asm(t) @ v3((uc - f.face_width, f.height))
-    assert (L.asm(t) @ v3((uc - f.face_width, f.height)) - wl).length < 0.6, t
-    c = (M.panels["Tube1.GFR1"].asm(t).to_3x3() @ v3((0, 1, 0))).normalized()
-    s_ = (L.asm(t) @ v3((uc - 10 * math.sin(d), f.height + 10 * math.cos(d))) - top).normalized()
-    leans.append(math.degrees(s_.angle(c)))
-# shut, the muzzle leans back by just its dart; opening folds it further back
-assert abs(leans[0] - f.face_dart) < 1.0 and leans[-1] > leans[0] + 15.0, leans
-assert all(b >= a - 1e-3 for a, b in zip(leans, leans[1:])), leans
+assert "Tube1.BrowL" not in M.panels and not warns(), warns()
+f.face_brow, f.face_clock = 8.0, "9"
+f.cone_lean = 0.0  # (still cut as one leaning band)
+M = built("Tube")
+assert "Tube1.BrowL" in M.panels and not warns(), warns()
 shown = props_shown(draw(ui.POPUP_PT_mechs))
-assert {"muzzle", "face_width", "face_len", "face_dart"} <= set(shown), shown
+assert {"muzzle", "face_width", "face_len", "face_dart", "face_brow", "face_nose", "face_dia",
+        "face_clock"} <= set(shown), shown
 f.face_dart = 45.0
 bpy.ops.popup.build()
 assert any("dart is too wide" in w for w in warns()), warns()

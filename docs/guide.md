@@ -256,16 +256,47 @@ just its dart; it folds further back as the loop opens, and lies flat back
 when the front has opened as far as the dart allows. Past that real card
 curves and this can't follow: Checks says so (narrow the dart or the
 muzzle). The loop's base tabs become the book's glued **ears**: pointed, out
-from the loop, **Ear Size** from the wall's foot; its join at the back is
-the strap under the chin. From the **+** menu it comes a little conical
-(**Lean** 15°, narrower at the nose); a muzzle goes on a straight loop, a
-cone or a tube alike. Draw the face on it, and erase its art to shape it.
+from the loop, **Ear Size** from the wall's foot, glued down at **Ears At**
+10 and 2, 9 and 3 or 8 and 4 o'clock round the face (leaning back, straight
+out or forward). From the **+** menu it comes a little conical (**Lean**
+15°, narrower at the nose).
+
+A round loop's face is cut as Birmingham's pattern: one band, symmetric
+about the centre crease C, its ends joined at the back of the loop by a tab
+(the book's K under L). Its measures, in the panel:
+
+* **Loop Diameter**: across the loop at the page.
+* **Forehead Join**: how far up C from the forehead's edge its sides are
+  joined (the book's M under N): a bite out of the foot of C, its edges stuck
+  together by a tab, each side creased from there to the edge Muzzle Width
+  out. The dart is as wide as lets the forehead open out flat with the loop
+  (Nose Dart at most). 0 leaves the forehead an open arch.
+* **Nose Crease**: C between the eyes, from the forehead join to the muzzle.
+* **Muzzle Join**: the muzzle's seam, held by a tab (the book's H under J).
+
+A muzzle also goes on a tube with a pointed front. Draw the face on it, and
+erase its art to shape it.
 
 ![An animal face on a slightly conical loop, at 175, 130 and 80
 degrees](images/animal_face.jpg)
 
 ![Cones with lids: peaked in front, dipped behind, at 175, 115 and 55
 degrees](images/cone_lid.jpg)
+
+**Back-to-Back Pair** (Birmingham 53, **+** menu > Back-to-Back Pair
+(parallel strips)): the simplest thing on two parallel strips, two pieces of
+card glued back to back, each glued down by a tab on a strip (**Strip
+Distance** either side of the fold) and bending up from it into the joined
+top, which stands upright over the fold. **Leg Length** is each piece's
+length from its tab to where they're glued together, **Top Height** the
+joined part above that, **Width** along the fold; **Tab Side** folds the
+tabs out from the fold or in under the legs. The bend is low poly: each leg
+a run of narrow facets round a circular arc, upright where the pieces meet;
+shut, the legs are straight, and open flat they bend furthest. The legs must
+be at least 1.4 times the strip distance to reach the strips (Checks says
+so). Paste a parrot, a tree or a figure on either side of the top.
+
+![A back-to-back pair, at 178, 130 and 80 degrees](images/pair.jpg)
 
 **Balconies**: with a tube or cube selected, the **+** menu adds a
 **Balcony** on its left or right wall, or **Balconies on Both Side Walls**;
