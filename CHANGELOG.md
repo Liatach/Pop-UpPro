@@ -3,6 +3,18 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.90.0**: **Animal Face** (+ menu) is a new mechanism: a mirrored
+  low-poly mesh on the fold, nine triangles a side all cornered on the
+  half's edge so it unfolds flat, one piece joined along the nose crease C,
+  tabbed down the middle along the forehead, muzzle and chin, glued down by
+  its ears. C and the ear hinges meet at one point up the fold, so it opens
+  as a V-fold of two meshes; between full open and shut each half's free
+  corners are solved to keep the triangles' edges their length (within a
+  few percent), the seams on the middle and clear of the pages, until it
+  lies pressed flat. Landmarks: Nose At, Face Width, Snout Height;
+  Forehead, Nose, Muzzle and Chin lengths; Mouth Width, Depth and Angle
+  (smile to frown); Ears At (o'clock), Ear Hinge, Ear Size. The loop face
+  stays as **Loop with a Muzzle**.
 * **0.89.1**: the animal face's round ends are a few regular facets, the
   one each side of C as wide at the top as Muzzle Width: the muzzle creases
   off that facet's top edge and the forehead across the facet, so neither

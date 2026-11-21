@@ -36,6 +36,7 @@ from .cubes import Cubes
 from .faces import Faces
 from .flaps import Flaps
 from .folds45 import Folds45
+from .heads import Heads
 from .geom import Z, ccw, clip_halfplane, frame, hinge_frame_2d, rot_y, v3
 from .roofs import Roofs
 from .solver import Solver
@@ -54,7 +55,7 @@ from .base import (arcade, _card, CARD_PRESETS, CORNERS, halfplanes, Hinge, Host
                    unit2)
 
 
-class Model(Arms, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
+class Model(Arms, Heads, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
             Roofs, Stages, Tethers, Flaps, Solver):
     def __init__(self, card, mechs):
         self.card = dict(card)
@@ -409,6 +410,8 @@ class Model(Arms, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, Zi
                 self._tether(m)
             elif m["type"] == "PYRAMID":
                 self._pyramid(m, host)
+            elif m["type"] == "HEAD":
+                self._head(m, host)
             elif m["type"] == "STAGE":
                 self._stage(m, host)
             elif m["type"] == "ROOF":

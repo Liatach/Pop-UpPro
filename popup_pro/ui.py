@@ -5,7 +5,7 @@ from . import live
 KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FACE",
              "MOUTH": "MOD_SIMPLEDEFORM", "CUBE": "CUBE", "FLAP": "MOD_CLOTH",
              "TUBE": "MESH_CYLINDER", "TETHER": "LINKED",
-             "PYRAMID": "CONE", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
+             "PYRAMID": "CONE", "HEAD": "MONKEY", "FRAME": "IMAGE_PLANE", "FLOOR": "TRIA_DOWN_BAR",
              "CEILING": "TRIA_UP_BAR", "STAGE": "IMAGE_BACKGROUND",
              "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME", "PLATFORM": "MOD_SOLIDIFY",
              "RISER": "OUTLINER_OB_FORCE_FIELD", "BOXEND": "MESH_CUBE", "CROSS": "SNAP_PERPENDICULAR", "ARMS": "MOD_ARMATURE", "SWING": "DRIVER_ROTATIONAL_DIFFERENCE", "DOUBLE45": "ORIENTATION_GIMBAL",
@@ -159,7 +159,7 @@ class POPUP_MT_add(bpy.types.Menu):
             ("Tube (parallel strips)", "TUBE"),
             ("Castle (tube with corner towers)", "TUBE", "CASTLE"),
             ("Loop (ring on two tabs)", "TUBE", "LOOP"),
-            ("Animal Face (loop with a muzzle)", "TUBE", "FACE"),
+            ("Animal Face", "HEAD"), ("Loop with a Muzzle", "TUBE", "FACE"),
             ("Back-to-Back Pair (parallel strips)", "TUBE", "PAIR"),
             ("Pyramid / Tent (parallel strips)", "PYRAMID"), ("Tether", "TETHER")))
         two.separator()
@@ -613,7 +613,7 @@ def _align(lay, st):
 # the Mechanisms panel: kinds with a layout all their own (methods of the panel)
 _OWN_PANELS = {"TUBE": "draw_tube", "PICTURE": "draw_picture", "STAGE": "draw_stage",
                "FRAME": "draw_frame", "FLOOR": "draw_floor", "CEILING": "draw_floor",
-               "PYRAMID": "draw_pyramid", "ROOF": "draw_roof", "TETHER": "draw_tether",
+               "PYRAMID": "draw_pyramid", "HEAD": "draw_head", "ROOF": "draw_roof", "TETHER": "draw_tether",
                "CROSS": "draw_cross", "ARMS": "draw_arms"}
 # kinds placed on a fold (Stands On and Position first), then their own settings;
 # anything else is a box fold
@@ -788,6 +788,27 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(m, "depth")
         col.prop(m, "lead")
         _tabs(self.layout, m, side=False)
+        self.draw_warnings(context, m)
+
+    def draw_head(self, context, st, col, m):
+        """An animal face: landmarks down the middle, the mouth, the ears."""
+        col.prop(m, "y", text="Nose At")
+        col.prop(m, "width", text="Face Width")
+        col.prop(m, "height", text="Snout Height")
+        col.separator()
+        col.prop(m, "head_brow")
+        col.prop(m, "head_nose")
+        col.prop(m, "head_muzzle")
+        col.prop(m, "head_chin")
+        col.separator()
+        col.prop(m, "mouth_w")
+        col.prop(m, "mouth_d")
+        col.prop(m, "mouth_a")
+        col.separator()
+        col.prop(m, "ear_clock")
+        col.prop(m, "ear_base")
+        col.prop(m, "ear_size")
+        col.prop(m, "tab")
         self.draw_warnings(context, m)
 
     def draw_pyramid(self, context, st, col, m):

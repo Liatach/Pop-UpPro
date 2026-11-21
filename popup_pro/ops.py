@@ -76,6 +76,7 @@ DEFAULTS = {
     "PYRAMID": dict(y=80.0, x=25.0, depth=50.0, height=40.0, ridge=0.0, front=25.0,
                     back=25.0, tab=10.0),
     "FRAME": dict(y=0.0, tab=8.0),
+    "HEAD": dict(y=90.0, width=70.0, height=25.0, tab=8.0),
     "STAGE": dict(y=80.0, phi_l=60.0, glue=60.0, height=80.0, tab=10.0, tab_side="OUT"),
     "FLOOR": dict(tab=8.0),
     "CEILING": dict(tab=8.0),
@@ -100,7 +101,7 @@ DEFAULTS = {
 }
 NAMES = {"VFOLD": "V-fold", "BOX": "Box fold", "BOXCUT": "Box layer", "MOUTH": "Mouth",
          "CUBE": "Cube", "FLAP": "Flap", "TUBE": "Tube", "TETHER": "Tether",
-         "PYRAMID": "Pyramid", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
+         "PYRAMID": "Pyramid", "HEAD": "Face", "FRAME": "Frame", "FLOOR": "Floor", "CEILING": "Ceiling",
          "STAGE": "Stage set", "STANDUP": "Stand-up", "ROOF": "Roof",
          "PLATFORM": "Platform", "RISER": "Rising sheet", "BOXEND": "Box with ends", "CROSS": "Cross piece", "ARMS": "Arms", "SWING": "Swinging arm", "DOUBLE45": "Double 45",
          "JACK": "Jack in the box", "PICTURE": "Paste-on", "ZIGZAG": "Zig-zag",

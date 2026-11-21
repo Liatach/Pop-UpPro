@@ -243,8 +243,8 @@ on a cone.
 ![A loop, and behind it a cone (a loop with a smaller Top Radius), at 175,
 115 and 55 degrees](images/loop_cone.jpg)
 
-**Animal Face** (Birmingham 17, in the **+** menu; or tick it on any loop
-or tube) is the book's next step from the loop: the top edge carries on up
+**Loop with a Muzzle** (in the **+** menu; or tick Animal Face on any loop
+or tube) is Birmingham 17 taken as the next step from the loop: the top edge carries on up
 past the front crease as a muzzle, and a bite taken out of the end of the
 crease, its edges stuck together, folds the muzzle back over the loop into a
 nose. Stiff paper can't curve, so the bite is a dart between two flat
@@ -286,6 +286,42 @@ degrees](images/animal_face.jpg)
 
 ![Cones with lids: peaked in front, dipped behind, at 175, 115 and 55
 degrees](images/cone_lid.jpg)
+
+**Animal Face** (**+** menu > Animal Face) comes at Birmingham 17 from
+first principles: a mirrored low-poly mesh standing on the fold, cut and
+flattened like papercraft, glued down by its ears, that opens as the card
+opens flat and crushes flat as it closes. Each half is nine triangles, all
+their corners on its edge (down the middle, or round the outside), so it
+unfolds flat without cuts; the two halves are one piece joined along the
+nose crease C, between the eyes, and stuck together down the middle by
+tabs along the forehead, muzzle and chin.
+
+C and the ears' hinges all point at one spot up the fold, so the face works
+as a V-fold whose halves are its two meshes: as the card closes, C and the
+ear hinges move exactly as a V-fold's crease and glue lines do, and the
+rest of each half follows with its triangles kept as near their size as
+they'll go (within a few percent: real card crushes), its seams on the
+middle and clear of the pages, until shut it lies pressed flat.
+
+Its landmarks, in the panel:
+
+* **Nose At**: where the nose's tip is, up the fold. **Face Width** across
+  the cheeks; **Snout Height**: how far the nose stands off the card, open.
+* **Forehead**, **Nose**, **Muzzle**, **Chin**: the lengths down the middle,
+  from the top of the head to the brow (a seam), the brow to the nose's tip
+  (C, between the eyes), the tip down to the mouth (a seam) and back under
+  to the card (a seam). Forehead or Chin 0 leaves it out.
+* **Mouth Width**, **Mouth Depth**, **Mouth Angle**: a slot each side, in
+  from the lower edge towards the muzzle; tilted up for a smile, down for a
+  frown.
+* **Ears At** (o'clock round the face's middle: 10 for 10 and 2, 9 for 9
+  and 3, 8 for 8 and 4, or between), **Ear Hinge** and **Ear Size**: each
+  ear glued down flat on its page off its hinge. Cut its shape as you like.
+
+Checks says when the mouth runs past the chin, the cheek or the nose. Paste
+pictures on any facet. Shut, the face lies pressed between the pages.
+
+![An animal face, from above, at 178, 120 and 60 degrees](images/head.jpg)
 
 **Back-to-Back Pair** (Birmingham 53, **+** menu > Back-to-Back Pair
 (parallel strips)): the simplest thing on two parallel strips, two pieces of

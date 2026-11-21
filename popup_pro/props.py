@@ -118,6 +118,9 @@ KINDS = [
     ("SWING", "Arm Behind a Mask", "A picture swinging round in its own plane, pivoted on "
      "a small creased hinge hidden behind a mask layer, as the card opens (Birmingham 75)",
      "DRIVER_ROTATIONAL_DIFFERENCE", 25),
+    ("HEAD", "Animal Face", "A mirrored low-poly face on the fold, glued down by its ears: "
+     "it opens as a V-fold and crushes flat as the card closes (after Birmingham 17)",
+     "MONKEY", 26),
 ]
 
 POINTS = [
@@ -1248,6 +1251,37 @@ class PopupMech(bpy.types.PropertyGroup):
                             "ears, glued to the pages out from the loop; how far they "
                             "reach from the wall's foot", default=22.0, min=4.0,
                             soft_max=80.0, update=_changed)
+    head_brow: FloatProperty(name="Forehead", default=20.0, min=0.0, soft_max=80.0,
+                             update=_changed, description="Animal face: the forehead's seam "
+                             "down the middle, from the top of the head to the brow (0: none)")
+    head_nose: FloatProperty(name="Nose", default=30.0, min=2.0, soft_max=100.0,
+                             update=_changed, description="Animal face: the crease between "
+                             "the eyes, from the brow to the nose's tip")
+    head_muzzle: FloatProperty(name="Muzzle", default=12.0, min=1.0, soft_max=80.0,
+                               update=_changed, description="Animal face: the snout's front "
+                               "seam, from the nose's tip down to the mouth")
+    head_chin: FloatProperty(name="Chin", default=15.0, min=0.0, soft_max=80.0,
+                             update=_changed, description="Animal face: the chin's seam, from "
+                             "the mouth back under to the card (0: none)")
+    mouth_w: FloatProperty(name="Mouth Width", default=8.0, min=0.0, soft_max=40.0,
+                           update=_changed, description="Animal face: how wide each side's "
+                           "mouth slot opens at the face's edge")
+    mouth_d: FloatProperty(name="Mouth Depth", default=12.0, min=0.0, soft_max=60.0,
+                           update=_changed, description="Animal face: how far each mouth "
+                           "slot cuts in from the face's edge towards the muzzle")
+    mouth_a: FloatProperty(name="Mouth Angle", default=15.0, min=-60.0, max=60.0,
+                           update=_changed, description="Animal face: the mouth slots' tilt: "
+                           "up for a smile (dipping towards the middle), down for a frown")
+    ear_clock: FloatProperty(name="Ears At", default=10.0, min=7.0, max=11.5, step=50,
+                             update=_changed, description="Animal face: where round the face "
+                             "the ears' hinges sit, in o'clock (10: 10 and 2; 9: 9 and 3; "
+                             "8: 8 and 4)")
+    ear_base: FloatProperty(name="Ear Hinge", default=18.0, min=2.0, soft_max=60.0,
+                            update=_changed, description="Animal face: the length of each "
+                            "ear's hinge, where it's glued down on the page")
+    ear_size: FloatProperty(name="Ear Size", default=22.0, min=0.0, soft_max=80.0,
+                            update=_changed, description="Animal face: how far each ear "
+                            "reaches out across its page (cut its shape as you like)")
     pair: BoolProperty(name="Back-to-Back Pair", default=False, update=_changed,
                        description="Two pieces of card glued back to back, each glued down "
                        "by a tab on a strip and bending up into the joined top "
@@ -1970,6 +2004,12 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type="FRAME", x=self.x, height=self.height)
         elif self.kind in ("FLOOR", "CEILING"):
             d.update(type=self.kind, depth=self.depth, lead=self.lead)
+        elif self.kind == "HEAD":
+            d.update(type="HEAD", width=self.width, height=self.height,
+                     head_brow=self.head_brow, head_nose=self.head_nose,
+                     head_muzzle=self.head_muzzle, head_chin=self.head_chin,
+                     mouth_w=self.mouth_w, mouth_d=self.mouth_d, mouth_a=self.mouth_a,
+                     ear_clock=self.ear_clock, ear_base=self.ear_base, ear_size=self.ear_size)
         elif self.kind == "PYRAMID":
             d.update(type="PYRAMID", x=self.x, depth=self.depth, height=self.height,
                      ridge=self.ridge, front=self.front, back=self.back,
