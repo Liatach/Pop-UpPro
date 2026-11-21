@@ -71,7 +71,7 @@ class Heads:
         es = max(0.0, float(m.get("ear_size", 22.0)))
         tb = max(2.0, float(m.get("tab", 8.0)))
 
-        # ---- the design, at the fold's full opening: x across (the left
+        # ---- the design, the card open flat (whatever it opens to): x across (the left
         # half at x < 0), y up the fold, z off the card
         def P3(x, y, z):
             return Vector((x, y, z))
@@ -103,69 +103,221 @@ class Heads:
         T = run(B, Lf, 40.0, True)
         M = run(N, Lm, 60.0, False)
         K = run(M, Lc, 40.0, False)
-        yc = 0.5 * (T.y + K.y)
-        # P: C carried on up the fold to the card
+        brow, chin = Lf > 0.5, Lc > 0.5
+        top = T if brow else B
+        bot = K if chin else M
+        yc = 0.5 * (top.y + bot.y)
+        # P: C carried on up the fold to the card (the V-fold's point, for the
+        # first guess at each opening)
         cdir = (B - N).normalized()
         if cdir.z >= -1e-6:
             self.warn(f"{lab}: the nose crease doesn't come down to the card; skipped")
             return
         Pp = N + (-N.z / cdir.z) * cdir
-        # the ear hinge, on the card, on a line from P; its middle at Ears At
-        # o'clock round the face's middle
-        th = math.radians((12.0 - ec) * 30.0)
-        Ec = P3(-0.5 * W * math.sin(th), yc + 0.5 * W * math.cos(th), 0.0)
-        u1 = (Ec - Pp)
-        if u1.length < 1.0 or u1.x > -0.5:
-            self.warn(f"{lab}: the ears are too close to the top of the fold; skipped")
-            return
-        u1.normalize()
-        Ea, Eb = Ec - 0.5 * eb * u1, Ec + 0.5 * eb * u1
-        # the cheek, and the mouth: a slot in from the lower edge, beside the
-        # muzzle and chin
-        Q = P3(-0.5 * W * 0.92, 0.5 * (Eb.y + M.y), zlow)
-        chin = Lc > 0.5
-        Em = P3(-0.32 * W, K.y + 0.6 * (M.y - K.y) if chin else M.y - 0.5 * mw - 2.0, zlow)
-        # (aimed at the muzzle's foot, tilted: a smile dips towards the middle)
-        d0_ = (Vector((0.0, M.y)) - Em.to_2d()).normalized()
-        dv = Matrix.Rotation(-ma, 2) @ d0_
-        pu = Vector((-dv.y, dv.x))  # (across it, up the face)
-        Co = Em + 0.5 * mw * P3(pu.x, pu.y, 0.0)
-        Jc = Em - 0.5 * mw * P3(pu.x, pu.y, 0.0)
+        # ---- the outline: an ellipse round the face on the card, its corners
+        # at o'clock round it (12 at the top of the head, 6 at the chin)
+        ea_, eb_ = 0.5 * W, max(5.0, 0.5 * (top.y - bot.y))
+
+        def at(hr, z=None):
+            """The outline's point at hr o'clock (the left side: 7 to 11)."""
+            th_ = math.radians((12.0 - hr) * 30.0)
+            return P3(-ea_ * math.sin(th_), yc + eb_ * math.cos(th_), zlow if z is None else z)
+
+        def tangent(hr):
+            th_ = math.radians((12.0 - hr) * 30.0)
+            return Vector((-ea_ * math.cos(th_), -eb_ * math.sin(th_), 0.0)).normalized()
+
+        # the ear: its hinge along the outline at Ears At, glued down on the card
+        ec = max(7.0, min(11.5, ec))
+        Ec = at(ec, 0.0)
+        tg = tangent(ec)  # (round the face: from its upper end to its lower)
+        Ea, Eb = Ec - 0.5 * eb * tg, Ec + 0.5 * eb * tg
+        hrs = {}
+        for k, v in (("Ea", Ea), ("Eb", Eb)):
+            th_ = math.atan2(-v.x / ea_, (v.y - yc) / eb_)
+            hrs[k] = 12.0 - math.degrees(th_) / 30.0
+        if hrs["Ea"] > 11.8 or hrs["Eb"] < 6.8:
+            warn.append("the ears' hinges run past the top of the head or the chin: shorten "
+                        "them or move them round")
+        # the mouth: a slot cut up from the lower edge beside the chin, its
+        # tip the mouth's corner; Mouth Angle leans it out (a smile) or in
+        mh = 6.6  # (o'clock: the slot's opening, just beside the chin)
+        Em = at(mh)
+        dt_ = math.degrees(mw / max(1.0, ea_)) / 30.0  # (hours either side for Mouth Width)
+        Co, Jc = at(mh + 0.5 * dt_), at(mh - 0.5 * dt_)
+        dv = Vector((-math.sin(ma), math.cos(ma)))  # (up the face, leant out by Mouth Angle)
         Mi = Em + md * P3(dv.x, dv.y, 0.0)
         deep = Mi.x > -2.0
         Mi.x = min(Mi.x, -2.0)
-        Mi.z = zlow + 0.2 * (min(M.z, N.z) - zlow)
-        kb = K.y if chin else -1e9
-        if deep or not (kb < Jc.y and Co.y < Q.y and kb < Mi.y < N.y):
+        Mi.z = zlow + 0.25 * (min(M.z, N.z) - zlow)
+        if deep or Jc.x > -1.0 or Mi.y > N.y or md < 0.5:
             warn.append("the mouth runs past the chin, the cheek or the nose: make it "
                         "narrower, shallower or less tilted")
-        V = dict(T=T, B=B, N=N, M=M, K=K, Ea=Ea, Eb=Eb, Q=Q, Co=Co, Mi=Mi, Jc=Jc)
-        tris = [("T", "B", "Ea"), ("B", "Eb", "Ea"), ("B", "N", "Eb"), ("N", "Q", "Eb"),
-                ("N", "Co", "Q"), ("N", "Mi", "Co"), ("N", "M", "Mi"), ("M", "K", "Mi"),
-                ("K", "Jc", "Mi")]
-        if Lf <= 0.5:
-            tris = [t_ for t_ in tris if t_[0] != "T"]
-            del V["T"]
-        if not chin:
-            # (no chin: the jaw runs from the mouth straight to the muzzle's foot)
-            tris = [t_ for t_ in tris if t_ != ("M", "K", "Mi")]
-            tris = [("M", "Jc", "Mi") if t_ == ("K", "Jc", "Mi") else t_ for t_ in tris]
-            del V["K"]
+        # round the rest of the outline: the forehead's edge, the cheek, the jowl
+        ha, hb = hrs["Ea"], hrs["Eb"]
+        jw = max(mh + dt_ + 0.4, min(7.4, hb - 0.4))
+        outline = [("F1", at(12.0 - (12.0 - ha) / 3.0)), ("F2", at(12.0 - 2.0 * (12.0 - ha) / 3.0)),
+                   ("Ea", Ea), ("Eb", Eb), ("Q1", at(hb - (hb - jw) / 3.0)),
+                   ("Q2", at(hb - 2.0 * (hb - jw) / 3.0)), ("Jw", at(jw)), ("Co", Co),
+                   ("Mi", Mi), ("Jc", Jc)]
+        # down the middle: the seams' own corners too (they may bend in the
+        # pattern; C, between the eyes, can't)
+        mid = []
+        if brow:
+            Fm = 0.5 * (T + B) + P3(0.0, 0.0, 0.12 * Lf)
+            mid += [("T", T), ("Fm", Fm)]
+        mid += [("B", B), ("N", N), ("M", M)]
+        if chin:
+            mid += [("K", K)]
+        # a ring of corners inside: temple, eye, cheekbone, cheek, round an
+        # inner ellipse, half way up the face
+        ring = []
+        for k_, hr in enumerate((10.4, 9.3, 8.2)):
+            hr2 = min(hr, ha + 0.2) if k_ == 0 else hr
+            p_ = at(hr2)
+            q_ = P3(0.55 * p_.x, yc + 0.6 * (p_.y - yc), 0.0)
+            # (its height: between the middle's at that level and the edge's)
+            ys = sorted(mid, key=lambda kv: abs(kv[1].y - q_.y))[0][1]
+            q_.z = zlow + 0.5 * (ys.z - zlow)
+            ring.append((f"R{k_ + 1}", q_))
+        # (the cheek's corner kept up and out from the mouth's, whichever way
+        # the mouth leans)
+        q_ = ring[-1][1]
+        q_.x = min(q_.x, Mi.x - 0.12 * W)
+        q_.y = max(q_.y, Mi.y + 0.1 * (top.y - bot.y))
+        V = dict(mid + outline + ring)
+        A_ = [k for k, _ in mid]
+        O_ = [k for k, _ in outline]
+        R_ = [k for k, _ in ring]
+
+        def strip(P_, Q_):
+            """Triangles between two chains sharing their first and last
+            corners, each step taking the shorter diagonal."""
+            out_ = [(P_[0], Q_[1], P_[1])]
+            i, j = 1, 1
+            while not (i == len(P_) - 2 and j == len(Q_) - 2):
+                if i == len(P_) - 2:
+                    adv_q = True
+                elif j == len(Q_) - 2:
+                    adv_q = False
+                else:
+                    adv_q = (V[P_[i]] - V[Q_[j + 1]]).length <= (V[P_[i + 1]] -
+                                                                  V[Q_[j]]).length
+                if adv_q:
+                    out_.append((P_[i], Q_[j], Q_[j + 1]))
+                    j += 1
+                else:
+                    out_.append((P_[i], Q_[j], P_[i + 1]))
+                    i += 1
+            out_.append((P_[-2], Q_[-2], P_[-1]))
+            return [t_ for t_ in out_ if len(set(t_)) == 3]
+
+        # (the slot's tip joins the ring, so the cheek folds in to the mouth's
+        # corner and the chin's edge runs from it to the chin)
+        Rc = [A_[0]] + R_ + ["Mi", A_[-1]]
+        tris = strip(A_, Rc) + strip([A_[0]] + R_ + ["Mi"], [A_[0]] + O_[:O_.index("Mi") + 1]) \
+            + [("Mi", "Jc", A_[-1])]
+        # the ring's corners lie where the card round each is flat (its angles
+        # adding to a whole turn), so it all unfolds without cuts: each moved
+        # up or down off the card till it is
+        inc = {r_: [t_ for t_ in tris if r_ in t_] for r_ in R_}
+
+        def turn(r_):
+            tot = 0.0
+            for t_ in inc[r_]:
+                o_ = [k for k in t_ if k != r_]
+                tot += (V[o_[0]] - V[r_]).angle(V[o_[1]] - V[r_], 0.0)
+            return tot
+
+        z_init = {r_: V[r_].z for r_ in R_}
+
+        def flat_z(r_):
+            """The height off the card nearest its first guess where r_'s
+            corner lies flat."""
+            zs = [zlow + (1.5 * h - zlow) * q / 60.0 for q in range(61)]
+            fs = []
+            for zz in zs:
+                V[r_].z = zz
+                fs.append(turn(r_) - 2.0 * math.pi)
+            cands = sorted((q for q in range(1, 61) if fs[q - 1] * fs[q] <= 0),
+                           key=lambda q: abs(zs[q] - z_init[r_]))
+            for q in cands[:1]:
+                if True:
+                    lo, hi, f_lo = zs[q - 1], zs[q], fs[q - 1]
+                    for _b in range(40):
+                        zm = 0.5 * (lo + hi)
+                        V[r_].z = zm
+                        fm = turn(r_) - 2.0 * math.pi
+                        if fm * f_lo > 0:
+                            lo, f_lo = zm, fm
+                        else:
+                            hi = zm
+                    return 0.5 * (lo + hi)
+            return None
+
+        # then all together, each moved as little as it can be (any way) till
+        # every one lies flat
+        import numpy as np
+        xv = np.array([c for r_ in R_ for c in V[r_]])
+        x00 = xv.copy()
+
+        def fres(xx):
+            for k_, r_ in enumerate(R_):
+                V[r_].x, V[r_].y, V[r_].z = xx[3 * k_:3 * k_ + 3]
+            return np.array([turn(r_) - 2.0 * math.pi for r_ in R_])
+
+        for it_ in range(80):
+            lam_ = 0.02 if it_ < 20 else 0.0
+            f0 = fres(xv)
+            if float(np.abs(f0).max()) < 1e-7:
+                break
+            Jn = np.zeros((len(R_), len(xv)))
+            for c in range(len(xv)):
+                dx = np.zeros(len(xv))
+                dx[c] = 1e-4
+                Jn[:, c] = (fres(xv + dx) - f0) / 1e-4
+            if lam_ > 0:
+                Ja = np.vstack([Jn, lam_ * np.eye(len(xv))])
+                ra = np.concatenate([f0, lam_ * (xv - x00)])
+            else:
+                Ja, ra = Jn, f0  # (the least move that flattens them)
+            stp = np.linalg.lstsq(Ja, -ra, rcond=None)[0]
+            mx = float(np.abs(stp).max())
+            if mx > 0.1 * W:
+                stp *= 0.1 * W / mx
+            xv = xv + stp
+            for k_ in range(len(R_)):  # (kept off the card)
+                xv[3 * k_ + 2] = max(xv[3 * k_ + 2], zlow)
+        fres(xv)
+        flat_err = max(abs(turn(r_) - 2.0 * math.pi) for r_ in R_)
+        if flat_err > math.radians(0.5):
+            warn.append("the face's inner corners can't all lie flat: its pattern won't quite "
+                        "close (try other landmarks)")
         for w in warn:
             self.warn(f"{lab}: {w}")
         # each turned to face out (away from the card under the face)
         inner = P3(0.0, yc, -0.5 * h)
         out = []
         for a_, b_, c_ in tris:
-            A_, B_, C_ = V[a_], V[b_], V[c_]
-            n_ = (B_ - A_).cross(C_ - A_)
+            A3, B3, C3 = V[a_], V[b_], V[c_]
+            n_ = (B3 - A3).cross(C3 - A3)
             if n_.length < 1e-6:
                 self.warn(f"{lab}: a facet has folded to nothing ({a_}, {b_}, {c_}); skipped")
                 return
-            if n_.dot((A_ + B_ + C_) / 3.0 - inner) < 0:
+            if n_.dot((A3 + B3 + C3) / 3.0 - inner) < 0:
                 a_, b_ = b_, a_
             out.append((a_, b_, c_))
         tris = out
+        # (seen from above, none folds over another)
+        for i_, (a_, b_, c_) in enumerate(tris):
+            sa = (V[b_] - V[a_]).to_2d().cross((V[c_] - V[a_]).to_2d())
+            if i_ == 0:
+                s0 = sa
+            elif sa * s0 <= 0:
+                self.warn(f"{lab}: the face folds over itself at {a_}, {b_}, {c_}: change "
+                          f"the mouth or the ears")
+                return
+        u1 = (at(9.0, 0.0) - Pp).normalized()  # (the guess's half plane)
         # ---- unfold the left half from C: B-N up the middle of the pattern
         L_BN = (B - N).length
         p2 = {"N": Vector((0.0, 0.0)), "B": Vector((0.0, L_BN))}
@@ -278,8 +430,9 @@ class Heads:
         # whatever their corners do), C and the ear hinges held exactly, the
         # seams' corners kept on the mirror plane, all clear of the pages
         names_v = sorted(V)
-        fixed = {"B", "N", "Ea", "Eb"}
-        onmir = {"T", "M", "K"} & set(names_v)
+        fixed = {"Ea", "Eb"}  # (glued down: carried round on the left page)
+        onmir = set(A_)  # (down the middle: C and the seams)
+        PgL = self.panels[host.p1]
         edges = {}
         for t_ in tris:
             for i_ in range(3):
@@ -288,21 +441,43 @@ class Heads:
         elist = [(tuple(k_), L_) for k_, L_ in edges.items()]
         pose_cache = {}
 
-        def pose(t):
-            """World positions of the left half's corners at opening t."""
-            k_ = float(t)
-            if k_ in pose_cache:
-                return pose_cache[k_]
+        def guess(t):
             Wl = shear(t)[0]
             X0 = {v: Wl @ V[v] for v in names_v}
-            if abs(k_ - float(self.tmax)) < 1e-6:
-                res = X0
-            else:
-                res = self._head_relax(host, t, X0, fixed, onmir, elist, Pp.y)
+            onpg = PgL.asm(t) @ PgL.asm(180.0).inverted() @ shear(180.0)[0]
+            for v in fixed:
+                X0[v] = onpg @ V[v]
+            return X0
+
+        def pose(t):
+            """World positions of the left half's corners at opening t: solved
+            in steps down from full open, each from the last (so the card
+            crushes the same way every time)."""
+            k_ = round(float(t), 6)
+            if k_ in pose_cache:
+                return pose_cache[k_]
+            tm = round(180.0, 6)
+            if tm not in pose_cache:
+                pose_cache[tm] = guess(tm)
+            above = min((q for q in pose_cache if q >= k_), default=tm)
+            prev = pose_cache[above]
+            cur = above
+            while cur > k_ + 1e-9:
+                nxt = max(k_, cur - (4.0 if cur > 24.0 else 1.0))
+                g = guess(nxt)
+                Wp = shear(cur)[0]
+                Wn = shear(nxt)[0]
+                # (the last pose, carried on by the guess's own change)
+                X0 = {v: (Wn @ Wp.inverted() @ prev[v]) if v not in fixed else g[v]
+                      for v in names_v}
+                prev = self._head_relax(host, nxt, X0, fixed, onmir, elist, Pp.y)
+                cur = round(nxt, 6)
+                pose_cache[cur] = prev
             if len(pose_cache) > 4096:
+                keep = {tm: pose_cache[tm]}
                 pose_cache.clear()
-            pose_cache[k_] = res
-            return res
+                pose_cache.update(keep)
+            return pose_cache.get(k_, prev)
 
         def tri_map(p2a, p2b, p2c, Pa, Pb, Pc):
             """Affine map: pattern triangle (z off it along the normal) to its
@@ -364,7 +539,14 @@ class Heads:
         ic = next(i for i in range(len(tris)) if {"B", "N"} <= fid[i])
         self.fold_kind[frozenset((facet[("L", fid[ic])], facet[("R", fid[ic])]))] = "mountain"
         # ---- seams down the middle: a tab off the left half under the right
-        for a_, b_, nm_s in (("T", "B", "forehead"), ("N", "M", "muzzle"), ("M", "K", "chin")):
+        seams = []
+        for k_, (a_, b_) in enumerate(zip(A_, A_[1:])):
+            if (a_, b_) == ("B", "N"):
+                continue
+            nm_s = "forehead" if A_.index(b_) <= A_.index("B") else (
+                "muzzle" if a_ == "N" else "chin")
+            seams.append((a_, b_, f"{nm_s}{k_ + 1}" if nm_s == "forehead" else nm_s))
+        for a_, b_, nm_s in seams:
             if a_ not in V or b_ not in V or (V[a_] - V[b_]).length < 1.0 or \
                     a_ not in p2 or b_ not in p2:
                 continue
@@ -414,19 +596,19 @@ class Heads:
         Lb_ = (pb - pa).length
         ear = [pa, pb, pb + 0.6 * es * nv + 0.1 * Lb_ * ev, pa + es * nv + 0.45 * Lb_ * ev,
                pa + 0.6 * es * nv - 0.15 * Lb_ * ev]
-        out3 = Vector((-u1.y, u1.x, 0.0))
+        out3 = Vector((-tg.y, tg.x, 0.0))
         if out3.x > 0:
             out3 = -out3  # (out from the face, across the left page)
         Ed = frame(Ea, Eb - Ea, out3) @ frame(pa.to_3d(), (pb - pa).to_3d(),
                                               nv.to_3d()).inverted()
         for sd, pg in (("L", host.p1), ("R", host.p2)):
             Pg = self.panels[pg]
-            fix = Pg.asm(self.tmax).inverted() @ (shear(self.tmax)[0] if sd == "L" else
-                                                  shear(self.tmax)[1]) @ \
+            fix = Pg.asm(180.0).inverted() @ (shear(180.0)[0] if sd == "L" else
+                                                  shear(180.0)[1]) @ \
                 Matrix.Translation((0.0, 0.0, TAB_LIFT))
             poly = [q[:] for q in ear] if sd == "L" else [(-q[0], q[1]) for q in ear]
             Ms = fix @ (Ed if sd == "L" else Ed @ Rp)
-            # (shear(tmax) is the design itself: the ear sits on its page)
+            # (shear(180) is the design itself: the ear sits on its page)
 
             def asm_e(t, Pa=Pg.asm, Ms=Ms):
                 return Pa(t) @ Ms
@@ -447,7 +629,7 @@ class Heads:
         # page normals into the gap (pointing at the face)
         npl = nl if nl.dot(r) >= 0 else -nl
         npr = nr if nr.dot(l) >= 0 else -nr
-        clear = 0.4
+        clear = 0.4 * min(1.0, float(t) / 10.0)  # (none left when shut)
         free = [v for v in sorted(X0) if v not in fixed]
         idx, n = {}, 0
         for v in free:
@@ -477,11 +659,12 @@ class Heads:
             return xx[o:o + 3], np.eye(3)
 
         lam = 0.03
-        for _ in range(30):
+
+        def resid(xx):
             rows, J = [], []
             for (a_, b_), L_ in elist:
-                pa, Ja = pos(x, a_)
-                pb, Jb = pos(x, b_)
+                pa, Ja = pos(xx, a_)
+                pb, Jb = pos(xx, b_)
                 d = pa - pb
                 ln = float(np.linalg.norm(d))
                 if ln < 1e-9:
@@ -498,22 +681,36 @@ class Heads:
                     jr[o:o + k_] -= w * (u @ Jb)
                 J.append(jr)
             for v in free:
-                pv, Jv = pos(x, v)
+                pv, Jv = pos(xx, v)
                 o, k_ = idx[v]
                 for N_ in (NL, NR):
                     dd = float((pv - Sv) @ N_) - clear
+                    jr = np.zeros(n)
                     if dd < 0:
                         rows.append(5.0 * dd)
-                        jr = np.zeros(n)
                         jr[o:o + k_] = 5.0 * (N_ @ Jv)
-                        J.append(jr)
-            rows += list(lam * (x - x0))
+                    else:
+                        rows.append(0.0)
+                    J.append(jr)
+            rows += list(lam * (xx - x0))
             J += list(lam * np.eye(n))
-            Jm, rv = np.array(J), np.array(rows)
+            return np.array(rows), np.array(J)
+
+        # Gauss-Newton (the pull back to the guess damps it)
+        for _ in range(40):
+            rv, Jm = resid(x)
             step = np.linalg.lstsq(Jm, -rv, rcond=None)[0]
             x = x + step
             if float(np.abs(step).max()) < 1e-5:
                 break
+        # (and anything still a hair through a page set back on it)
+        for v in free:
+            o, k_ = idx[v]
+            if k_ == 3:
+                for N_ in (NL, NR):
+                    dd = float((x[o:o + 3] - Sv) @ N_)
+                    if dd < 0.0:
+                        x[o:o + 3] = x[o:o + 3] - dd * N_
         out = {}
         for v in X0:
             pv, _ = pos(x, v)

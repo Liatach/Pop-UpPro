@@ -260,15 +260,15 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.90.1**: the animal face in three rings of facets (no more fanning to
+  a point), ears turning round the head with their clock, mouths cut up
+  from the bottom edge beside the chin.
 * **0.90**: an animal face built from first principles: a mirrored
   low-poly mesh on the fold that opens as a V-fold and crushes flat, set by
   landmarks.
 * **0.89.1**: the face's loop in a few regular facets, the muzzle and
   forehead creased along whole facets (no gap); a pair's pictures go on its
   top.
-* **0.89**: the animal face cut as Birmingham's pattern, with its forehead
-  join, nose crease, muzzle join, loop diameter and ears round the face; two
-  pieces glued back to back on parallel strips.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

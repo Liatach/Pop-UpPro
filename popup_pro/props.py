@@ -1268,10 +1268,10 @@ class PopupMech(bpy.types.PropertyGroup):
                            "mouth slot opens at the face's edge")
     mouth_d: FloatProperty(name="Mouth Depth", default=12.0, min=0.0, soft_max=60.0,
                            update=_changed, description="Animal face: how far each mouth "
-                           "slot cuts in from the face's edge towards the muzzle")
-    mouth_a: FloatProperty(name="Mouth Angle", default=15.0, min=-60.0, max=60.0,
+                           "slot cuts up from the bottom edge, beside the chin")
+    mouth_a: FloatProperty(name="Mouth Angle", default=-15.0, min=-60.0, max=60.0,
                            update=_changed, description="Animal face: the mouth slots' tilt: "
-                           "up for a smile (dipping towards the middle), down for a frown")
+                           "leant out for a smile (positive), in towards the nose (negative)")
     ear_clock: FloatProperty(name="Ears At", default=10.0, min=7.0, max=11.5, step=50,
                              update=_changed, description="Animal face: where round the face "
                              "the ears' hinges sit, in o'clock (10: 10 and 2; 9: 9 and 3; "

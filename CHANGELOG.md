@@ -3,6 +3,18 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.90.1**: the **Animal Face** in three rings: the middle (with a
+  corner part way down the forehead's seam), an inner ring of temple, eye
+  and cheekbone, and an elliptical outline, triangulated as strips between
+  them, about twenty facets a half. The inner corners are moved as little as
+  they need to lie flat, so it still unfolds without cuts. The ears' hinges
+  lie along the outline at their clock, so they turn round the head. The
+  mouth is a slot cut up from the bottom edge beside a tongue of chin, its
+  tip the mouth's corner, leant out (a smile) or in by Mouth Angle (now
+  -15 by default). The crush is solved step by step down from full open,
+  each opening from the last, the ears riding their pages and C free on
+  the middle: the facets keep within about 2% of their size all the way
+  shut. Checks says if the mesh would fold over itself.
 * **0.90.0**: **Animal Face** (+ menu) is a new mechanism: a mirrored
   low-poly mesh on the fold, nine triangles a side all cornered on the
   half's edge so it unfolds flat, one piece joined along the nose crease C,

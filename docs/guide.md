@@ -290,18 +290,20 @@ degrees](images/cone_lid.jpg)
 **Animal Face** (**+** menu > Animal Face) comes at Birmingham 17 from
 first principles: a mirrored low-poly mesh standing on the fold, cut and
 flattened like papercraft, glued down by its ears, that opens as the card
-opens flat and crushes flat as it closes. Each half is nine triangles, all
-their corners on its edge (down the middle, or round the outside), so it
-unfolds flat without cuts; the two halves are one piece joined along the
-nose crease C, between the eyes, and stuck together down the middle by
-tabs along the forehead, muzzle and chin.
+opens flat and crushes flat as it closes. Each half is about twenty
+triangles in three rings: down the middle (the forehead's seam, the nose
+crease C between the eyes, the muzzle and chin seams), an inner ring
+(temple, eye, cheekbone) and the outline (an ellipse round the face on the
+card, with the ears and the mouth on it). The inner ring's corners are each
+placed, as near where they'd naturally sit as can be, where the card round
+them lies flat (their angles add up to a whole turn), so the half still
+unfolds without cuts. The two halves are one piece joined along C, stuck
+together down the middle by tabs along the forehead, muzzle and chin.
 
-C and the ears' hinges all point at one spot up the fold, so the face works
-as a V-fold whose halves are its two meshes: as the card closes, C and the
-ear hinges move exactly as a V-fold's crease and glue lines do, and the
-rest of each half follows with its triangles kept as near their size as
-they'll go (within a few percent: real card crushes), its seams on the
-middle and clear of the pages, until shut it lies pressed flat.
+As the card closes, the ear hinges ride their pages and the rest of each
+half follows, solved step by step down from full open with its triangles
+kept within a couple of percent of their size, its seams on the middle and
+clear of the pages, until shut it lies pressed flat.
 
 Its landmarks, in the panel:
 
@@ -311,17 +313,24 @@ Its landmarks, in the panel:
   from the top of the head to the brow (a seam), the brow to the nose's tip
   (C, between the eyes), the tip down to the mouth (a seam) and back under
   to the card (a seam). Forehead or Chin 0 leaves it out.
-* **Mouth Width**, **Mouth Depth**, **Mouth Angle**: a slot each side, in
-  from the lower edge towards the muzzle; tilted up for a smile, down for a
-  frown.
-* **Ears At** (o'clock round the face's middle: 10 for 10 and 2, 9 for 9
-  and 3, 8 for 8 and 4, or between), **Ear Hinge** and **Ear Size**: each
-  ear glued down flat on its page off its hinge. Cut its shape as you like.
+* **Mouth Width**, **Mouth Depth**, **Mouth Angle**: a slot each side, cut
+  up from the bottom edge beside the chin (a tongue of chin left between
+  them), its tip the mouth's corner. Mouth Angle leans the slots out (a
+  smile, positive) or in towards the nose (negative).
+* **Ears At** (o'clock round the face: 10 for 10 and 2, 9 for 9 and 3, 8
+  for 8 and 4, or between), **Ear Hinge** and **Ear Size**: each ear's
+  hinge lies along the outline at its clock, so the ears turn round the head
+  as they move; each is glued down flat on its page. Cut its shape as you
+  like.
 
-Checks says when the mouth runs past the chin, the cheek or the nose. Paste
+Checks says when the mouth runs past the chin, the cheek or the nose, or
+the mesh would fold over itself. Paste
 pictures on any facet. Shut, the face lies pressed between the pages.
 
 ![An animal face, from above, at 178, 120 and 60 degrees](images/head.jpg)
+
+![Two more: a smile with ears at 9 and 3 (below), mouth leaning in with ears
+at 11 and 1 (above), at 178, 120 and 60 degrees](images/head_mouths.jpg)
 
 **Back-to-Back Pair** (Birmingham 53, **+** menu > Back-to-Back Pair
 (parallel strips)): the simplest thing on two parallel strips, two pieces of

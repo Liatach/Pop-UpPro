@@ -1,5 +1,6 @@
 """v0.90: the animal face as a mirrored low-poly mesh on the fold."""
 # families: tubes
+import math
 import os
 import sys
 import tempfile
@@ -72,8 +73,8 @@ bpy.ops.popup.build()
 assert not warns(), warns()
 M = model()
 L = sorted(n for n in M.panels if n.startswith("Head1.L"))
-assert len(L) == 9 and all(n.replace(".L", ".R") in M.panels for n in L)
-for n in ("Head1.EarL", "Head1.EarR", "Head1.ForeheadTab", "Head1.MuzzleTab", "Head1.ChinTab"):
+assert len(L) >= 16 and all(n.replace(".L", ".R") in M.panels for n in L)
+for n in ("Head1.EarL", "Head1.EarR", "Head1.Forehead1Tab", "Head1.MuzzleTab", "Head1.ChinTab"):
     assert n in M.panels, n
 
 
@@ -87,7 +88,7 @@ for t in M.samples + [M.tmax]:
     for n in L:
         wl, wr = corners(n, t), corners(n.replace(".L", ".R"), t)
         for w in wl:
-            if abs(w.x) < 0.05:
+            if abs(w.x) < 0.05 and t >= 5.0:  # (near shut, everything's near the middle)
                 assert min((w - v).length for v in wr) < 0.05, (t, n, w)
     # the facets keep their size, near enough (the card crushes, it hardly stretches)
     for n in L:
@@ -97,7 +98,7 @@ for t in M.samples + [M.tmax]:
         for i in range(3):
             a_, b_ = v3(q[i]), v3(q[(i + 1) % 3])
             L0 = (a_ - b_).length
-            tol = 0.05 if t > 2.0 else 0.1  # (pressed right shut, a little more)
+            tol = 0.05
             assert abs((A @ a_ - A @ b_).length / L0 - 1.0) < tol, (t, n)
 clean(M, "Head1")
 # open, it stands up; shut, it lies pressed flat between the pages
@@ -114,16 +115,31 @@ M = model()
 assert not warns(), warns()
 assert max(w.z for w in corners("Head1.L3", M.tmax)) > z0 + 5.0
 f.height = 25.0
-for k, v in (("mouth_a", -20.0), ("ear_clock", 9.0), ("ear_clock", 11.0), ("head_brow", 0.0),
-             ("head_chin", 0.0), ("mouth_w", 0.0)):
+# the ears turn round the face with their clock: each hinge along the outline
+ang = {}
+for ck in (11.0, 10.0, 9.0, 8.0):
+    f.ear_clock = ck
+    M = model()
+    assert not warns(), (ck, warns())
+    e = world(M, "Head1.EarL", M.tmax)
+    d = (e[1] - e[0]).normalized()
+    ang[ck] = math.degrees(math.atan2(d.y, d.x))
+assert len({round(a_) for a_ in ang.values()}) == 4, ang
+f.ear_clock = 10.0
+for k, v in (("mouth_a", 20.0), ("mouth_a", -30.0), ("mouth_w", 14.0), ("mouth_d", 15.0),
+             ("head_brow", 0.0), ("width", 90.0)):
     old = getattr(f, k)
     setattr(f, k, v)
     bpy.ops.popup.build()
     assert not warns(), (k, v, warns())
     setattr(f, k, old)
-f.mouth_d = 60.0
+f.head_chin, f.mouth_d = 0.0, 2.0  # (no chin: a short face, a short mouth)
 bpy.ops.popup.build()
-assert any("mouth runs past" in w for w in warns()), warns()
+assert not warns(), warns()
+f.head_chin = 15.0
+f.mouth_d = 80.0
+bpy.ops.popup.build()
+assert any("mouth runs past" in w or "folds over" in w for w in warns()), warns()
 f.mouth_d = 12.0
 # pictures go on its facets
 from popup_pro import props  # noqa: E402
