@@ -287,59 +287,55 @@ degrees](images/animal_face.jpg)
 ![Cones with lids: peaked in front, dipped behind, at 175, 115 and 55
 degrees](images/cone_lid.jpg)
 
-**Animal Face** (**+** menu > Animal Face) comes at Birmingham 17 from
-first principles: a mirrored low-poly mesh standing on the fold, cut and
-flattened like papercraft, glued down by its ears, that opens as the card
-opens flat and crushes flat as it closes.
+**Animal Face** (**+** menu > Animal Face): a mirrored low-poly face
+standing on the fold, cut and flattened like papercraft, glued down by its
+ears, that stands up as the card opens and crushes flat as it closes.
 
-Each half is a quad grid, like a lampshade: spokes from the middle out to
-the outline (an ellipse round the face on the card), crossed by two rings.
-The rings' corners are placed, as near a smooth dome as they can be, where
-the card round each lies flat, so the half unfolds without cuts; each quad
-is split on its shorter diagonal, left uncreased where it's near flat. Down
-the middle: the forehead's seam, the nose crease C between the eyes (one
-straight crease, with corners along it where spokes meet it), the muzzle
-and chin seams; the two halves are one piece joined along C and stuck
-together by tabs along the seams.
+Its pattern is a hand-made koala's, facet for facet as its creases were
+drawn on the flattened card. Down the middle of the piece runs the nose
+crease C (from between the eyes to the nose's tip), the fold that joins the
+two halves. Each half has a band of quads, two rows of three, from C out to
+the ear's hinge; above it the forehead, three triangles round to the top of
+the head; below it the muzzle's two over the nose's tip, then the mouth, a
+slot cut in from the side, with the jaw's three facets below it round to
+the chin. The forehead, muzzle and chin seams are stuck to the other half
+by tabs; the ears are glued down flat on the pages.
 
-The mouth is a hole between the rings, either side, with the jaw (the
-mandible) below it: the hole lets the jaw bend its own way. The ring of
-card round a hole only unfolds if the hole itself lays out flat as a closed
-shape, so its corners are placed for that too.
+Open flat, the face stands up from its pattern with every facet kept its
+shape, the seams and C in the mirror plane and the ears' hinges on the
+card; that decides where the ears glue down. As the card closes, the ears
+ride their pages and every other corner follows, solved step by step down
+from open flat, until shut it lies pressed flat between the pages. The
+koala's quads can't all stay perfectly flat on the way (the real card gives
+a little): each is two triangles across its shorter diagonal, with no crease
+printed there, bending a hair where it must.
 
-As the card closes, the ears ride their pages and every other corner
-follows, solved step by step down from open flat with each facet kept a
-rigid piece of card (they stay within a fraction of a millimetre of each
-other, a little more pressed nearly shut), the middle's corners on the
-mirror plane, clear of the pages, until shut it lies pressed flat.
+Its landmarks, in the panel (the defaults are the koala's, in mm):
 
-Its landmarks, in the panel:
+* **Nose At**: where the middle of C is, up the fold. **Cheek**: how far
+  out from C the ears' hinges are.
+* **Forehead**, **Nose**, **Muzzle**, **Chin**: the seams and crease down
+  the middle: from between the eyes over the top of the head (a seam), C
+  to the nose's tip, the tip down to the mouth (a seam), and from the lower
+  lip back under the chin (a seam).
+* **Mouth Width** (the slot at its corner, inside the cheek), **Lower Lip**
+  (from the corner out to the chin: how deep the mouth is), **Mouth Angle**
+  (the lower lip, chin and jaw turned about the mouth's corner: a smile one
+  way, a frown the other) and **Jaw** (from the mouth's corner back towards
+  the ear).
+* **Ear Size**: how far each ear reaches across its page (0: none). Cut its
+  shape as you like.
 
-* **Nose At**: where the nose's tip is, up the fold. **Face Width** across
-  the cheeks; **Snout Height**: how far the nose stands off the card, open.
-* **Forehead**, **Nose**, **Muzzle**, **Chin**: the lengths down the middle,
-  from the top of the head to the brow (a seam), the brow to the nose's tip
-  (C, between the eyes), the tip down to the mouth (a seam) and back under
-  to the card (a seam). Forehead or Chin 0 leaves it out.
-* **Mouth Width** (round the face), **Mouth Depth** (lip to jaw), **Mouth
-  Angle** (the outer corner lifted for a smile, dropped for a frown) and
-  **Jaw** (the mandible below it). Mouth Width 0: no mouth.
-* **Ears At** (o'clock round the face: 10 for 10 and 2, 9 for 9 and 3, 8
-  for 8 and 4, or between), **Ear Hinge** and **Ear Size**: each ear's
-  hinge lies along the outline at its clock, so the ears turn round the head
-  as they move; each is glued down flat on its page. Cut its shape as you
-  like. The mouth sits between the ears and the chin.
+Checks says when the face can't stand up from its pattern at those
+landmarks without stretching. Paste pictures on any facet.
 
-Checks says when the mouth doesn't fit between the middle and the edge, the
-ears and the mouth crowd each other, or the grid can't be made to lay out
-flat at those landmarks (some low ear positions with a mouth: move the ears
-or change the mouth). Paste pictures on any facet.
+![An animal face, from the front, at 178, 90 and 45 degrees](images/head.jpg)
 
-![An animal face, from above, at 178, 120 and 60 degrees](images/head.jpg)
+![Closing: at 30, 15 and 6 degrees, lying flat between the
+pages](images/head_close.jpg)
 
-![Two more: a wide mouth, long jaw and ears at 11 and 1 (below); a small
-mouth with big ears at half past 9 (above); at 178, 120 and 60
-degrees](images/head_mouths.jpg)
+![Two more: a wide frown with a long jaw (below); a smile with a short nose
+and small ears (above); at 178, 120 and 60 degrees](images/head_mouths.jpg)
 
 **Back-to-Back Pair** (Birmingham 53, **+** menu > Back-to-Back Pair
 (parallel strips)): the simplest thing on two parallel strips, two pieces of

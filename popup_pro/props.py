@@ -118,8 +118,9 @@ KINDS = [
     ("SWING", "Arm Behind a Mask", "A picture swinging round in its own plane, pivoted on "
      "a small creased hinge hidden behind a mask layer, as the card opens (Birmingham 75)",
      "DRIVER_ROTATIONAL_DIFFERENCE", 25),
-    ("HEAD", "Animal Face", "A mirrored low-poly face on the fold, glued down by its ears: "
-     "it opens as a V-fold and crushes flat as the card closes (after Birmingham 17)",
+    ("HEAD", "Animal Face", "A mirrored low-poly face on the fold, glued down by its ears, "
+     "facet for facet a hand-made koala's: it stands up as the card opens and crushes flat "
+     "as it closes",
      "MONKEY", 26),
 ]
 
@@ -1251,41 +1252,40 @@ class PopupMech(bpy.types.PropertyGroup):
                             "ears, glued to the pages out from the loop; how far they "
                             "reach from the wall's foot", default=22.0, min=4.0,
                             soft_max=80.0, update=_changed)
-    head_brow: FloatProperty(name="Forehead", default=20.0, min=0.0, soft_max=80.0,
+    head_brow: FloatProperty(name="Forehead", default=48.0, min=5.0, soft_max=120.0,
                              update=_changed, description="Animal face: the forehead's seam "
-                             "down the middle, from the top of the head to the brow (0: none)")
-    head_nose: FloatProperty(name="Nose", default=30.0, min=2.0, soft_max=100.0,
-                             update=_changed, description="Animal face: the crease between "
-                             "the eyes, from the brow to the nose's tip")
-    head_muzzle: FloatProperty(name="Muzzle", default=12.0, min=1.0, soft_max=80.0,
-                               update=_changed, description="Animal face: the snout's front "
-                               "seam, from the nose's tip down to the mouth")
-    head_chin: FloatProperty(name="Chin", default=15.0, min=0.0, soft_max=80.0,
+                             "down the middle, from between the eyes up over the top of the "
+                             "head")
+    head_nose: FloatProperty(name="Nose", default=38.0, min=5.0, soft_max=120.0,
+                             update=_changed, description="Animal face: the nose crease down "
+                             "the middle, from between the eyes to the nose's tip")
+    head_muzzle: FloatProperty(name="Muzzle", default=26.0, min=3.0, soft_max=80.0,
+                               update=_changed, description="Animal face: the muzzle's seam, "
+                               "from the nose's tip down to the mouth")
+    head_chin: FloatProperty(name="Chin", default=16.0, min=2.0, soft_max=80.0,
                              update=_changed, description="Animal face: the chin's seam, from "
-                             "the mouth back under to the card (0: none)")
-    mouth_w: FloatProperty(name="Mouth Width", default=14.0, min=0.0, soft_max=60.0,
-                           update=_changed, description="Animal face: how far round the "
-                           "face each side's mouth hole runs (0: no mouth)")
-    mouth_d: FloatProperty(name="Mouth Depth", default=6.0, min=0.0, soft_max=40.0,
-                           update=_changed, description="Animal face: how far the mouth "
-                           "hole opens, from the lip above to the jaw below")
+                             "the lower lip back under the chin")
+    mouth_w: FloatProperty(name="Mouth Width", default=11.0, min=2.0, soft_max=40.0,
+                           update=_changed, description="Animal face: how wide the mouth's "
+                           "slot is at its corner, inside the cheek")
+    mouth_d: FloatProperty(name="Lower Lip", default=25.0, min=3.0, soft_max=60.0,
+                           update=_changed, description="Animal face: the lower lip, from "
+                           "the mouth's corner out to the chin: how deep the mouth is")
     mouth_a: FloatProperty(name="Mouth Angle", default=0.0, min=-45.0, max=45.0,
-                           update=_changed, description="Animal face: the mouth's tilt: its "
-                           "outer corner lifted for a smile (positive), dropped for a frown")
-    head_jaw: FloatProperty(name="Jaw", default=8.0, min=1.0, soft_max=40.0,
-                            update=_changed, description="Animal face: the mandible's length "
-                            "below the mouth, down to the face's edge; the hole lets it bend "
-                            "its own way")
+                           update=_changed, description="Animal face: the lower lip, chin and "
+                           "jaw turned about the mouth's corner: a smile one way, a frown "
+                           "the other")
+    head_jaw: FloatProperty(name="Jaw", default=22.0, min=3.0, soft_max=60.0,
+                            update=_changed, description="Animal face: the jaw's length, from "
+                            "the mouth's corner back towards the ear")
     ear_clock: FloatProperty(name="Ears At", default=10.0, min=7.0, max=11.5, step=50,
-                             update=_changed, description="Animal face: where round the face "
-                             "the ears' hinges sit, in o'clock (10: 10 and 2; 9: 9 and 3; "
-                             "8: 8 and 4)")
-    ear_base: FloatProperty(name="Ear Hinge", default=18.0, min=2.0, soft_max=60.0,
-                            update=_changed, description="Animal face: the length of each "
-                            "ear's hinge, where it's glued down on the page")
-    ear_size: FloatProperty(name="Ear Size", default=22.0, min=0.0, soft_max=80.0,
+                             update=_changed, description="(no longer used)")
+    ear_base: FloatProperty(name="Cheek", default=59.0, min=15.0, soft_max=120.0,
+                            update=_changed, description="Animal face: how far out from the "
+                            "nose crease the ears' hinges are, round the cheek")
+    ear_size: FloatProperty(name="Ear Size", default=39.0, min=0.0, soft_max=100.0,
                             update=_changed, description="Animal face: how far each ear "
-                            "reaches out across its page (cut its shape as you like)")
+                            "reaches out across its page (cut its shape as you like; 0: none)")
     pair: BoolProperty(name="Back-to-Back Pair", default=False, update=_changed,
                        description="Two pieces of card glued back to back, each glued down "
                        "by a tab on a strip and bending up into the joined top "

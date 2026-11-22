@@ -793,8 +793,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
     def draw_head(self, context, st, col, m):
         """An animal face: landmarks down the middle, the mouth, the ears."""
         col.prop(m, "y", text="Nose At")
-        col.prop(m, "width", text="Face Width")
-        col.prop(m, "height", text="Snout Height")
+        col.prop(m, "ear_base")
         col.separator()
         col.prop(m, "head_brow")
         col.prop(m, "head_nose")
@@ -806,8 +805,6 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(m, "mouth_a")
         col.prop(m, "head_jaw")
         col.separator()
-        col.prop(m, "ear_clock")
-        col.prop(m, "ear_base")
         col.prop(m, "ear_size")
         col.prop(m, "tab")
         self.draw_warnings(context, m)

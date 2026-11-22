@@ -1,6 +1,6 @@
-"""v0.90: the animal face as a mirrored low-poly mesh on the fold."""
+"""v0.90 (v0.92): the animal face as a mirrored low-poly mesh on the fold, the
+koala's pattern."""
 # families: tubes
-import math
 import os
 import sys
 import tempfile
@@ -63,24 +63,32 @@ def clean(M, prefix):
             assert d > -0.5, (n, t, d)
 
 
-# ---- a mirrored low-poly face on the fold: a quad grid (spokes from the
-# middle, two rings) laid out flat without cuts, a mouth hole with the jaw
-# below, crushed flat as the card closes
+# ---- a mirrored low-poly face on the fold, facet for facet a hand-made
+# koala's: laid out flat in one piece, crushed flat as the card closes
 reset()
 f = add("HEAD")
 assert f.label.startswith("Face")
 shown = set(props_shown(draw(ui.POPUP_PT_mechs)))
 assert {"head_brow", "head_nose", "head_muzzle", "head_chin", "mouth_w", "mouth_d",
-        "mouth_a", "head_jaw", "ear_clock", "ear_base", "ear_size", "width",
-        "height"} <= shown, shown
+        "mouth_a", "head_jaw", "ear_base", "ear_size"} <= shown, shown
+assert "ear_clock" not in shown and "height" not in shown, shown
 bpy.ops.popup.build()
 assert not warns(), warns()
 M = model()
 L = sorted(n for n in M.panels if n.startswith("Head1.L"))
-assert len(L) >= 30 and all(n.replace(".L", ".R") in M.panels for n in L)
+assert len(L) == 20 and all(n.replace(".L", ".R") in M.panels for n in L), L
 tabs = [n for n in M.panels if n.startswith("Head1.") and n.endswith("Tab")]
 assert {"Forehead", "Muzzle", "Chin"} <= {n[6:].rstrip("0123456789Tab") for n in tabs}, tabs
 assert "Head1.EarL" in M.panels and "Head1.EarR" in M.panels
+# (each tab folds off its facet along the whole seam: its fold a crease, not a cut)
+for n in tabs:
+    k_ = next(k for k in M.fold_kind if n in k)
+    o_ = next(x for x in k_ if x != n)
+    po = [v3(q) for q in M.panels[o_].polys[0]]
+    on = [q for q in M.panels[n].polys[0]
+          if min(((v3(q) - a_).cross(b_ - a_)).length / max((b_ - a_).length, 1e-9)
+                 for a_, b_ in zip(po, po[1:] + po[:1])) < 1e-3]
+    assert len(on) >= 2, n
 
 
 def corners(n, t):
@@ -99,7 +107,7 @@ def gaps(t):
     return max(max((a_ - b_).length for a_ in v for b_ in v) for v in pts.values())
 
 
-for t in M.samples + [M.tmax]:
+for t in M.samples + [M.tmax, 12.0, 6.0, 3.0]:
     # the halves meet down the middle: every left corner on the mirror plane
     # has its right twin there too
     for n in L:
@@ -107,17 +115,20 @@ for t in M.samples + [M.tmax]:
         for w in wl:
             if abs(w.x) < 0.05 and t >= 5.0:  # (near shut, everything's near the middle)
                 assert min((w - v).length for v in wr) < 0.3, (t, n, w)
-    # the facets stay joined (a hair apart at most; more pressed nearly shut)
-    assert gaps(t) < (0.8 if t >= 10.0 else 3.0), (t, gaps(t))
+        # (and never crosses it: the left half stays left)
+        assert max(w.x for w in wl) < 0.3, (t, n)
+    # the facets stay joined (a hair apart at most)
+    assert gaps(t) < 0.5, (t, gaps(t))
     # every facet is a true turn and shift of its pattern (no stretch, no
     # mirror: the rig can follow it)
     for n in L:
         A = M.panels[n].asm(t).to_3x3()
         assert abs(A.determinant() - 1.0) < 1e-4, (t, n)
 clean(M, "Head1")
-# open, it stands up
+# open, it stands up; shut, it lies flat between the pages
 top = max(w.z for n in L for w in corners(n, M.tmax))
-assert top > 0.8 * f.height
+assert top > 40.0, top
+assert max(abs(w.x) for n in L for w in corners(n, 0.0)) < 1.0
 # the pattern: one piece, the left half on the left of C, the right its mirror
 for n in L:
     assert all(q[0] <= 0.05 for q in M.panels[n].polys[0]), n
@@ -150,44 +161,36 @@ def rig_error(ov):
 
 for ov in (180.0, 120.0, 60.0, 10.0):
     assert rig_error(ov) < 0.05, (ov, rig_error(ov))
-# the landmarks move it
+# the landmarks move it: each stretches its own part of the pattern
 M = model()
-z0 = max(w.z for n in L for w in corners(n, M.tmax))
-f.height = 35.0
+
+
+wide0 = max(abs(q[0]) for n in L for q in M.panels[n].polys[0])
+f.ear_base = 70.0
 M = model()
-assert not warns(), warns()
-assert max(w.z for n in L for w in corners(n, M.tmax)) > z0 + 5.0
-f.height = 25.0
-# the ears turn round the face with their clock: each hinge along the outline
-ang = {}
-for ck in (11.0, 10.0, 9.0, 8.0):
-    f.ear_clock = ck
-    M = model()
-    assert not warns(), (ck, warns())
-    e = world(M, "Head1.EarL", M.tmax)
-    d = (e[1] - e[0]).normalized()
-    ang[ck] = math.degrees(math.atan2(d.y, d.x))
-assert len({round(a_) for a_ in ang.values()}) == 4, ang
-f.ear_clock = 10.0
-for k, v in (("mouth_a", 15.0), ("mouth_a", -15.0), ("mouth_w", 20.0), ("mouth_d", 9.0),
-             ("head_jaw", 12.0), ("mouth_w", 0.0), ("head_brow", 0.0), ("head_chin", 0.0),
-             ("width", 90.0)):
+assert max(abs(q[0]) for n in L for q in M.panels[n].polys[0]) > wide0 + 8.0
+f.ear_base = 59.0
+for k, v in (("mouth_a", 15.0), ("mouth_a", -15.0), ("mouth_w", 16.0), ("mouth_d", 32.0),
+             ("head_jaw", 28.0), ("head_brow", 35.0), ("head_brow", 60.0), ("head_chin", 22.0),
+             ("head_nose", 30.0), ("head_nose", 46.0), ("head_muzzle", 20.0), ("ear_base", 50.0),
+             ("ear_size", 0.0)):
     old = getattr(f, k)
     setattr(f, k, v)
     bpy.ops.popup.build()
     assert not warns(), (k, v, warns())
+    M = model()
+    assert gaps(60.0) < 0.6 and gaps(12.0) < 0.6, (k, v, gaps(60.0), gaps(12.0))
     setattr(f, k, old)
-f.mouth_d = 80.0
-bpy.ops.popup.build()
-assert any("mouth doesn't fit" in w for w in warns()), warns()
-f.mouth_d = 6.0
+f.ear_size = 0.0
+assert "Head1.EarL" not in model().panels
+f.ear_size = 39.0
 # pictures go on its facets
 from popup_pro import props  # noqa: E402
 p = add("PICTURE")
 p.host_uid = 1
 items = [i[0] for i in props.pic_face_items(p, bpy.context)]
 assert "Head1.L1" in items, items
-print("an animal face: a mirrored low-poly mesh on the fold")
+print("an animal face: a hand-made koala's pattern on the fold")
 
 addon.unregister()
 print("V90 OK")

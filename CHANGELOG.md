@@ -3,6 +3,23 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.92.0**: the **Animal Face** rebuilt on a hand-made koala's pattern,
+  facet for facet as its creases were drawn on the flattened card: C up
+  the middle, a band of quads (two rows of three) out to the ear's hinge,
+  three forehead triangles, two over the muzzle, the mouth a slot cut in
+  from the side with the jaw's three facets below, and the koala's ear.
+  The pattern comes first now (so it always lays out without cuts) and the
+  face is stood up from it open flat, then crushed step by step down to
+  shut with each facet a rigid piece; nothing pokes through a page or the
+  other half on the way. Each quad is two triangles across its shorter
+  diagonal (no crease printed) so it can bend a hair where the card would
+  give. Landmarks stretch their own part of the pattern: Forehead, Nose,
+  Muzzle and Chin (the seams and C), Mouth Width, Lower Lip (was Mouth
+  Depth), Mouth Angle (turns the lip, chin and jaw about the mouth's
+  corner), Jaw, Cheek (was Ear Hinge: how far out the ears' hinges are)
+  and Ear Size; the defaults are the koala's. Ears At, Face Width and
+  Snout Height are gone from the face's panel. Tabs on the face's seams
+  now fold along the whole seam (their fold was printed as a cut).
 * **0.91.0**: the **Animal Face** rebuilt as a quad grid after hand-drawn
   topology: spokes from the middle (with corners along C itself, the card
   round each lying flat on C's line) out to the outline, crossed by two
