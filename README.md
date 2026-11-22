@@ -261,14 +261,13 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.92.1**: the animal face's nose tip and chin stay ridges as it closes
+  (they were caving in part way shut).
 * **0.92**: the animal face rebuilt on a hand-made koala's pattern, facet
   for facet as drawn: it stands up from its pattern and crushes flat
   cleanly all the way shut.
 * **0.91**: the animal face as a quad grid (spokes and two rings) with a
   mouth hole and jaw; every facet a rigid piece, so the rig follows it.
-* **0.90.1**: the animal face in three rings of facets (no more fanning to
-  a point), ears turning round the head with their clock, mouths cut up
-  from the bottom edge beside the chin.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

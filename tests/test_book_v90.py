@@ -125,6 +125,27 @@ for t in M.samples + [M.tmax, 12.0, 6.0, 3.0]:
         A = M.panels[n].asm(t).to_3x3()
         assert abs(A.determinant() - 1.0) < 1e-4, (t, n)
 clean(M, "Head1")
+# the seams down the middle stay ridges all the way shut: the facets off each
+# fall away towards the card (the nose's tip and the chin never cave in)
+from popup_pro.core import koala as KO  # noqa: E402
+pk, _ = KO.pattern(f.head_nose, f.head_brow, f.head_muzzle, f.head_chin, f.mouth_w, f.mouth_d,
+                   f.mouth_a, f.head_jaw, f.ear_base, f.ear_size)
+for _, a_, b_ in KO.SEAMS:
+    pa_, pb_ = v3(pk[a_]), v3(pk[b_])
+    for n in L:
+        P_ = M.panels[n]
+        qs = [v3(q) for q in P_.polys[0]]
+        if min((q - pa_).length for q in qs) > 0.05 or min((q - pb_).length for q in qs) > 0.05:
+            continue
+        for t in (150.0, 90.0, 60.0, 40.0, 20.0, 10.0):
+            l_, r_, nl_, nr_ = M.dirs(t)
+            e_ = (l_ + r_).normalized()
+            A = P_.asm(t)
+            wa, wb = A @ pa_, A @ pb_
+            u_ = (wb - wa).normalized()
+            c_ = sum((A @ q for q in qs), v3((0, 0))) / len(qs) - wa
+            c_ -= c_.dot(u_) * u_
+            assert c_.dot(e_ - e_.dot(u_) * u_) < 0.0, (a_, b_, n, t)
 # open, it stands up; shut, it lies flat between the pages
 top = max(w.z for n in L for w in corners(n, M.tmax))
 assert top > 40.0, top

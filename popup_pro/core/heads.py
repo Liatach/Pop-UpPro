@@ -159,8 +159,22 @@ class Heads:
         onmir = set(KO.MIRROR)
         side = set(names_v) - onmir
         PgL = self.panels[host.p1]
-        elist = [((a_, b_), L_, 0.1 if frozenset((a_, b_)) in soft else 1.0)
+        elist = [((a_, b_), L_, 1.0)
                  for (a_, b_), L_ in KO.edges(p_np).items()]
+        # (the seams stay ridges: each facet off a seam keeps falling away
+        # from it towards the card, as it does open, never caving in)
+        convex = []
+        for _, a_, b_ in KO.SEAMS:
+            u_ = (W180[b_] - W180[a_]).normalized()
+            w_ = up180 - up180.dot(u_) * u_
+            for f_ in KO.FACES:
+                if a_ in f_ and b_ in f_:
+                    for c_ in f_:
+                        if c_ in (a_, b_):
+                            continue
+                        d_ = (W180[c_] - W180[a_]).dot(w_)
+                        hh = ((W180[c_] - W180[a_]) - (W180[c_] - W180[a_]).dot(u_) * u_).length
+                        convex.append((a_, b_, c_, -1.0 if d_ < 0.0 else 1.0, 0.05 * hh))
         pose_cache = {180.0: W180}
 
         def pose(t):
@@ -175,7 +189,7 @@ class Heads:
                 Mn = mframe(nxt)[0] @ mframe(cur)[0].inverted()
                 onpg = PgL.asm(nxt) @ PgL.asm(180.0).inverted()
                 X0 = {v: (onpg @ W180[v]) if v in fixed else (Mn @ prev[v]) for v in names_v}
-                prev = self._head_relax(host, nxt, X0, fixed, onmir, elist, side)
+                prev = self._head_relax(host, nxt, X0, fixed, onmir, elist, side, convex)
                 cur = round(nxt, 6)
                 pose_cache[cur] = prev
             return pose_cache.get(k_, prev)
@@ -354,7 +368,7 @@ class Heads:
                 for f_ in hinge_f:
                     self.fold_kind[frozenset((facet[(sd, f_)], en))] = "valley"
 
-    def _head_relax(self, host, t, X0, fixed, onmir, elist, side):
+    def _head_relax(self, host, t, X0, fixed, onmir, elist, side, convex=()):
         """Gauss-Newton on the corners' positions (all in arrays): edges kept
         their length (weighted by 1/length), a pull back to the guess eased
         off, the mirror corners in the mirror plane, every free corner clear
@@ -364,6 +378,8 @@ class Heads:
         nm = l - r
         nm = nm.normalized() if nm.length > 1e-9 else nl.cross(Y).normalized()
         wv = nm.cross(Y).normalized()  # (in the mirror plane, square to the fold)
+        ev_ = l + r  # (out of the V)
+        ev_ = ev_.normalized() if ev_.length > 1e-9 else nl
         npl = nl if nl.dot(r) >= 0 else -nl  # (page normals into the gap)
         npr = nr if nr.dot(l) >= 0 else -nr
         clear = 0.4 * min(1.0, float(t) / 10.0)  # (none left when shut)
@@ -435,8 +451,26 @@ class Heads:
             Jq = np.zeros((len(ii), 3 * nv))
             for q, (i, j) in enumerate(zip(ii, jj)):
                 Jq[q, 3 * i:3 * i + 3] = 5.0 * NN[j]
-            rv = np.concatenate([r1, r2, lam * (xx - x0)])
-            Jm = np.vstack([Jp @ G, Jq @ G, lam * np.eye(n)])
+            # (each seam's facets falling away from it: only those caving in count)
+            r3, Jc = [], []
+            Ev = np.array(ev_[:])
+            for a_, b_, c_, sg_, m_ in convex:
+                ia, ib, ic = vi[a_], vi[b_], vi[c_]
+                u_ = P[ib] - P[ia]
+                u_ = u_ / max(np.linalg.norm(u_), 1e-9)
+                w_ = Ev - (Ev @ u_) * u_
+                w_ = w_ / max(np.linalg.norm(w_), 1e-9)
+                g_ = sg_ * ((P[ic] - P[ia]) @ w_) - m_
+                if g_ < 0.0:
+                    row = np.zeros(3 * nv)
+                    row[3 * ic:3 * ic + 3] += 5.0 * sg_ * w_
+                    row[3 * ia:3 * ia + 3] -= 5.0 * sg_ * w_
+                    r3.append(5.0 * g_)
+                    Jc.append(row)
+            r3 = np.array(r3)
+            Jc = np.array(Jc).reshape(-1, 3 * nv)
+            rv = np.concatenate([r1, r2, r3, lam * (xx - x0)])
+            Jm = np.vstack([Jp @ G, Jq @ G, Jc @ G, lam * np.eye(n)])
             return rv, Jm
 
         def places(xx):

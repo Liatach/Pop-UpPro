@@ -305,7 +305,8 @@ Open flat, the face stands up from its pattern with every facet kept its
 shape, the seams and C in the mirror plane and the ears' hinges on the
 card; that decides where the ears glue down. As the card closes, the ears
 ride their pages and every other corner follows, solved step by step down
-from open flat, until shut it lies pressed flat between the pages. The
+from open flat, until shut it lies pressed flat between the pages; the
+seams down the middle stay ridges all the way, never caving in. The
 koala's quads can't all stay perfectly flat on the way (the real card gives
 a little): each is two triangles across its shorter diagonal, with no crease
 printed there, bending a hair where it must.
@@ -330,6 +331,9 @@ Checks says when the face can't stand up from its pattern at those
 landmarks without stretching. Paste pictures on any facet.
 
 ![An animal face, from the front, at 178, 90 and 45 degrees](images/head.jpg)
+
+![Part way shut, at 60, 42 and 25 degrees: the nose's tip and the chin
+stay ridges](images/head_side.jpg)
 
 ![Closing: at 30, 15 and 6 degrees, lying flat between the
 pages](images/head_close.jpg)

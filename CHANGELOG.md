@@ -3,6 +3,13 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.92.1**: the **Animal Face** no longer caves in as the card closes:
+  the nose's tip and the chin were turning valley part way shut. The
+  muzzle's quads were bending too freely across their diagonals (the spring
+  keeping each flat is now as stiff as a crease, and they still meet within
+  a twentieth of a millimetre), and the seams down the middle (forehead,
+  muzzle, chin) are now kept ridges all the way shut, each facet off them
+  falling away towards the card. The guide gains a view part way shut.
 * **0.92.0**: the **Animal Face** rebuilt on a hand-made koala's pattern,
   facet for facet as its creases were drawn on the flattened card: C up
   the middle, a band of quads (two rows of three) out to the ear's hinge,
