@@ -12,6 +12,8 @@ import bpy  # noqa: E402
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 import popup_pro as addon  # noqa: E402
+from popup_pro.core.layout import build_layout  # noqa: E402
+from popup_pro import build  # noqa: E402
 from popup_pro import export_svg, ui  # noqa: E402
 from popup_pro.core.geom import v3  # noqa: E402
 from popup_pro.core.model import Model  # noqa: E402
@@ -61,59 +63,100 @@ def clean(M, prefix):
             assert d > -0.5, (n, t, d)
 
 
-# ---- a mirrored low-poly face on the fold: a V-fold whose halves are meshes,
-# crushed flat as the card closes
+# ---- a mirrored low-poly face on the fold: a quad grid (spokes from the
+# middle, two rings) laid out flat without cuts, a mouth hole with the jaw
+# below, crushed flat as the card closes
 reset()
 f = add("HEAD")
 assert f.label.startswith("Face")
 shown = set(props_shown(draw(ui.POPUP_PT_mechs)))
 assert {"head_brow", "head_nose", "head_muzzle", "head_chin", "mouth_w", "mouth_d",
-        "mouth_a", "ear_clock", "ear_base", "ear_size", "width", "height"} <= shown, shown
+        "mouth_a", "head_jaw", "ear_clock", "ear_base", "ear_size", "width",
+        "height"} <= shown, shown
 bpy.ops.popup.build()
 assert not warns(), warns()
 M = model()
 L = sorted(n for n in M.panels if n.startswith("Head1.L"))
-assert len(L) >= 16 and all(n.replace(".L", ".R") in M.panels for n in L)
-for n in ("Head1.EarL", "Head1.EarR", "Head1.Forehead1Tab", "Head1.MuzzleTab", "Head1.ChinTab"):
-    assert n in M.panels, n
+assert len(L) >= 30 and all(n.replace(".L", ".R") in M.panels for n in L)
+tabs = [n for n in M.panels if n.startswith("Head1.") and n.endswith("Tab")]
+assert {"Forehead", "Muzzle", "Chin"} <= {n[6:].rstrip("0123456789Tab") for n in tabs}, tabs
+assert "Head1.EarL" in M.panels and "Head1.EarR" in M.panels
 
 
 def corners(n, t):
     return world(M, n, t)
 
 
+def gaps(t):
+    """How far apart the facets' shared corners come (each facet's a rigid
+    piece of card)."""
+    pts = {}
+    for n in L:
+        P_ = M.panels[n]
+        A = P_.asm(t)
+        for q in P_.polys[0]:
+            pts.setdefault((round(q[0], 3), round(q[1], 3)), []).append(A @ v3(q))
+    return max(max((a_ - b_).length for a_ in v for b_ in v) for v in pts.values())
+
+
 for t in M.samples + [M.tmax]:
-    # the halves mirror each other and meet down the middle: every left corner
-    # on the mirror plane (x = 0) has its right twin on it too
+    # the halves meet down the middle: every left corner on the mirror plane
+    # has its right twin there too
     for n in L:
         wl, wr = corners(n, t), corners(n.replace(".L", ".R"), t)
         for w in wl:
             if abs(w.x) < 0.05 and t >= 5.0:  # (near shut, everything's near the middle)
-                assert min((w - v).length for v in wr) < 0.05, (t, n, w)
-    # the facets keep their size, near enough (the card crushes, it hardly stretches)
+                assert min((w - v).length for v in wr) < 0.3, (t, n, w)
+    # the facets stay joined (a hair apart at most; more pressed nearly shut)
+    assert gaps(t) < (0.8 if t >= 10.0 else 3.0), (t, gaps(t))
+    # every facet is a true turn and shift of its pattern (no stretch, no
+    # mirror: the rig can follow it)
     for n in L:
-        P_ = M.panels[n]
-        q = P_.polys[0]
-        A = P_.asm(t)
-        for i in range(3):
-            a_, b_ = v3(q[i]), v3(q[(i + 1) % 3])
-            L0 = (a_ - b_).length
-            tol = 0.05
-            assert abs((A @ a_ - A @ b_).length / L0 - 1.0) < tol, (t, n)
+        A = M.panels[n].asm(t).to_3x3()
+        assert abs(A.determinant() - 1.0) < 1e-4, (t, n)
 clean(M, "Head1")
-# open, it stands up; shut, it lies pressed flat between the pages
+# open, it stands up
 top = max(w.z for n in L for w in corners(n, M.tmax))
 assert top > 0.8 * f.height
 # the pattern: one piece, the left half on the left of C, the right its mirror
 for n in L:
-    assert all(q[0] <= 1e-6 for q in M.panels[n].polys[0]), n
+    assert all(q[0] <= 0.05 for q in M.panels[n].polys[0]), n
 export_svg.export(sc, svg)
+# the rig follows it
+st.keep_open = False
+mdl = build.rebuild(sc, force=True)
+rig, card = st.rig, st.card
+lay = build_layout(mdl)
+s_ = 1 / st.mm_per_unit
+me = card.data
+
+
+def rig_error(ov):
+    rig["pop_open"] = float(ov)
+    rig.update_tag()
+    dg = bpy.context.evaluated_depsgraph_get()
+    dg.update()
+    ev = card.evaluated_get(dg).data
+    attr = me.attributes["pop_panel"]
+    worst = 0.0
+    for poly in me.polygons:
+        p_ = mdl.panels[mdl.order[attr.data[poly.index].value]]
+        D = mdl.shown(p_.name, ov) @ lay["prints"][p_.piece].inverted()
+        for vi in poly.vertices:
+            worst = max(worst, (ev.vertices[vi].co - (D @ (me.vertices[vi].co / s_)) * s_).length
+                        / s_)
+    return worst
+
+
+for ov in (180.0, 120.0, 60.0, 10.0):
+    assert rig_error(ov) < 0.05, (ov, rig_error(ov))
 # the landmarks move it
-z0 = max(w.z for w in corners("Head1.L3", M.tmax))
+M = model()
+z0 = max(w.z for n in L for w in corners(n, M.tmax))
 f.height = 35.0
 M = model()
 assert not warns(), warns()
-assert max(w.z for w in corners("Head1.L3", M.tmax)) > z0 + 5.0
+assert max(w.z for n in L for w in corners(n, M.tmax)) > z0 + 5.0
 f.height = 25.0
 # the ears turn round the face with their clock: each hinge along the outline
 ang = {}
@@ -126,21 +169,18 @@ for ck in (11.0, 10.0, 9.0, 8.0):
     ang[ck] = math.degrees(math.atan2(d.y, d.x))
 assert len({round(a_) for a_ in ang.values()}) == 4, ang
 f.ear_clock = 10.0
-for k, v in (("mouth_a", 20.0), ("mouth_a", -30.0), ("mouth_w", 14.0), ("mouth_d", 15.0),
-             ("head_brow", 0.0), ("width", 90.0)):
+for k, v in (("mouth_a", 15.0), ("mouth_a", -15.0), ("mouth_w", 20.0), ("mouth_d", 9.0),
+             ("head_jaw", 12.0), ("mouth_w", 0.0), ("head_brow", 0.0), ("head_chin", 0.0),
+             ("width", 90.0)):
     old = getattr(f, k)
     setattr(f, k, v)
     bpy.ops.popup.build()
     assert not warns(), (k, v, warns())
     setattr(f, k, old)
-f.head_chin, f.mouth_d = 0.0, 2.0  # (no chin: a short face, a short mouth)
-bpy.ops.popup.build()
-assert not warns(), warns()
-f.head_chin = 15.0
 f.mouth_d = 80.0
 bpy.ops.popup.build()
-assert any("mouth runs past" in w or "folds over" in w for w in warns()), warns()
-f.mouth_d = 12.0
+assert any("mouth doesn't fit" in w for w in warns()), warns()
+f.mouth_d = 6.0
 # pictures go on its facets
 from popup_pro import props  # noqa: E402
 p = add("PICTURE")

@@ -804,6 +804,7 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(m, "mouth_w")
         col.prop(m, "mouth_d")
         col.prop(m, "mouth_a")
+        col.prop(m, "head_jaw")
         col.separator()
         col.prop(m, "ear_clock")
         col.prop(m, "ear_base")

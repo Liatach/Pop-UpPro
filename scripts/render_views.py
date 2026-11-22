@@ -180,10 +180,10 @@ def head():
 
 
 def head_mouths():
-    a = add("HEAD")
-    a.y, a.mouth_a, a.mouth_w, a.mouth_d, a.ear_clock = 60.0, 25.0, 10.0, 12.0, 9.0
-    b = add("HEAD")
-    b.y, b.mouth_a, b.mouth_w, b.mouth_d, b.ear_clock = 150.0, -25.0, 6.0, 14.0, 11.0
+    a = add("HEAD")  # (goblin-ish: a wide mouth, a long jaw, ears high)
+    a.y, a.mouth_w, a.mouth_d, a.head_jaw, a.mouth_a, a.ear_clock = 60.0, 18.0, 7.0, 10.0, 10.0, 11.0
+    b = add("HEAD")  # (koala-ish: a small mouth, big ears out at the side)
+    b.y, b.mouth_w, b.mouth_d, b.ear_clock, b.ear_size = 150.0, 8.0, 4.0, 9.5, 28.0
     return (0, 105, 10), 260, (0.02, -0.15, 1.0), (178.0, 120.0, 60.0)
 
 

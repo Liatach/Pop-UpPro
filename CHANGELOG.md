@@ -3,6 +3,19 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.91.0**: the **Animal Face** rebuilt as a quad grid after hand-drawn
+  topology: spokes from the middle (with corners along C itself, the card
+  round each lying flat on C's line) out to the outline, crossed by two
+  rings, the ring corners placed where the card round each lies flat; quads
+  split on their shorter diagonal, left uncreased where near flat. The mouth
+  is a hole between the rings with the **Jaw** below (new), placed so the
+  hole lays out as a closed shape and the ring of card round it unfolds.
+  Every facet is now posed as a rigid piece (a best fit of its corners):
+  0.90's stretched and mirrored poses scrambled the Blender rig, which
+  turns each pose into a position and a rotation. The crush solver works in
+  arrays (about a second for the whole opening table), eased flat onto the
+  middle over the last few degrees. Mouth defaults: Width 14, Depth 6,
+  Angle 0.
 * **0.90.1**: the **Animal Face** in three rings: the middle (with a
   corner part way down the forehead's seam), an inner ring of temple, eye
   and cheekbone, and an elliptical outline, triangulated as strips between

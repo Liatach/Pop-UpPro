@@ -290,20 +290,28 @@ degrees](images/cone_lid.jpg)
 **Animal Face** (**+** menu > Animal Face) comes at Birmingham 17 from
 first principles: a mirrored low-poly mesh standing on the fold, cut and
 flattened like papercraft, glued down by its ears, that opens as the card
-opens flat and crushes flat as it closes. Each half is about twenty
-triangles in three rings: down the middle (the forehead's seam, the nose
-crease C between the eyes, the muzzle and chin seams), an inner ring
-(temple, eye, cheekbone) and the outline (an ellipse round the face on the
-card, with the ears and the mouth on it). The inner ring's corners are each
-placed, as near where they'd naturally sit as can be, where the card round
-them lies flat (their angles add up to a whole turn), so the half still
-unfolds without cuts. The two halves are one piece joined along C, stuck
-together down the middle by tabs along the forehead, muzzle and chin.
+opens flat and crushes flat as it closes.
 
-As the card closes, the ear hinges ride their pages and the rest of each
-half follows, solved step by step down from full open with its triangles
-kept within a couple of percent of their size, its seams on the middle and
-clear of the pages, until shut it lies pressed flat.
+Each half is a quad grid, like a lampshade: spokes from the middle out to
+the outline (an ellipse round the face on the card), crossed by two rings.
+The rings' corners are placed, as near a smooth dome as they can be, where
+the card round each lies flat, so the half unfolds without cuts; each quad
+is split on its shorter diagonal, left uncreased where it's near flat. Down
+the middle: the forehead's seam, the nose crease C between the eyes (one
+straight crease, with corners along it where spokes meet it), the muzzle
+and chin seams; the two halves are one piece joined along C and stuck
+together by tabs along the seams.
+
+The mouth is a hole between the rings, either side, with the jaw (the
+mandible) below it: the hole lets the jaw bend its own way. The ring of
+card round a hole only unfolds if the hole itself lays out flat as a closed
+shape, so its corners are placed for that too.
+
+As the card closes, the ears ride their pages and every other corner
+follows, solved step by step down from open flat with each facet kept a
+rigid piece of card (they stay within a fraction of a millimetre of each
+other, a little more pressed nearly shut), the middle's corners on the
+mirror plane, clear of the pages, until shut it lies pressed flat.
 
 Its landmarks, in the panel:
 
@@ -313,24 +321,25 @@ Its landmarks, in the panel:
   from the top of the head to the brow (a seam), the brow to the nose's tip
   (C, between the eyes), the tip down to the mouth (a seam) and back under
   to the card (a seam). Forehead or Chin 0 leaves it out.
-* **Mouth Width**, **Mouth Depth**, **Mouth Angle**: a slot each side, cut
-  up from the bottom edge beside the chin (a tongue of chin left between
-  them), its tip the mouth's corner. Mouth Angle leans the slots out (a
-  smile, positive) or in towards the nose (negative).
+* **Mouth Width** (round the face), **Mouth Depth** (lip to jaw), **Mouth
+  Angle** (the outer corner lifted for a smile, dropped for a frown) and
+  **Jaw** (the mandible below it). Mouth Width 0: no mouth.
 * **Ears At** (o'clock round the face: 10 for 10 and 2, 9 for 9 and 3, 8
   for 8 and 4, or between), **Ear Hinge** and **Ear Size**: each ear's
   hinge lies along the outline at its clock, so the ears turn round the head
   as they move; each is glued down flat on its page. Cut its shape as you
-  like.
+  like. The mouth sits between the ears and the chin.
 
-Checks says when the mouth runs past the chin, the cheek or the nose, or
-the mesh would fold over itself. Paste
-pictures on any facet. Shut, the face lies pressed between the pages.
+Checks says when the mouth doesn't fit between the middle and the edge, the
+ears and the mouth crowd each other, or the grid can't be made to lay out
+flat at those landmarks (some low ear positions with a mouth: move the ears
+or change the mouth). Paste pictures on any facet.
 
 ![An animal face, from above, at 178, 120 and 60 degrees](images/head.jpg)
 
-![Two more: a smile with ears at 9 and 3 (below), mouth leaning in with ears
-at 11 and 1 (above), at 178, 120 and 60 degrees](images/head_mouths.jpg)
+![Two more: a wide mouth, long jaw and ears at 11 and 1 (below); a small
+mouth with big ears at half past 9 (above); at 178, 120 and 60
+degrees](images/head_mouths.jpg)
 
 **Back-to-Back Pair** (Birmingham 53, **+** menu > Back-to-Back Pair
 (parallel strips)): the simplest thing on two parallel strips, two pieces of

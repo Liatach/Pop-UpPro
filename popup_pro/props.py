@@ -1263,15 +1263,19 @@ class PopupMech(bpy.types.PropertyGroup):
     head_chin: FloatProperty(name="Chin", default=15.0, min=0.0, soft_max=80.0,
                              update=_changed, description="Animal face: the chin's seam, from "
                              "the mouth back under to the card (0: none)")
-    mouth_w: FloatProperty(name="Mouth Width", default=8.0, min=0.0, soft_max=40.0,
-                           update=_changed, description="Animal face: how wide each side's "
-                           "mouth slot opens at the face's edge")
-    mouth_d: FloatProperty(name="Mouth Depth", default=12.0, min=0.0, soft_max=60.0,
-                           update=_changed, description="Animal face: how far each mouth "
-                           "slot cuts up from the bottom edge, beside the chin")
-    mouth_a: FloatProperty(name="Mouth Angle", default=-15.0, min=-60.0, max=60.0,
-                           update=_changed, description="Animal face: the mouth slots' tilt: "
-                           "leant out for a smile (positive), in towards the nose (negative)")
+    mouth_w: FloatProperty(name="Mouth Width", default=14.0, min=0.0, soft_max=60.0,
+                           update=_changed, description="Animal face: how far round the "
+                           "face each side's mouth hole runs (0: no mouth)")
+    mouth_d: FloatProperty(name="Mouth Depth", default=6.0, min=0.0, soft_max=40.0,
+                           update=_changed, description="Animal face: how far the mouth "
+                           "hole opens, from the lip above to the jaw below")
+    mouth_a: FloatProperty(name="Mouth Angle", default=0.0, min=-45.0, max=45.0,
+                           update=_changed, description="Animal face: the mouth's tilt: its "
+                           "outer corner lifted for a smile (positive), dropped for a frown")
+    head_jaw: FloatProperty(name="Jaw", default=8.0, min=1.0, soft_max=40.0,
+                            update=_changed, description="Animal face: the mandible's length "
+                            "below the mouth, down to the face's edge; the hole lets it bend "
+                            "its own way")
     ear_clock: FloatProperty(name="Ears At", default=10.0, min=7.0, max=11.5, step=50,
                              update=_changed, description="Animal face: where round the face "
                              "the ears' hinges sit, in o'clock (10: 10 and 2; 9: 9 and 3; "
@@ -2009,6 +2013,7 @@ class PopupMech(bpy.types.PropertyGroup):
                      head_brow=self.head_brow, head_nose=self.head_nose,
                      head_muzzle=self.head_muzzle, head_chin=self.head_chin,
                      mouth_w=self.mouth_w, mouth_d=self.mouth_d, mouth_a=self.mouth_a,
+                     head_jaw=self.head_jaw,
                      ear_clock=self.ear_clock, ear_base=self.ear_base, ear_size=self.ear_size)
         elif self.kind == "PYRAMID":
             d.update(type="PYRAMID", x=self.x, depth=self.depth, height=self.height,
