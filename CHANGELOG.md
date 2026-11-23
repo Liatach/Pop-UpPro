@@ -3,6 +3,11 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.95.1**: a **Slotted Piece** no longer slips under its face when the
+  card is open flat (face and piece both lying on the page, it came out
+  from under the face's edge instead of through the slot): opening out, it
+  aims a paper's breadth over the slot's middle on the face's far side, so
+  flat it still comes out on top of the face through the slot.
 * **0.95.0**: **Slotted Piece** (Birmingham 59-60), an add-on to any
   mechanism: a piece glued down on a page by a sticking strip, jutting out
   through a slot cut in the face you pick (Through and Face), the slot

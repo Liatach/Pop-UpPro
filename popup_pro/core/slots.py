@@ -103,13 +103,23 @@ class Slots:
         sp_ = P0.inverted() @ s0
         hp += (Vector((sp_.x, sp_.y, 0.0)) - hp).dot(a_page) * a_page  # (level with it)
 
+        # (aimed a paper's breadth out the face's far side from the strip as
+        # it opens out, so open flat, face and piece both lying on the page,
+        # it still comes out on top of the face through the slot rather than
+        # under it)
+        tq = max(5.0, tm - 15.0)
+        Fq = fp.asm(tq)
+        nq = (Fq.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
+        out_ = -1.0 if (page.asm(tq) @ hp - Fq @ c_pat).dot(nq) > 0 else 1.0
+
         def ends(t):
             """The strip's point and the way from it square to the slot's
             line, opening t, and the slot's way."""
             Pt = page.asm(t)
             h = Pt @ hp
             Yt = (Pt.to_3x3() @ a_page).normalized()
-            s = fp.asm(t) @ c_pat
+            lift = 1.0 * min(1.0, max(0.0, (float(t) - 90.0) / 60.0))
+            s = fp.asm(t) @ (c_pat + Vector((0.0, 0.0, lift * out_)))
             d = s - h
             d -= d.dot(Yt) * Yt
             return h, d, Yt
