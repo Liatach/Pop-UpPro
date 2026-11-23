@@ -85,8 +85,12 @@ class Heads:
         es = max(0.0, float(m.get("ear_size", D["ear"])))
         tb = max(2.0, float(m.get("tab", 8.0)))
         yN = float(m["y"])
+        mo = m.get("mouth_out")
+        mdn = m.get("mouth_down")
         p_np, ear_np, topo = KO.pattern(nose, brow, muzzle, chin, mw, md, ma, jaw, cheek, es,
-                                        base=base)
+                                        base=base,
+                                        mouth_out=None if mo is None else float(mo),
+                                        mouth_down=None if mdn is None else float(mdn))
         Xd, err, out_ = KO.stand(p_np, topo)
         if err > 0.02 * nose:
             self.warn(f"{lab}: the face can't stand up from its pattern at these landmarks "

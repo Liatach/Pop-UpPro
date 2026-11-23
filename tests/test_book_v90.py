@@ -133,7 +133,8 @@ from popup_pro.core import koala as KO  # noqa: E402
 def ridges(M, f):
     pk, _, tp = KO.pattern(f.head_nose, f.head_brow, f.head_muzzle, f.head_chin, f.mouth_w,
                            f.mouth_d, f.mouth_a, f.head_jaw, f.ear_base, f.ear_size,
-                           base=f.head_base)
+                           base=f.head_base, mouth_out=f.to_dict()["mouth_out"],
+                           mouth_down=f.to_dict()["mouth_down"])
     L = sorted(n for n in M.panels if n.startswith("Head1.L"))
     for _, a_, b_ in tp["seams"]:
         pa_, pb_ = v3(pk[a_]), v3(pk[b_])
@@ -159,7 +160,8 @@ def folds_ok(M, f, worst=-10.0):
     import numpy as np
     pk, _, tp = KO.pattern(f.head_nose, f.head_brow, f.head_muzzle, f.head_chin, f.mouth_w,
                            f.mouth_d, f.mouth_a, f.head_jaw, f.ear_base, f.ear_size,
-                           base=f.head_base)
+                           base=f.head_base, mouth_out=f.to_dict()["mouth_out"],
+                           mouth_down=f.to_dict()["mouth_down"])
     _, _, out = KO.stand(pk, tp)
     names = list(pk)
     cr = KO.creases(pk, tp["faces"])
@@ -230,6 +232,7 @@ f.ear_base = 59.0
 for k, v in (("mouth_a", 15.0), ("mouth_a", -15.0), ("mouth_w", 16.0), ("mouth_d", 32.0),
              ("head_jaw", 28.0), ("head_brow", 35.0), ("head_brow", 60.0), ("head_chin", 22.0),
              ("head_nose", 30.0), ("head_nose", 46.0), ("head_muzzle", 20.0), ("ear_base", 50.0),
+             ("mouth_out", 25.0), ("mouth_out", 42.0), ("mouth_down", 13.0), ("mouth_down", -15.0),
              ("ear_size", 0.0)):
     old = getattr(f, k)
     setattr(f, k, v)
@@ -245,8 +248,9 @@ f.ear_size = 39.0
 # choosing it; a muzzle can be added, and the koala's taken away
 f.head_base = "GOBLIN"
 assert round(f.head_muzzle) == 0 and round(f.head_nose) == 37, (f.head_muzzle, f.head_nose)
+assert (round(f.mouth_out), round(f.mouth_down)) == (24, 13), (f.mouth_out, f.mouth_down)
 for k, v in ((None, None), ("head_muzzle", 12.0), ("mouth_a", -15.0), ("head_brow", 35.0),
-             ("head_chin", 30.0)):
+             ("head_chin", 30.0), ("mouth_out", 34.0), ("mouth_down", -9.0)):
     if k:
         old = getattr(f, k)
         setattr(f, k, v)
@@ -273,6 +277,19 @@ L = sorted(n for n in M.panels if n.startswith("Head1.L"))
 assert not any("Muzzle" in n for n in M.panels) and gaps(40.0) < 0.6
 ridges(M, f)
 f.head_muzzle = 26.0
+# the koala given a goblin's frown: its corner out and down, its jaw turned
+f.mouth_out, f.mouth_down, f.mouth_a = 24.0, 13.0, -30.0
+bpy.ops.popup.build()
+assert not warns(), warns()
+M = model()
+L = sorted(n for n in M.panels if n.startswith("Head1.L"))
+assert gaps(40.0) < 0.6 and gaps(12.0) < 0.6
+ridges(M, f)
+# (a face from before the corner could be set keeps its pattern's corner)
+f.mouth_out, f.mouth_down, f.mouth_a = 0.0, 0.0, 0.0
+d0 = f.to_dict()
+assert d0["mouth_out"] is None and d0["mouth_down"] is None, d0
+f.mouth_out, f.mouth_down = 34.0, -9.0
 # pictures go on its facets
 from popup_pro import props  # noqa: E402
 p = add("PICTURE")

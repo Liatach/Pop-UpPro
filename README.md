@@ -261,14 +261,15 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.94**: the animal face's mouth corner can be placed (out from the nose
+  crease, down from the nose's tip), so either pattern can take the other's
+  mouths: a koala that frowns, a goblin with a muzzle.
 * **0.93.1**: the animal face's creases sit the way card's do (a light
   spring on each, a little mountain at rest): no more deep valley at the
   bottom corner of the mouth.
 * **0.93**: a goblin pattern for the animal face beside the koala (a frown,
   no muzzle), muzzles optional on either, and the koala's jaw no longer
   folds deep partway shut.
-* **0.92.1**: the animal face's nose tip and chin stay ridges as it closes
-  (they were caving in part way shut).
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

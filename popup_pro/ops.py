@@ -76,7 +76,7 @@ DEFAULTS = {
     "PYRAMID": dict(y=80.0, x=25.0, depth=50.0, height=40.0, ridge=0.0, front=25.0,
                     back=25.0, tab=10.0),
     "FRAME": dict(y=0.0, tab=8.0),
-    "HEAD": dict(y=90.0, width=70.0, height=25.0, tab=8.0),
+    "HEAD": dict(y=90.0, width=70.0, height=25.0, tab=8.0, mouth_out=34.0, mouth_down=-9.0),
     "STAGE": dict(y=80.0, phi_l=60.0, glue=60.0, height=80.0, tab=10.0, tab_side="OUT"),
     "FLOOR": dict(tab=8.0),
     "CEILING": dict(tab=8.0),

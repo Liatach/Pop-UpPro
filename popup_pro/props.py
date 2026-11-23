@@ -22,7 +22,8 @@ def _head_base(self, context):
     if D is not None:
         for k, v in (("head_nose", "nose"), ("head_brow", "brow"), ("head_muzzle", "muzzle"),
                      ("head_chin", "chin"), ("mouth_w", "mouth_w"), ("mouth_d", "mouth_d"),
-                     ("head_jaw", "jaw"), ("ear_base", "cheek"), ("ear_size", "ear")):
+                     ("head_jaw", "jaw"), ("ear_base", "cheek"), ("ear_size", "ear"),
+                     ("mouth_out", "mouth_out"), ("mouth_down", "mouth_down")):
             setattr(self, k, round(D[v]))
         self.mouth_a = 0.0
     _changed(self, context)
@@ -1270,7 +1271,8 @@ class PopupMech(bpy.types.PropertyGroup):
         ("GOBLIN", "Goblin", "A hand-made goblin's pattern: a frowning mouth turned down past "
          "the nose's tip, a pointed ear")],
         description="Animal face: the hand-made pattern it's built on (choosing one sets "
-        "its landmarks as it was made)")
+        "its landmarks as it was made; the mouth's corner and angles then take either to "
+        "the other's mouths)")
     head_brow: FloatProperty(name="Forehead", default=48.0, min=5.0, soft_max=120.0,
                              update=_changed, description="Animal face: the forehead's seam "
                              "down the middle, from between the eyes up over the top of the "
@@ -1291,6 +1293,13 @@ class PopupMech(bpy.types.PropertyGroup):
     mouth_d: FloatProperty(name="Lower Lip", default=25.0, min=3.0, soft_max=60.0,
                            update=_changed, description="Animal face: the lower lip, from "
                            "the mouth's corner out to the chin: how deep the mouth is")
+    mouth_out: FloatProperty(name="Mouth Out", default=0.0, min=0.0, soft_max=80.0,
+                             update=_changed, description="Animal face: how far out from the "
+                             "nose crease the mouth's corner sits (0: where its pattern has it)")
+    mouth_down: FloatProperty(name="Mouth Down", default=0.0, soft_min=-40.0, soft_max=40.0,
+                              update=_changed, description="Animal face: how far below the "
+                              "nose's tip the mouth's corner sits (minus: above it, beside the "
+                              "nose; with Mouth Out 0, where its pattern has it)")
     mouth_a: FloatProperty(name="Mouth Angle", default=0.0, min=-45.0, max=45.0,
                            update=_changed, description="Animal face: the lower lip, chin and "
                            "jaw turned about the mouth's corner: a smile one way, a frown "
@@ -2030,6 +2039,8 @@ class PopupMech(bpy.types.PropertyGroup):
             d.update(type=self.kind, depth=self.depth, lead=self.lead)
         elif self.kind == "HEAD":
             d.update(type="HEAD", width=self.width, height=self.height, head_base=self.head_base,
+                     mouth_out=self.mouth_out if self.mouth_out > 0.0 else None,
+                     mouth_down=self.mouth_down if self.mouth_out > 0.0 else None,
                      head_brow=self.head_brow, head_nose=self.head_nose,
                      head_muzzle=self.head_muzzle, head_chin=self.head_chin,
                      mouth_w=self.mouth_w, mouth_d=self.mouth_d, mouth_a=self.mouth_a,

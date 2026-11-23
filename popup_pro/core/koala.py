@@ -115,6 +115,7 @@ for _b, _B in BASES.items():
         "muzzle": _ln("E", "F") if "F" in K_ else 0.0,
         "chin": _ln("R", "S2"), "mouth_w": _ln("Ap", "Q"), "mouth_d": _ln("Q", "R"),
         "jaw": _ln("Q", "J5"), "cheek": float(-K_["B1"][0]),
+        "mouth_out": float(-K_["Ap"][0]), "mouth_down": float(K_["E"][1] - K_["Ap"][1]),
         "ear": float(max(abs(_cross(K_["B2"] - K_["H0"], q - K_["H0"]))
                          / np.linalg.norm(K_["B2"] - K_["H0"]) for q in E_)),
     }
@@ -129,10 +130,12 @@ def _aff(src, dst, q):
 
 
 def pattern(nose, brow, muzzle, chin, mouth_w, mouth_d, mouth_a, jaw, cheek, ear,
-            base="KOALA"):
+            base="KOALA", mouth_out=None, mouth_down=None):
     """The half's corners (mm, C up the y axis from S, the half at x < 0),
     its ear and its topology, the base's stretched to these landmarks.
-    Muzzle under 1 mm: none (the upper lip straight off the nose's tip)."""
+    Muzzle under 1 mm: none (the upper lip straight off the nose's tip).
+    mouth_out, mouth_down: where the mouth's corner sits, out from C and
+    down from the nose's tip (None: where the base has it, stretched)."""
     B = BASES[base]
     K, KE = _K[base]
     D = DEFAULTS[base]
@@ -141,6 +144,17 @@ def pattern(nose, brow, muzzle, chin, mouth_w, mouth_d, mouth_a, jaw, cheek, ear
     p = {}
     for k in B["cpath"] + B["band"]:
         p[k] = K[k] * np.array([sx, sy])
+    # (the mouth's corner where it's asked for, out from C and down from the
+    # nose's tip; the band's corners round it follow, a share each)
+    if mouth_out is not None or mouth_down is not None:
+        mo = float(-p["Ap"][0]) if mouth_out is None else min(mouth_out, 0.9 * cheek)
+        md_ = float(p["E"][1] - p["Ap"][1]) if mouth_down is None else mouth_down
+        new = np.array([-max(2.0, mo), p["E"][1] - md_])
+        dv = new - p["Ap"]
+        p["Ap"] = new
+        for k, sh in (("A3", 0.5), ("V", 0.6)):
+            if k in p:
+                p[k] = p[k] + sh * dv
     # (the forehead's seam: its direction kept, its length set; what lies
     # between it and the hinge carried with it)
     p["T"] = K["T"] * (brow / D["brow"])

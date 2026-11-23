@@ -331,6 +331,12 @@ Its landmarks, in the panel (in mm):
   upper lip running straight off the nose's tip: a goblin can have one
   added, carried on down C's line), and from the lower lip back under the
   chin (a seam).
+* **Mouth Out** and **Mouth Down**: where the mouth's corner sits, out from
+  C and down from the nose's tip (minus: above it, beside the nose). With
+  Mouth Angle and Muzzle these take either pattern to the other's mouths:
+  a koala with the goblin's frown (Out 24, Down 13, Angle -30), a goblin
+  with a muzzle and the koala's corner. Mouth Out 0 leaves the corner where
+  its pattern has it (faces saved before 0.94).
 * **Mouth Width** (the slot at its corner, inside the cheek), **Lower Lip**
   (from the corner out to the chin: how deep the mouth is), **Mouth Angle**
   (the lower lip, chin and jaw turned about the mouth's corner: a smile one
@@ -352,8 +358,12 @@ pages](images/head_close.jpg)
 
 ![The goblin, at 178, 120 and 70 degrees](images/head_goblin.jpg)
 
-![Two more koalas: a wide frown with a long jaw (below); a smile with a short nose
-and small ears (above); at 178, 120 and 60 degrees](images/head_mouths.jpg)
+![A koala given the goblin's frown: Mouth Out 24, Down 13, Angle -30 (its
+long muzzle hangs over the mouth)](images/head_frown.jpg)
+
+![Two more: the koala with the goblin's frown (below); a goblin with a
+muzzle and the koala's mouth corner (above); at 178, 120 and 60
+degrees](images/head_mouths.jpg)
 
 **Back-to-Back Pair** (Birmingham 53, **+** menu > Back-to-Back Pair
 (parallel strips)): the simplest thing on two parallel strips, two pieces of

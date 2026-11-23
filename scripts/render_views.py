@@ -195,12 +195,19 @@ def head_goblin():
     return (0, 85, 25), 150, (0.1, -0.35, 1.0), (178.0, 120.0, 70.0)
 
 
+def head_frown():
+    a = add("HEAD")  # (the koala given a goblin's frown: its corner out and down)
+    a.mouth_out, a.mouth_down, a.mouth_a = 24.0, 13.0, -30.0
+    return (0, 75, 30), 150, (0.1, -0.35, 1.0), (178.0, 120.0, 70.0)
+
+
 def head_mouths():
-    a = add("HEAD")  # (a wide frown, a long jaw)
-    a.y, a.mouth_w, a.mouth_a, a.head_jaw = 70.0, 16.0, -15.0, 28.0
-    b = add("HEAD")  # (a smile, a short nose, small ears)
-    b.y, b.mouth_a, b.head_nose, b.ear_size = 185.0, 15.0, 28.0, 25.0
-    return (0, 125, 10), 300, (0.02, -0.15, 1.0), (178.0, 120.0, 60.0)
+    a = add("HEAD")  # (a koala given a goblin's frown: its corner out and down)
+    a.y, a.mouth_out, a.mouth_down, a.mouth_a = 70.0, 24.0, 13.0, -30.0
+    b = add("HEAD")  # (a goblin given a muzzle and the koala's corner)
+    b.head_base = "GOBLIN"
+    b.y, b.head_muzzle, b.mouth_out, b.mouth_down = 185.0, 12.0, 34.0, -5.0
+    return (0, 125, 20), 240, (0.1, -0.75, 1.0), (178.0, 120.0, 60.0)
 
 
 def pair():
@@ -290,7 +297,7 @@ def on_riser():
     return (0, 105, 25), 260, (0.25, -0.9, 0.45), (175.0, 120.0, 70.0)
 
 
-SCENES = dict(strut_cutaway=strut_cutaway, rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, disc_hidden=disc_hidden, lid_host=lid_host, pair=pair, head=head, head_close=head_close, head_side=head_side, head_goblin=head_goblin, head_mouths=head_mouths, face_close=face_close, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+SCENES = dict(strut_cutaway=strut_cutaway, rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, disc_hidden=disc_hidden, lid_host=lid_host, pair=pair, head=head, head_close=head_close, head_side=head_side, head_goblin=head_goblin, head_frown=head_frown, head_mouths=head_mouths, face_close=face_close, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 

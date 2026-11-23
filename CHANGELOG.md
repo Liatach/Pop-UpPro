@@ -3,6 +3,14 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.94.0**: the **Animal Face**'s mouth corner can be placed: **Mouth
+  Out** (how far out from the nose crease) and **Mouth Down** (how far
+  below the nose's tip; minus is above it, beside the nose), on either
+  pattern, so with Mouth Angle (the lip and jaw turned about the corner)
+  and Muzzle either can take the other's mouth: a koala with a goblin's
+  frown, a goblin with a muzzle and a smile. Choosing a Pattern sets the
+  corner where that face has it; a face saved before 0.94 (Mouth Out 0)
+  keeps its pattern's corner.
 * **0.93.1**: the **Animal Face**'s creases sit the way card's do. Each
   crease now has a light spring: open flat, any shape the facets leave
   free goes the way creased card springs back (each crease a little
