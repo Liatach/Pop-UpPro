@@ -3,6 +3,12 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.94.1**: the **Animal Face** rebuilds about four times faster
+  (about a second instead of four and a half on the defaults), so changing
+  a landmark no longer lags: the face is solved every 4 degrees down to
+  24 and every degree below (where it changes fastest), the angles between
+  carried part way from one solved pose to the next; and the creases'
+  springs are worked out all at once rather than one nudge at a time.
 * **0.94.0**: the **Animal Face**'s mouth corner can be placed: **Mouth
   Out** (how far out from the nose crease) and **Mouth Down** (how far
   below the nose's tip; minus is above it, beside the nose), on either

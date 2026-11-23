@@ -261,17 +261,25 @@ def creases(p, faces):
     return out
 
 
+def _cr(a, b):
+    """Row-wise cross products (faster than np.cross on small arrays)."""
+    return np.stack([a[:, 1] * b[:, 2] - a[:, 2] * b[:, 1],
+                     a[:, 2] * b[:, 0] - a[:, 0] * b[:, 2],
+                     a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]], axis=1)
+
+
 def _folds(A, B, C, E_, sd, out):
     u = B - A
-    u = u / np.maximum(np.linalg.norm(u, axis=1), 1e-12)[:, None]
+    u = u / np.maximum(np.sqrt(np.einsum("ij,ij->i", u, u)), 1e-12)[:, None]
     cp = C - A
-    cp = cp - np.sum(cp * u, axis=1)[:, None] * u
+    cp = cp - np.einsum("ij,ij->i", cp, u)[:, None] * u
     ep = E_ - A
-    ep = ep - np.sum(ep * u, axis=1)[:, None] * u
-    lc = np.maximum(np.linalg.norm(cp, axis=1), 1e-12)
-    le = np.maximum(np.linalg.norm(ep, axis=1), 1e-12)
-    nA = (sd * out)[:, None] * np.cross(u, cp) / lc[:, None]
-    return np.arctan2(-np.sum(nA * ep, axis=1) / le, -np.sum(cp * ep, axis=1) / (lc * le))
+    ep = ep - np.einsum("ij,ij->i", ep, u)[:, None] * u
+    lc = np.maximum(np.sqrt(np.einsum("ij,ij->i", cp, cp)), 1e-12)
+    le = np.maximum(np.sqrt(np.einsum("ij,ij->i", ep, ep)), 1e-12)
+    nA = (sd * out)[:, None] * _cr(u, cp) / lc[:, None]
+    return np.arctan2(-np.einsum("ij,ij->i", nA, ep) / le,
+                      -np.einsum("ij,ij->i", cp, ep) / (lc * le))
 
 
 def fold_angles(P, idx, out=1.0):
@@ -284,19 +292,19 @@ def fold_angles(P, idx, out=1.0):
 
 def fold_jac(P, idx, out=1.0, h=1e-4):
     """The folds' rates against each of their four corners' coordinates
-    (m x 4 x 3), by central differences, each crease on its own."""
+    (m x 4 x 3), by central differences, each crease on its own (all 24
+    nudges worked in one go)."""
     ia, ib, ic, ie, sd = idx
-    Q = [P[ia], P[ib], P[ic], P[ie]]
+    Q = np.stack([P[ia], P[ib], P[ic], P[ie]])  # (4 x m x 3)
     m = len(ia)
-    J = np.zeros((m, 4, 3))
+    D = np.zeros((24, 4, m, 3))
     for r_ in range(4):
         for k in range(3):
-            Qp = [q.copy() for q in Q]
-            Qm = [q.copy() for q in Q]
-            Qp[r_][:, k] += h
-            Qm[r_][:, k] -= h
-            J[:, r_, k] = (_folds(*Qp, sd, out) - _folds(*Qm, sd, out)) / (2 * h)
-    return J
+            D[2 * (3 * r_ + k), r_, :, k] = h
+            D[2 * (3 * r_ + k) + 1, r_, :, k] = -h
+    Qs = (Q[None] + D).transpose(1, 0, 2, 3).reshape(4, 24 * m, 3)
+    f = _folds(Qs[0], Qs[1], Qs[2], Qs[3], np.tile(sd, 24), out).reshape(24, m)
+    return ((f[0::2] - f[1::2]) / (2 * h)).T.reshape(m, 4, 3)
 
 
 def stand(p, topo, clear=0.5):

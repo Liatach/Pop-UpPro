@@ -196,23 +196,60 @@ class Heads:
         springs = (crs, out_, ph180)
         pose_cache = {180.0: W180}
 
-        def pose(t):
-            k_ = round(float(t), 6)
-            if k_ in pose_cache:
-                return pose_cache[k_]
-            above = min((q for q in pose_cache if q >= k_), default=180.0)
-            prev = pose_cache[above]
-            cur = above
-            while cur > k_ + 1e-9:
-                nxt = max(k_, cur - (4.0 if cur > 24.0 else 1.0))
+        def grid_below(g):
+            return round(g - (4.0 if g > 24.0 + 1e-9 else 1.0), 6)
+
+        def solve(g):
+            """The pose at a step of the solve: every 4 degrees down to 24,
+            then every degree (stepped down to from the nearest above)."""
+            if g in pose_cache:
+                return pose_cache[g]
+            cur = min(q for q in pose_cache if q >= g and q in gset)
+            prev = pose_cache[cur]
+            while cur > g + 1e-9:
+                nxt = grid_below(cur)
                 Mn = mframe(nxt)[0] @ mframe(cur)[0].inverted()
                 onpg = PgL.asm(nxt) @ PgL.asm(180.0).inverted()
                 X0 = {v: (onpg @ W180[v]) if v in fixed else (Mn @ prev[v]) for v in names_v}
                 prev = self._head_relax(host, nxt, X0, fixed, onmir, elist, side, convex,
                                          springs)
-                cur = round(nxt, 6)
+                cur = nxt
                 pose_cache[cur] = prev
-            return pose_cache.get(k_, prev)
+            return prev
+
+        gset = {180.0}
+        g_ = 180.0
+        while g_ > 0.0:
+            g_ = grid_below(g_)
+            gset.add(max(0.0, g_))
+        ipose = {}
+
+        def pose(t):
+            k_ = round(min(180.0, max(0.0, float(t))), 6)
+            if k_ in gset:
+                return solve(k_)
+            if k_ in ipose:
+                return ipose[k_]
+            # (between steps: each corner carried round with the middle,
+            # part way from one step's pose to the next; the ears' hinges
+            # exactly on their page)
+            hi_ = min(q for q in gset if q > k_)
+            lo_ = max(q for q in gset if q < k_)
+            a_ = (k_ - lo_) / (hi_ - lo_)
+            Xl, Xh = solve(lo_), solve(hi_)
+            Ml, Mh, Mk = mframe(lo_)[0], mframe(hi_)[0], mframe(k_)[0]
+            Mli, Mhi = Ml.inverted(), Mh.inverted()
+            onpg = PgL.asm(k_) @ PgL.asm(180.0).inverted()
+            out_p = {}
+            for v in names_v:
+                if v in fixed:
+                    out_p[v] = onpg @ W180[v]
+                else:
+                    out_p[v] = Mk @ ((Mli @ Xl[v]).lerp(Mhi @ Xh[v], a_))
+            if len(ipose) > 4096:
+                ipose.clear()
+            ipose[k_] = out_p
+            return out_p
 
         # ---- the panels: every facet fitted as a rigid piece
         piece = f"Head{uid}"
