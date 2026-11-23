@@ -3,6 +3,17 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.93.0**: the **Animal Face** gets a second hand-made pattern, the
+  **Goblin** (Pattern: Koala or Goblin; choosing one sets the landmarks as
+  that face was made): no muzzle, a big frown turned down past the nose's
+  tip with the jaw tucking up under it, an extra row of quads along C and
+  an extra column by the mouth, a pointed ear. **Muzzle** can now be 0 on
+  either (none: the upper lip runs straight off the nose's tip), and a
+  muzzle can be added to the goblin (carried on down C's line, leant 20°
+  to its side). The koala's jaw no longer folds deep partway shut: the
+  jaw, free to swing below the mouth, is held lightly to its open shape
+  until the last 45°. The fold-over check lets a facet tuck under a
+  little (the goblin's jaw does).
 * **0.92.1**: the **Animal Face** no longer caves in as the card closes:
   the nose's tip and the chin were turning valley part way shut. The
   muzzle's quads were bending too freely across their diagonals (the spring

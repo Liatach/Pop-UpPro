@@ -1,11 +1,12 @@
 """Animal face: a mirrored low-poly mesh on the card's fold, cut and
 flattened like papercraft, that crushes flat as the card closes.
 
-The pattern is a hand-made koala's, facet for facet as its creases were
-drawn on the flattened card: the nose crease C up the middle, a band of
-quads (two rows of three) from C out to the ear's hinge, the forehead's
-three facets round to the top of the head, the muzzle's two over the nose's
-tip, and below the mouth's slot the jaw's three to the chin. Its landmarks
+The pattern is a hand-made koala's or goblin's (core/koala.py), facet for
+facet as its creases were drawn on the flattened card: the nose crease C
+up the middle, a band of quads from C out to the ear's hinge, the
+forehead's facets round to the top of the head, the muzzle's over the
+nose's tip (the koala's; none on the goblin unless asked), and below the
+mouth's slot the jaw's three to the chin. Its landmarks
 (forehead, nose, muzzle and chin; the mouth's width, lip, angle and jaw;
 how far out the ears sit and how big) stretch the pieces of that pattern.
 
@@ -65,14 +66,16 @@ class Heads:
         if not host.is_spine:
             self.warn(f"{lab}: stands on the card's fold only; skipped")
             return
-        D = KO.DEFAULTS
+        base = m.get("head_base", "KOALA")
+        base = base if base in KO.BASES else "KOALA"
+        D = KO.DEFAULTS[base]
 
         def g(k, d, lo):
             return max(lo, float(m.get(k, d)))
 
         nose = g("head_nose", D["nose"], 5.0)
         brow = g("head_brow", D["brow"], 5.0)
-        muzzle = g("head_muzzle", D["muzzle"], 3.0)
+        muzzle = g("head_muzzle", D["muzzle"], 0.0)
         chin = g("head_chin", D["chin"], 2.0)
         mw = g("mouth_w", D["mouth_w"], 2.0)
         md = g("mouth_d", D["mouth_d"], 3.0)
@@ -82,8 +85,9 @@ class Heads:
         es = max(0.0, float(m.get("ear_size", D["ear"])))
         tb = max(2.0, float(m.get("tab", 8.0)))
         yN = float(m["y"])
-        p_np, ear_np = KO.pattern(nose, brow, muzzle, chin, mw, md, ma, jaw, cheek, es)
-        Xd, err = KO.stand(p_np)
+        p_np, ear_np, topo = KO.pattern(nose, brow, muzzle, chin, mw, md, ma, jaw, cheek, es,
+                                        base=base)
+        Xd, err = KO.stand(p_np, topo)
         if err > 0.02 * nose:
             self.warn(f"{lab}: the face can't stand up from its pattern at these landmarks "
                       f"without stretching (try others)")
@@ -94,7 +98,7 @@ class Heads:
         # there where it must, its other diagonal a spring keeping it flat)
         faces = []
         soft = set()
-        for f_ in KO.FACES:
+        for f_ in topo["faces"]:
             a2 = sum(p2[f_[i]].x * p2[f_[(i + 1) % len(f_)]].y -
                      p2[f_[(i + 1) % len(f_)]].x * p2[f_[i]].y for i in range(len(f_)))
             f_ = tuple(f_) if a2 > 0 else tuple(reversed(f_))
@@ -123,7 +127,7 @@ class Heads:
             n_, _ = nrm(f_)
             if s0 is None:
                 s0 = n_.z
-            elif n_.z * s0 <= 0 and abs(n_.z) > 1e-3 * n_.length:
+            elif n_.z * s0 <= 0 and abs(n_.z) > 0.6 * n_.length:  # (a jaw may tuck under)
                 self.warn(f"{lab}: the face folds over itself: try other landmarks")
                 break
         # ---- the frame round the middle at each opening: across (the left
@@ -155,19 +159,19 @@ class Heads:
 
         names_v = sorted(V)
         W180 = {v: mframe(180.0)[0] @ V[v] for v in names_v}
-        fixed = set(KO.HINGE)
-        onmir = set(KO.MIRROR)
+        fixed = set(topo["hinge"])
+        onmir = set(topo["mirror"])
         side = set(names_v) - onmir
         PgL = self.panels[host.p1]
         elist = [((a_, b_), L_, 1.0)
-                 for (a_, b_), L_ in KO.edges(p_np).items()]
+                 for (a_, b_), L_ in KO.edges(p_np, topo["faces"]).items()]
         # (the seams stay ridges: each facet off a seam keeps falling away
         # from it towards the card, as it does open, never caving in)
         convex = []
-        for _, a_, b_ in KO.SEAMS:
+        for _, a_, b_ in topo["seams"]:
             u_ = (W180[b_] - W180[a_]).normalized()
             w_ = up180 - up180.dot(u_) * u_
-            for f_ in KO.FACES:
+            for f_ in topo["faces"]:
                 if a_ in f_ and b_ in f_:
                     for c_ in f_:
                         if c_ in (a_, b_):
@@ -175,6 +179,19 @@ class Heads:
                         d_ = (W180[c_] - W180[a_]).dot(w_)
                         hh = ((W180[c_] - W180[a_]) - (W180[c_] - W180[a_]).dot(u_) * u_).length
                         convex.append((a_, b_, c_, -1.0 if d_ < 0.0 else 1.0, 0.05 * hh))
+        # (the jaw hangs free below the mouth: held lightly to its open
+        # shape, let go towards shut, so its creases don't deepen on the way)
+        springs = []
+        jawv = {"Q", "J5", "J4", "L1", "R", "S2"}
+        for i_, fa in enumerate(topo["faces"]):
+            for fb in topo["faces"][i_ + 1:]:
+                sh = set(fa) & set(fb)
+                if len(sh) != 2 or not (jawv & set(fa) and jawv & set(fb)):
+                    continue
+                for c_ in set(fa) - sh:
+                    for e_ in set(fb) - sh:
+                        springs.append((c_, e_, (W180[c_] - W180[e_]).length,
+                                        (p2[c_] - p2[e_]).length))
         pose_cache = {180.0: W180}
 
         def pose(t):
@@ -189,7 +206,8 @@ class Heads:
                 Mn = mframe(nxt)[0] @ mframe(cur)[0].inverted()
                 onpg = PgL.asm(nxt) @ PgL.asm(180.0).inverted()
                 X0 = {v: (onpg @ W180[v]) if v in fixed else (Mn @ prev[v]) for v in names_v}
-                prev = self._head_relax(host, nxt, X0, fixed, onmir, elist, side, convex)
+                prev = self._head_relax(host, nxt, X0, fixed, onmir, elist, side, convex,
+                                         springs)
                 cur = round(nxt, 6)
                 pose_cache[cur] = prev
             return pose_cache.get(k_, prev)
@@ -265,11 +283,11 @@ class Heads:
                     kind_ = "skip"  # (a quad's own diagonal: no crease)
                 for sd in ("L", "R"):
                     self.fold_kind[frozenset((facet[(sd, fa)], facet[(sd, fb)]))] = kind_
-        for a_, b_ in KO.C_EDGES:  # (C: the halves' one fold)
+        for a_, b_ in topo["c_edges"]:  # (C: the halves' one fold)
             f_ = next(f_ for f_ in faces if a_ in f_ and b_ in f_)
             self.fold_kind[frozenset((facet[("L", f_)], facet[("R", f_)]))] = "mountain"
         # ---- seams down the middle: a tab off the left half under the right
-        for k_, (nm_s, a_, b_) in enumerate(KO.SEAMS):
+        for k_, (nm_s, a_, b_) in enumerate(topo["seams"]):
             f_ = next((f_ for f_ in faces if a_ in f_ and b_ in f_), None)
             if f_ is None or (p2[a_] - p2[b_]).length < 1.0:
                 continue
@@ -368,7 +386,7 @@ class Heads:
                 for f_ in hinge_f:
                     self.fold_kind[frozenset((facet[(sd, f_)], en))] = "valley"
 
-    def _head_relax(self, host, t, X0, fixed, onmir, elist, side, convex=()):
+    def _head_relax(self, host, t, X0, fixed, onmir, elist, side, convex=(), springs=()):
         """Gauss-Newton on the corners' positions (all in arrays): edges kept
         their length (weighted by 1/length), a pull back to the guess eased
         off, the mirror corners in the mirror plane, every free corner clear
@@ -467,6 +485,19 @@ class Heads:
                     row[3 * ia:3 * ia + 3] -= 5.0 * sg_ * w_
                     r3.append(5.0 * g_)
                     Jc.append(row)
+            # (light springs holding a free part to its open shape, let go
+            # towards shut, where the pages press it flat)
+            sk = min(1.0, float(t) / 45.0)
+            for a_, c_, d1, d0 in springs:
+                ia, ic = vi[a_], vi[c_]
+                dv = P[ia] - P[ic]
+                ln_ = max(np.linalg.norm(dv), 1e-9)
+                wt = 0.03 * sk / np.sqrt(max(d0, 1.0))
+                row = np.zeros(3 * nv)
+                row[3 * ia:3 * ia + 3] += wt * dv / ln_
+                row[3 * ic:3 * ic + 3] -= wt * dv / ln_
+                r3.append(wt * (ln_ - d1))
+                Jc.append(row)
             r3 = np.array(r3)
             Jc = np.array(Jc).reshape(-1, 3 * nv)
             rv = np.concatenate([r1, r2, r3, lam * (xx - x0)])

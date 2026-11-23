@@ -306,19 +306,29 @@ shape, the seams and C in the mirror plane and the ears' hinges on the
 card; that decides where the ears glue down. As the card closes, the ears
 ride their pages and every other corner follows, solved step by step down
 from open flat, until shut it lies pressed flat between the pages; the
-seams down the middle stay ridges all the way, never caving in. The
+seams down the middle stay ridges all the way, never caving in, and the
+jaw (free to swing below the mouth) is held lightly to its open shape so
+its creases don't deepen on the way. The
 koala's quads can't all stay perfectly flat on the way (the real card gives
 a little): each is two triangles across its shorter diagonal, with no crease
 printed there, bending a hair where it must.
 
-Its landmarks, in the panel (the defaults are the koala's, in mm):
+**Pattern** picks the hand-made face it's built on: the **Koala** (a long
+nose and muzzle, a smile) or the **Goblin** (no muzzle, its mouth a big
+frown turned down past the nose's tip, the jaw tucking up under it, a
+pointed ear; an extra row of quads up C and an extra column by the mouth).
+Choosing one sets the landmarks to that face as it was made.
+
+Its landmarks, in the panel (in mm):
 
 * **Nose At**: where the middle of C is, up the fold. **Cheek**: how far
   out from C the ears' hinges are.
 * **Forehead**, **Nose**, **Muzzle**, **Chin**: the seams and crease down
   the middle: from between the eyes over the top of the head (a seam), C
-  to the nose's tip, the tip down to the mouth (a seam), and from the lower
-  lip back under the chin (a seam).
+  to the nose's tip, the tip down to the mouth (a seam; 0 for none, the
+  upper lip running straight off the nose's tip: a goblin can have one
+  added, carried on down C's line), and from the lower lip back under the
+  chin (a seam).
 * **Mouth Width** (the slot at its corner, inside the cheek), **Lower Lip**
   (from the corner out to the chin: how deep the mouth is), **Mouth Angle**
   (the lower lip, chin and jaw turned about the mouth's corner: a smile one
@@ -338,7 +348,9 @@ stay ridges](images/head_side.jpg)
 ![Closing: at 30, 15 and 6 degrees, lying flat between the
 pages](images/head_close.jpg)
 
-![Two more: a wide frown with a long jaw (below); a smile with a short nose
+![The goblin, at 178, 120 and 70 degrees](images/head_goblin.jpg)
+
+![Two more koalas: a wide frown with a long jaw (below); a smile with a short nose
 and small ears (above); at 178, 120 and 60 degrees](images/head_mouths.jpg)
 
 **Back-to-Back Pair** (Birmingham 53, **+** menu > Back-to-Back Pair

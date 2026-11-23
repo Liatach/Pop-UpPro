@@ -189,6 +189,12 @@ def head_side():
     return (0, 95, 50), 170, (0.3, -0.45, 1.0), (60.0, 42.0, 25.0)
 
 
+def head_goblin():
+    a = add("HEAD")
+    a.head_base = "GOBLIN"
+    return (0, 85, 25), 150, (0.1, -0.35, 1.0), (178.0, 120.0, 70.0)
+
+
 def head_mouths():
     a = add("HEAD")  # (a wide frown, a long jaw)
     a.y, a.mouth_w, a.mouth_a, a.head_jaw = 70.0, 16.0, -15.0, 28.0
@@ -284,7 +290,7 @@ def on_riser():
     return (0, 105, 25), 260, (0.25, -0.9, 0.45), (175.0, 120.0, 70.0)
 
 
-SCENES = dict(strut_cutaway=strut_cutaway, rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, disc_hidden=disc_hidden, lid_host=lid_host, pair=pair, head=head, head_close=head_close, head_side=head_side, head_mouths=head_mouths, face_close=face_close, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+SCENES = dict(strut_cutaway=strut_cutaway, rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, disc_hidden=disc_hidden, lid_host=lid_host, pair=pair, head=head, head_close=head_close, head_side=head_side, head_goblin=head_goblin, head_mouths=head_mouths, face_close=face_close, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 

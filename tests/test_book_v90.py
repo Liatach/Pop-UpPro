@@ -70,7 +70,7 @@ f = add("HEAD")
 assert f.label.startswith("Face")
 shown = set(props_shown(draw(ui.POPUP_PT_mechs)))
 assert {"head_brow", "head_nose", "head_muzzle", "head_chin", "mouth_w", "mouth_d",
-        "mouth_a", "head_jaw", "ear_base", "ear_size"} <= shown, shown
+        "mouth_a", "head_jaw", "ear_base", "ear_size", "head_base"} <= shown, shown
 assert "ear_clock" not in shown and "height" not in shown, shown
 bpy.ops.popup.build()
 assert not warns(), warns()
@@ -128,24 +128,32 @@ clean(M, "Head1")
 # the seams down the middle stay ridges all the way shut: the facets off each
 # fall away towards the card (the nose's tip and the chin never cave in)
 from popup_pro.core import koala as KO  # noqa: E402
-pk, _ = KO.pattern(f.head_nose, f.head_brow, f.head_muzzle, f.head_chin, f.mouth_w, f.mouth_d,
-                   f.mouth_a, f.head_jaw, f.ear_base, f.ear_size)
-for _, a_, b_ in KO.SEAMS:
-    pa_, pb_ = v3(pk[a_]), v3(pk[b_])
-    for n in L:
-        P_ = M.panels[n]
-        qs = [v3(q) for q in P_.polys[0]]
-        if min((q - pa_).length for q in qs) > 0.05 or min((q - pb_).length for q in qs) > 0.05:
-            continue
-        for t in (150.0, 90.0, 60.0, 40.0, 20.0, 10.0):
-            l_, r_, nl_, nr_ = M.dirs(t)
-            e_ = (l_ + r_).normalized()
-            A = P_.asm(t)
-            wa, wb = A @ pa_, A @ pb_
-            u_ = (wb - wa).normalized()
-            c_ = sum((A @ q for q in qs), v3((0, 0))) / len(qs) - wa
-            c_ -= c_.dot(u_) * u_
-            assert c_.dot(e_ - e_.dot(u_) * u_) < 0.0, (a_, b_, n, t)
+
+
+def ridges(M, f):
+    pk, _, tp = KO.pattern(f.head_nose, f.head_brow, f.head_muzzle, f.head_chin, f.mouth_w,
+                           f.mouth_d, f.mouth_a, f.head_jaw, f.ear_base, f.ear_size,
+                           base=f.head_base)
+    L = sorted(n for n in M.panels if n.startswith("Head1.L"))
+    for _, a_, b_ in tp["seams"]:
+        pa_, pb_ = v3(pk[a_]), v3(pk[b_])
+        for n in L:
+            P_ = M.panels[n]
+            qs = [v3(q) for q in P_.polys[0]]
+            if min((q - pa_).length for q in qs) > 0.05 or min((q - pb_).length for q in qs) > 0.05:
+                continue
+            for t in (150.0, 90.0, 60.0, 40.0, 20.0, 10.0):
+                l_, r_, nl_, nr_ = M.dirs(t)
+                e_ = (l_ + r_).normalized()
+                A = P_.asm(t)
+                wa, wb = A @ pa_, A @ pb_
+                u_ = (wb - wa).normalized()
+                c_ = sum((A @ q for q in qs), v3((0, 0))) / len(qs) - wa
+                c_ -= c_.dot(u_) * u_
+                assert c_.dot(e_ - e_.dot(u_) * u_) < 0.0, (a_, b_, n, t)
+
+
+ridges(M, f)
 # open, it stands up; shut, it lies flat between the pages
 top = max(w.z for n in L for w in corners(n, M.tmax))
 assert top > 40.0, top
@@ -205,6 +213,36 @@ for k, v in (("mouth_a", 15.0), ("mouth_a", -15.0), ("mouth_w", 16.0), ("mouth_d
 f.ear_size = 0.0
 assert "Head1.EarL" not in model().panels
 f.ear_size = 39.0
+# the goblin: its own pattern (a frown, no muzzle), its own landmarks set on
+# choosing it; a muzzle can be added, and the koala's taken away
+f.head_base = "GOBLIN"
+assert round(f.head_muzzle) == 0 and round(f.head_nose) == 37, (f.head_muzzle, f.head_nose)
+for k, v in ((None, None), ("head_muzzle", 12.0), ("mouth_a", -15.0), ("head_brow", 35.0),
+             ("head_chin", 30.0)):
+    if k:
+        old = getattr(f, k)
+        setattr(f, k, v)
+    bpy.ops.popup.build()
+    assert not warns(), (k, v, warns())
+    M = model()
+    L = sorted(n for n in M.panels if n.startswith("Head1.L"))
+    assert gaps(60.0) < 0.6 and gaps(12.0) < 0.6, (k, v, gaps(60.0), gaps(12.0))
+    assert max(abs(w.x) for n in L for w in corners(n, 0.0)) < 1.0
+    ridges(M, f)
+    if k:
+        setattr(f, k, old)
+M = model()
+assert any(n.startswith("Head1.Muzzle") for n in model().panels) is False
+f.head_base = "KOALA"
+assert round(f.head_muzzle) == 26
+f.head_muzzle = 0.0
+bpy.ops.popup.build()
+assert not warns(), warns()
+M = model()
+L = sorted(n for n in M.panels if n.startswith("Head1.L"))
+assert not any("Muzzle" in n for n in M.panels) and gaps(40.0) < 0.6
+ridges(M, f)
+f.head_muzzle = 26.0
 # pictures go on its facets
 from popup_pro import props  # noqa: E402
 p = add("PICTURE")

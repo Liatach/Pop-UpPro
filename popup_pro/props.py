@@ -15,6 +15,19 @@ def _changed(self, context):
     live.schedule(context.scene)
 
 
+def _head_base(self, context):
+    """A new face pattern: its own landmarks, as it was made."""
+    from .core.koala import DEFAULTS
+    D = DEFAULTS.get(self.head_base)
+    if D is not None:
+        for k, v in (("head_nose", "nose"), ("head_brow", "brow"), ("head_muzzle", "muzzle"),
+                     ("head_chin", "chin"), ("mouth_w", "mouth_w"), ("mouth_d", "mouth_d"),
+                     ("head_jaw", "jaw"), ("ear_base", "cheek"), ("ear_size", "ear")):
+            setattr(self, k, round(D[v]))
+        self.mouth_a = 0.0
+    _changed(self, context)
+
+
 def _layout_render(self, context):
     sc = self.id_data
     scenes = [sc]
@@ -1252,6 +1265,12 @@ class PopupMech(bpy.types.PropertyGroup):
                             "ears, glued to the pages out from the loop; how far they "
                             "reach from the wall's foot", default=22.0, min=4.0,
                             soft_max=80.0, update=_changed)
+    head_base: EnumProperty(name="Pattern", update=_head_base, items=[
+        ("KOALA", "Koala", "A hand-made koala's pattern: a long nose, a muzzle, a smiling mouth"),
+        ("GOBLIN", "Goblin", "A hand-made goblin's pattern: a frowning mouth turned down past "
+         "the nose's tip, a pointed ear")],
+        description="Animal face: the hand-made pattern it's built on (choosing one sets "
+        "its landmarks as it was made)")
     head_brow: FloatProperty(name="Forehead", default=48.0, min=5.0, soft_max=120.0,
                              update=_changed, description="Animal face: the forehead's seam "
                              "down the middle, from between the eyes up over the top of the "
@@ -1259,9 +1278,10 @@ class PopupMech(bpy.types.PropertyGroup):
     head_nose: FloatProperty(name="Nose", default=38.0, min=5.0, soft_max=120.0,
                              update=_changed, description="Animal face: the nose crease down "
                              "the middle, from between the eyes to the nose's tip")
-    head_muzzle: FloatProperty(name="Muzzle", default=26.0, min=3.0, soft_max=80.0,
+    head_muzzle: FloatProperty(name="Muzzle", default=26.0, min=0.0, soft_max=80.0,
                                update=_changed, description="Animal face: the muzzle's seam, "
-                               "from the nose's tip down to the mouth")
+                               "from the nose's tip down to the mouth (0: none, the lip straight off "
+                               "the tip)")
     head_chin: FloatProperty(name="Chin", default=16.0, min=2.0, soft_max=80.0,
                              update=_changed, description="Animal face: the chin's seam, from "
                              "the lower lip back under the chin")
@@ -2009,7 +2029,7 @@ class PopupMech(bpy.types.PropertyGroup):
         elif self.kind in ("FLOOR", "CEILING"):
             d.update(type=self.kind, depth=self.depth, lead=self.lead)
         elif self.kind == "HEAD":
-            d.update(type="HEAD", width=self.width, height=self.height,
+            d.update(type="HEAD", width=self.width, height=self.height, head_base=self.head_base,
                      head_brow=self.head_brow, head_nose=self.head_nose,
                      head_muzzle=self.head_muzzle, head_chin=self.head_chin,
                      mouth_w=self.mouth_w, mouth_d=self.mouth_d, mouth_a=self.mouth_a,
