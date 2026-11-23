@@ -221,6 +221,70 @@ def edges(p, faces):
     return out
 
 
+REST = 10.0  # (degrees: a crease left to itself sits this far mountain)
+
+
+def creases(p, faces):
+    """Every crease between two facets as drawn: (a, b, c, e, side), a-b
+    the crease, c a corner of the one facet off it, e of the other, side
+    which way round the first facet goes in the pattern (+1: c left of a-b)."""
+    out = []
+    for i, fa in enumerate(faces):
+        for fb in faces[i + 1:]:
+            sh = [q for q in fa if q in fb]
+            if len(sh) != 2:
+                continue
+            a, b = sh
+            ab = p[b] - p[a]
+            la = float(np.linalg.norm(ab))
+
+            def far(f):
+                return max((q for q in f if q not in sh),
+                           key=lambda q: abs(_cross(ab, p[q] - p[a])) / la)
+
+            c, e = far(fa), far(fb)
+            out.append((a, b, c, e, 1.0 if _cross(ab, p[c] - p[a]) > 0 else -1.0))
+    return out
+
+
+def _folds(A, B, C, E_, sd, out):
+    u = B - A
+    u = u / np.maximum(np.linalg.norm(u, axis=1), 1e-12)[:, None]
+    cp = C - A
+    cp = cp - np.sum(cp * u, axis=1)[:, None] * u
+    ep = E_ - A
+    ep = ep - np.sum(ep * u, axis=1)[:, None] * u
+    lc = np.maximum(np.linalg.norm(cp, axis=1), 1e-12)
+    le = np.maximum(np.linalg.norm(ep, axis=1), 1e-12)
+    nA = (sd * out)[:, None] * np.cross(u, cp) / lc[:, None]
+    return np.arctan2(-np.sum(nA * ep, axis=1) / le, -np.sum(cp * ep, axis=1) / (lc * le))
+
+
+def fold_angles(P, idx, out=1.0):
+    """Each crease's fold (radians, + mountain: the facets falling away from
+    the card's outer face, - valley). P: corners (n x 3); idx: arrays
+    (a, b, c, e, side); out: +1 if the pattern's face up is the outer face."""
+    ia, ib, ic, ie, sd = idx
+    return _folds(P[ia], P[ib], P[ic], P[ie], sd, out)
+
+
+def fold_jac(P, idx, out=1.0, h=1e-4):
+    """The folds' rates against each of their four corners' coordinates
+    (m x 4 x 3), by central differences, each crease on its own."""
+    ia, ib, ic, ie, sd = idx
+    Q = [P[ia], P[ib], P[ic], P[ie]]
+    m = len(ia)
+    J = np.zeros((m, 4, 3))
+    for r_ in range(4):
+        for k in range(3):
+            Qp = [q.copy() for q in Q]
+            Qm = [q.copy() for q in Q]
+            Qp[r_][:, k] += h
+            Qm[r_][:, k] -= h
+            J[:, r_, k] = (_folds(*Qp, sd, out) - _folds(*Qm, sd, out)) / (2 * h)
+    return J
+
+
 def stand(p, topo, clear=0.5):
     """The face stood up open flat: x across (the left page at x < 0), y along
     the fold, z up off the card. Every facet kept its shape, the middle's
@@ -285,10 +349,51 @@ def stand(p, topo, clear=0.5):
         J.append(lam * np.eye(3 * n))
         return np.concatenate(rows), np.vstack(J)
 
+    # (each crease left free by the rest sits a little mountain, as card
+    # does: chooses among the shapes the facets alone allow)
+    cr = creases(p, topo["faces"])
+    cidx = tuple(np.array([vi[c[k]] for c in cr]) for k in range(4)) + \
+        (np.array([c[4] for c in cr]),)
+    # (the pattern's face up: outward if most facets face up in the guess)
+    out = 1.0
+    nz = 0.0
+    for f in topo["faces"]:
+        a2 = sum(_cross(p[f[i]], p[f[(i + 1) % len(f)]]) for i in range(len(f)))
+        nn = np.cross(X[vi[f[1]]] - X[vi[f[0]]], X[vi[f[2]]] - X[vi[f[0]]])
+        nz += math.copysign(1.0, a2) * nn[2] / max(np.linalg.norm(nn), 1e-12)
+    out = 1.0 if nz >= 0 else -1.0
+    rest = math.radians(REST)
+    wrest = [0.0]
+    Hpin = [None]
+
+    def resid_r(x, lam):
+        rv, J = resid(x, lam)
+        if wrest[0] <= 0.0:
+            return rv, J
+        P = x.reshape(n, 3)
+        # (the hinges kept where the facets alone put them: the springs only
+        # choose among what's left free)
+        Jh = np.zeros((3 * len(hi), 3 * n))
+        for q_, i_ in enumerate(hi):
+            for k in range(3):
+                Jh[3 * q_ + k, 3 * i_ + k] = 10.0
+        rv = np.concatenate([rv, 10.0 * (P[hi] - Hpin[0]).reshape(-1)])
+        J = np.vstack([J, Jh])
+        ph = fold_angles(P, cidx, out)
+        Jf = fold_jac(P, cidx, out)
+        Jr = np.zeros((len(ph), 3 * n))
+        for r_ in range(4):
+            for k in range(3):
+                np.add.at(Jr, (np.arange(len(ph)), 3 * cidx[r_] + k), wrest[0] * Jf[:, r_, k])
+        return np.concatenate([rv, wrest[0] * (ph - rest)]), np.vstack([J, Jr])
+
     x = X.reshape(-1)
-    for lam in (0.05, 0.01, 0.002, 0.0):
+    for lam, wr in ((0.05, 0.0), (0.01, 0.0), (0.002, 0.0), (0.0, 0.0), (0.0, 0.1), (0.0, 0.01)):
+        if wr > 0.0 and Hpin[0] is None:
+            Hpin[0] = x.reshape(n, 3)[hi].copy()
+        wrest[0] = wr
         for _ in range(60):
-            rv, J = resid(x, lam)
+            rv, J = resid_r(x, lam)
             A = J.T @ J + 1e-6 * np.eye(3 * n)
             step = np.linalg.solve(A, -(J.T @ rv))
             mx = float(np.abs(step).max())
@@ -300,4 +405,4 @@ def stand(p, topo, clear=0.5):
         X0 = x.reshape(n, 3).copy()
     P = x.reshape(n, 3)
     err = float(np.max(np.abs(np.linalg.norm(P[ea] - P[eb], axis=1) - L0)))
-    return {k: P[vi[k]].copy() for k in names}, err
+    return {k: P[vi[k]].copy() for k in names}, err, out

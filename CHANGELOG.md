@@ -3,6 +3,14 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.93.1**: the **Animal Face**'s creases sit the way card's do. Each
+  crease now has a light spring: open flat, any shape the facets leave
+  free goes the way creased card springs back (each crease a little
+  mountain, 10°); on the way shut each crease is held lightly to its fold
+  open flat, let go over the last 45° as the pages press it flat (this
+  replaces 0.93's springs on the jaw alone). No more pronounced valley at
+  the bottom corner of the mouth on either pattern: through the whole fold
+  no crease goes more than a few degrees valley (a test checks it).
 * **0.93.0**: the **Animal Face** gets a second hand-made pattern, the
   **Goblin** (Pattern: Koala or Goblin; choosing one sets the landmarks as
   that face was made): no muzzle, a big frown turned down past the nose's

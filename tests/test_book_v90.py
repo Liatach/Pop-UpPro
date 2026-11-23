@@ -153,7 +153,35 @@ def ridges(M, f):
                 assert c_.dot(e_ - e_.dot(u_) * u_) < 0.0, (a_, b_, n, t)
 
 
+def folds_ok(M, f, worst=-10.0):
+    """No crease goes valley more than a few degrees on the way shut: left to
+    themselves, card's creases sit a little mountain."""
+    import numpy as np
+    pk, _, tp = KO.pattern(f.head_nose, f.head_brow, f.head_muzzle, f.head_chin, f.mouth_w,
+                           f.mouth_d, f.mouth_a, f.head_jaw, f.ear_base, f.ear_size,
+                           base=f.head_base)
+    _, _, out = KO.stand(pk, tp)
+    names = list(pk)
+    cr = KO.creases(pk, tp["faces"])
+    vi = {k: i for i, k in enumerate(names)}
+    idx = tuple(np.array([vi[c[k]] for c in cr]) for k in range(4)) + \
+        (np.array([c[4] for c in cr]),)
+    L = sorted(n for n in M.panels if n.startswith("Head1.L"))
+    for t in (150.0, 120.0, 90.0, 60.0, 40.0, 25.0, 12.0):
+        P = np.zeros((len(names), 3))
+        for k, q in pk.items():
+            for n in L:
+                P_ = M.panels[n]
+                if min((v3(c) - v3(q)).length for c in P_.polys[0]) < 0.05:
+                    P[vi[k]] = list(P_.asm(t) @ v3(q))
+                    break
+        ph = np.degrees(KO.fold_angles(P, idx, out))
+        assert ph.min() > worst, (f.head_base, t, [(c[:2], round(a)) for c, a in zip(cr, ph)
+                                                   if a <= worst])
+
+
 ridges(M, f)
+folds_ok(M, f)
 # open, it stands up; shut, it lies flat between the pages
 top = max(w.z for n in L for w in corners(n, M.tmax))
 assert top > 40.0, top
@@ -229,6 +257,8 @@ for k, v in ((None, None), ("head_muzzle", 12.0), ("mouth_a", -15.0), ("head_bro
     assert gaps(60.0) < 0.6 and gaps(12.0) < 0.6, (k, v, gaps(60.0), gaps(12.0))
     assert max(abs(w.x) for n in L for w in corners(n, 0.0)) < 1.0
     ridges(M, f)
+    if k is None:
+        folds_ok(M, f)
     if k:
         setattr(f, k, old)
 M = model()

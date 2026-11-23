@@ -261,14 +261,14 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.93.1**: the animal face's creases sit the way card's do (a light
+  spring on each, a little mountain at rest): no more deep valley at the
+  bottom corner of the mouth.
 * **0.93**: a goblin pattern for the animal face beside the koala (a frown,
   no muzzle), muzzles optional on either, and the koala's jaw no longer
   folds deep partway shut.
 * **0.92.1**: the animal face's nose tip and chin stay ridges as it closes
   (they were caving in part way shut).
-* **0.92**: the animal face rebuilt on a hand-made koala's pattern, facet
-  for facet as drawn: it stands up from its pattern and crushes flat
-  cleanly all the way shut.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

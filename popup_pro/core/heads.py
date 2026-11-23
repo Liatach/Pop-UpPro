@@ -87,7 +87,7 @@ class Heads:
         yN = float(m["y"])
         p_np, ear_np, topo = KO.pattern(nose, brow, muzzle, chin, mw, md, ma, jaw, cheek, es,
                                         base=base)
-        Xd, err = KO.stand(p_np, topo)
+        Xd, err, out_ = KO.stand(p_np, topo)
         if err > 0.02 * nose:
             self.warn(f"{lab}: the face can't stand up from its pattern at these landmarks "
                       f"without stretching (try others)")
@@ -179,19 +179,17 @@ class Heads:
                         d_ = (W180[c_] - W180[a_]).dot(w_)
                         hh = ((W180[c_] - W180[a_]) - (W180[c_] - W180[a_]).dot(u_) * u_).length
                         convex.append((a_, b_, c_, -1.0 if d_ < 0.0 else 1.0, 0.05 * hh))
-        # (the jaw hangs free below the mouth: held lightly to its open
-        # shape, let go towards shut, so its creases don't deepen on the way)
-        springs = []
-        jawv = {"Q", "J5", "J4", "L1", "R", "S2"}
-        for i_, fa in enumerate(topo["faces"]):
-            for fb in topo["faces"][i_ + 1:]:
-                sh = set(fa) & set(fb)
-                if len(sh) != 2 or not (jawv & set(fa) and jawv & set(fb)):
-                    continue
-                for c_ in set(fa) - sh:
-                    for e_ in set(fb) - sh:
-                        springs.append((c_, e_, (W180[c_] - W180[e_]).length,
-                                        (p2[c_] - p2[e_]).length))
+        # (every crease held lightly to its fold open flat, as creased card
+        # springs back, let go towards shut where the pages press it flat:
+        # the shapes the facets alone leave free go the way card would)
+        import numpy as np
+        crs = KO.creases(p_np, topo["faces"])
+        nmz = list(Xd)
+        vz = {k: i for i, k in enumerate(nmz)}
+        Pz = np.array([Xd[k] for k in nmz])
+        ph180 = KO.fold_angles(Pz, tuple(np.array([vz[c[k]] for c in crs]) for k in range(4)) +
+                               (np.array([c[4] for c in crs]),), out_)
+        springs = (crs, out_, ph180)
         pose_cache = {180.0: W180}
 
         def pose(t):
@@ -449,6 +447,11 @@ class Heads:
         NM = np.array(nm[:])  # (the mirror's normal, towards the left page)
         NN = np.stack([NL, NR, NM])
         sidev = np.array([v in side and v not in fixed for v in names])
+        from . import koala as KO
+        if springs:
+            crs, sout, sph = springs
+            cidx = tuple(np.array([vi[c[k]] for c in crs]) for k in range(4)) + \
+                (np.array([c[4] for c in crs]),)
 
         def resid(xx, lam):
             P = (c0f + G @ xx).reshape(nv, 3)
@@ -485,19 +488,19 @@ class Heads:
                     row[3 * ia:3 * ia + 3] -= 5.0 * sg_ * w_
                     r3.append(5.0 * g_)
                     Jc.append(row)
-            # (light springs holding a free part to its open shape, let go
-            # towards shut, where the pages press it flat)
+            # (light springs holding every crease to its fold open flat, let
+            # go towards shut, where the pages press it flat)
             sk = min(1.0, float(t) / 45.0)
-            for a_, c_, d1, d0 in springs:
-                ia, ic = vi[a_], vi[c_]
-                dv = P[ia] - P[ic]
-                ln_ = max(np.linalg.norm(dv), 1e-9)
-                wt = 0.03 * sk / np.sqrt(max(d0, 1.0))
-                row = np.zeros(3 * nv)
-                row[3 * ia:3 * ia + 3] += wt * dv / ln_
-                row[3 * ic:3 * ic + 3] -= wt * dv / ln_
-                r3.append(wt * (ln_ - d1))
-                Jc.append(row)
+            if springs and sk > 0.0:
+                ph = KO.fold_angles(P, cidx, sout)
+                Jf = KO.fold_jac(P, cidx, sout)
+                wt = 0.1 * sk
+                Jr = np.zeros((len(ph), 3 * nv))
+                for r_ in range(4):
+                    for k in range(3):
+                        np.add.at(Jr, (np.arange(len(ph)), 3 * cidx[r_] + k), wt * Jf[:, r_, k])
+                r3 += list(wt * (ph - sph))
+                Jc += list(Jr)
             r3 = np.array(r3)
             Jc = np.array(Jc).reshape(-1, 3 * nv)
             rv = np.concatenate([r1, r2, r3, lam * (xx - x0)])

@@ -306,9 +306,11 @@ shape, the seams and C in the mirror plane and the ears' hinges on the
 card; that decides where the ears glue down. As the card closes, the ears
 ride their pages and every other corner follows, solved step by step down
 from open flat, until shut it lies pressed flat between the pages; the
-seams down the middle stay ridges all the way, never caving in, and the
-jaw (free to swing below the mouth) is held lightly to its open shape so
-its creases don't deepen on the way. The
+seams down the middle stay ridges all the way, never caving in. Each
+crease also has a light spring, as creased card does: open flat, whatever
+the facets leave free sits a little mountain; on the way shut each crease
+is held lightly to its fold open flat, let go over the last 45 degrees as
+the pages press it flat. The
 koala's quads can't all stay perfectly flat on the way (the real card gives
 a little): each is two triangles across its shorter diagonal, with no crease
 printed there, bending a hair where it must.
