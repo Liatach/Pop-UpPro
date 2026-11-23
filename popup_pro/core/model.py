@@ -37,6 +37,7 @@ from .faces import Faces
 from .flaps import Flaps
 from .folds45 import Folds45
 from .heads import Heads
+from .slots import Slots
 from .geom import Z, ccw, clip_halfplane, frame, hinge_frame_2d, rot_y, v3
 from .roofs import Roofs
 from .solver import Solver
@@ -55,7 +56,7 @@ from .base import (arcade, _card, CARD_PRESETS, CORNERS, halfplanes, Hinge, Host
                    unit2)
 
 
-class Model(Arms, Heads, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
+class Model(Arms, Heads, Slots, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFolds, ZigZags, Cubes, Tubes, Towers, Collars,
             Roofs, Stages, Tethers, Flaps, Solver):
     def __init__(self, card, mechs):
         self.card = dict(card)
@@ -210,7 +211,7 @@ class Model(Arms, Heads, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFo
             state[m["uid"]] = 1
             h = m.get("host", 0) if m["type"] not in NO_HOST else 0
             ok = True
-            if m["type"] == "PICTURE" and m.get("host"):
+            if m["type"] in ("PICTURE", "SLOT") and m.get("host"):
                 d_ = by_uid.get(m["host"])
                 if d_ is None:
                     self.warn(f"{m['label']}: what it's glued on is missing; skipped")
@@ -309,6 +310,9 @@ class Model(Arms, Heads, Swing, BoxFolds, BoxEnds, Faces, Folds45, StandUps, VFo
             fold = m.get("fold", "A")
             if m["type"] == "PICTURE":
                 self._picture(m)
+                continue
+            if m["type"] == "SLOT":
+                self._slotted(m)
                 continue
             if m["type"] == "ARMS":
                 self._arms(m)

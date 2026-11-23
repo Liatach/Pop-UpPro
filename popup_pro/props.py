@@ -132,6 +132,9 @@ KINDS = [
     ("SWING", "Arm Behind a Mask", "A picture swinging round in its own plane, pivoted on "
      "a small creased hinge hidden behind a mask layer, as the card opens (Birmingham 75)",
      "DRIVER_ROTATIONAL_DIFFERENCE", 25),
+    ("SLOT", "Slotted Piece", "A piece glued down on a page by a strip along the spine, "
+     "jutting out through a slot cut in a face of another mechanism: the slot rides along "
+     "it as the card opens and closes (Birmingham 59-60)", "SNAP_EDGE", 27),
     ("HEAD", "Animal Face", "A mirrored low-poly face on the fold, glued down by its ears, "
      "facet for facet a hand-made koala's: it stands up as the card opens and crushes flat "
      "as it closes",
@@ -241,7 +244,7 @@ def host_items(self, context):
         bad = _descendants(st.mechs, self.uid) | {self.uid}
         cut_in = self.kind in ("BOXCUT", "MOUTH")  # (cut across a fold of one piece of paper)
         for m in st.mechs:
-            if self.kind in ("FLAP", "TETHER", "ROOF", "PICTURE") or m.uid in bad:
+            if self.kind in ("FLAP", "TETHER", "ROOF", "PICTURE", "SLOT") or m.uid in bad:
                 continue
             if self.kind == "ARMS":  # (on a V-fold or a box fold)
                 if m.kind in ("VFOLD", "BOX"):
@@ -1048,7 +1051,7 @@ def pic_on_items(self, context):
     st = context.scene.popup if context and context.scene else None
     if st is not None:
         for m in st.mechs:
-            if m.uid != self.uid and m.kind != "PICTURE":
+            if m.uid != self.uid and m.kind not in ("PICTURE", "SLOT"):
                 items.append((str(m.uid), m.label, f"A face of {m.label}", "MESH_PLANE", m.uid))
     _pic_on_items = items
     return _pic_on_items
@@ -1925,6 +1928,18 @@ class PopupMech(bpy.types.PropertyGroup):
     pic_side: EnumProperty(name="Side", default="FRONT", update=_changed, items=[
         ("FRONT", "Front", "On the printed side of the face"),
         ("BACK", "Back", "On the back of the face")])
+    slot_page: EnumProperty(name="Glued On", default="L", update=_changed, items=[
+        ("L", "Left Page", "Its sticking strip glued on the left page"),
+        ("R", "Right Page", "Its sticking strip glued on the right page")],
+        description="Slotted piece: which page its sticking strip is glued on")
+    slot_strip: FloatProperty(name="Strip From Spine", default=10.0, min=1.0, soft_max=150.0,
+                              update=_changed, description="Slotted piece: how far from the "
+                              "spine its sticking strip is glued (nearer or further changes "
+                              "the angle it juts out at)")
+    slot_jut: FloatProperty(name="Juts Out", default=30.0, min=2.0, soft_max=150.0,
+                            update=_changed, description="Slotted piece: how far it reaches "
+                            "out past the face when the card is open (cut its shape as you "
+                            "like)")
     pic_x: FloatProperty(name="X", default=0.0, soft_min=-200.0, soft_max=200.0,
                          update=_changed, description="Where the picture's bottom left "
                          "corner is, across the face from its centre (mm; negative to the "
@@ -2012,6 +2027,10 @@ class PopupMech(bpy.types.PropertyGroup):
                      cross_height=self.cross_height, cross_width=self.cross_width,
                      slot_height=self.slot_height, cross_pos=self.cross_pos,
                      cross_count=self.cross_count, cross_gap=self.cross_gap)
+        elif self.kind == "SLOT":
+            d.update(type="SLOT", face=self.face, x=self.pic_x, y=self.pic_y,
+                     img_w=self.img_w, slot_page=self.slot_page, slot_strip=self.slot_strip,
+                     slot_jut=self.slot_jut)
         elif self.kind == "PICTURE":
             d.update(type="PICTURE", face=self.face, x=self.pic_x, y=self.pic_y, img_w=self.img_w,
                      img_h=self.img_h, turn=self.pic_turn, pic_side=self.pic_side)

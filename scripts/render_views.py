@@ -275,6 +275,26 @@ def swing_shut():
     return (35, 75, 10), 210, (0.1, -0.5, 0.86), (175.0, 140.0, 105.0)
 
 
+def slotted():
+    b = add("BOX")
+    b.y, b.width, b.height, b.depth = 100.0, 50.0, 40.0, 30.0
+    s = add("SLOT", host=b.uid)
+    s.face = f"Box{b.uid}.CB"
+    s.pic_x, s.pic_y, s.img_w, s.slot_jut, s.slot_strip = 0.0, 20.0, 16.0, 35.0, 10.0
+    return (0, 110, 30), 230, (0.45, -0.75, 0.8), (150.0, 90.0, 40.0)
+
+
+def slotted_ears():
+    v = add("VFOLD")  # (Birmingham 60: ears through slots in a head)
+    v.y, v.height = 70.0, 55.0
+    for side in ("L", "R"):
+        e = add("SLOT", host=v.uid)
+        e.face = f"VFold{v.uid}.Half{side}"
+        e.slot_page = side
+        e.pic_x, e.pic_y, e.img_w, e.slot_jut, e.slot_strip = 0.0, 8.0, 10.0, 30.0, 2.0
+    return (0, 100, 30), 230, (0.1, -0.8, 0.8), (150.0, 90.0, 40.0)
+
+
 def flapping_arms():
     a = add("VFOLD")
     a.y, a.height, a.glue = 40.0, 80.0, 45.0
@@ -297,7 +317,7 @@ def on_riser():
     return (0, 105, 25), 260, (0.25, -0.9, 0.45), (175.0, 120.0, 70.0)
 
 
-SCENES = dict(strut_cutaway=strut_cutaway, rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, disc_hidden=disc_hidden, lid_host=lid_host, pair=pair, head=head, head_close=head_close, head_side=head_side, head_goblin=head_goblin, head_frown=head_frown, head_mouths=head_mouths, face_close=face_close, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
+SCENES = dict(strut_cutaway=strut_cutaway, rect_lid=rect_lid, strut_lid=strut_lid, turning_disc=turning_disc, disc_close=disc_close, disc_hidden=disc_hidden, lid_host=lid_host, pair=pair, head=head, head_close=head_close, head_side=head_side, head_goblin=head_goblin, head_frown=head_frown, head_mouths=head_mouths, face_close=face_close, turning_wheels=turning_wheels, jack_flat=jack_flat, bite_steps=bite_steps, beak_bite=beak_bite, swing_arm=swing_arm, swing_bare=swing_bare, swing_shut=swing_shut, house=house, on_riser=on_riser, flapping_arms=flapping_arms, slotted=slotted, slotted_ears=slotted_ears, vfold_bite=vfold_bite, animal_face=animal_face, box_ends=box_ends, slotted_sheet=slotted_sheet, collar_tiers=collar_tiers, loop_cone=loop_cone, cone_lid=cone_lid,
               angled_box=angled_box, cube_tower=cube_tower)
 
 

@@ -145,6 +145,8 @@ for name in kinds:
         add("CROSS", host=add("RISER").uid, fold="A")
     elif name == "ARMS":
         add("ARMS", host=add("VFOLD").uid, fold="A")
+    elif name == "SLOT":
+        add("SLOT", host=add("BOX").uid)
     else:
         add(name)
     model = build.make_model(sc)[0]

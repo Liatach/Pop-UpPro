@@ -89,7 +89,7 @@ def round_arc(x, L, n):
 SAMPLES = [0.5, 5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
 
 IN = 25.4
-NO_HOST = ("FLAP", "TETHER", "ROOF", "PICTURE")
+NO_HOST = ("FLAP", "TETHER", "ROOF", "PICTURE", "SLOT")
 CORNERS = ("KFL", "KFR", "KBR", "KBL", "KF", "KB")  # a tube's inside corners (towers stand there)
 
 

@@ -110,6 +110,8 @@ Paint flat or folded, import and position images or simply textures, then export
   own, arms raised; triangles that leap out of a box's corners, and discs
   and wheels they turn.
 * Flapping arms swinging out through slots in a V-fold or a box fold.
+* Slotted pieces: a piece glued on a page jutting out through a slot in any
+  face of another mechanism, the slot riding along it as the card closes.
 * An arm swinging round behind a mask, on a creased hinge that lies flat
   open or shut, bending to lie flat under the mask; more mechanisms can
   stand in the mask's corner.
@@ -261,14 +263,13 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.95**: slotted pieces: a piece glued on a page jutting out through a
+  slot in a face of any mechanism (a box fold's front, a V-fold's half).
 * **0.94.1**: the animal face rebuilds about four times faster: changing a
   landmark no longer lags.
 * **0.94**: the animal face's mouth corner can be placed (out from the nose
   crease, down from the nose's tip), so either pattern can take the other's
   mouths: a koala that frowns, a goblin with a muzzle.
-* **0.93.1**: the animal face's creases sit the way card's do (a light
-  spring on each, a little mountain at rest): no more deep valley at the
-  bottom corner of the mouth.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

@@ -3,6 +3,17 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.95.0**: **Slotted Piece** (Birmingham 59-60), an add-on to any
+  mechanism: a piece glued down on a page by a sticking strip, jutting out
+  through a slot cut in the face you pick (Through and Face), the slot
+  riding along it as the card opens and closes. Glued On picks the page,
+  Strip From Spine sets the angle it juts at, Juts Out how far past the
+  face it reaches open, Width its width (the slot 2 mm wide and 2 mm
+  longer). The slot runs along the line the face turns about seen from that
+  page: along the spine on a box fold's faces, along the glue crease on a
+  V-fold's half (ears through a head); a face that doesn't turn about a line
+  on that page says so. The piece is lengthened, with a note, if the slot
+  would slip off its end on the way shut.
 * **0.94.1**: the **Animal Face** rebuilds about four times faster
   (about a second instead of four and a half on the defaults), so changing
   a landmark no longer lags: the face is solved every 4 degrees down to

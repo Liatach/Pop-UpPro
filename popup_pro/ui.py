@@ -10,7 +10,7 @@ KIND_ICON = {"VFOLD": "MOD_TRIANGULATE", "BOX": "MESH_CUBE", "BOXCUT": "SNAP_FAC
              "STANDUP": "OUTLINER_OB_IMAGE", "ROOF": "HOME", "PLATFORM": "MOD_SOLIDIFY",
              "RISER": "OUTLINER_OB_FORCE_FIELD", "BOXEND": "MESH_CUBE", "CROSS": "SNAP_PERPENDICULAR", "ARMS": "MOD_ARMATURE", "SWING": "DRIVER_ROTATIONAL_DIFFERENCE", "DOUBLE45": "ORIENTATION_GIMBAL",
              "ZIGZAG": "MOD_SCREW", "QUADS": "MOD_LATTICE",
-             "JACK": "OUTLINER_OB_ARMATURE", "PICTURE": "IMAGE_DATA"}
+             "JACK": "OUTLINER_OB_ARMATURE", "PICTURE": "IMAGE_DATA", "SLOT": "SNAP_EDGE"}
 
 
 def draw_export(layout, st):
@@ -168,7 +168,8 @@ class POPUP_MT_add(bpy.types.Menu):
             ("Valley Floor (roof upside down)", "ROOF", "VALLEY")))
         two.separator()
         self._adds(two, "On a page or a face:", (
-            ("Pull-tab Flap", "FLAP"), ("Paste-on (card glued on a face)", "PICTURE")))
+            ("Pull-tab Flap", "FLAP"), ("Paste-on (card glued on a face)", "PICTURE"),
+            ("Slotted Piece (juts through a face)", "SLOT")))
 
     def draw_stage(self, lay, st):
         """Stages: a stage set in a card, a frame across the fold; and, when
@@ -611,7 +612,7 @@ def _align(lay, st):
 
 
 # the Mechanisms panel: kinds with a layout all their own (methods of the panel)
-_OWN_PANELS = {"TUBE": "draw_tube", "PICTURE": "draw_picture", "STAGE": "draw_stage",
+_OWN_PANELS = {"TUBE": "draw_tube", "PICTURE": "draw_picture", "SLOT": "draw_slot", "STAGE": "draw_stage",
                "FRAME": "draw_frame", "FLOOR": "draw_floor", "CEILING": "draw_floor",
                "PYRAMID": "draw_pyramid", "HEAD": "draw_head", "ROOF": "draw_roof", "TETHER": "draw_tether",
                "CROSS": "draw_cross", "ARMS": "draw_arms"}
@@ -752,6 +753,21 @@ class POPUP_PT_mechs(_Base, bpy.types.Panel):
         col.prop(m, "img_w", text="Width")
         col.prop(m, "img_h", text="Height")
         col.prop(m, "pic_turn")
+        col.label(text="Draw on it, or erase its art to shape it", icon="INFO")
+        self.draw_warnings(context, m)
+
+    def draw_slot(self, context, st, col, m):
+        """A piece jutting out through a slot in a face."""
+        col.prop(m, "pic_on", text="Through")
+        col.prop(m, "pic_face", text="Face")
+        col.prop(m, "pic_x", text="Slot X (across)")
+        col.prop(m, "pic_y", text="Slot Y (up)")
+        col.prop(m, "img_w", text="Width")
+        col.prop(m, "slot_jut")
+        col.separator()
+        col.prop(m, "slot_page")
+        col.prop(m, "slot_strip")
+        col.prop(m, "tab", text="Strip Width")
         col.label(text="Draw on it, or erase its art to shape it", icon="INFO")
         self.draw_warnings(context, m)
 

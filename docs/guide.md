@@ -1396,6 +1396,37 @@ reaching out past the box's top or bottom edge, the leaping fish). Either
 works at both ends of the box, mirrored. Near flat, pictures out past the
 edge rest on the page, which Checks may note.
 
+### Slotted pieces (Birmingham 59-60)
+
+**Add > Slotted Piece** puts a piece of card out through a slot in a face of
+another mechanism: with a mechanism selected, its front (or first face).
+The piece is glued down on a page by a sticking strip; as the card opens
+and closes the slot rides along the piece, so it juts out of the face at an
+angle that changes with the face. **Through** and **Face** pick the face the
+slot is cut in (build once first so the faces are listed); **Slot X** and
+**Slot Y** place the slot's middle (X across the face from its centre, Y up
+from its bottom edge); **Width** is the piece's (the slot is 2 mm wide and
+2 mm longer than the piece is wide); **Juts Out** how far it reaches past
+the face with the card open. **Glued On** picks the page its strip is stuck
+to, **Strip From Spine** how far out (nearer or further changes the angle it
+juts at, as the book says), **Strip Width** the strip's.
+
+The slot runs along the line the face turns about, seen from that page: on
+a box fold's faces (they turn about lines along the spine) the slot and the
+strip run along the spine; on a V-fold half (the book's ears through a
+head) they run along the crease the half is glued down by, so its piece
+must be glued on that half's own page. A face that doesn't turn about a
+line on the page asked for can't carry a slotted piece there: Checks says
+so. The piece is made as long as it must be to stay in the slot all the way
+shut (Checks says if it had to be lengthened). Draw on it, or erase its art
+to shape it.
+
+![A slotted piece out through a box fold's front, at 150, 90 and 40
+degrees](images/slotted.jpg)
+
+![Ears out through slots in a V-fold's halves, each glued on its own page,
+at 150, 90 and 40 degrees](images/slotted_ears.jpg)
+
 ### Holes and shaping (every mechanism)
 
 ![Stage 1: an arched staging frame, a perforated frame and a window through
