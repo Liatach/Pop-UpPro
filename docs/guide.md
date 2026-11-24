@@ -1442,7 +1442,12 @@ from the Artwork panel, under Erase the Paper. Openings work the same on every p
 mechanism, roofs, ribs, frames, floors. Holes are cut into the paper itself,
 so they show in 3D and print as cut lines:
 
-* **Openings**: rectangles, arches and ovals, with **X (Across Page)**, **Y (Up Page)**,
+* **Openings**: rectangles, arches, ovals, triangles (point up; Turn
+  points them another way), **Window Panes** (four panes, two by two, with
+  a bar between) and **Round Corner** (an inverse arch: the box's top right
+  corner less a quarter ellipse; put that corner on a corner of the paper
+  and it rounds the corner off: it runs off the paper's own edges, but stops
+  short of a fold; Turn for the other corners), with **X (Across Page)**, **Y (Up Page)**,
   **Width** and **Height** sliders, cut in any piece (**Cut In** lists them
   all). X is measured from the piece's centre fold, Y up from its bottom.
   **Face** puts it on one face of the piece instead (a box's top or front,
@@ -1458,7 +1463,8 @@ so they show in 3D and print as cut lines:
   sideways arch).
   **Cut**: *Hole* cuts it right out; *Door Flap* cuts every side but one,
   which is creased as the **Hinge** (Left, Right, Bottom, or Top for a
-  rectangle), and the door swings out of the printed side as the card opens,
+  rectangle; doors are rectangles, arches or ovals, the other shapes cut
+  as holes), and the door swings out of the printed side as the card opens,
   to **Opens To** degrees when it is fully open and flat when it shuts. Door
   flaps work on every piece: the card, V-folds, box folds and box layers,
   cubes, tubes and castles, stand-ups. A side-hinged door needs to stand a
@@ -1720,7 +1726,9 @@ mesh, no rig). So:
     background cuts the piece to its shape.
 
   For a cutting machine, export **Cut Lines Only** and **Crease Lines Only**
-  (or **Cut + Crease**) with Dashed Folds off; to print with the lines, or
+  (or **Cut + Crease**) with Dashed Folds off. **Glue Areas** (Crease and
+  Cut + Crease) also outlines where each tab glues, in blue on its own layer:
+  set that colour to Draw with a pen, or a light Score. To print with the lines, or
   with outlines only over the art, use **Print** or **Art + Cut Lines**.
 * **Draw Anywhere** (Grease Pencil; step by step in
   [sketching.md](sketching.md)): draw with any Grease Pencil brush on the

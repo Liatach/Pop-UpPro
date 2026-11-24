@@ -263,12 +263,12 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.96**: triangle, window-pane and round-corner openings; line exports
+  can outline where the tabs glue.
 * **0.95.1**: a slotted piece stays in its slot open flat (it slipped under
   its face).
 * **0.95**: slotted pieces: a piece glued on a page jutting out through a
   slot in a face of any mechanism (a box fold's front, a V-fold's half).
-* **0.94.1**: the animal face rebuilds about four times faster: changing a
-  landmark no longer lags.
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

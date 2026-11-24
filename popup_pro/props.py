@@ -2309,7 +2309,13 @@ class PopupOpening(bpy.types.PropertyGroup):
     shape: EnumProperty(name="Shape", items=[
         ("RECT", "Rectangle", "Window or plain doorway"),
         ("ARCH", "Arch", "Round-topped doorway or window"),
-        ("OVAL", "Oval", "Round or oval window")], update=_opening_changed)
+        ("OVAL", "Oval", "Round or oval window"),
+        ("TRI", "Triangle", "A triangle, point up (Turn to point it another way)"),
+        ("WINDOW", "Window Panes", "Four panes, two by two, with a bar between"),
+        ("CORNER", "Round Corner", "An inverse arch: its top right corner less a quarter "
+         "ellipse. Put that corner on a corner of the paper to round it off (it runs off "
+         "the paper's edges, but not across a fold; Turn for the other corners)")],
+        update=_opening_changed)
     x: FloatProperty(name="X (Across Page)", description="Where its centre is, across the "
                      "page from the centre fold (mm; the left page is negative)", default=0.0,
                      soft_min=-300.0, soft_max=300.0, update=_opening_changed)
@@ -2496,6 +2502,11 @@ class PopupSettings(bpy.types.PropertyGroup):
     bleed: FloatProperty(name="Bleed", default=0.0, min=0.0, max=3.0, precision=2,
                          description="Millimetres of art printed past each piece's "
                          "outline, so slightly-off cuts don't show white (0 = off)")
+    export_glue_lines: BoolProperty(
+        name="Glue Areas", default=False,
+        description="Crease and Cut + Crease files: also outline where each tab glues, in "
+        "blue on its own layer (set it to Draw with a pen, or a light Score, on a cutting "
+        "machine)")
     export_art: BoolProperty(name="Artwork", default=True)
     export_sketch: BoolProperty(name="Sketches", default=True)
     export_guides: BoolProperty(name="Glue Guides", default=True)
@@ -2676,7 +2687,8 @@ class PopupSettings(bpy.types.PropertyGroup):
 
     def doors(self):
         from .core.openings import opening_dict
-        return [opening_dict(o, i) for i, o in enumerate(self.openings) if o.cut == "DOOR"]
+        return [opening_dict(o, i) for i, o in enumerate(self.openings)
+                if o.cut == "DOOR" and o.shape in ("RECT", "ARCH", "OVAL")]
 
     def shape_lines(self, W, H, tmax):
         """The creases (and cut) the Ceiling and Floor settings make."""

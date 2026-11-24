@@ -3,6 +3,15 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.96.0**: more **opening** shapes: **Triangle** (point up; Turn
+  points it another way), **Window Panes** (four panes two by two with a
+  bar between, 12% of the smaller side, 1.5 to 6 mm) and **Round Corner** (an
+  inverse arch: the box's top right corner less a quarter ellipse; put on a
+  corner of the paper it rounds it off, running off the paper's own edges
+  but stopping short of a fold). Doors stay rectangles, arches and ovals (the
+  new shapes cut as holes). **Glue Areas** for line exports: Crease and Cut +
+  Crease files can outline where each tab glues, blue on its own layer, for
+  a cutting machine's pen or a light score.
 * **0.95.1**: a **Slotted Piece** no longer slips under its face when the
   card is open flat (face and piece both lying on the page, it came out
   from under the face's edge instead of through the slot): opening out, it

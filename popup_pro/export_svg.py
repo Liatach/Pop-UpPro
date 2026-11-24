@@ -28,6 +28,7 @@ JOIN = 0.6  # mm, edges this close in the assembled card count as one fold
 GUIDE = 'fill="none" stroke="#7a7a7a" stroke-width="0.25" stroke-dasharray="0.6 1.2"'
 CONTENT = ("PRINT", "ART_CUT", "CUT", "CREASE", "LINES")
 SUFFIX = {"ART_CUT": "_art", "CUT": "_cut", "CREASE": "_crease", "LINES": "_lines"}
+GLUE_LINE = 'fill="none" stroke="#0000ff" stroke-width="{w}" stroke-linejoin="round"'
 CREASE_RED = "#ff0000"  # Cut + Crease: creases import as their own colour layer
 LINE_STYLES = ("DEFAULT", "CUSTOM", "NONE")
 
@@ -70,7 +71,8 @@ def settings_from(st):
                 include_art=st.export_art, include_sketch=st.export_sketch,
                 include_guides=st.export_guides, include_labels=st.export_labels,
                 tab_fill=st.tab_fill, tab_color=tuple(st.tab_color), bleed=st.bleed,
-                include_reverse=st.export_reverse, include_layout=st.export_layout)
+                include_reverse=st.export_reverse, include_layout=st.export_layout,
+                glue_lines=st.export_glue_lines)
 
 
 def inflate(poly, d, miter=3.0):
@@ -198,11 +200,13 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
            include_labels=True, content="PRINT", line_style="DEFAULT",
            line_color=(0.0, 0.0, 0.0), line_opacity=1.0, line_width=0.3, dashed=True,
            tab_fill=False, tab_color=(0.85, 0.83, 0.78), bleed=0.0, include_reverse=True,
-           include_layout=True):
+           include_layout=True, glue_lines=False):
     """content: PRINT (art, tabs, guides, labels, all lines), ART_CUT (art and
     tabs outlined by cut lines only: nothing drawn over the art), or for
     cutting machines CUT, CREASE, LINES (plain solid strokes, no art or text;
     LINES draws creases red). tab_fill colours plain tabs (else paper white).
+    glue_lines: in CREASE and LINES files, also where each tab glues, outlined
+    in blue on its own layer (a cutting machine's pen, or a light score).
     bleed (mm) lets the art run past each piece's outline.
     With guides on (PRINT), a piece that has tabs glued to its back gets a
     mirrored reverse sheet to print on the other side of its sheet, and
@@ -211,6 +215,7 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
     st = scene.popup
     rig = st.rig
     STYLE = line_styles(content, line_style, line_width, line_color, line_opacity, dashed)
+    glue_out = glue_lines and content in ("CREASE", "LINES")
     if content in ("CUT", "CREASE", "LINES"):
         include_art = include_sketch = include_guides = include_labels = False
         tab_fill = False
@@ -545,6 +550,11 @@ def export(scene, filepath, include_art=True, include_sketch=True, include_guide
             for g, _src in (guides.get(piece, []) if include_guides else []):
                 L["guides"].append(f'<path d="M{" L".join(_fmt(P(q)) for q in g)} Z" '
                                    f'{GUIDE}/>')
+            # (line files: the glue areas outlined solid, their own colour)
+            for g, _src in (guides.get(piece, []) + back_guides.get(piece, [])
+                            if glue_out else []):
+                L["guides"].append(f'<path d="M{" L".join(_fmt(P(q)) for q in g)} Z" '
+                                   f'{GLUE_LINE.format(w=f"{line_width:.3g}")}/>')
         body = []
         for name in ("art", "sketch", "glue", "guides", "valley", "mountain", "cut", "labels"):
             body.append(f'<g id="{name}" inkscape:groupmode="layer" inkscape:label="{name}">'

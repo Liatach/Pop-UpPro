@@ -28,7 +28,36 @@ def shape(kind, x, y, w, h):
                 for i in range(1, SEG)]
         pts.append((x - r, top))
         return pts
+    if kind == "TRI":
+        return [(x - r, y), (x + r, y), (x, y + h)]
+    if kind == "CORNER":
+        # (the box's top right corner, less a quarter ellipse about its
+        # bottom left: placed on a corner of the paper it rounds it off)
+        pts = [(x + r, y), (x + r, y + h), (x - r, y + h)]
+        pts += [(x - r + w * math.sin(0.5 * math.pi * i / SEG),
+                 y + h * math.cos(0.5 * math.pi * i / SEG)) for i in range(1, SEG)]
+        return pts
     return [(x - r, y), (x + r, y), (x + r, y + h), (x - r, y + h)]
+
+
+def window_bar(w, h):
+    """The bar between a window's panes (mm)."""
+    return max(1.5, min(6.0, 0.12 * min(w, h)))
+
+
+def shapes(kind, x, y, w, h):
+    """Outlines (CCW) of an opening: one, or a window's four panes (a 2 x 2
+    grid of rectangles with a bar between)."""
+    if kind != "WINDOW":
+        return [shape(kind, x, y, w, h)]
+    b = 0.5 * window_bar(w, h)
+    r = 0.5 * w
+    out = []
+    for x0, x1 in ((x - r, x - b), (x + b, x + r)):
+        for y0, y1 in ((y, y + 0.5 * h - b), (y + 0.5 * h + b, y + h)):
+            if x1 - x0 > 0.2 and y1 - y0 > 0.2:
+                out.append([(x0, y0), (x1, y0), (x1, y1), (x0, y1)])
+    return out
 
 
 def face_frame(model, face):
@@ -118,15 +147,34 @@ def _on_face(model, o, poly, faces=True):
 
 def place(model, o, faces=True):
     """An opening's outline in its piece's pattern: shaped, turned about its
-    centre, put on its face and kept inside it. o: a dict (opening_dict)."""
-    poly = _turned(o, shape(o["shape"], o["x"], o["y"], o["width"], o["height"]))
+    centre, put on its face and kept inside it. o: a dict (opening_dict). A
+    window's first pane only: place_all has them all."""
+    out = place_all(model, o, faces)
+    return out[0] if out else []
+
+
+def place_all(model, o, faces=True):
+    """Every outline an opening cuts (a window's four panes), in its piece's
+    pattern."""
+    out = []
+    for poly in shapes(o["shape"], o["x"], o["y"], o["width"], o["height"]):
+        poly = _place_one(model, o, _turned(o, poly), faces)
+        if len(poly) >= 3:
+            out.append(poly)
+    return out
+
+
+def _place_one(model, o, poly, faces):
     poly, clip = _on_face(model, o, poly, faces)
     if clip is not None:
         c = clip if poly_area(clip) > 0 else clip[::-1]
-        folds = _fold_edges(model, o["face"], c) if o.get("across") else set()
+        corner = o["shape"] == "CORNER"
+        folds = _fold_edges(model, o["face"], c) if (o.get("across") or corner) else set()
         for i in range(len(c)):
             p0, p1 = c[i], c[(i + 1) % len(c)]
-            if i in folds:
+            if corner and i not in folds:
+                continue  # (a corner cut runs off the paper's own edges)
+            if i in folds and not corner:
                 continue  # (it carries on across the fold, onto the next face)
             n = (-(p1[1] - p0[1]), p1[0] - p0[0])  # inward on a CCW outline
             L = math.hypot(*n)

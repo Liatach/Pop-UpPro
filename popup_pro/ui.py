@@ -30,6 +30,8 @@ def draw_export(layout, st):
     sub.prop(st, "line_width")
     if st.export_content != "ART_CUT":
         sub.prop(st, "dashed_folds")
+    if st.export_content in ("CREASE", "LINES"):
+        col.prop(st, "export_glue_lines")
     if art:
         col.separator()
         col.prop(st, "tab_fill")
@@ -1514,6 +1516,9 @@ def _draw_openings(lay, context, st):
                           icon="INFO")
             if o.shape == "OVAL":
                 col.label(text="An oval door is cut as a rectangle", icon="INFO")
+            if o.shape in ("TRI", "WINDOW", "CORNER"):
+                col.label(text="Only rectangles, arches and ovals make doors: this one's "
+                          "cut as a hole", icon="INFO")
         else:
             col.prop(o, "through")
         if o.through == "NEXT" and (st.stage_master is None or

@@ -24,7 +24,7 @@ from mathutils import Vector, geometry
 from .core.geom import clip_halfplane, poly_area
 
 from .core.openings import (SEG, face_frame, opening_dict, place as _place,  # noqa: F401
-                            shape)
+                            place_all as _place_all, shape)
 
 
 # ------------------------------------------------------------- sources
@@ -81,22 +81,21 @@ def _openings(scene, model, st, own=True):
     out = []
     done = getattr(model, "doors_done", set())
     for i, o in enumerate(st.openings):
-        if own and o.cut == "DOOR" and i in done:
+        door = o.cut == "DOOR" and o.shape in ("RECT", "ARCH", "OVAL")
+        if own and door and i in done:
             continue  # cut and hinged by the model
-        if not own and o.cut == "DOOR":
+        if not own and door:
             continue
         piece = _target(model, o) if own else "Card"
         if own and piece is None:
             continue
-        poly = place(model, o, faces=own)
-        if len(poly) < 3:
-            continue
-        if own:
-            out.append((piece, poly))
-            if o.through == "BEHIND":
-                out += _behind(model, piece, poly)
-        if o.through == "NEXT" and _target(model, o) == "Card":
-            out.append(("__next__" if o.x > 0 else "__prev__", poly))
+        for poly in _place_all(model, opening_dict(o), faces=own):
+            if own:
+                out.append((piece, poly))
+                if o.through == "BEHIND":
+                    out += _behind(model, piece, poly)
+            if o.through == "NEXT" and _target(model, o) == "Card":
+                out.append(("__next__" if o.x > 0 else "__prev__", poly))
     return out
 
 
