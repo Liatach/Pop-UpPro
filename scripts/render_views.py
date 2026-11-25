@@ -291,7 +291,7 @@ def slot_open():
 
 
 def vfold_arches():
-    for y, how in ((20.0, "STRAIGHT"), (70.0, "ROUND"), (120.0, "SQUARE"), (170.0, "POINTED")):
+    for y, how in ((20.0, "BOX"), (70.0, "ROUND"), (120.0, "SQUARE"), (170.0, "POINTED")):
         v = add("VFOLD")
         v.y, v.height, v.glue_from, v.arch, v.arch_shape = y, 40.0, 15.0, 22.0, how
     return (0, 105, 20), 330, (0.1, -0.5, 1.0), (178.0, 120.0, 70.0)

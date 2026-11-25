@@ -3,6 +3,14 @@
 Newest first. `python scripts/since_upload.py` shows what has changed since the
 last upload to GitHub.
 
+* **0.96.1**: a **V-fold** glued away from the spine with a curved or square
+  cut between its tabs no longer has a fan of long thin triangles from one
+  corner (they posed and unwrapped badly): each half is now even triangles
+  (no creases printed between them). **Cut Shape** gains a true **Square**
+  (straight up from the tab starts, then straight across); the old Square,
+  which had rounded corners, is now called **Rounded Square** (files that
+  used it look the same). Tooltips describe each part rather than citing
+  book pages.
 * **0.96.0**: more **opening** shapes: **Triangle** (point up; Turn
   points it another way), **Window Panes** (four panes two by two with a
   bar between, 12% of the smaller side, 1.5 to 6 mm) and **Round Corner** (an

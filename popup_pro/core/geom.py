@@ -126,3 +126,75 @@ def scaled(m, s):
     for i in range(3):
         r[i][3] *= s
     return r
+
+
+def quality_tris(poly, h=None):
+    """Well-shaped triangles (anticlockwise) covering a simple polygon, convex
+    or not: a constrained Delaunay triangulation with a grid of points inside
+    about h apart, so no long thin slivers fanning from one corner (they bend
+    badly when posed and unwrap badly)."""
+    from mathutils import geometry
+    poly = ccw([tuple(q) for q in poly])
+    n = len(poly)
+    if n < 3:
+        return []
+    area = abs(poly_area(poly))
+    if h is None:
+        h = max(3.0, math.sqrt(area) / 5.0)
+    xs = [q[0] for q in poly]
+    ys = [q[1] for q in poly]
+
+    def inside(p):
+        c = False
+        for i in range(n):
+            a, b = poly[i], poly[(i + 1) % n]
+            if (a[1] > p[1]) != (b[1] > p[1]):
+                x = a[0] + (p[1] - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
+                if p[0] < x:
+                    c = not c
+        return c
+
+    def dist(p):
+        best = 1e18
+        for i in range(n):
+            a, b = Vector(poly[i]), Vector(poly[(i + 1) % n])
+            ab = b - a
+            t = max(0.0, min(1.0, (Vector(p) - a).dot(ab) / max(ab.length_squared, 1e-12)))
+            best = min(best, (Vector(p) - (a + t * ab)).length)
+        return best
+
+    verts = [Vector(q) for q in poly]
+    # (the edges split to about h too, so the boundary's triangles match)
+    edges = []
+    loop = []
+    for i in range(n):
+        a, b = Vector(poly[i]), Vector(poly[(i + 1) % n])
+        k = max(1, int(round((b - a).length / h)))
+        for j in range(k):
+            loop.append(a.lerp(b, j / k))
+    verts = loop[:]
+    for i in range(len(loop)):
+        edges.append((i, (i + 1) % len(loop)))
+    y = min(ys) + 0.5 * h
+    row = 0
+    while y < max(ys):
+        x = min(xs) + (0.5 + 0.5 * (row % 2)) * h
+        while x < max(xs):
+            if inside((x, y)) and dist((x, y)) > 0.45 * h:
+                verts.append(Vector((x, y)))
+            x += h
+        y += h * 0.866
+        row += 1
+    try:
+        vs, _, fs, *_ = geometry.delaunay_2d_cdt(verts, edges, [], 0, 1e-6)
+    except Exception:
+        return [poly]
+    out = []
+    for f in fs:
+        pts = [tuple(vs[i]) for i in f]
+        if abs(poly_area(pts)) < 1e-6:
+            continue
+        c = (sum(p[0] for p in pts) / 3.0, sum(p[1] for p in pts) / 3.0)
+        if inside(c):
+            out.append(ccw(pts))
+    return out or [poly]

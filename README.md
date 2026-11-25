@@ -263,12 +263,12 @@ Sunflower is a good way to make them.
 
 ## Version history
 
+* **0.96.1**: V-fold arch cuts in even triangles (no long slivers), a true
+  Square arch (the old one is Rounded Square), plainer tooltips.
 * **0.96**: triangle, window-pane and round-corner openings; line exports
   can outline where the tabs glue.
 * **0.95.1**: a slotted piece stays in its slot open flat (it slipped under
   its face).
-* **0.95**: slotted pieces: a piece glued on a page jutting out through a
-  slot in a face of any mechanism (a box fold's front, a V-fold's half).
 
 Earlier versions are in the [changelog](CHANGELOG.md).
 

@@ -389,7 +389,7 @@ def _as_disc(st, m, wheels):
 
 
 def _as_pair(st, m):
-    """Birmingham 53: two pieces glued back to back on two parallel strips."""
+    """Two pieces glued back to back on two parallel strips."""
     was = st.live
     st["live"] = False
     m.pair = True
@@ -400,7 +400,7 @@ def _as_pair(st, m):
 
 
 def _as_face(st, m):
-    """Birmingham 17's animal face: a taller loop with a muzzle."""
+    """An animal face: a taller loop with a muzzle."""
     was = st.live
     st["live"] = False
     m.height, m.muzzle = 35.0, True
@@ -440,7 +440,7 @@ def split_crosses(st, r):
 
 
 def _as_house(st, m):
-    """Birmingham 49's pop-up house, at the book's suggested sizes."""
+    """A pop-up house with a gabled roof."""
     was = st.live
     st["live"] = False
     # walls 65 x 45 and 35 high, gable tops 55 above the base; the roof 75
@@ -2105,15 +2105,14 @@ class POPUP_OT_keep_holes(bpy.types.Operator):
 LINE_PRESETS = [
     ("NONE", "Line", "A plain line to set by numbers"),
     ("REVERSE", "Reverse Point", "Two creases and a cut: a point folding forward out of "
-     "the V (Birmingham 5, angles A)"),
-    ("STEP", "Step", "Creases parallel to the centre fold and a cut: a stepped top "
-     "(Birmingham 5, lengths B)"),
+     "the V"),
+    ("STEP", "Step", "Creases parallel to the centre fold and a cut: a stepped top"),
     ("TOP", "Folded Top", "Two creases from the centre fold to the top edge: the top "
-     "folds back (Birmingham 5, angles C)"),
+     "folds back"),
     ("JAW", "Jaw", "Creases from the centre fold out to the sides, the centre fold "
-     "turning from mountain to valley: a chomping jaw (Birmingham 9 and 10)"),
+     "turning from mountain to valley: a chomping jaw"),
     ("PROJECTION", "Projection", "A cut starting and ending on the centre fold, on one "
-     "half only: the shape juts out flat past the fold (Birmingham 6)"),
+     "half only: the shape juts out flat past the fold"),
     ("FAN", "Fan Pleats", "Three creases fanning out from the V point each side: with "
      "Concertina they pleat like a folding fan"),
     ("PLEATS", "Concertina Pleats", "Three creases beside the centre fold each side, "
@@ -2122,7 +2121,7 @@ LINE_PRESETS = [
 BOX_PRESETS = [
     ("NONE", "Line", "A plain line to set by numbers"),
     ("BATTLEMENTS", "Battlements", "Notches cut along the front's top fold: the "
-     "merlons stand up above the top (Birmingham 37, the castle)"),
+     "merlons stand up above the top"),
     ("TOWER", "Pointed Tower", "A pointed shape cut into the top from the front's top "
      "fold: it stands up above the box like a spire"),
     ("INSET", "Inset Step", "Two creases and two cuts across the front-top fold: that "

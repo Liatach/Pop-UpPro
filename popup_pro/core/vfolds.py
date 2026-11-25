@@ -5,7 +5,7 @@ import math
 
 from mathutils import Matrix, Vector
 
-from .base import (halfplanes, Hinge, Host, Panel, Piece, poly_area, split_convex, T_MIN,
+from .base import (halfplanes, Hinge, Host, Panel, Piece, poly_area, T_MIN,
                    TAB_LIFT, unit2)
 from .geom import Z, ccw, clean, clip_halfplane, frame, hinge_frame_2d, v3
 
@@ -421,7 +421,10 @@ class VFolds:
         e_c, e_g = Vector((0.0, ah)), Vector((c0 * up[0], c0 * up[1]))
         pts = []
         N = 16
-        for i in range(N + 1):
+        if how == "BOX":
+            # (square: straight up from the tab start, then straight across)
+            pts = [A, A + e_c, B]
+        for i in range(N + 1 if how != "BOX" else 0):
             s_ = 0.5 * math.pi * i / N
             if how == "POINTED":
                 # a gothic arch: rising from the tab start, curving in to a
@@ -430,17 +433,43 @@ class VFolds:
                 K = A + 0.75 * e_c
                 p = (1 - u_) ** 2 * A + 2 * (1 - u_) * u_ * K + u_ * u_ * B
             else:
-                k = 1.0 if how == "ROUND" else 0.2  # SQUARE
+                k = 1.0 if how == "ROUND" else 0.2  # SQUARE: a rounded square
                 c, sn = max(0.0, math.cos(s_)), max(0.0, math.sin(s_))
                 p = e_g * (c ** k) + e_c * (sn ** k)
             pts.append(p)
-        region = [(0.0, 0.0)] + [q[:] for q in pts]
-        region = clean(ccw(region))
-        if len(region) < 3:
+        # the half with its corner at the V point swapped for the arch, then
+        # cut into even triangles (not a fan of slivers from one corner)
+        h0 = [Vector(q) for q in half]
+        i0 = min(range(len(h0)), key=lambda i: h0[i].length)
+        if h0[i0].length > 1e-4:
             return [half]
-        outs, _ = split_convex(half, halfplanes(region))
-        outs = [clean(q) for q in outs if len(q) >= 3 and abs(poly_area(q)) > 0.5]
-        return [q for q in outs if len(q) >= 3] or [half]
+        # (the arch resampled evenly, about as fine as the triangles: a long
+        # thin one where short arch steps meet a coarse grid otherwise)
+        hq = max(3.0, math.sqrt(abs(poly_area(half))) / 6.0)
+        if how != "BOX":
+            cum = [0.0]
+            for a_, b_ in zip(pts, pts[1:]):
+                cum.append(cum[-1] + (b_ - a_).length)
+            m_ = max(6, int(round(cum[-1] / (0.8 * hq))))
+            res = []
+            j = 0
+            for k in range(m_ + 1):
+                d_ = cum[-1] * k / m_
+                while j < len(cum) - 2 and cum[j + 1] < d_:
+                    j += 1
+                seg = max(cum[j + 1] - cum[j], 1e-9)
+                res.append(pts[j].lerp(pts[j + 1], (d_ - cum[j]) / seg))
+            pts = res
+        prv = h0[i0 - 1]
+        # (from the corner before it round to the one after: the arch from
+        # its crease end when the one before is up the crease)
+        arc = list(reversed(pts)) if abs(prv.x) < 1e-4 else list(pts)
+        ring = h0[:i0] + arc + h0[i0 + 1:]
+        ring = clean([q[:] for q in ring])
+        if len(ring) < 3 or abs(poly_area(ring)) < 1.0:
+            return [half]
+        from .geom import quality_tris
+        return quality_tris(ring, hq)
 
     @staticmethod
     def _hull(pts):

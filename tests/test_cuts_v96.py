@@ -126,4 +126,30 @@ for content in ("LINES", "CREASE", "CUT"):
     text = "".join(open(f_).read() for f_ in glob.glob(os.path.splitext(svg)[0] + "*.svg"))
     assert 'stroke="#0000ff"' not in text
 print("glue areas outlined in line files when asked")
+# a V-fold glued away from the spine, its arch cut away: the half in even
+# triangles (no fan of long slivers from one corner); Square really square
+import math  # noqa: E402
+while len(st.openings):
+    st.openings.remove(0)
+for how in ("ROUND", "SQUARE", "BOX", "POINTED"):
+    reset()
+    v = add("VFOLD")
+    v.y, v.height, v.glue_from, v.arch, v.arch_shape = 60.0, 50.0, 15.0, 22.0, how
+    bpy.ops.popup.build()
+    assert not warns(), (how, warns())
+    M = model()
+    P_ = M.panels[f"VFold{v.uid}.HalfL"]
+    assert len(P_.polys) > 10
+    for t in P_.polys:
+        assert len(t) == 3
+        for i in range(3):
+            p_, q_, r_ = (v3(t[(i + k) % 3]) for k in range(3))
+            assert math.degrees((q_ - p_).angle(r_ - p_)) > 20.0, (how, t)
+    if how == "BOX":
+        # (a corner of the cut, square: straight up from the tab start then across)
+        pts = {(round(q[0], 2), round(q[1], 2)) for t in P_.polys for q in t}
+        assert any(abs(x - x2) < 0.05 and abs(y2 - y - 22.0) < 0.05 and abs(x) > 5
+                   for x, y in pts for x2, y2 in pts), sorted(pts)[:8]
+    export_svg.export(sc, svg)
+print("V-fold arch cuts: even triangles")
 print("V96 OK")

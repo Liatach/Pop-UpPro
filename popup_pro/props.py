@@ -91,50 +91,50 @@ KINDS = [
     ("CEILING", "Ceiling", "Stage ceiling along the top edges of the pages", "TRIA_UP_BAR",
      11),
     ("STAGE", "Stage Set", "A stage standing in the card as a V-fold, with frames and a "
-     "ceiling inside it (Birmingham 118)", "IMAGE_BACKGROUND", 12),
+     "ceiling inside it", "IMAGE_BACKGROUND", 12),
     ("STANDUP", "Stand-up", "A picture held up off the background by a small bridge, or "
-     "flat on a leg (parallelogram stand-up, Birmingham 38)", "OUTLINER_OB_IMAGE", 13),
+     "flat on a leg (a parallelogram stand-up)", "OUTLINER_OB_IMAGE", 13),
     ("ROOF", "Roof", "A peaked roof: the background is cut to a gable and a V-fold glued "
      "along its eaves rises to a ridge, level when the card or stage is fully open",
      "HOME", 14),
     ("PLATFORM", "Platform (45°)", "A raised platform on two legs glued either side of "
-     "the fold, its top folding in a valley above the fold, propped square by 45° folds "
-     "(Birmingham 80); it can stand off the centre", "MOD_SOLIDIFY", 15),
+     "the fold, its top folding in a valley above the fold, propped square by 45° folds; "
+     "it can stand off the centre", "MOD_SOLIDIFY", 15),
     ("RISER", "Rising Sheet (45°)", "A single sheet rising from the fold, held up half way "
-     "between the pages by a 45° fold on each face (Birmingham 81)", "OUTLINER_OB_FORCE_FIELD",
+     "between the pages by a 45° fold on each face", "OUTLINER_OB_FORCE_FIELD",
      16),
     ("DOUBLE45", "Double 45° Fold", "Two arms rising from one point on the fold, one up the "
-     "card and one down it, while the top piece joining their tips twists round "
-     "(Birmingham 77)", "ORIENTATION_GIMBAL", 17),
+     "card and one down it, while the top piece joining their tips twists round",
+     "ORIENTATION_GIMBAL", 17),
     ("JACK", "Jack in the Box", "A figure on two pairs of 45° folds cut into a V-fold's "
      "crease, the V-fold its body: the chest leans back into the V as the card closes, "
-     "the arms swing forward round it and the head rises (Birmingham 79)",
+     "the arms swing forward round it and the head rises",
      "OUTLINER_OB_ARMATURE", 18),
     ("PICTURE", "Paste-on", "A piece of card glued flat on any face: a box's top or front "
      "(a stand-up), a V-fold half, a 45° triangle, a page. It can reach past the face's "
      "edges", "IMAGE_DATA", 19),
     ("ZIGZAG", "Zig-zag Fold", "A strip of walls glued only by its two end walls along "
      "sticking strips set at an angle to the spine, every crease square to its bottom edge: "
-     "the walls between zig-zag forward or back to a centre crease (Birmingham 45-48)",
+     "the walls between zig-zag forward or back to a centre crease",
      "MOD_SCREW", 20),
     ("QUADS", "Multiple Quadrilaterals", "A back zig-zag on angled sticking strips with a "
      "front strip across the spine, joined each side by a side piece into a quadrilateral "
-     "that folds flat (Birmingham 57)", "MOD_LATTICE", 21),
+     "that folds flat", "MOD_LATTICE", 21),
     ("BOXEND", "Box with Ends", "A box glued to one page, one wall rising from the fold, "
-     "pulled up by a 45° fold from the other page; pairs of 45° folds fill in its ends "
-     "(Birmingham 82)", "MESH_CUBE", 22),
+     "pulled up by a 45° fold from the other page; pairs of 45° folds fill in its ends",
+     "MESH_CUBE", 22),
     ("ARMS", "Flapping Arms", "Arms jutting out through slots in a V-fold's halves (or a "
      "box fold's front), glued to a back piece hanging behind it: they swing as the "
-     "card opens (Birmingham 65-66)", "MOD_ARMATURE", 24),
+     "card opens", "MOD_ARMATURE", 24),
     ("CROSS", "Slotted Cross Piece", "A piece standing square across a rising sheet, "
-     "slotted into it, held by a 45° fold onto one page or both (Birmingham 81)",
+     "slotted into it, held by a 45° fold onto one page or both",
      "SNAP_PERPENDICULAR", 23),
     ("SWING", "Arm Behind a Mask", "A picture swinging round in its own plane, pivoted on "
-     "a small creased hinge hidden behind a mask layer, as the card opens (Birmingham 75)",
+     "a small creased hinge hidden behind a mask layer, as the card opens",
      "DRIVER_ROTATIONAL_DIFFERENCE", 25),
     ("SLOT", "Slotted Piece", "A piece glued down on a page by a strip along the spine, "
      "jutting out through a slot cut in a face of another mechanism: the slot rides along "
-     "it as the card opens and closes (Birmingham 59-60)", "SNAP_EDGE", 27),
+     "it as the card opens and closes", "SNAP_EDGE", 27),
     ("HEAD", "Animal Face", "A mirrored low-poly face on the fold, glued down by its ears, "
      "facet for facet a hand-made koala's: it stands up as the card opens and crushes flat "
      "as it closes",
@@ -1139,7 +1139,7 @@ class PopupMech(bpy.types.PropertyGroup):
     fold: EnumProperty(name="Fold", items=FOLDS, update=_fold_changed,
                        description="Which fold of the host box")
     # V-fold
-    bite: BoolProperty(name="Bite", description="Birmingham 13-14: a wedge cut out of the "
+    bite: BoolProperty(name="Bite", description="A wedge cut out of the "
                        "far end of the centre crease, its edges stuck together by a tab, "
                        "sculpts the V-fold's end into a beak. Each side's end is a facet "
                        "creased off its half, from the bite's point to the half's far "
@@ -1168,10 +1168,10 @@ class PopupMech(bpy.types.PropertyGroup):
          "half a triangle to the crease's end"),
         ("FAN", "Fan", "A pleated fan glued along its two end edges: more paper than the "
          "gap it spans (Spread), folding flat pleat on pleat as the card shuts"),
-        ("ZIGZAG", "Zig-zag", "Birmingham 45-48: square creases instead of a V. The glue "
+        ("ZIGZAG", "Zig-zag", "Square creases instead of a V. The glue "
          "lines' walls stand up off the page and faces zig-zag in to a centre crease: one "
          "face each side juts like a V, more make a concertina"),
-        ("M", "M-fold", "Birmingham 28-29: the V-fold's halves go on past a crease (H) into "
+        ("M", "M-fold", "The V-fold's halves go on past a crease into "
          "an outer panel each side. Only the outer panels are glued down; the halves "
          "between them ride up on their creases. The centre crease takes other "
          "mechanisms like any V-fold's")],
@@ -1263,7 +1263,7 @@ class PopupMech(bpy.types.PropertyGroup):
         description="The 45° folds that prop the legs square when the card is flat")
     muzzle: BoolProperty(name="Animal Face", description="Loop or tube: the top edge "
                          "carries on up past the front crease as a muzzle, folded back "
-                         "over the loop by a dart (Birmingham 17)", default=False,
+                         "over the loop by a dart", default=False,
                          update=_changed)
     face_ear: FloatProperty(name="Ear Size", description="Animal face: its base tabs are "
                             "ears, glued to the pages out from the loop; how far they "
@@ -1320,8 +1320,7 @@ class PopupMech(bpy.types.PropertyGroup):
                             "reaches out across its page (cut its shape as you like; 0: none)")
     pair: BoolProperty(name="Back-to-Back Pair", default=False, update=_changed,
                        description="Two pieces of card glued back to back, each glued down "
-                       "by a tab on a strip and bending up into the joined top "
-                       "(Birmingham 53)")
+                       "by a tab on a strip and bending up into the joined top")
     pair_bend: FloatProperty(name="Leg Length", default=30.0, min=2.0, soft_max=150.0,
                              update=_changed, description="Back-to-back pair: how long each "
                              "piece's leg is from its tab up to where the pieces are glued "
@@ -1329,7 +1328,7 @@ class PopupMech(bpy.types.PropertyGroup):
                              "the strip distance)")
     face_brow: FloatProperty(name="Forehead Join", description="Animal face: how far up "
                              "the centre crease from the forehead's edge its two sides are "
-                             "joined, a bite stuck closed by a tab (Birmingham's M under N); "
+                             "joined, a bite stuck closed by a tab; "
                              "0 leaves it an open arch", min=0.0, soft_max=40.0, default=8.0,
                              get=_face_brow_get, set=_face_brow_set, update=_changed)
     face_nose: FloatProperty(name="Nose Crease", description="Animal face: the centre "
@@ -1381,7 +1380,7 @@ class PopupMech(bpy.types.PropertyGroup):
     slotted: BoolProperty(name="Slotted Cross Piece", description="Rising sheet: the two "
                           "45° folds are one piece standing square across the sheet, "
                           "slotted into it (2 mm slots) and free to rise above the "
-                          "folds: Birmingham 81's flowers", default=False, update=_changed)
+                          "folds: flowers on stems", default=False, update=_changed)
     cross_height: FloatProperty(name="Cross Piece Height", description="How far the slotted "
                                 "cross piece rises from the fold, in mm (0: one and a half "
                                 "times the sheet)", default=0.0, min=0.0, soft_max=200.0,
@@ -1528,8 +1527,8 @@ class PopupMech(bpy.types.PropertyGroup):
     front_style: EnumProperty(name="Front", items=[
         ("OUT", "Pointed Out", "The front crease points forward (hexagon)"),
         ("IN", "Pointed In", "The front crease points into the tube (recessed)"),
-        ("ROUND", "Round", "The front curves round from the side walls (cylinder, "
-         "Birmingham 68); tubes only")],
+        ("ROUND", "Round", "The front curves round from the side walls (a "
+         "cylinder); tubes only")],
         update=_round_changed)
     back_style: EnumProperty(name="Back", items=[
         ("OUT", "Pointed Out", "The back crease points backward (hexagon)"),
@@ -1609,7 +1608,7 @@ class PopupMech(bpy.types.PropertyGroup):
         ("FLAT", "Flat", "Flat roof creased down the middle above the fold, optionally "
          "overhanging the walls"),
         ("GABLE", "Gabled", "Towers and cubes: gable ends on two faces, a rib between their tips and "
-         "a roof stuck only to the rib, overhanging the walls (Birmingham 49)")],
+         "a roof stuck only to the rib, overhanging the walls")],
         update=_changed)
     gable_turn: BoolProperty(name="Turn Roof", description="Gabled tower roof: put the "
                              "gables on the other pair of faces, so the ridge runs the "
@@ -1718,7 +1717,7 @@ class PopupMech(bpy.types.PropertyGroup):
         ("BOTH", "Both", "A pair at each end")],
         description="Two small triangles cut into the corner where the box's top meets its "
         "front, at its top or bottom edge, on a 45° fold: as the card closes they swing "
-        "up out of the box. Stick moving pictures on them (Birmingham 74)")
+        "up out of the box. Stick moving pictures on them")
     tri_angle: FloatProperty(name="Triangle Angle (E)", default=45.0, min=20.0, max=70.0,
                              update=_changed, description="The angle between each "
                              "triangle's fold and the box's corner crease, in degrees. A "
@@ -1781,8 +1780,8 @@ class PopupMech(bpy.types.PropertyGroup):
                          "fold; one end sits further up the card than the other, so what "
                          "stands on its folds is offset diagonally")
     glue_from: FloatProperty(name="Glued From", default=0.0, min=0.0, soft_max=100.0,
-                             update=_changed, description="Glued away from the spine "
-                             "(Birmingham 18): the glue lines still meet at the fold, but "
+                             update=_changed, description="Glued away from the spine: "
+                             "the glue lines still meet at the fold, but "
                              "the tabs start this far out along them (mm), and the piece is "
                              "cut away in an arch between them. 0: glued right up to the "
                              "fold")
@@ -1799,32 +1798,34 @@ class PopupMech(bpy.types.PropertyGroup):
     arch_shape: EnumProperty(name="Cut Shape", items=[
         ("STRAIGHT", "Straight", "A straight cut from each tab start to the top of the arch"),
         ("ROUND", "Round", "A rounded arch"),
-        ("SQUARE", "Square", "Nearly square: up from the tab starts, then across"),
+        ("BOX", "Square", "Square: straight up from the tab starts, then straight across"),
+        ("SQUARE", "Rounded Square", "A square with rounded corners: up from the tab "
+         "starts, round, then across"),
         ("POINTED", "Pointed", "A pointed (gothic) arch, curving in to a peak")],
         default="STRAIGHT", update=_changed,
         description="The shape cut away between the tabs")
     on_top: BoolProperty(name="On Top", default=False, update=_changed,
-                         description="Birmingham 21-22: stuck on top of the V-fold it "
+                         description="Stuck on top of the V-fold it "
                          "stands on. That one's top is cut to a point along the glue lines "
-                         "and its own tabs (A) stick under this piece")
+                         "and its own tabs stick under this piece")
     top_angle: FloatProperty(name="Point Angle", default=60.0, min=5.0, max=175.0,
                              update=_changed, description="On Top: the angle between the "
                              "lifting piece's crease (pointing down) and each side of its "
-                             "top (Birmingham's B). Under 90 the top is a point (21); over 90 "
-                             "it's a V, the sides rising from the crease (22)")
+                             "top. Under 90 the top is a point; over 90 "
+                             "it's a V, the sides rising from the crease")
     top_angle_r: FloatProperty(name="Point Angle R", default=60.0, min=5.0, max=175.0,
                                update=_changed, description="On Top, asymmetric: the right "
                                "side of the point")
     top_piece: FloatProperty(name="Top Piece Angle", default=80.0, min=5.0, max=175.0,
                              update=_changed, description="On Top: on the top piece, the "
                              "angle between its crease (pointing down, past where it meets "
-                             "the lifting piece) and where tab A sticks (Birmingham's C). "
+                             "the lifting piece) and where its tab sticks. "
                              "Larger than the point angle; nearer it, the top piece stands "
                              "up; larger, it lies flatter")
     top_below: FloatProperty(name="Below the Join", default=0.0, min=0.0, soft_max=150.0,
                              update=_changed, description="On Top: how far the top piece "
                              "carries on below where it meets the lifting piece, down its "
-                             "crease (Birmingham's D: a nose, a tail, a body)")
+                             "crease (a nose, a tail, a body)")
     top_piece_r: FloatProperty(name="Top Piece Angle R", default=80.0, min=5.0, max=175.0,
                                update=_changed, description="On Top, asymmetric: the "
                                "right side")

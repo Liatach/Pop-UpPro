@@ -862,8 +862,11 @@ the piece can sit over things glued close to the fold.
 
 * **Arch Height**: how far up the centre crease the cut reaches (0 lets it
   follow the larger Glued From).
-* **Cut Shape**: Straight, Round, Square (up from the tab starts, then across)
-  or Pointed (a gothic arch).
+* **Cut Shape**: Straight, Round, Square (straight up from the tab starts,
+  then straight across), Rounded Square (the same with rounded corners) or
+  Pointed (a gothic arch). A curved or square cut leaves each half in even
+  triangles (no creases printed between them), so it bends and unwraps
+  cleanly.
 * Fans and M-folds take **Glued From** too: a fan's hub is cut away, an
   M-fold's outer tabs start further out.
 * **Uneven Sides**: each side its own **Glue Length** and **Glued From**
